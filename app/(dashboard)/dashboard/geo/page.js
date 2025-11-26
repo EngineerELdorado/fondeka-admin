@@ -3,19 +3,19 @@
 import Link from 'next/link';
 
 const sections = [
-  { href: '/dashboard/accounts/accounts', title: 'Accounts', blurb: 'Search and review accounts, run AML check.' },
-  { href: '/dashboard/accounts/balances', title: 'Account Balances', blurb: 'Manage balances per account.' },
-  { href: '/dashboard/accounts/balance-activities', title: 'Balance Activities', blurb: 'Track balance changes (deposit/withdrawal).' },
-  { href: '/dashboard/accounts/transfers', title: 'Account Transfers', blurb: 'Transfers between accounts with transaction IDs.' },
-  { href: '/dashboard/crud?domain=accounts', title: 'Explorer', blurb: 'Access all account endpoints if needed.' }
+  { href: '/dashboard/geo/countries', title: 'Countries', blurb: 'Manage country codes and names.' },
+  { href: '/dashboard/geo/provinces', title: 'Provinces', blurb: 'Provinces by country.' },
+  { href: '/dashboard/geo/territories', title: 'Territories', blurb: 'Territories by province.' },
+  { href: '/dashboard/geo/municipalities', title: 'Municipalities', blurb: 'Municipalities by territory.' },
+  { href: '/dashboard/crud?domain=geo', title: 'Explorer', blurb: 'Access all geo endpoints if needed.' }
 ];
 
-export default function AccountsHubPage() {
+export default function GeoHubPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-        <div style={{ fontSize: '20px', fontWeight: 800 }}>Accounts</div>
-        <div style={{ color: 'var(--muted)' }}>Pick an accounts area to manage with focused UIs.</div>
+        <div style={{ fontSize: '20px', fontWeight: 800 }}>Geo</div>
+        <div style={{ color: 'var(--muted)' }}>Manage geographic hierarchy for countries, provinces, territories, and municipalities.</div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
         {sections.map((item) => (

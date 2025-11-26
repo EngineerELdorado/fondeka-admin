@@ -5,13 +5,14 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
-const emptyState = { firstName: '', lastName: '', email: '', role: '' };
+const emptyState = { internalReference: '', externalReference: '', accountId: '', verified: false, metaData: '' };
 
 const toPayload = (state) => ({
-  firstName: state.firstName,
-  lastName: state.lastName,
-  email: state.email,
-  role: state.role
+  internalReference: state.internalReference,
+  externalReference: state.externalReference || null,
+  accountId: Number(state.accountId) || 0,
+  verified: Boolean(state.verified),
+  metaData: state.metaData || null
 });
 
 const Modal = ({ title, onClose, children }) => (
@@ -37,7 +38,7 @@ const DetailGrid = ({ rows }) => (
   </div>
 );
 
-export default function AdminsPage() {
+export default function CardHoldersPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
@@ -58,7 +59,7 @@ export default function AdminsPage() {
       const params = new URLSearchParams();
       params.set('page', String(page));
       params.set('size', String(size));
-      const res = await api.admins.list(params);
+      const res = await api.cardHolders.list(params);
       const list = Array.isArray(res) ? res : res?.content || [];
       setRows(list || []);
     } catch (err) {
@@ -74,10 +75,9 @@ export default function AdminsPage() {
 
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
-    { key: 'firstName', label: 'First name' },
-    { key: 'lastName', label: 'Last name' },
-    { key: 'email', label: 'Email' },
-    { key: 'role', label: 'Role' },
+    { key: 'internalReference', label: 'Internal ref' },
+    { key: 'accountId', label: 'Account ID' },
+    { key: 'verified', label: 'Verified' },
     {
       key: 'actions',
       label: 'Actions',
@@ -101,10 +101,11 @@ export default function AdminsPage() {
   const openEdit = (row) => {
     setSelected(row);
     setDraft({
-      firstName: row.firstName ?? '',
-      lastName: row.lastName ?? '',
-      email: row.email ?? '',
-      role: row.role ?? ''
+      internalReference: row.internalReference ?? '',
+      externalReference: row.externalReference ?? '',
+      accountId: row.accountId ?? '',
+      verified: Boolean(row.verified),
+      metaData: row.metaData ?? ''
     });
     setShowEdit(true);
     setInfo(null);
@@ -122,8 +123,8 @@ export default function AdminsPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.admins.create(toPayload(draft));
-      setInfo('Created admin.');
+      await api.cardHolders.create(toPayload(draft));
+      setInfo('Created card holder.');
       setShowCreate(false);
       fetchRows();
     } catch (err) {
@@ -136,8 +137,8 @@ export default function AdminsPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.admins.update(selected.id, toPayload(draft));
-      setInfo(`Updated admin ${selected.id}.`);
+      await api.cardHolders.update(selected.id, toPayload(draft));
+      setInfo(`Updated card holder ${selected.id}.`);
       setShowEdit(false);
       fetchRows();
     } catch (err) {
@@ -151,8 +152,8 @@ export default function AdminsPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.admins.remove(id);
-      setInfo(`Deleted admin ${id}.`);
+      await api.cardHolders.remove(id);
+      setInfo(`Deleted card holder ${id}.`);
       setConfirmDelete(null);
       fetchRows();
     } catch (err) {
@@ -163,20 +164,24 @@ export default function AdminsPage() {
   const renderForm = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="firstName">First name</label>
-        <input id="firstName" value={draft.firstName} onChange={(e) => setDraft((p) => ({ ...p, firstName: e.target.value }))} />
+        <label htmlFor="internalReference">Internal reference</label>
+        <input id="internalReference" value={draft.internalReference} onChange={(e) => setDraft((p) => ({ ...p, internalReference: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="lastName">Last name</label>
-        <input id="lastName" value={draft.lastName} onChange={(e) => setDraft((p) => ({ ...p, lastName: e.target.value }))} />
+        <label htmlFor="externalReference">External reference</label>
+        <input id="externalReference" value={draft.externalReference} onChange={(e) => setDraft((p) => ({ ...p, externalReference: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="email">Email</label>
-        <input id="email" type="email" value={draft.email} onChange={(e) => setDraft((p) => ({ ...p, email: e.target.value }))} />
+        <label htmlFor="accountId">Account ID</label>
+        <input id="accountId" type="number" value={draft.accountId} onChange={(e) => setDraft((p) => ({ ...p, accountId: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="role">Role</label>
-        <input id="role" value={draft.role} onChange={(e) => setDraft((p) => ({ ...p, role: e.target.value }))} placeholder="SUPER_ADMIN / ADMIN / STAFF" />
+        <label htmlFor="metaData">Metadata</label>
+        <input id="metaData" value={draft.metaData} onChange={(e) => setDraft((p) => ({ ...p, metaData: e.target.value }))} />
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <input id="verified" type="checkbox" checked={draft.verified} onChange={(e) => setDraft((p) => ({ ...p, verified: e.target.checked }))} />
+        <label htmlFor="verified">Verified</label>
       </div>
     </div>
   );
@@ -185,11 +190,11 @@ export default function AdminsPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <div style={{ fontWeight: 800, fontSize: '20px' }}>Admins</div>
-          <div style={{ color: 'var(--muted)' }}>Manage admin users (name, email, role).</div>
+          <div style={{ fontWeight: 800, fontSize: '20px' }}>Card Holders</div>
+          <div style={{ color: 'var(--muted)' }}>Manage card holders tied to accounts.</div>
         </div>
-        <Link href="/dashboard" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
-          ← Dashboard
+        <Link href="/dashboard/cards" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
+          ← Cards hub
         </Link>
       </div>
 
@@ -206,17 +211,17 @@ export default function AdminsPage() {
           {loading ? 'Loading…' : 'Refresh'}
         </button>
         <button type="button" onClick={openCreate} className="btn-success">
-          Add admin
+          Add card holder
         </button>
       </div>
 
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
-      <DataTable columns={columns} rows={rows} emptyLabel="No admins found" />
+      <DataTable columns={columns} rows={rows} emptyLabel="No card holders found" />
 
       {showCreate && (
-        <Modal title="Add admin" onClose={() => setShowCreate(false)}>
+        <Modal title="Add card holder" onClose={() => setShowCreate(false)}>
           {renderForm()}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" onClick={() => setShowCreate(false)} className="btn-neutral">Cancel</button>
@@ -226,7 +231,7 @@ export default function AdminsPage() {
       )}
 
       {showEdit && (
-        <Modal title={`Edit admin ${selected?.id}`} onClose={() => setShowEdit(false)}>
+        <Modal title={`Edit card holder ${selected?.id}`} onClose={() => setShowEdit(false)}>
           {renderForm()}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" onClick={() => setShowEdit(false)} className="btn-neutral">Cancel</button>
@@ -240,10 +245,11 @@ export default function AdminsPage() {
           <DetailGrid
             rows={[
               { label: 'ID', value: selected?.id },
-              { label: 'First name', value: selected?.firstName },
-              { label: 'Last name', value: selected?.lastName },
-              { label: 'Email', value: selected?.email },
-              { label: 'Role', value: selected?.role }
+              { label: 'Internal ref', value: selected?.internalReference },
+              { label: 'External ref', value: selected?.externalReference },
+              { label: 'Account ID', value: selected?.accountId },
+              { label: 'Verified', value: String(selected?.verified) },
+              { label: 'Metadata', value: selected?.metaData }
             ]}
           />
         </Modal>
@@ -252,7 +258,7 @@ export default function AdminsPage() {
       {confirmDelete && (
         <Modal title="Confirm delete" onClose={() => setConfirmDelete(null)}>
           <div style={{ color: 'var(--muted)' }}>
-            Delete admin <strong>{confirmDelete.email || confirmDelete.id}</strong>? This cannot be undone.
+            Delete card holder <strong>{confirmDelete.internalReference || confirmDelete.id}</strong>? This cannot be undone.
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" onClick={() => setConfirmDelete(null)} className="btn-neutral">Cancel</button>
@@ -260,7 +266,6 @@ export default function AdminsPage() {
           </div>
         </Modal>
       )}
-
     </div>
   );
 }

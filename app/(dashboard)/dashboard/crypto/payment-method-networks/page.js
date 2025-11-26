@@ -5,13 +5,13 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
-const emptyState = { firstName: '', lastName: '', email: '', role: '' };
+const emptyState = { paymentMethodId: '', cryptoNetworkId: '', rank: '', active: true };
 
 const toPayload = (state) => ({
-  firstName: state.firstName,
-  lastName: state.lastName,
-  email: state.email,
-  role: state.role
+  paymentMethodId: Number(state.paymentMethodId) || 0,
+  cryptoNetworkId: Number(state.cryptoNetworkId) || 0,
+  rank: state.rank === '' ? null : Number(state.rank),
+  active: Boolean(state.active)
 });
 
 const Modal = ({ title, onClose, children }) => (
@@ -37,7 +37,7 @@ const DetailGrid = ({ rows }) => (
   </div>
 );
 
-export default function AdminsPage() {
+export default function PaymentMethodCryptoNetworksPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
@@ -58,7 +58,7 @@ export default function AdminsPage() {
       const params = new URLSearchParams();
       params.set('page', String(page));
       params.set('size', String(size));
-      const res = await api.admins.list(params);
+      const res = await api.paymentMethodCryptoNetworks.list(params);
       const list = Array.isArray(res) ? res : res?.content || [];
       setRows(list || []);
     } catch (err) {
@@ -72,24 +72,33 @@ export default function AdminsPage() {
     fetchRows();
   }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const columns = useMemo(() => [
-    { key: 'id', label: 'ID' },
-    { key: 'firstName', label: 'First name' },
-    { key: 'lastName', label: 'Last name' },
-    { key: 'email', label: 'Email' },
-    { key: 'role', label: 'Role' },
-    {
-      key: 'actions',
-      label: 'Actions',
-      render: (row) => (
-        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-          <button type="button" onClick={() => openDetail(row)} className="btn-neutral">View</button>
-          <button type="button" onClick={() => openEdit(row)} className="btn-neutral">Edit</button>
-          <button type="button" onClick={() => setConfirmDelete(row)} className="btn-danger">Delete</button>
-        </div>
-      )
-    }
-  ], []);
+  const columns = useMemo(
+    () => [
+      { key: 'id', label: 'ID' },
+      { key: 'paymentMethodId', label: 'Payment method ID' },
+      { key: 'cryptoNetworkId', label: 'Crypto network ID' },
+      { key: 'rank', label: 'Rank' },
+      { key: 'active', label: 'Active' },
+      {
+        key: 'actions',
+        label: 'Actions',
+        render: (row) => (
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+            <button type="button" onClick={() => openDetail(row)} className="btn-neutral">
+              View
+            </button>
+            <button type="button" onClick={() => openEdit(row)} className="btn-neutral">
+              Edit
+            </button>
+            <button type="button" onClick={() => setConfirmDelete(row)} className="btn-danger">
+              Delete
+            </button>
+          </div>
+        )
+      }
+    ],
+    []
+  );
 
   const openCreate = () => {
     setDraft(emptyState);
@@ -101,10 +110,10 @@ export default function AdminsPage() {
   const openEdit = (row) => {
     setSelected(row);
     setDraft({
-      firstName: row.firstName ?? '',
-      lastName: row.lastName ?? '',
-      email: row.email ?? '',
-      role: row.role ?? ''
+      paymentMethodId: row.paymentMethodId ?? '',
+      cryptoNetworkId: row.cryptoNetworkId ?? '',
+      rank: row.rank ?? '',
+      active: Boolean(row.active)
     });
     setShowEdit(true);
     setInfo(null);
@@ -122,8 +131,8 @@ export default function AdminsPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.admins.create(toPayload(draft));
-      setInfo('Created admin.');
+      await api.paymentMethodCryptoNetworks.create(toPayload(draft));
+      setInfo('Created payment method/crypto network mapping.');
       setShowCreate(false);
       fetchRows();
     } catch (err) {
@@ -136,8 +145,8 @@ export default function AdminsPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.admins.update(selected.id, toPayload(draft));
-      setInfo(`Updated admin ${selected.id}.`);
+      await api.paymentMethodCryptoNetworks.update(selected.id, toPayload(draft));
+      setInfo(`Updated mapping ${selected.id}.`);
       setShowEdit(false);
       fetchRows();
     } catch (err) {
@@ -151,8 +160,8 @@ export default function AdminsPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.admins.remove(id);
-      setInfo(`Deleted admin ${id}.`);
+      await api.paymentMethodCryptoNetworks.remove(id);
+      setInfo(`Deleted mapping ${id}.`);
       setConfirmDelete(null);
       fetchRows();
     } catch (err) {
@@ -163,20 +172,20 @@ export default function AdminsPage() {
   const renderForm = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="firstName">First name</label>
-        <input id="firstName" value={draft.firstName} onChange={(e) => setDraft((p) => ({ ...p, firstName: e.target.value }))} />
+        <label htmlFor="paymentMethodId">Payment method ID</label>
+        <input id="paymentMethodId" type="number" value={draft.paymentMethodId} onChange={(e) => setDraft((p) => ({ ...p, paymentMethodId: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="lastName">Last name</label>
-        <input id="lastName" value={draft.lastName} onChange={(e) => setDraft((p) => ({ ...p, lastName: e.target.value }))} />
+        <label htmlFor="cryptoNetworkId">Crypto network ID</label>
+        <input id="cryptoNetworkId" type="number" value={draft.cryptoNetworkId} onChange={(e) => setDraft((p) => ({ ...p, cryptoNetworkId: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="email">Email</label>
-        <input id="email" type="email" value={draft.email} onChange={(e) => setDraft((p) => ({ ...p, email: e.target.value }))} />
+        <label htmlFor="rank">Rank</label>
+        <input id="rank" type="number" value={draft.rank} onChange={(e) => setDraft((p) => ({ ...p, rank: e.target.value }))} />
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="role">Role</label>
-        <input id="role" value={draft.role} onChange={(e) => setDraft((p) => ({ ...p, role: e.target.value }))} placeholder="SUPER_ADMIN / ADMIN / STAFF" />
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <input id="active" type="checkbox" checked={draft.active} onChange={(e) => setDraft((p) => ({ ...p, active: e.target.checked }))} />
+        <label htmlFor="active">Active</label>
       </div>
     </div>
   );
@@ -185,11 +194,11 @@ export default function AdminsPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <div style={{ fontWeight: 800, fontSize: '20px' }}>Admins</div>
-          <div style={{ color: 'var(--muted)' }}>Manage admin users (name, email, role).</div>
+          <div style={{ fontWeight: 800, fontSize: '20px' }}>Payment Method ↔ Crypto Network</div>
+          <div style={{ color: 'var(--muted)' }}>Map payment methods to crypto networks.</div>
         </div>
-        <Link href="/dashboard" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
-          ← Dashboard
+        <Link href="/dashboard/crypto" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
+          ← Crypto hub
         </Link>
       </div>
 
@@ -206,31 +215,47 @@ export default function AdminsPage() {
           {loading ? 'Loading…' : 'Refresh'}
         </button>
         <button type="button" onClick={openCreate} className="btn-success">
-          Add admin
+          Add mapping
         </button>
       </div>
 
-      {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
-      {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
+      {error && (
+        <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>
+          {error}
+        </div>
+      )}
+      {info && (
+        <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>
+          {info}
+        </div>
+      )}
 
-      <DataTable columns={columns} rows={rows} emptyLabel="No admins found" />
+      <DataTable columns={columns} rows={rows} emptyLabel="No mappings found" />
 
       {showCreate && (
-        <Modal title="Add admin" onClose={() => setShowCreate(false)}>
+        <Modal title="Add payment method/crypto network" onClose={() => setShowCreate(false)}>
           {renderForm()}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-            <button type="button" onClick={() => setShowCreate(false)} className="btn-neutral">Cancel</button>
-            <button type="button" onClick={handleCreate} className="btn-success">Create</button>
+            <button type="button" onClick={() => setShowCreate(false)} className="btn-neutral">
+              Cancel
+            </button>
+            <button type="button" onClick={handleCreate} className="btn-success">
+              Create
+            </button>
           </div>
         </Modal>
       )}
 
       {showEdit && (
-        <Modal title={`Edit admin ${selected?.id}`} onClose={() => setShowEdit(false)}>
+        <Modal title={`Edit mapping ${selected?.id}`} onClose={() => setShowEdit(false)}>
           {renderForm()}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-            <button type="button" onClick={() => setShowEdit(false)} className="btn-neutral">Cancel</button>
-            <button type="button" onClick={handleUpdate} className="btn-primary">Save</button>
+            <button type="button" onClick={() => setShowEdit(false)} className="btn-neutral">
+              Cancel
+            </button>
+            <button type="button" onClick={handleUpdate} className="btn-primary">
+              Save
+            </button>
           </div>
         </Modal>
       )}
@@ -240,10 +265,10 @@ export default function AdminsPage() {
           <DetailGrid
             rows={[
               { label: 'ID', value: selected?.id },
-              { label: 'First name', value: selected?.firstName },
-              { label: 'Last name', value: selected?.lastName },
-              { label: 'Email', value: selected?.email },
-              { label: 'Role', value: selected?.role }
+              { label: 'Payment method ID', value: selected?.paymentMethodId },
+              { label: 'Crypto network ID', value: selected?.cryptoNetworkId },
+              { label: 'Rank', value: selected?.rank },
+              { label: 'Active', value: String(selected?.active) }
             ]}
           />
         </Modal>
@@ -252,15 +277,18 @@ export default function AdminsPage() {
       {confirmDelete && (
         <Modal title="Confirm delete" onClose={() => setConfirmDelete(null)}>
           <div style={{ color: 'var(--muted)' }}>
-            Delete admin <strong>{confirmDelete.email || confirmDelete.id}</strong>? This cannot be undone.
+            Delete mapping <strong>{confirmDelete.id}</strong>? This cannot be undone.
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-            <button type="button" onClick={() => setConfirmDelete(null)} className="btn-neutral">Cancel</button>
-            <button type="button" onClick={handleDelete} className="btn-danger">Delete</button>
+            <button type="button" onClick={() => setConfirmDelete(null)} className="btn-neutral">
+              Cancel
+            </button>
+            <button type="button" onClick={handleDelete} className="btn-danger">
+              Delete
+            </button>
           </div>
         </Modal>
       )}
-
     </div>
   );
 }

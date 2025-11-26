@@ -13,6 +13,13 @@ const navItems = [
   { href: '/dashboard/kycs', label: 'KYCs' },
   { href: '/dashboard/admins', label: 'Admins' },
   { href: '/dashboard/bills', label: 'Bills' },
+  { href: '/dashboard/cards', label: 'Cards' },
+  { href: '/dashboard/crypto', label: 'Crypto' },
+  { href: '/dashboard/payment-requests', label: 'Payment Requests' },
+  { href: '/dashboard/savings', label: 'Savings' },
+  { href: '/dashboard/esim', label: 'eSIM' },
+  { href: '/dashboard/users', label: 'Users' },
+  { href: '/dashboard/geo', label: 'Geo' },
   { href: '/dashboard/payments', label: 'Payments' },
   { href: '/dashboard/report', label: 'Reports' },
   { href: '/dashboard/crud', label: 'Explorer' }

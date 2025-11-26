@@ -5,13 +5,15 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
-const emptyState = { firstName: '', lastName: '', email: '', role: '' };
+const emptyState = { accountBalanceId: '', transactionId: '', previousBalance: '', newBalance: '', delta: '', activityType: '' };
 
 const toPayload = (state) => ({
-  firstName: state.firstName,
-  lastName: state.lastName,
-  email: state.email,
-  role: state.role
+  accountBalanceId: Number(state.accountBalanceId) || 0,
+  transactionId: state.transactionId === '' ? null : Number(state.transactionId),
+  previousBalance: state.previousBalance === '' ? null : Number(state.previousBalance),
+  newBalance: state.newBalance === '' ? null : Number(state.newBalance),
+  delta: state.delta === '' ? null : Number(state.delta),
+  activityType: state.activityType
 });
 
 const Modal = ({ title, onClose, children }) => (
@@ -37,7 +39,7 @@ const DetailGrid = ({ rows }) => (
   </div>
 );
 
-export default function AdminsPage() {
+export default function AccountBalanceActivitiesPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
@@ -58,7 +60,7 @@ export default function AdminsPage() {
       const params = new URLSearchParams();
       params.set('page', String(page));
       params.set('size', String(size));
-      const res = await api.admins.list(params);
+      const res = await api.accountBalanceActivities.list(params);
       const list = Array.isArray(res) ? res : res?.content || [];
       setRows(list || []);
     } catch (err) {
@@ -74,10 +76,11 @@ export default function AdminsPage() {
 
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
-    { key: 'firstName', label: 'First name' },
-    { key: 'lastName', label: 'Last name' },
-    { key: 'email', label: 'Email' },
-    { key: 'role', label: 'Role' },
+    { key: 'accountBalanceId', label: 'Balance ID' },
+    { key: 'activityType', label: 'Type' },
+    { key: 'delta', label: 'Delta' },
+    { key: 'newBalance', label: 'New balance' },
+    { key: 'transactionId', label: 'Transaction ID' },
     {
       key: 'actions',
       label: 'Actions',
@@ -101,10 +104,12 @@ export default function AdminsPage() {
   const openEdit = (row) => {
     setSelected(row);
     setDraft({
-      firstName: row.firstName ?? '',
-      lastName: row.lastName ?? '',
-      email: row.email ?? '',
-      role: row.role ?? ''
+      accountBalanceId: row.accountBalanceId ?? '',
+      transactionId: row.transactionId ?? '',
+      previousBalance: row.previousBalance ?? '',
+      newBalance: row.newBalance ?? '',
+      delta: row.delta ?? '',
+      activityType: row.activityType ?? ''
     });
     setShowEdit(true);
     setInfo(null);
@@ -122,8 +127,8 @@ export default function AdminsPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.admins.create(toPayload(draft));
-      setInfo('Created admin.');
+      await api.accountBalanceActivities.create(toPayload(draft));
+      setInfo('Created balance activity.');
       setShowCreate(false);
       fetchRows();
     } catch (err) {
@@ -136,8 +141,8 @@ export default function AdminsPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.admins.update(selected.id, toPayload(draft));
-      setInfo(`Updated admin ${selected.id}.`);
+      await api.accountBalanceActivities.update(selected.id, toPayload(draft));
+      setInfo(`Updated activity ${selected.id}.`);
       setShowEdit(false);
       fetchRows();
     } catch (err) {
@@ -151,8 +156,8 @@ export default function AdminsPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.admins.remove(id);
-      setInfo(`Deleted admin ${id}.`);
+      await api.accountBalanceActivities.remove(id);
+      setInfo(`Deleted activity ${id}.`);
       setConfirmDelete(null);
       fetchRows();
     } catch (err) {
@@ -163,20 +168,28 @@ export default function AdminsPage() {
   const renderForm = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="firstName">First name</label>
-        <input id="firstName" value={draft.firstName} onChange={(e) => setDraft((p) => ({ ...p, firstName: e.target.value }))} />
+        <label htmlFor="accountBalanceId">Balance ID</label>
+        <input id="accountBalanceId" type="number" value={draft.accountBalanceId} onChange={(e) => setDraft((p) => ({ ...p, accountBalanceId: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="lastName">Last name</label>
-        <input id="lastName" value={draft.lastName} onChange={(e) => setDraft((p) => ({ ...p, lastName: e.target.value }))} />
+        <label htmlFor="activityType">Activity type</label>
+        <input id="activityType" value={draft.activityType} onChange={(e) => setDraft((p) => ({ ...p, activityType: e.target.value }))} placeholder="DEPOSIT / WITHDRAWAL" />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="email">Email</label>
-        <input id="email" type="email" value={draft.email} onChange={(e) => setDraft((p) => ({ ...p, email: e.target.value }))} />
+        <label htmlFor="delta">Delta</label>
+        <input id="delta" type="number" value={draft.delta} onChange={(e) => setDraft((p) => ({ ...p, delta: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="role">Role</label>
-        <input id="role" value={draft.role} onChange={(e) => setDraft((p) => ({ ...p, role: e.target.value }))} placeholder="SUPER_ADMIN / ADMIN / STAFF" />
+        <label htmlFor="previousBalance">Previous balance</label>
+        <input id="previousBalance" type="number" value={draft.previousBalance} onChange={(e) => setDraft((p) => ({ ...p, previousBalance: e.target.value }))} />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="newBalance">New balance</label>
+        <input id="newBalance" type="number" value={draft.newBalance} onChange={(e) => setDraft((p) => ({ ...p, newBalance: e.target.value }))} />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="transactionId">Transaction ID</label>
+        <input id="transactionId" type="number" value={draft.transactionId} onChange={(e) => setDraft((p) => ({ ...p, transactionId: e.target.value }))} />
       </div>
     </div>
   );
@@ -185,11 +198,11 @@ export default function AdminsPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <div style={{ fontWeight: 800, fontSize: '20px' }}>Admins</div>
-          <div style={{ color: 'var(--muted)' }}>Manage admin users (name, email, role).</div>
+          <div style={{ fontWeight: 800, fontSize: '20px' }}>Balance Activities</div>
+          <div style={{ color: 'var(--muted)' }}>Track balance changes (deposit/withdrawal).</div>
         </div>
-        <Link href="/dashboard" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
-          ← Dashboard
+        <Link href="/dashboard/accounts" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
+          ← Accounts hub
         </Link>
       </div>
 
@@ -206,17 +219,17 @@ export default function AdminsPage() {
           {loading ? 'Loading…' : 'Refresh'}
         </button>
         <button type="button" onClick={openCreate} className="btn-success">
-          Add admin
+          Add activity
         </button>
       </div>
 
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
-      <DataTable columns={columns} rows={rows} emptyLabel="No admins found" />
+      <DataTable columns={columns} rows={rows} emptyLabel="No balance activities found" />
 
       {showCreate && (
-        <Modal title="Add admin" onClose={() => setShowCreate(false)}>
+        <Modal title="Add balance activity" onClose={() => setShowCreate(false)}>
           {renderForm()}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" onClick={() => setShowCreate(false)} className="btn-neutral">Cancel</button>
@@ -226,7 +239,7 @@ export default function AdminsPage() {
       )}
 
       {showEdit && (
-        <Modal title={`Edit admin ${selected?.id}`} onClose={() => setShowEdit(false)}>
+        <Modal title={`Edit activity ${selected?.id}`} onClose={() => setShowEdit(false)}>
           {renderForm()}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" onClick={() => setShowEdit(false)} className="btn-neutral">Cancel</button>
@@ -240,10 +253,12 @@ export default function AdminsPage() {
           <DetailGrid
             rows={[
               { label: 'ID', value: selected?.id },
-              { label: 'First name', value: selected?.firstName },
-              { label: 'Last name', value: selected?.lastName },
-              { label: 'Email', value: selected?.email },
-              { label: 'Role', value: selected?.role }
+              { label: 'Balance ID', value: selected?.accountBalanceId },
+              { label: 'Activity type', value: selected?.activityType },
+              { label: 'Delta', value: selected?.delta },
+              { label: 'Previous balance', value: selected?.previousBalance },
+              { label: 'New balance', value: selected?.newBalance },
+              { label: 'Transaction ID', value: selected?.transactionId }
             ]}
           />
         </Modal>
@@ -252,7 +267,7 @@ export default function AdminsPage() {
       {confirmDelete && (
         <Modal title="Confirm delete" onClose={() => setConfirmDelete(null)}>
           <div style={{ color: 'var(--muted)' }}>
-            Delete admin <strong>{confirmDelete.email || confirmDelete.id}</strong>? This cannot be undone.
+            Delete activity <strong>{confirmDelete.id}</strong>? This cannot be undone.
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" onClick={() => setConfirmDelete(null)} className="btn-neutral">Cancel</button>
@@ -260,7 +275,6 @@ export default function AdminsPage() {
           </div>
         </Modal>
       )}
-
     </div>
   );
 }

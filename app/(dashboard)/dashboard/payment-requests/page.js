@@ -3,19 +3,18 @@
 import Link from 'next/link';
 
 const sections = [
-  { href: '/dashboard/accounts/accounts', title: 'Accounts', blurb: 'Search and review accounts, run AML check.' },
-  { href: '/dashboard/accounts/balances', title: 'Account Balances', blurb: 'Manage balances per account.' },
-  { href: '/dashboard/accounts/balance-activities', title: 'Balance Activities', blurb: 'Track balance changes (deposit/withdrawal).' },
-  { href: '/dashboard/accounts/transfers', title: 'Account Transfers', blurb: 'Transfers between accounts with transaction IDs.' },
-  { href: '/dashboard/crud?domain=accounts', title: 'Explorer', blurb: 'Access all account endpoints if needed.' }
+  { href: '/dashboard/payment-requests/requests', title: 'Payment Requests', blurb: 'Create and manage payment requests.' },
+  { href: '/dashboard/payment-requests/items', title: 'Request Items', blurb: 'Line items linked to payment requests.' },
+  { href: '/dashboard/payment-requests/payments', title: 'Request Payments', blurb: 'Payments made toward requests.' },
+  { href: '/dashboard/crud?domain=payment-requests', title: 'Explorer', blurb: 'Access all payment request endpoints if needed.' }
 ];
 
-export default function AccountsHubPage() {
+export default function PaymentRequestsHubPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-        <div style={{ fontSize: '20px', fontWeight: 800 }}>Accounts</div>
-        <div style={{ color: 'var(--muted)' }}>Pick an accounts area to manage with focused UIs.</div>
+        <div style={{ fontSize: '20px', fontWeight: 800 }}>Payment Requests</div>
+        <div style={{ color: 'var(--muted)' }}>Choose a payment requests area to manage with focused UIs.</div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
         {sections.map((item) => (

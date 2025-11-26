@@ -5,13 +5,15 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
-const emptyState = { firstName: '', lastName: '', email: '', role: '' };
+const emptyState = { paymentRequestId: '', name: '', description: '', quantity: '', unitPrice: '', lineTotal: '' };
 
 const toPayload = (state) => ({
-  firstName: state.firstName,
-  lastName: state.lastName,
-  email: state.email,
-  role: state.role
+  paymentRequestId: state.paymentRequestId === '' ? null : Number(state.paymentRequestId),
+  name: state.name,
+  description: state.description || null,
+  quantity: state.quantity === '' ? null : Number(state.quantity),
+  unitPrice: state.unitPrice === '' ? null : Number(state.unitPrice),
+  lineTotal: state.lineTotal === '' ? null : Number(state.lineTotal)
 });
 
 const Modal = ({ title, onClose, children }) => (
@@ -37,7 +39,7 @@ const DetailGrid = ({ rows }) => (
   </div>
 );
 
-export default function AdminsPage() {
+export default function PaymentRequestItemsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
@@ -58,7 +60,7 @@ export default function AdminsPage() {
       const params = new URLSearchParams();
       params.set('page', String(page));
       params.set('size', String(size));
-      const res = await api.admins.list(params);
+      const res = await api.paymentRequestItems.list(params);
       const list = Array.isArray(res) ? res : res?.content || [];
       setRows(list || []);
     } catch (err) {
@@ -74,10 +76,10 @@ export default function AdminsPage() {
 
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
-    { key: 'firstName', label: 'First name' },
-    { key: 'lastName', label: 'Last name' },
-    { key: 'email', label: 'Email' },
-    { key: 'role', label: 'Role' },
+    { key: 'paymentRequestId', label: 'Request ID' },
+    { key: 'name', label: 'Name' },
+    { key: 'quantity', label: 'Qty' },
+    { key: 'unitPrice', label: 'Unit price' },
     {
       key: 'actions',
       label: 'Actions',
@@ -101,10 +103,12 @@ export default function AdminsPage() {
   const openEdit = (row) => {
     setSelected(row);
     setDraft({
-      firstName: row.firstName ?? '',
-      lastName: row.lastName ?? '',
-      email: row.email ?? '',
-      role: row.role ?? ''
+      paymentRequestId: row.paymentRequestId ?? '',
+      name: row.name ?? '',
+      description: row.description ?? '',
+      quantity: row.quantity ?? '',
+      unitPrice: row.unitPrice ?? '',
+      lineTotal: row.lineTotal ?? ''
     });
     setShowEdit(true);
     setInfo(null);
@@ -122,8 +126,8 @@ export default function AdminsPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.admins.create(toPayload(draft));
-      setInfo('Created admin.');
+      await api.paymentRequestItems.create(toPayload(draft));
+      setInfo('Created payment request item.');
       setShowCreate(false);
       fetchRows();
     } catch (err) {
@@ -136,8 +140,8 @@ export default function AdminsPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.admins.update(selected.id, toPayload(draft));
-      setInfo(`Updated admin ${selected.id}.`);
+      await api.paymentRequestItems.update(selected.id, toPayload(draft));
+      setInfo(`Updated item ${selected.id}.`);
       setShowEdit(false);
       fetchRows();
     } catch (err) {
@@ -151,8 +155,8 @@ export default function AdminsPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.admins.remove(id);
-      setInfo(`Deleted admin ${id}.`);
+      await api.paymentRequestItems.remove(id);
+      setInfo(`Deleted item ${id}.`);
       setConfirmDelete(null);
       fetchRows();
     } catch (err) {
@@ -163,20 +167,28 @@ export default function AdminsPage() {
   const renderForm = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="firstName">First name</label>
-        <input id="firstName" value={draft.firstName} onChange={(e) => setDraft((p) => ({ ...p, firstName: e.target.value }))} />
+        <label htmlFor="paymentRequestId">Payment request ID</label>
+        <input id="paymentRequestId" type="number" value={draft.paymentRequestId} onChange={(e) => setDraft((p) => ({ ...p, paymentRequestId: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="lastName">Last name</label>
-        <input id="lastName" value={draft.lastName} onChange={(e) => setDraft((p) => ({ ...p, lastName: e.target.value }))} />
+        <label htmlFor="name">Name</label>
+        <input id="name" value={draft.name} onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="email">Email</label>
-        <input id="email" type="email" value={draft.email} onChange={(e) => setDraft((p) => ({ ...p, email: e.target.value }))} />
+        <label htmlFor="description">Description</label>
+        <input id="description" value={draft.description} onChange={(e) => setDraft((p) => ({ ...p, description: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="role">Role</label>
-        <input id="role" value={draft.role} onChange={(e) => setDraft((p) => ({ ...p, role: e.target.value }))} placeholder="SUPER_ADMIN / ADMIN / STAFF" />
+        <label htmlFor="quantity">Quantity</label>
+        <input id="quantity" type="number" value={draft.quantity} onChange={(e) => setDraft((p) => ({ ...p, quantity: e.target.value }))} />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="unitPrice">Unit price</label>
+        <input id="unitPrice" type="number" value={draft.unitPrice} onChange={(e) => setDraft((p) => ({ ...p, unitPrice: e.target.value }))} />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="lineTotal">Line total</label>
+        <input id="lineTotal" type="number" value={draft.lineTotal} onChange={(e) => setDraft((p) => ({ ...p, lineTotal: e.target.value }))} />
       </div>
     </div>
   );
@@ -185,11 +197,11 @@ export default function AdminsPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <div style={{ fontWeight: 800, fontSize: '20px' }}>Admins</div>
-          <div style={{ color: 'var(--muted)' }}>Manage admin users (name, email, role).</div>
+          <div style={{ fontWeight: 800, fontSize: '20px' }}>Payment Request Items</div>
+          <div style={{ color: 'var(--muted)' }}>Line items linked to payment requests.</div>
         </div>
-        <Link href="/dashboard" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
-          ← Dashboard
+        <Link href="/dashboard/payment-requests" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
+          ← Payment Requests hub
         </Link>
       </div>
 
@@ -206,17 +218,17 @@ export default function AdminsPage() {
           {loading ? 'Loading…' : 'Refresh'}
         </button>
         <button type="button" onClick={openCreate} className="btn-success">
-          Add admin
+          Add item
         </button>
       </div>
 
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
-      <DataTable columns={columns} rows={rows} emptyLabel="No admins found" />
+      <DataTable columns={columns} rows={rows} emptyLabel="No payment request items found" />
 
       {showCreate && (
-        <Modal title="Add admin" onClose={() => setShowCreate(false)}>
+        <Modal title="Add payment request item" onClose={() => setShowCreate(false)}>
           {renderForm()}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" onClick={() => setShowCreate(false)} className="btn-neutral">Cancel</button>
@@ -226,7 +238,7 @@ export default function AdminsPage() {
       )}
 
       {showEdit && (
-        <Modal title={`Edit admin ${selected?.id}`} onClose={() => setShowEdit(false)}>
+        <Modal title={`Edit item ${selected?.id}`} onClose={() => setShowEdit(false)}>
           {renderForm()}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" onClick={() => setShowEdit(false)} className="btn-neutral">Cancel</button>
@@ -240,10 +252,12 @@ export default function AdminsPage() {
           <DetailGrid
             rows={[
               { label: 'ID', value: selected?.id },
-              { label: 'First name', value: selected?.firstName },
-              { label: 'Last name', value: selected?.lastName },
-              { label: 'Email', value: selected?.email },
-              { label: 'Role', value: selected?.role }
+              { label: 'Payment request ID', value: selected?.paymentRequestId },
+              { label: 'Name', value: selected?.name },
+              { label: 'Description', value: selected?.description },
+              { label: 'Quantity', value: selected?.quantity },
+              { label: 'Unit price', value: selected?.unitPrice },
+              { label: 'Line total', value: selected?.lineTotal }
             ]}
           />
         </Modal>
@@ -252,7 +266,7 @@ export default function AdminsPage() {
       {confirmDelete && (
         <Modal title="Confirm delete" onClose={() => setConfirmDelete(null)}>
           <div style={{ color: 'var(--muted)' }}>
-            Delete admin <strong>{confirmDelete.email || confirmDelete.id}</strong>? This cannot be undone.
+            Delete item <strong>{confirmDelete.name || confirmDelete.id}</strong>? This cannot be undone.
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" onClick={() => setConfirmDelete(null)} className="btn-neutral">Cancel</button>
@@ -260,7 +274,6 @@ export default function AdminsPage() {
           </div>
         </Modal>
       )}
-
     </div>
   );
 }

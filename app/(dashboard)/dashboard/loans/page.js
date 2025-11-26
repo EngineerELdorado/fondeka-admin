@@ -1,108 +1,42 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { DataTable } from '@/components/DataTable';
-import { api } from '@/lib/api';
+import Link from 'next/link';
 
-export default function LoansPage() {
-  const [rows, setRows] = useState([]);
-  const [page, setPage] = useState(0);
-  const [size, setSize] = useState(10);
-  const [loanType, setLoanType] = useState('');
-  const [status, setStatus] = useState('');
-  const [error, setError] = useState(null);
-  const [info, setInfo] = useState(null);
-  const [decisionPayload, setDecisionPayload] = useState('{\n  "note": "Processed via admin UI"\n}');
+const sections = [
+  { href: '/dashboard/loans/applications', title: 'Loan Applications', blurb: 'List and act on loan applications.' },
+  { href: '/dashboard/loans/products', title: 'Loan Products', blurb: 'Configure available loan products, amounts, rates and terms.' },
+  { href: '/dashboard/loans/decisions', title: 'Loan Decisions', blurb: 'Review and manage admin decisions for applications.' },
+  { href: '/dashboard/loans/installments', title: 'Loan Installments', blurb: 'Maintain installment schedules and repayment status.' },
+  { href: '/dashboard/loans/installment-payments', title: 'Installment Payments', blurb: 'Track payments applied to loan installments.' },
+  { href: '/dashboard/crud?domain=loans', title: 'Explorer', blurb: 'Access full loan endpoints when needed.' }
+];
 
-  useEffect(() => {
-    const params = new URLSearchParams({ page: String(page), size: String(size) });
-    if (loanType) params.set('loanType', loanType);
-    if (status) params.set('applicationStatus', status);
-    api.listLoans(params)
-      .then((data) => setRows(data.content || []))
-      .catch((err) => setError(err.message));
-  }, [page, size, loanType, status]);
-
-  const parsePayload = () => {
-    try {
-      return JSON.parse(decisionPayload || '{}');
-    } catch {
-      throw new Error('Invalid JSON payload for decision.');
-    }
-  };
-
-  const handleDecision = async (id, action) => {
-    setError(null);
-    setInfo(null);
-    try {
-      const payload = parsePayload();
-      if (action === 'approve') {
-        await api.approveLoan(id, payload);
-        setInfo(`Approved loan ${id}.`);
-      } else {
-        await api.rejectLoan(id, payload);
-        setInfo(`Rejected loan ${id}.`);
-      }
-      const params = new URLSearchParams({ page: String(page), size: String(size) });
-      if (loanType) params.set('loanType', loanType);
-      if (status) params.set('applicationStatus', status);
-      api.listLoans(params).then((data) => setRows(data.content || [])).catch(() => {});
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
+export default function LoansHubPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      <div className="card" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-        <div>
-          <label htmlFor="loanType">Loan type</label>
-          <input id="loanType" value={loanType} onChange={(e) => setLoanType(e.target.value)} placeholder="e.g. PERSONAL" />
-        </div>
-        <div>
-          <label htmlFor="status">Status</label>
-          <input id="status" value={status} onChange={(e) => setStatus(e.target.value)} placeholder="e.g. APPROVED" />
-        </div>
-        <div>
-          <label htmlFor="loanPage">Page</label>
-          <input id="loanPage" type="number" min={0} value={page} onChange={(e) => setPage(Number(e.target.value))} />
-        </div>
-        <div>
-          <label htmlFor="loanSize">Size</label>
-          <input id="loanSize" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
-        </div>
-      </div>
-
-      {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 600 }}>{error}</div>}
-      {info && <div className="card" style={{ color: '#15803d', fontWeight: 600 }}>{info}</div>}
-
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-        <div style={{ fontWeight: 700 }}>Decision payload (JSON)</div>
-        <textarea rows={6} value={decisionPayload} onChange={(e) => setDecisionPayload(e.target.value)} />
-        <div style={{ color: '#6b7280', fontSize: '13px' }}>Used for Approve/Reject actions on loans.</div>
+        <div style={{ fontSize: '20px', fontWeight: 800 }}>Loans</div>
+        <div style={{ color: 'var(--muted)' }}>Pick a loans area to manage with a focused UI.</div>
       </div>
-
-      <DataTable
-        columns={[
-          { key: 'id', label: 'ID' },
-          { key: 'borrowerName', label: 'Borrower' },
-          { key: 'loanType', label: 'Type' },
-          { key: 'applicationStatus', label: 'Status' },
-          { key: 'createdDate', label: 'Created' },
-          {
-            key: 'actions',
-            label: 'Actions',
-            render: (row) => (
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <button type="button" onClick={() => handleDecision(row.id, 'approve')}>Approve</button>
-                <button type="button" onClick={() => handleDecision(row.id, 'reject')} style={{ color: '#b91c1c' }}>Reject</button>
-              </div>
-            )
-          }
-        ]}
-        rows={rows}
-        emptyLabel="No loans found"
-      />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+        {sections.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className="card"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.35rem',
+              textDecoration: 'none',
+              color: 'var(--text)'
+            }}
+          >
+            <div style={{ fontWeight: 800 }}>{item.title}</div>
+            <div style={{ color: 'var(--muted)' }}>{item.blurb}</div>
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }

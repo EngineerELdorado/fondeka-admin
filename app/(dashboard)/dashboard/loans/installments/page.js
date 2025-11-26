@@ -5,13 +5,20 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
-const emptyState = { firstName: '', lastName: '', email: '', role: '' };
+const emptyState = {
+  dueAt: '',
+  amount: '',
+  fineAmount: '',
+  repaymentStatus: '',
+  loanId: ''
+};
 
 const toPayload = (state) => ({
-  firstName: state.firstName,
-  lastName: state.lastName,
-  email: state.email,
-  role: state.role
+  dueAt: state.dueAt,
+  amount: state.amount === '' ? null : Number(state.amount),
+  fineAmount: state.fineAmount === '' ? null : Number(state.fineAmount),
+  repaymentStatus: state.repaymentStatus,
+  loanId: Number(state.loanId) || 0
 });
 
 const Modal = ({ title, onClose, children }) => (
@@ -37,7 +44,7 @@ const DetailGrid = ({ rows }) => (
   </div>
 );
 
-export default function AdminsPage() {
+export default function LoanInstallmentsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
@@ -58,7 +65,7 @@ export default function AdminsPage() {
       const params = new URLSearchParams();
       params.set('page', String(page));
       params.set('size', String(size));
-      const res = await api.admins.list(params);
+      const res = await api.loanInstallments.list(params);
       const list = Array.isArray(res) ? res : res?.content || [];
       setRows(list || []);
     } catch (err) {
@@ -74,10 +81,10 @@ export default function AdminsPage() {
 
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
-    { key: 'firstName', label: 'First name' },
-    { key: 'lastName', label: 'Last name' },
-    { key: 'email', label: 'Email' },
-    { key: 'role', label: 'Role' },
+    { key: 'loanId', label: 'Loan ID' },
+    { key: 'amount', label: 'Amount' },
+    { key: 'dueAt', label: 'Due at' },
+    { key: 'repaymentStatus', label: 'Status' },
     {
       key: 'actions',
       label: 'Actions',
@@ -101,10 +108,11 @@ export default function AdminsPage() {
   const openEdit = (row) => {
     setSelected(row);
     setDraft({
-      firstName: row.firstName ?? '',
-      lastName: row.lastName ?? '',
-      email: row.email ?? '',
-      role: row.role ?? ''
+      dueAt: row.dueAt ?? '',
+      amount: row.amount ?? '',
+      fineAmount: row.fineAmount ?? '',
+      repaymentStatus: row.repaymentStatus ?? '',
+      loanId: row.loanId ?? ''
     });
     setShowEdit(true);
     setInfo(null);
@@ -122,8 +130,8 @@ export default function AdminsPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.admins.create(toPayload(draft));
-      setInfo('Created admin.');
+      await api.loanInstallments.create(toPayload(draft));
+      setInfo('Created loan installment.');
       setShowCreate(false);
       fetchRows();
     } catch (err) {
@@ -136,8 +144,8 @@ export default function AdminsPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.admins.update(selected.id, toPayload(draft));
-      setInfo(`Updated admin ${selected.id}.`);
+      await api.loanInstallments.update(selected.id, toPayload(draft));
+      setInfo(`Updated installment ${selected.id}.`);
       setShowEdit(false);
       fetchRows();
     } catch (err) {
@@ -151,8 +159,8 @@ export default function AdminsPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.admins.remove(id);
-      setInfo(`Deleted admin ${id}.`);
+      await api.loanInstallments.remove(id);
+      setInfo(`Deleted installment ${id}.`);
       setConfirmDelete(null);
       fetchRows();
     } catch (err) {
@@ -163,20 +171,24 @@ export default function AdminsPage() {
   const renderForm = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="firstName">First name</label>
-        <input id="firstName" value={draft.firstName} onChange={(e) => setDraft((p) => ({ ...p, firstName: e.target.value }))} />
+        <label htmlFor="loanId">Loan ID</label>
+        <input id="loanId" type="number" value={draft.loanId} onChange={(e) => setDraft((p) => ({ ...p, loanId: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="lastName">Last name</label>
-        <input id="lastName" value={draft.lastName} onChange={(e) => setDraft((p) => ({ ...p, lastName: e.target.value }))} />
+        <label htmlFor="amount">Amount</label>
+        <input id="amount" type="number" value={draft.amount} onChange={(e) => setDraft((p) => ({ ...p, amount: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="email">Email</label>
-        <input id="email" type="email" value={draft.email} onChange={(e) => setDraft((p) => ({ ...p, email: e.target.value }))} />
+        <label htmlFor="fineAmount">Fine amount</label>
+        <input id="fineAmount" type="number" value={draft.fineAmount} onChange={(e) => setDraft((p) => ({ ...p, fineAmount: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="role">Role</label>
-        <input id="role" value={draft.role} onChange={(e) => setDraft((p) => ({ ...p, role: e.target.value }))} placeholder="SUPER_ADMIN / ADMIN / STAFF" />
+        <label htmlFor="dueAt">Due at</label>
+        <input id="dueAt" value={draft.dueAt} onChange={(e) => setDraft((p) => ({ ...p, dueAt: e.target.value }))} placeholder="Timestamp" />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="repaymentStatus">Repayment status</label>
+        <input id="repaymentStatus" value={draft.repaymentStatus} onChange={(e) => setDraft((p) => ({ ...p, repaymentStatus: e.target.value }))} />
       </div>
     </div>
   );
@@ -185,11 +197,11 @@ export default function AdminsPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <div style={{ fontWeight: 800, fontSize: '20px' }}>Admins</div>
-          <div style={{ color: 'var(--muted)' }}>Manage admin users (name, email, role).</div>
+          <div style={{ fontWeight: 800, fontSize: '20px' }}>Loan Installments</div>
+          <div style={{ color: 'var(--muted)' }}>Manage loan installments (due date, amount, status).</div>
         </div>
-        <Link href="/dashboard" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
-          ← Dashboard
+        <Link href="/dashboard/loans" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
+          ← Loans
         </Link>
       </div>
 
@@ -206,17 +218,17 @@ export default function AdminsPage() {
           {loading ? 'Loading…' : 'Refresh'}
         </button>
         <button type="button" onClick={openCreate} className="btn-success">
-          Add admin
+          Add installment
         </button>
       </div>
 
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
-      <DataTable columns={columns} rows={rows} emptyLabel="No admins found" />
+      <DataTable columns={columns} rows={rows} emptyLabel="No installments found" />
 
       {showCreate && (
-        <Modal title="Add admin" onClose={() => setShowCreate(false)}>
+        <Modal title="Add loan installment" onClose={() => setShowCreate(false)}>
           {renderForm()}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" onClick={() => setShowCreate(false)} className="btn-neutral">Cancel</button>
@@ -226,7 +238,7 @@ export default function AdminsPage() {
       )}
 
       {showEdit && (
-        <Modal title={`Edit admin ${selected?.id}`} onClose={() => setShowEdit(false)}>
+        <Modal title={`Edit installment ${selected?.id}`} onClose={() => setShowEdit(false)}>
           {renderForm()}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" onClick={() => setShowEdit(false)} className="btn-neutral">Cancel</button>
@@ -240,10 +252,13 @@ export default function AdminsPage() {
           <DetailGrid
             rows={[
               { label: 'ID', value: selected?.id },
-              { label: 'First name', value: selected?.firstName },
-              { label: 'Last name', value: selected?.lastName },
-              { label: 'Email', value: selected?.email },
-              { label: 'Role', value: selected?.role }
+              { label: 'Loan ID', value: selected?.loanId },
+              { label: 'Amount', value: selected?.amount },
+              { label: 'Fine amount', value: selected?.fineAmount },
+              { label: 'Due at', value: selected?.dueAt },
+              { label: 'Repayment status', value: selected?.repaymentStatus },
+              { label: 'Created', value: selected?.createdAt },
+              { label: 'Updated', value: selected?.updatedAt }
             ]}
           />
         </Modal>
@@ -252,7 +267,7 @@ export default function AdminsPage() {
       {confirmDelete && (
         <Modal title="Confirm delete" onClose={() => setConfirmDelete(null)}>
           <div style={{ color: 'var(--muted)' }}>
-            Delete admin <strong>{confirmDelete.email || confirmDelete.id}</strong>? This cannot be undone.
+            Delete installment <strong>{confirmDelete.id}</strong>? This cannot be undone.
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" onClick={() => setConfirmDelete(null)} className="btn-neutral">Cancel</button>
@@ -260,7 +275,6 @@ export default function AdminsPage() {
           </div>
         </Modal>
       )}
-
     </div>
   );
 }

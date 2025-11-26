@@ -5,13 +5,24 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
-const emptyState = { firstName: '', lastName: '', email: '', role: '' };
+const emptyState = {
+  internalReference: '',
+  oauthId: '',
+  firstName: '',
+  middleName: '',
+  lastName: '',
+  username: '',
+  dob: ''
+};
 
 const toPayload = (state) => ({
+  internalReference: state.internalReference || null,
+  oauthId: state.oauthId || null,
   firstName: state.firstName,
+  middleName: state.middleName || null,
   lastName: state.lastName,
-  email: state.email,
-  role: state.role
+  username: state.username,
+  dob: state.dob || null
 });
 
 const Modal = ({ title, onClose, children }) => (
@@ -37,7 +48,7 @@ const DetailGrid = ({ rows }) => (
   </div>
 );
 
-export default function AdminsPage() {
+export default function UsersPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
@@ -58,7 +69,7 @@ export default function AdminsPage() {
       const params = new URLSearchParams();
       params.set('page', String(page));
       params.set('size', String(size));
-      const res = await api.admins.list(params);
+      const res = await api.users.list(params);
       const list = Array.isArray(res) ? res : res?.content || [];
       setRows(list || []);
     } catch (err) {
@@ -72,24 +83,33 @@ export default function AdminsPage() {
     fetchRows();
   }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const columns = useMemo(() => [
-    { key: 'id', label: 'ID' },
-    { key: 'firstName', label: 'First name' },
-    { key: 'lastName', label: 'Last name' },
-    { key: 'email', label: 'Email' },
-    { key: 'role', label: 'Role' },
-    {
-      key: 'actions',
-      label: 'Actions',
-      render: (row) => (
-        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-          <button type="button" onClick={() => openDetail(row)} className="btn-neutral">View</button>
-          <button type="button" onClick={() => openEdit(row)} className="btn-neutral">Edit</button>
-          <button type="button" onClick={() => setConfirmDelete(row)} className="btn-danger">Delete</button>
-        </div>
-      )
-    }
-  ], []);
+  const columns = useMemo(
+    () => [
+      { key: 'id', label: 'ID' },
+      { key: 'internalReference', label: 'Internal ref' },
+      { key: 'firstName', label: 'First name' },
+      { key: 'lastName', label: 'Last name' },
+      { key: 'username', label: 'Username' },
+      {
+        key: 'actions',
+        label: 'Actions',
+        render: (row) => (
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+            <button type="button" onClick={() => openDetail(row)} className="btn-neutral">
+              View
+            </button>
+            <button type="button" onClick={() => openEdit(row)} className="btn-neutral">
+              Edit
+            </button>
+            <button type="button" onClick={() => setConfirmDelete(row)} className="btn-danger">
+              Delete
+            </button>
+          </div>
+        )
+      }
+    ],
+    []
+  );
 
   const openCreate = () => {
     setDraft(emptyState);
@@ -101,10 +121,13 @@ export default function AdminsPage() {
   const openEdit = (row) => {
     setSelected(row);
     setDraft({
+      internalReference: row.internalReference ?? '',
+      oauthId: row.oauthId ?? '',
       firstName: row.firstName ?? '',
+      middleName: row.middleName ?? '',
       lastName: row.lastName ?? '',
-      email: row.email ?? '',
-      role: row.role ?? ''
+      username: row.username ?? '',
+      dob: row.dob ?? ''
     });
     setShowEdit(true);
     setInfo(null);
@@ -122,8 +145,8 @@ export default function AdminsPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.admins.create(toPayload(draft));
-      setInfo('Created admin.');
+      await api.users.create(toPayload(draft));
+      setInfo('Created user.');
       setShowCreate(false);
       fetchRows();
     } catch (err) {
@@ -136,8 +159,8 @@ export default function AdminsPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.admins.update(selected.id, toPayload(draft));
-      setInfo(`Updated admin ${selected.id}.`);
+      await api.users.update(selected.id, toPayload(draft));
+      setInfo(`Updated user ${selected.id}.`);
       setShowEdit(false);
       fetchRows();
     } catch (err) {
@@ -151,8 +174,8 @@ export default function AdminsPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.admins.remove(id);
-      setInfo(`Deleted admin ${id}.`);
+      await api.users.remove(id);
+      setInfo(`Deleted user ${id}.`);
       setConfirmDelete(null);
       fetchRows();
     } catch (err) {
@@ -163,20 +186,32 @@ export default function AdminsPage() {
   const renderForm = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="internalReference">Internal reference</label>
+        <input id="internalReference" value={draft.internalReference} onChange={(e) => setDraft((p) => ({ ...p, internalReference: e.target.value }))} />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="oauthId">OAuth ID</label>
+        <input id="oauthId" value={draft.oauthId} onChange={(e) => setDraft((p) => ({ ...p, oauthId: e.target.value }))} />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="firstName">First name</label>
         <input id="firstName" value={draft.firstName} onChange={(e) => setDraft((p) => ({ ...p, firstName: e.target.value }))} />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="middleName">Middle name</label>
+        <input id="middleName" value={draft.middleName} onChange={(e) => setDraft((p) => ({ ...p, middleName: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="lastName">Last name</label>
         <input id="lastName" value={draft.lastName} onChange={(e) => setDraft((p) => ({ ...p, lastName: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="email">Email</label>
-        <input id="email" type="email" value={draft.email} onChange={(e) => setDraft((p) => ({ ...p, email: e.target.value }))} />
+        <label htmlFor="username">Username</label>
+        <input id="username" value={draft.username} onChange={(e) => setDraft((p) => ({ ...p, username: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="role">Role</label>
-        <input id="role" value={draft.role} onChange={(e) => setDraft((p) => ({ ...p, role: e.target.value }))} placeholder="SUPER_ADMIN / ADMIN / STAFF" />
+        <label htmlFor="dob">Date of birth</label>
+        <input id="dob" type="date" value={draft.dob} onChange={(e) => setDraft((p) => ({ ...p, dob: e.target.value }))} />
       </div>
     </div>
   );
@@ -185,11 +220,11 @@ export default function AdminsPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <div style={{ fontWeight: 800, fontSize: '20px' }}>Admins</div>
-          <div style={{ color: 'var(--muted)' }}>Manage admin users (name, email, role).</div>
+          <div style={{ fontWeight: 800, fontSize: '20px' }}>Users</div>
+          <div style={{ color: 'var(--muted)' }}>Manage users (names, OAuth ID, username, DOB).</div>
         </div>
-        <Link href="/dashboard" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
-          ← Dashboard
+        <Link href="/dashboard/users" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
+          ← Users hub
         </Link>
       </div>
 
@@ -206,31 +241,39 @@ export default function AdminsPage() {
           {loading ? 'Loading…' : 'Refresh'}
         </button>
         <button type="button" onClick={openCreate} className="btn-success">
-          Add admin
+          Add user
         </button>
       </div>
 
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
-      <DataTable columns={columns} rows={rows} emptyLabel="No admins found" />
+      <DataTable columns={columns} rows={rows} emptyLabel="No users found" />
 
       {showCreate && (
-        <Modal title="Add admin" onClose={() => setShowCreate(false)}>
+        <Modal title="Add user" onClose={() => setShowCreate(false)}>
           {renderForm()}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-            <button type="button" onClick={() => setShowCreate(false)} className="btn-neutral">Cancel</button>
-            <button type="button" onClick={handleCreate} className="btn-success">Create</button>
+            <button type="button" onClick={() => setShowCreate(false)} className="btn-neutral">
+              Cancel
+            </button>
+            <button type="button" onClick={handleCreate} className="btn-success">
+              Create
+            </button>
           </div>
         </Modal>
       )}
 
       {showEdit && (
-        <Modal title={`Edit admin ${selected?.id}`} onClose={() => setShowEdit(false)}>
+        <Modal title={`Edit user ${selected?.id}`} onClose={() => setShowEdit(false)}>
           {renderForm()}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-            <button type="button" onClick={() => setShowEdit(false)} className="btn-neutral">Cancel</button>
-            <button type="button" onClick={handleUpdate} className="btn-primary">Save</button>
+            <button type="button" onClick={() => setShowEdit(false)} className="btn-neutral">
+              Cancel
+            </button>
+            <button type="button" onClick={handleUpdate} className="btn-primary">
+              Save
+            </button>
           </div>
         </Modal>
       )}
@@ -240,10 +283,13 @@ export default function AdminsPage() {
           <DetailGrid
             rows={[
               { label: 'ID', value: selected?.id },
+              { label: 'Internal ref', value: selected?.internalReference },
+              { label: 'OAuth ID', value: selected?.oauthId },
               { label: 'First name', value: selected?.firstName },
+              { label: 'Middle name', value: selected?.middleName },
               { label: 'Last name', value: selected?.lastName },
-              { label: 'Email', value: selected?.email },
-              { label: 'Role', value: selected?.role }
+              { label: 'Username', value: selected?.username },
+              { label: 'DOB', value: selected?.dob }
             ]}
           />
         </Modal>
@@ -252,15 +298,18 @@ export default function AdminsPage() {
       {confirmDelete && (
         <Modal title="Confirm delete" onClose={() => setConfirmDelete(null)}>
           <div style={{ color: 'var(--muted)' }}>
-            Delete admin <strong>{confirmDelete.email || confirmDelete.id}</strong>? This cannot be undone.
+            Delete user <strong>{confirmDelete.username || confirmDelete.id}</strong>? This cannot be undone.
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-            <button type="button" onClick={() => setConfirmDelete(null)} className="btn-neutral">Cancel</button>
-            <button type="button" onClick={handleDelete} className="btn-danger">Delete</button>
+            <button type="button" onClick={() => setConfirmDelete(null)} className="btn-neutral">
+              Cancel
+            </button>
+            <button type="button" onClick={handleDelete} className="btn-danger">
+              Delete
+            </button>
           </div>
         </Modal>
       )}
-
     </div>
   );
 }
