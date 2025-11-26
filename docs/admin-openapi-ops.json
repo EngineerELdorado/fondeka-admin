@@ -1,0 +1,3856 @@
+{
+  "generatedAt": "2025-11-24T23:58:22.894Z",
+  "domains": [
+    {
+      "key": "adminaccountcontroller",
+      "tag": "AdminAccountController",
+      "label": "Account",
+      "operations": [
+        {
+          "key": "get-accounts",
+          "method": "GET",
+          "path": "/accounts",
+          "label": "getAccounts",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size",
+            "accountNumber",
+            "startDate",
+            "endDate"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "get-accounts-accountid",
+          "method": "GET",
+          "path": "/accounts/{accountId}",
+          "label": "getAccountById",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "accountId"
+          ]
+        },
+        {
+          "key": "delete-accounts-accountid-custom-pricing",
+          "method": "DELETE",
+          "path": "/accounts/{accountId}/custom-pricing",
+          "label": "removeCustomPricing",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "accountId"
+          ]
+        },
+        {
+          "key": "get-accounts-accountid-custom-pricing",
+          "method": "GET",
+          "path": "/accounts/{accountId}/custom-pricing",
+          "label": "getAccountCustomPricing",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "accountId"
+          ]
+        },
+        {
+          "key": "patch-accounts-accountid-custom-pricing",
+          "method": "PATCH",
+          "path": "/accounts/{accountId}/custom-pricing",
+          "label": "updateCustomPricing",
+          "hasBody": true,
+          "sampleBody": "{\n  \"id\": 0,\n  \"cardPrice\": 0,\n  \"feesPercentage\": 0,\n  \"loanInterestRate\": 0,\n  \"maxLoanAmount\": 0,\n  \"maxLoanDays\": 0\n}",
+          "queryParams": [],
+          "pathParams": [
+            "accountId"
+          ]
+        },
+        {
+          "key": "get-accounts-check-aml-accountid",
+          "method": "GET",
+          "path": "/accounts/check-aml/{accountId}",
+          "label": "checkAml",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "accountId"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminaccountbalancecontroller",
+      "tag": "AdminAccountBalanceController",
+      "label": "Account Balance",
+      "operations": [
+        {
+          "key": "get-account-balances",
+          "method": "GET",
+          "path": "/account-balances",
+          "label": "list_54",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-account-balances",
+          "method": "POST",
+          "path": "/account-balances",
+          "label": "create_54",
+          "hasBody": true,
+          "sampleBody": "{\n  \"accountId\": 0,\n  \"balance\": 0\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-account-balances-id",
+          "method": "DELETE",
+          "path": "/account-balances/{id}",
+          "label": "delete_54",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-account-balances-id",
+          "method": "GET",
+          "path": "/account-balances/{id}",
+          "label": "get_54",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-account-balances-id",
+          "method": "PUT",
+          "path": "/account-balances/{id}",
+          "label": "update_54",
+          "hasBody": true,
+          "sampleBody": "{\n  \"accountId\": 0,\n  \"balance\": 0\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminaccountbalanceactivitycontroller",
+      "tag": "AdminAccountBalanceActivityController",
+      "label": "Account Balance Activity",
+      "operations": [
+        {
+          "key": "get-account-balance-activities",
+          "method": "GET",
+          "path": "/account-balance-activities",
+          "label": "list_55",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-account-balance-activities",
+          "method": "POST",
+          "path": "/account-balance-activities",
+          "label": "create_55",
+          "hasBody": true,
+          "sampleBody": "{\n  \"accountBalanceId\": 0,\n  \"transactionId\": 0,\n  \"previousBalance\": 0,\n  \"newBalance\": 0,\n  \"delta\": 0,\n  \"activityType\": \"DEPOSIT\"\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-account-balance-activities-id",
+          "method": "DELETE",
+          "path": "/account-balance-activities/{id}",
+          "label": "delete_55",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-account-balance-activities-id",
+          "method": "GET",
+          "path": "/account-balance-activities/{id}",
+          "label": "get_55",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-account-balance-activities-id",
+          "method": "PUT",
+          "path": "/account-balance-activities/{id}",
+          "label": "update_55",
+          "hasBody": true,
+          "sampleBody": "{\n  \"accountBalanceId\": 0,\n  \"transactionId\": 0,\n  \"previousBalance\": 0,\n  \"newBalance\": 0,\n  \"delta\": 0,\n  \"activityType\": \"DEPOSIT\"\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminaccounttransfercontroller",
+      "tag": "AdminAccountTransferController",
+      "label": "Account Transfer",
+      "operations": [
+        {
+          "key": "get-account-transfers",
+          "method": "GET",
+          "path": "/account-transfers",
+          "label": "list_53",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-account-transfers",
+          "method": "POST",
+          "path": "/account-transfers",
+          "label": "create_53",
+          "hasBody": true,
+          "sampleBody": "{\n  \"transactionId\": 0,\n  \"senderAccountId\": 0,\n  \"receiverAccountId\": 0\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-account-transfers-id",
+          "method": "DELETE",
+          "path": "/account-transfers/{id}",
+          "label": "delete_53",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-account-transfers-id",
+          "method": "GET",
+          "path": "/account-transfers/{id}",
+          "label": "get_53",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-account-transfers-id",
+          "method": "PUT",
+          "path": "/account-transfers/{id}",
+          "label": "update_53",
+          "hasBody": true,
+          "sampleBody": "{\n  \"transactionId\": 0,\n  \"senderAccountId\": 0,\n  \"receiverAccountId\": 0\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminaddresscontroller",
+      "tag": "AdminAddressController",
+      "label": "Address",
+      "operations": [
+        {
+          "key": "get-addresses",
+          "method": "GET",
+          "path": "/addresses",
+          "label": "list_52",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-addresses",
+          "method": "POST",
+          "path": "/addresses",
+          "label": "create_52",
+          "hasBody": true,
+          "sampleBody": "{\n  \"municipalityId\": 0,\n  \"postalCode\": \"\",\n  \"street\": \"\",\n  \"houseNo\": \"\",\n  \"userId\": 0\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-addresses-id",
+          "method": "DELETE",
+          "path": "/addresses/{id}",
+          "label": "delete_52",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-addresses-id",
+          "method": "GET",
+          "path": "/addresses/{id}",
+          "label": "get_52",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-addresses-id",
+          "method": "PUT",
+          "path": "/addresses/{id}",
+          "label": "update_52",
+          "hasBody": true,
+          "sampleBody": "{\n  \"municipalityId\": 0,\n  \"postalCode\": \"\",\n  \"street\": \"\",\n  \"houseNo\": \"\",\n  \"userId\": 0\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminadmincontroller",
+      "tag": "AdminAdminController",
+      "label": "Admin",
+      "operations": [
+        {
+          "key": "get-admins",
+          "method": "GET",
+          "path": "/admins",
+          "label": "getAdmins",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-admins",
+          "method": "POST",
+          "path": "/admins",
+          "label": "addAdminUser",
+          "hasBody": true,
+          "sampleBody": "{\n  \"role\": \"SUPER_ADMIN\",\n  \"firstName\": \"\",\n  \"lastName\": \"\",\n  \"email\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-admins-id",
+          "method": "DELETE",
+          "path": "/admins/{id}",
+          "label": "deleteAdminUser",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-admins-id",
+          "method": "PUT",
+          "path": "/admins/{id}",
+          "label": "updateAdmin",
+          "hasBody": true,
+          "sampleBody": "{\n  \"role\": \"SUPER_ADMIN\",\n  \"firstName\": \"\",\n  \"lastName\": \"\",\n  \"email\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-admins-id-reset-password",
+          "method": "GET",
+          "path": "/admins/{id}/reset-password",
+          "label": "resetPassword",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "patch-admins-change-my-password",
+          "method": "PATCH",
+          "path": "/admins/change-my-password",
+          "label": "changeMyPassword",
+          "hasBody": true,
+          "sampleBody": "{\n  \"newPassword\": \"\",\n  \"confirmNewPassword\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": []
+        }
+      ]
+    },
+    {
+      "key": "adminairtimeprovidercontroller",
+      "tag": "AdminAirtimeProviderController",
+      "label": "Airtime Provider",
+      "operations": [
+        {
+          "key": "get-airtime-providers",
+          "method": "GET",
+          "path": "/airtime-providers",
+          "label": "list_50",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-airtime-providers",
+          "method": "POST",
+          "path": "/airtime-providers",
+          "label": "create_50",
+          "hasBody": true,
+          "sampleBody": "{\n  \"name\": \"RELOADLY\",\n  \"displayName\": \"\",\n  \"active\": false,\n  \"rank\": 0,\n  \"defaultProvider\": false\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-airtime-providers-id",
+          "method": "DELETE",
+          "path": "/airtime-providers/{id}",
+          "label": "delete_50",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-airtime-providers-id",
+          "method": "GET",
+          "path": "/airtime-providers/{id}",
+          "label": "get_50",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-airtime-providers-id",
+          "method": "PUT",
+          "path": "/airtime-providers/{id}",
+          "label": "update_50",
+          "hasBody": true,
+          "sampleBody": "{\n  \"name\": \"RELOADLY\",\n  \"displayName\": \"\",\n  \"active\": false,\n  \"rank\": 0,\n  \"defaultProvider\": false\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminbeneficiarycontroller",
+      "tag": "AdminBeneficiaryController",
+      "label": "Beneficiary",
+      "operations": [
+        {
+          "key": "get-beneficiaries",
+          "method": "GET",
+          "path": "/beneficiaries",
+          "label": "list_49",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-beneficiaries",
+          "method": "POST",
+          "path": "/beneficiaries",
+          "label": "create_49",
+          "hasBody": true,
+          "sampleBody": "{\n  \"externalReference\": \"\",\n  \"name\": \"\",\n  \"email\": \"\",\n  \"type\": \"INDIVIDUAL\",\n  \"relationship\": \"SELF\",\n  \"address\": \"\",\n  \"city\": \"\",\n  \"state\": \"\",\n  \"zip\": \"\",\n  \"country\": \"\",\n  \"accountId\": 0,\n  \"provider\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-beneficiaries-id",
+          "method": "DELETE",
+          "path": "/beneficiaries/{id}",
+          "label": "delete_49",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-beneficiaries-id",
+          "method": "GET",
+          "path": "/beneficiaries/{id}",
+          "label": "get_49",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-beneficiaries-id",
+          "method": "PUT",
+          "path": "/beneficiaries/{id}",
+          "label": "update_49",
+          "hasBody": true,
+          "sampleBody": "{\n  \"externalReference\": \"\",\n  \"name\": \"\",\n  \"email\": \"\",\n  \"type\": \"INDIVIDUAL\",\n  \"relationship\": \"SELF\",\n  \"address\": \"\",\n  \"city\": \"\",\n  \"state\": \"\",\n  \"zip\": \"\",\n  \"country\": \"\",\n  \"accountId\": 0,\n  \"provider\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminbeneficiarypaymentmethodcontroller",
+      "tag": "AdminBeneficiaryPaymentMethodController",
+      "label": "Beneficiary Payment Method",
+      "operations": [
+        {
+          "key": "get-beneficiary-payment-methods",
+          "method": "GET",
+          "path": "/beneficiary-payment-methods",
+          "label": "list_48",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-beneficiary-payment-methods",
+          "method": "POST",
+          "path": "/beneficiary-payment-methods",
+          "label": "create_48",
+          "hasBody": true,
+          "sampleBody": "{\n  \"title\": \"\",\n  \"externalReference\": \"\",\n  \"paymentMethodType\": \"MOBILE_MONEY\",\n  \"paymentMethodName\": \"MPESA_DRC\",\n  \"networkName\": \"\",\n  \"recipient\": \"\",\n  \"beneficiaryId\": 0\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-beneficiary-payment-methods-id",
+          "method": "DELETE",
+          "path": "/beneficiary-payment-methods/{id}",
+          "label": "delete_48",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-beneficiary-payment-methods-id",
+          "method": "GET",
+          "path": "/beneficiary-payment-methods/{id}",
+          "label": "get_48",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-beneficiary-payment-methods-id",
+          "method": "PUT",
+          "path": "/beneficiary-payment-methods/{id}",
+          "label": "update_48",
+          "hasBody": true,
+          "sampleBody": "{\n  \"title\": \"\",\n  \"externalReference\": \"\",\n  \"paymentMethodType\": \"MOBILE_MONEY\",\n  \"paymentMethodName\": \"MPESA_DRC\",\n  \"networkName\": \"\",\n  \"recipient\": \"\",\n  \"beneficiaryId\": 0\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminbillpaymentintentcontroller",
+      "tag": "AdminBillPaymentIntentController",
+      "label": "Bill Payment Intent",
+      "operations": [
+        {
+          "key": "get-bill-payment-intents",
+          "method": "GET",
+          "path": "/bill-payment-intents",
+          "label": "list_47",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-bill-payment-intents",
+          "method": "POST",
+          "path": "/bill-payment-intents",
+          "label": "create_47",
+          "hasBody": true,
+          "sampleBody": "{\n  \"billName\": \"CANAL_PLUS\",\n  \"billCode\": \"CANAL_PLUS_RWANDA\",\n  \"shape\": \"METERED\",\n  \"status\": \"PENDING_FUNDS\",\n  \"amount\": 0,\n  \"providerProductId\": 0,\n  \"unitPrice\": 0,\n  \"providerOfferId\": \"\",\n  \"providerOptionId\": \"\",\n  \"subscriberId\": \"\",\n  \"accountNumber\": \"\",\n  \"subscriptionNumber\": \"\",\n  \"offerCode\": \"\",\n  \"optionCode\": \"\",\n  \"transactionId\": 0\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-bill-payment-intents-id",
+          "method": "DELETE",
+          "path": "/bill-payment-intents/{id}",
+          "label": "delete_47",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-bill-payment-intents-id",
+          "method": "GET",
+          "path": "/bill-payment-intents/{id}",
+          "label": "get_47",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-bill-payment-intents-id",
+          "method": "PUT",
+          "path": "/bill-payment-intents/{id}",
+          "label": "update_47",
+          "hasBody": true,
+          "sampleBody": "{\n  \"billName\": \"CANAL_PLUS\",\n  \"billCode\": \"CANAL_PLUS_RWANDA\",\n  \"shape\": \"METERED\",\n  \"status\": \"PENDING_FUNDS\",\n  \"amount\": 0,\n  \"providerProductId\": 0,\n  \"unitPrice\": 0,\n  \"providerOfferId\": \"\",\n  \"providerOptionId\": \"\",\n  \"subscriberId\": \"\",\n  \"accountNumber\": \"\",\n  \"subscriptionNumber\": \"\",\n  \"offerCode\": \"\",\n  \"optionCode\": \"\",\n  \"transactionId\": 0\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminbillproductcontroller",
+      "tag": "AdminBillProductController",
+      "label": "Bill Product",
+      "operations": [
+        {
+          "key": "get-bill-products",
+          "method": "GET",
+          "path": "/bill-products",
+          "label": "list_42",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-bill-products",
+          "method": "POST",
+          "path": "/bill-products",
+          "label": "create_42",
+          "hasBody": true,
+          "sampleBody": "{\n  \"type\": \"TELEVISION\",\n  \"name\": \"CANAL_PLUS\",\n  \"code\": \"CANAL_PLUS_RWANDA\",\n  \"displayName\": \"\",\n  \"logoUrl\": \"\",\n  \"icon\": \"\",\n  \"active\": false,\n  \"rank\": 0,\n  \"internalFeePercentage\": 0,\n  \"internalFlatFeeAmount\": 0\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-bill-products-id",
+          "method": "DELETE",
+          "path": "/bill-products/{id}",
+          "label": "delete_42",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-bill-products-id",
+          "method": "GET",
+          "path": "/bill-products/{id}",
+          "label": "get_42",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-bill-products-id",
+          "method": "PUT",
+          "path": "/bill-products/{id}",
+          "label": "update_42",
+          "hasBody": true,
+          "sampleBody": "{\n  \"type\": \"TELEVISION\",\n  \"name\": \"CANAL_PLUS\",\n  \"code\": \"CANAL_PLUS_RWANDA\",\n  \"displayName\": \"\",\n  \"logoUrl\": \"\",\n  \"icon\": \"\",\n  \"active\": false,\n  \"rank\": 0,\n  \"internalFeePercentage\": 0,\n  \"internalFlatFeeAmount\": 0\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminbillproductbillprovidercontroller",
+      "tag": "AdminBillProductBillProviderController",
+      "label": "Bill Product Bill Provider",
+      "operations": [
+        {
+          "key": "get-bill-product-bill-providers",
+          "method": "GET",
+          "path": "/bill-product-bill-providers",
+          "label": "list_43",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-bill-product-bill-providers",
+          "method": "POST",
+          "path": "/bill-product-bill-providers",
+          "label": "create_43",
+          "hasBody": true,
+          "sampleBody": "{\n  \"billProductId\": 0,\n  \"billProviderId\": 0,\n  \"rank\": 0,\n  \"active\": false\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-bill-product-bill-providers-id",
+          "method": "DELETE",
+          "path": "/bill-product-bill-providers/{id}",
+          "label": "delete_43",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-bill-product-bill-providers-id",
+          "method": "GET",
+          "path": "/bill-product-bill-providers/{id}",
+          "label": "get_43",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-bill-product-bill-providers-id",
+          "method": "PUT",
+          "path": "/bill-product-bill-providers/{id}",
+          "label": "update_43",
+          "hasBody": true,
+          "sampleBody": "{\n  \"billProductId\": 0,\n  \"billProviderId\": 0,\n  \"rank\": 0,\n  \"active\": false\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminbillproductbillprovideroffercontroller",
+      "tag": "AdminBillProductBillProviderOfferController",
+      "label": "Bill Product Bill Provider Offer",
+      "operations": [
+        {
+          "key": "get-bill-product-bill-provider-offers",
+          "method": "GET",
+          "path": "/bill-product-bill-provider-offers",
+          "label": "list_45",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-bill-product-bill-provider-offers",
+          "method": "POST",
+          "path": "/bill-product-bill-provider-offers",
+          "label": "create_45",
+          "hasBody": true,
+          "sampleBody": "{\n  \"billProductBillProviderId\": 0,\n  \"name\": \"\",\n  \"externalReference\": \"\",\n  \"displayName\": \"\",\n  \"price\": 0,\n  \"currency\": \"\",\n  \"ourPriceInUsd\": 0\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-bill-product-bill-provider-offers-id",
+          "method": "DELETE",
+          "path": "/bill-product-bill-provider-offers/{id}",
+          "label": "delete_45",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-bill-product-bill-provider-offers-id",
+          "method": "GET",
+          "path": "/bill-product-bill-provider-offers/{id}",
+          "label": "get_45",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-bill-product-bill-provider-offers-id",
+          "method": "PUT",
+          "path": "/bill-product-bill-provider-offers/{id}",
+          "label": "update_45",
+          "hasBody": true,
+          "sampleBody": "{\n  \"billProductBillProviderId\": 0,\n  \"name\": \"\",\n  \"externalReference\": \"\",\n  \"displayName\": \"\",\n  \"price\": 0,\n  \"currency\": \"\",\n  \"ourPriceInUsd\": 0\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminbillproductbillproviderofferoptioncontroller",
+      "tag": "AdminBillProductBillProviderOfferOptionController",
+      "label": "Bill Product Bill Provider Offer Option",
+      "operations": [
+        {
+          "key": "get-bill-product-bill-provider-offer-options",
+          "method": "GET",
+          "path": "/bill-product-bill-provider-offer-options",
+          "label": "list_46",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-bill-product-bill-provider-offer-options",
+          "method": "POST",
+          "path": "/bill-product-bill-provider-offer-options",
+          "label": "create_46",
+          "hasBody": true,
+          "sampleBody": "{\n  \"billProductBillProviderOfferId\": 0,\n  \"billProductBillProviderOptionId\": 0\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-bill-product-bill-provider-offer-options-id",
+          "method": "DELETE",
+          "path": "/bill-product-bill-provider-offer-options/{id}",
+          "label": "delete_46",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-bill-product-bill-provider-offer-options-id",
+          "method": "GET",
+          "path": "/bill-product-bill-provider-offer-options/{id}",
+          "label": "get_46",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-bill-product-bill-provider-offer-options-id",
+          "method": "PUT",
+          "path": "/bill-product-bill-provider-offer-options/{id}",
+          "label": "update_46",
+          "hasBody": true,
+          "sampleBody": "{\n  \"billProductBillProviderOfferId\": 0,\n  \"billProductBillProviderOptionId\": 0\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminbillproductbillprovideroptioncontroller",
+      "tag": "AdminBillProductBillProviderOptionController",
+      "label": "Bill Product Bill Provider Option",
+      "operations": [
+        {
+          "key": "get-bill-product-bill-provider-options",
+          "method": "GET",
+          "path": "/bill-product-bill-provider-options",
+          "label": "list_44",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-bill-product-bill-provider-options",
+          "method": "POST",
+          "path": "/bill-product-bill-provider-options",
+          "label": "create_44",
+          "hasBody": true,
+          "sampleBody": "{\n  \"name\": \"\",\n  \"externalReference\": \"\",\n  \"displayName\": \"\",\n  \"price\": 0,\n  \"currency\": \"\",\n  \"ourPriceInUsd\": 0\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-bill-product-bill-provider-options-id",
+          "method": "DELETE",
+          "path": "/bill-product-bill-provider-options/{id}",
+          "label": "delete_44",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-bill-product-bill-provider-options-id",
+          "method": "GET",
+          "path": "/bill-product-bill-provider-options/{id}",
+          "label": "get_44",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-bill-product-bill-provider-options-id",
+          "method": "PUT",
+          "path": "/bill-product-bill-provider-options/{id}",
+          "label": "update_44",
+          "hasBody": true,
+          "sampleBody": "{\n  \"name\": \"\",\n  \"externalReference\": \"\",\n  \"displayName\": \"\",\n  \"price\": 0,\n  \"currency\": \"\",\n  \"ourPriceInUsd\": 0\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminbillprovidercontroller",
+      "tag": "AdminBillProviderController",
+      "label": "Bill Provider",
+      "operations": [
+        {
+          "key": "get-bill-providers",
+          "method": "GET",
+          "path": "/bill-providers",
+          "label": "list_41",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-bill-providers",
+          "method": "POST",
+          "path": "/bill-providers",
+          "label": "create_41",
+          "hasBody": true,
+          "sampleBody": "{\n  \"name\": \"CGAWEB\",\n  \"displayName\": \"\",\n  \"active\": false,\n  \"rank\": 0\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-bill-providers-id",
+          "method": "DELETE",
+          "path": "/bill-providers/{id}",
+          "label": "delete_41",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-bill-providers-id",
+          "method": "GET",
+          "path": "/bill-providers/{id}",
+          "label": "get_41",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-bill-providers-id",
+          "method": "PUT",
+          "path": "/bill-providers/{id}",
+          "label": "update_41",
+          "hasBody": true,
+          "sampleBody": "{\n  \"name\": \"CGAWEB\",\n  \"displayName\": \"\",\n  \"active\": false,\n  \"rank\": 0\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminblacklistcontroller",
+      "tag": "AdminBlackListController",
+      "label": "Black List",
+      "operations": [
+        {
+          "key": "get-blacklist",
+          "method": "GET",
+          "path": "/blacklist",
+          "label": "list_40",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-blacklist",
+          "method": "POST",
+          "path": "/blacklist",
+          "label": "create_40",
+          "hasBody": true,
+          "sampleBody": "{\n  \"accountId\": 0,\n  \"reason\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-blacklist-id",
+          "method": "DELETE",
+          "path": "/blacklist/{id}",
+          "label": "delete_40",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-blacklist-id",
+          "method": "GET",
+          "path": "/blacklist/{id}",
+          "label": "get_40",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-blacklist-id",
+          "method": "PUT",
+          "path": "/blacklist/{id}",
+          "label": "update_40",
+          "hasBody": true,
+          "sampleBody": "{\n  \"accountId\": 0,\n  \"reason\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "admincardcontroller",
+      "tag": "AdminCardController",
+      "label": "Card",
+      "operations": [
+        {
+          "key": "get-cards",
+          "method": "GET",
+          "path": "/cards",
+          "label": "list_33",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-cards",
+          "method": "POST",
+          "path": "/cards",
+          "label": "create_33",
+          "hasBody": true,
+          "sampleBody": "{\n  \"internalReference\": \"\",\n  \"name\": \"\",\n  \"externalReference\": \"\",\n  \"status\": \"WAITING_FOR_CARD_HOLDER_VERIFICATION\",\n  \"last4\": \"\",\n  \"cardHolderId\": 0,\n  \"accountId\": 0,\n  \"issued\": false,\n  \"cardProductCardProviderId\": 0\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-cards-id",
+          "method": "DELETE",
+          "path": "/cards/{id}",
+          "label": "delete_33",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-cards-id",
+          "method": "GET",
+          "path": "/cards/{id}",
+          "label": "get_33",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-cards-id",
+          "method": "PUT",
+          "path": "/cards/{id}",
+          "label": "update_33",
+          "hasBody": true,
+          "sampleBody": "{\n  \"internalReference\": \"\",\n  \"name\": \"\",\n  \"externalReference\": \"\",\n  \"status\": \"WAITING_FOR_CARD_HOLDER_VERIFICATION\",\n  \"last4\": \"\",\n  \"cardHolderId\": 0,\n  \"accountId\": 0,\n  \"issued\": false,\n  \"cardProductCardProviderId\": 0\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "admincardactivitycontroller",
+      "tag": "AdminCardActivityController",
+      "label": "Card Activity",
+      "operations": [
+        {
+          "key": "get-card-activities",
+          "method": "GET",
+          "path": "/card-activities",
+          "label": "list_39",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-card-activities",
+          "method": "POST",
+          "path": "/card-activities",
+          "label": "create_39",
+          "hasBody": true,
+          "sampleBody": "{\n  \"cardId\": 0,\n  \"activityType\": \"DEPOSIT\",\n  \"transactionId\": 0\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-card-activities-id",
+          "method": "DELETE",
+          "path": "/card-activities/{id}",
+          "label": "delete_39",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-card-activities-id",
+          "method": "GET",
+          "path": "/card-activities/{id}",
+          "label": "get_39",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-card-activities-id",
+          "method": "PUT",
+          "path": "/card-activities/{id}",
+          "label": "update_39",
+          "hasBody": true,
+          "sampleBody": "{\n  \"cardId\": 0,\n  \"activityType\": \"DEPOSIT\",\n  \"transactionId\": 0\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "admincardholdercontroller",
+      "tag": "AdminCardHolderController",
+      "label": "Card Holder",
+      "operations": [
+        {
+          "key": "get-card-holders",
+          "method": "GET",
+          "path": "/card-holders",
+          "label": "list_38",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-card-holders",
+          "method": "POST",
+          "path": "/card-holders",
+          "label": "create_38",
+          "hasBody": true,
+          "sampleBody": "{\n  \"internalReference\": \"\",\n  \"externalReference\": \"\",\n  \"accountId\": 0,\n  \"verified\": false,\n  \"metaData\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-card-holders-id",
+          "method": "DELETE",
+          "path": "/card-holders/{id}",
+          "label": "delete_38",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-card-holders-id",
+          "method": "GET",
+          "path": "/card-holders/{id}",
+          "label": "get_38",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-card-holders-id",
+          "method": "PUT",
+          "path": "/card-holders/{id}",
+          "label": "update_38",
+          "hasBody": true,
+          "sampleBody": "{\n  \"internalReference\": \"\",\n  \"externalReference\": \"\",\n  \"accountId\": 0,\n  \"verified\": false,\n  \"metaData\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "admincardproductcontroller",
+      "tag": "AdminCardProductController",
+      "label": "Card Product",
+      "operations": [
+        {
+          "key": "get-card-products",
+          "method": "GET",
+          "path": "/card-products",
+          "label": "list_36",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-card-products",
+          "method": "POST",
+          "path": "/card-products",
+          "label": "create_36",
+          "hasBody": true,
+          "sampleBody": "{\n  \"cardBrandName\": \"VISA\",\n  \"active\": false,\n  \"rank\": 0,\n  \"logoUrl\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-card-products-id",
+          "method": "DELETE",
+          "path": "/card-products/{id}",
+          "label": "delete_36",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-card-products-id",
+          "method": "GET",
+          "path": "/card-products/{id}",
+          "label": "get_36",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-card-products-id",
+          "method": "PUT",
+          "path": "/card-products/{id}",
+          "label": "update_36",
+          "hasBody": true,
+          "sampleBody": "{\n  \"cardBrandName\": \"VISA\",\n  \"active\": false,\n  \"rank\": 0,\n  \"logoUrl\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "admincardproductcardprovidercontroller",
+      "tag": "AdminCardProductCardProviderController",
+      "label": "Card Product Card Provider",
+      "operations": [
+        {
+          "key": "get-card-product-card-providers",
+          "method": "GET",
+          "path": "/card-product-card-providers",
+          "label": "list_37",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-card-product-card-providers",
+          "method": "POST",
+          "path": "/card-product-card-providers",
+          "label": "create_37",
+          "hasBody": true,
+          "sampleBody": "{\n  \"cardProductId\": 0,\n  \"cardProviderId\": 0,\n  \"currency\": \"CDF\",\n  \"purchaseCost\": 0,\n  \"price\": 0,\n  \"monthlyMaintenanceCost\": 0,\n  \"active\": false,\n  \"transactionFeePercentage\": 0\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-card-product-card-providers-id",
+          "method": "DELETE",
+          "path": "/card-product-card-providers/{id}",
+          "label": "delete_37",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-card-product-card-providers-id",
+          "method": "GET",
+          "path": "/card-product-card-providers/{id}",
+          "label": "get_37",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-card-product-card-providers-id",
+          "method": "PUT",
+          "path": "/card-product-card-providers/{id}",
+          "label": "update_37",
+          "hasBody": true,
+          "sampleBody": "{\n  \"cardProductId\": 0,\n  \"cardProviderId\": 0,\n  \"currency\": \"CDF\",\n  \"purchaseCost\": 0,\n  \"price\": 0,\n  \"monthlyMaintenanceCost\": 0,\n  \"active\": false,\n  \"transactionFeePercentage\": 0\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "admincardprovidercontroller",
+      "tag": "AdminCardProviderController",
+      "label": "Card Provider",
+      "operations": [
+        {
+          "key": "get-card-providers",
+          "method": "GET",
+          "path": "/card-providers",
+          "label": "list_35",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-card-providers",
+          "method": "POST",
+          "path": "/card-providers",
+          "label": "create_35",
+          "hasBody": true,
+          "sampleBody": "{\n  \"name\": \"BRIDGECARD\",\n  \"active\": false,\n  \"rank\": 0\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-card-providers-id",
+          "method": "DELETE",
+          "path": "/card-providers/{id}",
+          "label": "delete_35",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-card-providers-id",
+          "method": "GET",
+          "path": "/card-providers/{id}",
+          "label": "get_35",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-card-providers-id",
+          "method": "PUT",
+          "path": "/card-providers/{id}",
+          "label": "update_35",
+          "hasBody": true,
+          "sampleBody": "{\n  \"name\": \"BRIDGECARD\",\n  \"active\": false,\n  \"rank\": 0\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "admincardpurchaseintentcontroller",
+      "tag": "AdminCardPurchaseIntentController",
+      "label": "Card Purchase Intent",
+      "operations": [
+        {
+          "key": "get-card-purchase-intents",
+          "method": "GET",
+          "path": "/card-purchase-intents",
+          "label": "list_34",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-card-purchase-intents",
+          "method": "POST",
+          "path": "/card-purchase-intents",
+          "label": "create_34",
+          "hasBody": true,
+          "sampleBody": "{\n  \"cardProductId\": 0,\n  \"transactionId\": 0\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-card-purchase-intents-id",
+          "method": "DELETE",
+          "path": "/card-purchase-intents/{id}",
+          "label": "delete_34",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-card-purchase-intents-id",
+          "method": "GET",
+          "path": "/card-purchase-intents/{id}",
+          "label": "get_34",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-card-purchase-intents-id",
+          "method": "PUT",
+          "path": "/card-purchase-intents/{id}",
+          "label": "update_34",
+          "hasBody": true,
+          "sampleBody": "{\n  \"cardProductId\": 0,\n  \"transactionId\": 0\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "admincegawebtokencontroller",
+      "tag": "AdminCegaWebTokenController",
+      "label": "Cega Web Token",
+      "operations": [
+        {
+          "key": "get-cega-web-tokens",
+          "method": "GET",
+          "path": "/cega-web-tokens",
+          "label": "list_32",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-cega-web-tokens",
+          "method": "POST",
+          "path": "/cega-web-tokens",
+          "label": "create_32",
+          "hasBody": true,
+          "sampleBody": "{\n  \"token\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-cega-web-tokens-id",
+          "method": "DELETE",
+          "path": "/cega-web-tokens/{id}",
+          "label": "delete_32",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-cega-web-tokens-id",
+          "method": "GET",
+          "path": "/cega-web-tokens/{id}",
+          "label": "get_32",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-cega-web-tokens-id",
+          "method": "PUT",
+          "path": "/cega-web-tokens/{id}",
+          "label": "update_32",
+          "hasBody": true,
+          "sampleBody": "{\n  \"token\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "admincontactcontroller",
+      "tag": "AdminContactController",
+      "label": "Contact",
+      "operations": [
+        {
+          "key": "get-contacts",
+          "method": "GET",
+          "path": "/contacts",
+          "label": "list_31",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-contacts",
+          "method": "POST",
+          "path": "/contacts",
+          "label": "create_31",
+          "hasBody": true,
+          "sampleBody": "{\n  \"email\": \"\",\n  \"emailVerified\": false,\n  \"phoneNumber\": \"\",\n  \"phoneNumberVerified\": false,\n  \"userId\": 0\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-contacts-id",
+          "method": "DELETE",
+          "path": "/contacts/{id}",
+          "label": "delete_31",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-contacts-id",
+          "method": "GET",
+          "path": "/contacts/{id}",
+          "label": "get_31",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-contacts-id",
+          "method": "PUT",
+          "path": "/contacts/{id}",
+          "label": "update_31",
+          "hasBody": true,
+          "sampleBody": "{\n  \"email\": \"\",\n  \"emailVerified\": false,\n  \"phoneNumber\": \"\",\n  \"phoneNumberVerified\": false,\n  \"userId\": 0\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "admincountrycontroller",
+      "tag": "AdminCountryController",
+      "label": "Country",
+      "operations": [
+        {
+          "key": "get-countries",
+          "method": "GET",
+          "path": "/countries",
+          "label": "list_30",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-countries",
+          "method": "POST",
+          "path": "/countries",
+          "label": "create_30",
+          "hasBody": true,
+          "sampleBody": "{\n  \"alpha2Code\": \"\",\n  \"alpha3Code\": \"\",\n  \"name\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-countries-id",
+          "method": "DELETE",
+          "path": "/countries/{id}",
+          "label": "delete_30",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-countries-id",
+          "method": "GET",
+          "path": "/countries/{id}",
+          "label": "get_30",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-countries-id",
+          "method": "PUT",
+          "path": "/countries/{id}",
+          "label": "update_30",
+          "hasBody": true,
+          "sampleBody": "{\n  \"alpha2Code\": \"\",\n  \"alpha3Code\": \"\",\n  \"name\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "admincryptoinvoicecontroller",
+      "tag": "AdminCryptoInvoiceController",
+      "label": "Crypto Invoice",
+      "operations": [
+        {
+          "key": "get-crypto-invoices",
+          "method": "GET",
+          "path": "/crypto-invoices",
+          "label": "list_29",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-crypto-invoices",
+          "method": "POST",
+          "path": "/crypto-invoices",
+          "label": "create_29",
+          "hasBody": true,
+          "sampleBody": "{\n  \"walletId\": 0,\n  \"internalReference\": \"\",\n  \"externalReference\": \"\",\n  \"address\": \"\",\n  \"memoTag\": \"\",\n  \"expectedAmount\": 0,\n  \"status\": \"NEW\"\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-crypto-invoices-id",
+          "method": "DELETE",
+          "path": "/crypto-invoices/{id}",
+          "label": "delete_29",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-crypto-invoices-id",
+          "method": "GET",
+          "path": "/crypto-invoices/{id}",
+          "label": "get_29",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-crypto-invoices-id",
+          "method": "PUT",
+          "path": "/crypto-invoices/{id}",
+          "label": "update_29",
+          "hasBody": true,
+          "sampleBody": "{\n  \"walletId\": 0,\n  \"internalReference\": \"\",\n  \"externalReference\": \"\",\n  \"address\": \"\",\n  \"memoTag\": \"\",\n  \"expectedAmount\": 0,\n  \"status\": \"NEW\"\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "admincryptonetworkcontroller",
+      "tag": "AdminCryptoNetworkController",
+      "label": "Crypto Network",
+      "operations": [
+        {
+          "key": "get-crypto-networks",
+          "method": "GET",
+          "path": "/crypto-networks",
+          "label": "list_28",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-crypto-networks",
+          "method": "POST",
+          "path": "/crypto-networks",
+          "label": "create_28",
+          "hasBody": true,
+          "sampleBody": "{\n  \"name\": \"BTC\",\n  \"displayName\": \"\",\n  \"active\": false\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-crypto-networks-id",
+          "method": "DELETE",
+          "path": "/crypto-networks/{id}",
+          "label": "delete_28",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-crypto-networks-id",
+          "method": "GET",
+          "path": "/crypto-networks/{id}",
+          "label": "get_28",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-crypto-networks-id",
+          "method": "PUT",
+          "path": "/crypto-networks/{id}",
+          "label": "update_28",
+          "hasBody": true,
+          "sampleBody": "{\n  \"name\": \"BTC\",\n  \"displayName\": \"\",\n  \"active\": false\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "admincryptoproductcontroller",
+      "tag": "AdminCryptoProductController",
+      "label": "Crypto Product",
+      "operations": [
+        {
+          "key": "get-crypto-products",
+          "method": "GET",
+          "path": "/crypto-products",
+          "label": "list_26",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-crypto-products",
+          "method": "POST",
+          "path": "/crypto-products",
+          "label": "create_26",
+          "hasBody": true,
+          "sampleBody": "{\n  \"currency\": \"USDC\",\n  \"displayName\": \"\",\n  \"rate\": 0,\n  \"ask\": 0,\n  \"bid\": 0,\n  \"active\": false\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-crypto-products-id",
+          "method": "DELETE",
+          "path": "/crypto-products/{id}",
+          "label": "delete_26",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-crypto-products-id",
+          "method": "GET",
+          "path": "/crypto-products/{id}",
+          "label": "get_26",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-crypto-products-id",
+          "method": "PUT",
+          "path": "/crypto-products/{id}",
+          "label": "update_26",
+          "hasBody": true,
+          "sampleBody": "{\n  \"currency\": \"USDC\",\n  \"displayName\": \"\",\n  \"rate\": 0,\n  \"ask\": 0,\n  \"bid\": 0,\n  \"active\": false\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "admincryptoproductcryptonetworkcontroller",
+      "tag": "AdminCryptoProductCryptoNetworkController",
+      "label": "Crypto Product Crypto Network",
+      "operations": [
+        {
+          "key": "get-crypto-product-crypto-networks",
+          "method": "GET",
+          "path": "/crypto-product-crypto-networks",
+          "label": "list_27",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-crypto-product-crypto-networks",
+          "method": "POST",
+          "path": "/crypto-product-crypto-networks",
+          "label": "create_27",
+          "hasBody": true,
+          "sampleBody": "{\n  \"cryptoProductId\": 0,\n  \"cryptoNetworkId\": 0,\n  \"rank\": 0,\n  \"active\": false,\n  \"displayName\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-crypto-product-crypto-networks-id",
+          "method": "DELETE",
+          "path": "/crypto-product-crypto-networks/{id}",
+          "label": "delete_27",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-crypto-product-crypto-networks-id",
+          "method": "GET",
+          "path": "/crypto-product-crypto-networks/{id}",
+          "label": "get_27",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-crypto-product-crypto-networks-id",
+          "method": "PUT",
+          "path": "/crypto-product-crypto-networks/{id}",
+          "label": "update_27",
+          "hasBody": true,
+          "sampleBody": "{\n  \"cryptoProductId\": 0,\n  \"cryptoNetworkId\": 0,\n  \"rank\": 0,\n  \"active\": false,\n  \"displayName\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "admincryptowalletcontroller",
+      "tag": "AdminCryptoWalletController",
+      "label": "Crypto Wallet",
+      "operations": [
+        {
+          "key": "get-crypto-wallets",
+          "method": "GET",
+          "path": "/crypto-wallets",
+          "label": "list_25",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-crypto-wallets",
+          "method": "POST",
+          "path": "/crypto-wallets",
+          "label": "create_25",
+          "hasBody": true,
+          "sampleBody": "{\n  \"accountId\": 0,\n  \"productNetworkId\": 0,\n  \"balance\": 0\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-crypto-wallets-id",
+          "method": "DELETE",
+          "path": "/crypto-wallets/{id}",
+          "label": "delete_25",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-crypto-wallets-id",
+          "method": "GET",
+          "path": "/crypto-wallets/{id}",
+          "label": "get_25",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-crypto-wallets-id",
+          "method": "PUT",
+          "path": "/crypto-wallets/{id}",
+          "label": "update_25",
+          "hasBody": true,
+          "sampleBody": "{\n  \"accountId\": 0,\n  \"productNetworkId\": 0,\n  \"balance\": 0\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminesimprovidercontroller",
+      "tag": "AdminEsimProviderController",
+      "label": "Esim Provider",
+      "operations": [
+        {
+          "key": "get-esim-providers",
+          "method": "GET",
+          "path": "/esim-providers",
+          "label": "list_24",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-esim-providers",
+          "method": "POST",
+          "path": "/esim-providers",
+          "label": "create_24",
+          "hasBody": true,
+          "sampleBody": "{\n  \"name\": \"AIRALO\",\n  \"displayName\": \"\",\n  \"active\": false,\n  \"rank\": 0,\n  \"defaultProvider\": false\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-esim-providers-id",
+          "method": "DELETE",
+          "path": "/esim-providers/{id}",
+          "label": "delete_24",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-esim-providers-id",
+          "method": "GET",
+          "path": "/esim-providers/{id}",
+          "label": "get_24",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-esim-providers-id",
+          "method": "PUT",
+          "path": "/esim-providers/{id}",
+          "label": "update_24",
+          "hasBody": true,
+          "sampleBody": "{\n  \"name\": \"AIRALO\",\n  \"displayName\": \"\",\n  \"active\": false,\n  \"rank\": 0,\n  \"defaultProvider\": false\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminfeeconfigcontroller",
+      "tag": "AdminFeeConfigController",
+      "label": "Fee Config",
+      "operations": [
+        {
+          "key": "get-fee-configs",
+          "method": "GET",
+          "path": "/fee-configs",
+          "label": "list_23",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-fee-configs",
+          "method": "POST",
+          "path": "/fee-configs",
+          "label": "create_23",
+          "hasBody": true,
+          "sampleBody": "{\n  \"paymentMethodPaymentProviderId\": 0,\n  \"action\": \"FUND_WALLET\",\n  \"providerFeePercentage\": 0,\n  \"providerFlatFee\": 0,\n  \"ourFeePercentage\": 0,\n  \"ourFlatFee\": 0\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-fee-configs-id",
+          "method": "DELETE",
+          "path": "/fee-configs/{id}",
+          "label": "delete_23",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-fee-configs-id",
+          "method": "GET",
+          "path": "/fee-configs/{id}",
+          "label": "get_23",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-fee-configs-id",
+          "method": "PUT",
+          "path": "/fee-configs/{id}",
+          "label": "update_23",
+          "hasBody": true,
+          "sampleBody": "{\n  \"paymentMethodPaymentProviderId\": 0,\n  \"action\": \"FUND_WALLET\",\n  \"providerFeePercentage\": 0,\n  \"providerFlatFee\": 0,\n  \"ourFeePercentage\": 0,\n  \"ourFlatFee\": 0\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminkyccontroller",
+      "tag": "AdminKycController",
+      "label": "Kyc",
+      "operations": [
+        {
+          "key": "get-kycs",
+          "method": "GET",
+          "path": "/kycs",
+          "label": "getKycs",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size",
+            "startDate",
+            "endDate",
+            "status"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "patch-kycs-id",
+          "method": "PATCH",
+          "path": "/kycs/{id}",
+          "label": "updateKyc",
+          "hasBody": true,
+          "sampleBody": "{\n  \"kycDecision\": \"APPROVE\",\n  \"comments\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-kycs-kycid",
+          "method": "GET",
+          "path": "/kycs/{kycId}",
+          "label": "getKycById",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "kycId"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminkycjobcontroller",
+      "tag": "AdminKycJobController",
+      "label": "Kyc Job",
+      "operations": [
+        {
+          "key": "get-kyc-jobs",
+          "method": "GET",
+          "path": "/kyc-jobs",
+          "label": "list_22",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-kyc-jobs",
+          "method": "POST",
+          "path": "/kyc-jobs",
+          "label": "create_22",
+          "hasBody": true,
+          "sampleBody": "{\n  \"internalReference\": \"\",\n  \"externalReference\": \"\",\n  \"country\": \"\",\n  \"idType\": \"\",\n  \"status\": \"\",\n  \"vendorStatus\": \"\",\n  \"vendorCode\": \"\",\n  \"submittedAt\": \"2025-11-24T23:58:22.877Z\",\n  \"kycId\": 0\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-kyc-jobs-id",
+          "method": "DELETE",
+          "path": "/kyc-jobs/{id}",
+          "label": "delete_22",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-kyc-jobs-id",
+          "method": "GET",
+          "path": "/kyc-jobs/{id}",
+          "label": "get_22",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-kyc-jobs-id",
+          "method": "PUT",
+          "path": "/kyc-jobs/{id}",
+          "label": "update_22",
+          "hasBody": true,
+          "sampleBody": "{\n  \"internalReference\": \"\",\n  \"externalReference\": \"\",\n  \"country\": \"\",\n  \"idType\": \"\",\n  \"status\": \"\",\n  \"vendorStatus\": \"\",\n  \"vendorCode\": \"\",\n  \"submittedAt\": \"2025-11-24T23:58:22.876Z\",\n  \"kycId\": 0\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminloancontroller",
+      "tag": "AdminLoanController",
+      "label": "Loan",
+      "operations": [
+        {
+          "key": "get-loans",
+          "method": "GET",
+          "path": "/loans",
+          "label": "getLoans",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size",
+            "loanType",
+            "applicationStatus",
+            "fromDate",
+            "toDate"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "get-loans-loanid",
+          "method": "GET",
+          "path": "/loans/{loanId}",
+          "label": "getLoanById",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "loanId"
+          ]
+        },
+        {
+          "key": "put-loans-loanid-approve",
+          "method": "PUT",
+          "path": "/loans/{loanId}/approve",
+          "label": "approveLoan",
+          "hasBody": true,
+          "sampleBody": "{\n  \"decisionComments\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": [
+            "loanId"
+          ]
+        },
+        {
+          "key": "put-loans-loanid-reject",
+          "method": "PUT",
+          "path": "/loans/{loanId}/reject",
+          "label": "rejectLoan",
+          "hasBody": true,
+          "sampleBody": "{\n  \"decisionComments\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": [
+            "loanId"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminloandecisioncontroller",
+      "tag": "AdminLoanDecisionController",
+      "label": "Loan Decision",
+      "operations": [
+        {
+          "key": "get-admin-loan-decisions",
+          "method": "GET",
+          "path": "/admin-loan-decisions",
+          "label": "list_51",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-admin-loan-decisions",
+          "method": "POST",
+          "path": "/admin-loan-decisions",
+          "label": "create_51",
+          "hasBody": true,
+          "sampleBody": "{\n  \"loanId\": 0,\n  \"adminId\": 0,\n  \"adminDecidedAt\": \"2025-11-24T23:58:22.878Z\",\n  \"adminDecisionComments\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-admin-loan-decisions-id",
+          "method": "DELETE",
+          "path": "/admin-loan-decisions/{id}",
+          "label": "delete_51",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-admin-loan-decisions-id",
+          "method": "GET",
+          "path": "/admin-loan-decisions/{id}",
+          "label": "get_51",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-admin-loan-decisions-id",
+          "method": "PUT",
+          "path": "/admin-loan-decisions/{id}",
+          "label": "update_51",
+          "hasBody": true,
+          "sampleBody": "{\n  \"loanId\": 0,\n  \"adminId\": 0,\n  \"adminDecidedAt\": \"2025-11-24T23:58:22.877Z\",\n  \"adminDecisionComments\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminloaninstallmentcontroller",
+      "tag": "AdminLoanInstallmentController",
+      "label": "Loan Installment",
+      "operations": [
+        {
+          "key": "get-loan-installments",
+          "method": "GET",
+          "path": "/loan-installments",
+          "label": "list_20",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-loan-installments",
+          "method": "POST",
+          "path": "/loan-installments",
+          "label": "create_20",
+          "hasBody": true,
+          "sampleBody": "{\n  \"dueAt\": \"2025-11-24T23:58:22.877Z\",\n  \"amount\": 0,\n  \"fineAmount\": 0,\n  \"repaymentStatus\": \"NONE\",\n  \"loanId\": 0\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-loan-installments-id",
+          "method": "DELETE",
+          "path": "/loan-installments/{id}",
+          "label": "delete_20",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-loan-installments-id",
+          "method": "GET",
+          "path": "/loan-installments/{id}",
+          "label": "get_20",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-loan-installments-id",
+          "method": "PUT",
+          "path": "/loan-installments/{id}",
+          "label": "update_20",
+          "hasBody": true,
+          "sampleBody": "{\n  \"dueAt\": \"2025-11-24T23:58:22.875Z\",\n  \"amount\": 0,\n  \"fineAmount\": 0,\n  \"repaymentStatus\": \"NONE\",\n  \"loanId\": 0\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminloaninstallmentpaymentcontroller",
+      "tag": "AdminLoanInstallmentPaymentController",
+      "label": "Loan Installment Payment",
+      "operations": [
+        {
+          "key": "get-loan-installment-payments",
+          "method": "GET",
+          "path": "/loan-installment-payments",
+          "label": "list_21",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-loan-installment-payments",
+          "method": "POST",
+          "path": "/loan-installment-payments",
+          "label": "create_21",
+          "hasBody": true,
+          "sampleBody": "{\n  \"amount\": 0,\n  \"loanInstallmentId\": 0,\n  \"transactionId\": 0\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-loan-installment-payments-id",
+          "method": "DELETE",
+          "path": "/loan-installment-payments/{id}",
+          "label": "delete_21",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-loan-installment-payments-id",
+          "method": "GET",
+          "path": "/loan-installment-payments/{id}",
+          "label": "get_21",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-loan-installment-payments-id",
+          "method": "PUT",
+          "path": "/loan-installment-payments/{id}",
+          "label": "update_21",
+          "hasBody": true,
+          "sampleBody": "{\n  \"amount\": 0,\n  \"loanInstallmentId\": 0,\n  \"transactionId\": 0\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminloanproductcontroller",
+      "tag": "AdminLoanProductController",
+      "label": "Loan Product",
+      "operations": [
+        {
+          "key": "get-loan-products",
+          "method": "GET",
+          "path": "/loan-products",
+          "label": "list_19",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-loan-products",
+          "method": "POST",
+          "path": "/loan-products",
+          "label": "create_19",
+          "hasBody": true,
+          "sampleBody": "{\n  \"title\": \"\",\n  \"shortDescription\": \"\",\n  \"icon\": \"\",\n  \"iconColor\": \"\",\n  \"interestType\": \"DAILY\",\n  \"repaymentPlan\": \"ONE_TIME\",\n  \"maxDuration\": 0,\n  \"durationType\": \"DAY\",\n  \"interestPercentage\": 0,\n  \"minAmount\": 0,\n  \"maxAmount\": 0,\n  \"taxPercentage\": 0,\n  \"serviceFeePercentage\": 0,\n  \"finePercentage\": 0,\n  \"otherFees\": 0\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-loan-products-id",
+          "method": "DELETE",
+          "path": "/loan-products/{id}",
+          "label": "delete_19",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-loan-products-id",
+          "method": "GET",
+          "path": "/loan-products/{id}",
+          "label": "get_19",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-loan-products-id",
+          "method": "PUT",
+          "path": "/loan-products/{id}",
+          "label": "update_19",
+          "hasBody": true,
+          "sampleBody": "{\n  \"title\": \"\",\n  \"shortDescription\": \"\",\n  \"icon\": \"\",\n  \"iconColor\": \"\",\n  \"interestType\": \"DAILY\",\n  \"repaymentPlan\": \"ONE_TIME\",\n  \"maxDuration\": 0,\n  \"durationType\": \"DAY\",\n  \"interestPercentage\": 0,\n  \"minAmount\": 0,\n  \"maxAmount\": 0,\n  \"taxPercentage\": 0,\n  \"serviceFeePercentage\": 0,\n  \"finePercentage\": 0,\n  \"otherFees\": 0\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminmunicipalitycontroller",
+      "tag": "AdminMunicipalityController",
+      "label": "Municipality",
+      "operations": [
+        {
+          "key": "get-municipalities",
+          "method": "GET",
+          "path": "/municipalities",
+          "label": "list_18",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-municipalities",
+          "method": "POST",
+          "path": "/municipalities",
+          "label": "create_18",
+          "hasBody": true,
+          "sampleBody": "{\n  \"name\": \"\",\n  \"territoryId\": 0,\n  \"active\": false\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-municipalities-id",
+          "method": "DELETE",
+          "path": "/municipalities/{id}",
+          "label": "delete_18",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-municipalities-id",
+          "method": "GET",
+          "path": "/municipalities/{id}",
+          "label": "get_18",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-municipalities-id",
+          "method": "PUT",
+          "path": "/municipalities/{id}",
+          "label": "update_18",
+          "hasBody": true,
+          "sampleBody": "{\n  \"name\": \"\",\n  \"territoryId\": 0,\n  \"active\": false\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminpaymentmethodcontroller",
+      "tag": "AdminPaymentMethodController",
+      "label": "Payment Method",
+      "operations": [
+        {
+          "key": "get-payment-methods",
+          "method": "GET",
+          "path": "/payment-methods",
+          "label": "list_15",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-payment-methods",
+          "method": "POST",
+          "path": "/payment-methods",
+          "label": "create_15",
+          "hasBody": true,
+          "sampleBody": "{\n  \"name\": \"MPESA_DRC\",\n  \"displayName\": \"\",\n  \"logoUrl\": \"\",\n  \"type\": \"MOBILE_MONEY\",\n  \"active\": false,\n  \"allowingCollection\": false,\n  \"allowingPayout\": false,\n  \"rank\": 0,\n  \"countryId\": 0\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-payment-methods-id",
+          "method": "DELETE",
+          "path": "/payment-methods/{id}",
+          "label": "delete_15",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-payment-methods-id",
+          "method": "GET",
+          "path": "/payment-methods/{id}",
+          "label": "get_15",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-payment-methods-id",
+          "method": "PUT",
+          "path": "/payment-methods/{id}",
+          "label": "update_15",
+          "hasBody": true,
+          "sampleBody": "{\n  \"name\": \"MPESA_DRC\",\n  \"displayName\": \"\",\n  \"logoUrl\": \"\",\n  \"type\": \"MOBILE_MONEY\",\n  \"active\": false,\n  \"allowingCollection\": false,\n  \"allowingPayout\": false,\n  \"rank\": 0,\n  \"countryId\": 0\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminpaymentmethodcryptonetworkcontroller",
+      "tag": "AdminPaymentMethodCryptoNetworkController",
+      "label": "Payment Method Crypto Network",
+      "operations": [
+        {
+          "key": "get-payment-method-crypto-networks",
+          "method": "GET",
+          "path": "/payment-method-crypto-networks",
+          "label": "list_17",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-payment-method-crypto-networks",
+          "method": "POST",
+          "path": "/payment-method-crypto-networks",
+          "label": "create_17",
+          "hasBody": true,
+          "sampleBody": "{\n  \"paymentMethodId\": 0,\n  \"cryptoNetworkId\": 0,\n  \"rank\": 0,\n  \"active\": false\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-payment-method-crypto-networks-id",
+          "method": "DELETE",
+          "path": "/payment-method-crypto-networks/{id}",
+          "label": "delete_17",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-payment-method-crypto-networks-id",
+          "method": "GET",
+          "path": "/payment-method-crypto-networks/{id}",
+          "label": "get_17",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-payment-method-crypto-networks-id",
+          "method": "PUT",
+          "path": "/payment-method-crypto-networks/{id}",
+          "label": "update_17",
+          "hasBody": true,
+          "sampleBody": "{\n  \"paymentMethodId\": 0,\n  \"cryptoNetworkId\": 0,\n  \"rank\": 0,\n  \"active\": false\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminpaymentmethodpaymentprovidercontroller",
+      "tag": "AdminPaymentMethodPaymentProviderController",
+      "label": "Payment Method Payment Provider",
+      "operations": [
+        {
+          "key": "get-payment-method-payment-providers",
+          "method": "GET",
+          "path": "/payment-method-payment-providers",
+          "label": "list_16",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-payment-method-payment-providers",
+          "method": "POST",
+          "path": "/payment-method-payment-providers",
+          "label": "create_16",
+          "hasBody": true,
+          "sampleBody": "{\n  \"paymentMethodId\": 0,\n  \"paymentProviderId\": 0,\n  \"rank\": 0,\n  \"active\": false\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-payment-method-payment-providers-id",
+          "method": "DELETE",
+          "path": "/payment-method-payment-providers/{id}",
+          "label": "delete_16",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-payment-method-payment-providers-id",
+          "method": "GET",
+          "path": "/payment-method-payment-providers/{id}",
+          "label": "get_16",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-payment-method-payment-providers-id",
+          "method": "PUT",
+          "path": "/payment-method-payment-providers/{id}",
+          "label": "update_16",
+          "hasBody": true,
+          "sampleBody": "{\n  \"paymentMethodId\": 0,\n  \"paymentProviderId\": 0,\n  \"rank\": 0,\n  \"active\": false\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminpaymentprovidercontroller",
+      "tag": "AdminPaymentProviderController",
+      "label": "Payment Provider",
+      "operations": [
+        {
+          "key": "get-payment-providers",
+          "method": "GET",
+          "path": "/payment-providers",
+          "label": "list_14",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-payment-providers",
+          "method": "POST",
+          "path": "/payment-providers",
+          "label": "create_14",
+          "hasBody": true,
+          "sampleBody": "{\n  \"name\": \"FONDEKA\",\n  \"active\": false\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-payment-providers-id",
+          "method": "DELETE",
+          "path": "/payment-providers/{id}",
+          "label": "delete_14",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-payment-providers-id",
+          "method": "GET",
+          "path": "/payment-providers/{id}",
+          "label": "get_14",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-payment-providers-id",
+          "method": "PUT",
+          "path": "/payment-providers/{id}",
+          "label": "update_14",
+          "hasBody": true,
+          "sampleBody": "{\n  \"name\": \"FONDEKA\",\n  \"active\": false\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminpaymentrequestcontroller",
+      "tag": "AdminPaymentRequestController",
+      "label": "Payment Request",
+      "operations": [
+        {
+          "key": "get-payment-requests",
+          "method": "GET",
+          "path": "/payment-requests",
+          "label": "list_11",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size",
+            "accountId"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-payment-requests",
+          "method": "POST",
+          "path": "/payment-requests",
+          "label": "create_11",
+          "hasBody": true,
+          "sampleBody": "{\n  \"accountId\": 0,\n  \"type\": \"QUICK_CHARGE\",\n  \"title\": \"\",\n  \"description\": \"\",\n  \"image1\": \"\",\n  \"image2\": \"\",\n  \"image3\": \"\",\n  \"image4\": \"\",\n  \"amount\": 0,\n  \"minAmount\": 0,\n  \"maxAmount\": 0,\n  \"goalAmount\": 0,\n  \"currency\": \"\",\n  \"allowPartial\": false,\n  \"feeInclusion\": \"ON_TOP\"\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-payment-requests-id",
+          "method": "DELETE",
+          "path": "/payment-requests/{id}",
+          "label": "delete_11",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-payment-requests-id",
+          "method": "GET",
+          "path": "/payment-requests/{id}",
+          "label": "get_11",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-payment-requests-id",
+          "method": "PUT",
+          "path": "/payment-requests/{id}",
+          "label": "update_11",
+          "hasBody": true,
+          "sampleBody": "{\n  \"accountId\": 0,\n  \"type\": \"QUICK_CHARGE\",\n  \"title\": \"\",\n  \"description\": \"\",\n  \"image1\": \"\",\n  \"image2\": \"\",\n  \"image3\": \"\",\n  \"image4\": \"\",\n  \"amount\": 0,\n  \"minAmount\": 0,\n  \"maxAmount\": 0,\n  \"goalAmount\": 0,\n  \"currency\": \"\",\n  \"allowPartial\": false,\n  \"feeInclusion\": \"ON_TOP\"\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminpaymentrequestitemcontroller",
+      "tag": "AdminPaymentRequestItemController",
+      "label": "Payment Request Item",
+      "operations": [
+        {
+          "key": "get-payment-request-items",
+          "method": "GET",
+          "path": "/payment-request-items",
+          "label": "list_13",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-payment-request-items",
+          "method": "POST",
+          "path": "/payment-request-items",
+          "label": "create_13",
+          "hasBody": true,
+          "sampleBody": "{\n  \"name\": \"\",\n  \"description\": \"\",\n  \"quantity\": 0,\n  \"unitPrice\": 0,\n  \"lineTotal\": 0,\n  \"paymentRequestId\": 0\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-payment-request-items-id",
+          "method": "DELETE",
+          "path": "/payment-request-items/{id}",
+          "label": "delete_13",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-payment-request-items-id",
+          "method": "GET",
+          "path": "/payment-request-items/{id}",
+          "label": "get_13",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-payment-request-items-id",
+          "method": "PUT",
+          "path": "/payment-request-items/{id}",
+          "label": "update_13",
+          "hasBody": true,
+          "sampleBody": "{\n  \"name\": \"\",\n  \"description\": \"\",\n  \"quantity\": 0,\n  \"unitPrice\": 0,\n  \"lineTotal\": 0,\n  \"paymentRequestId\": 0\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminpaymentrequestpaymentcontroller",
+      "tag": "AdminPaymentRequestPaymentController",
+      "label": "Payment Request Payment",
+      "operations": [
+        {
+          "key": "get-payment-request-payments",
+          "method": "GET",
+          "path": "/payment-request-payments",
+          "label": "list_12",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-payment-request-payments",
+          "method": "POST",
+          "path": "/payment-request-payments",
+          "label": "create_12",
+          "hasBody": true,
+          "sampleBody": "{\n  \"paymentRequestId\": 0,\n  \"paymentMethodId\": 0,\n  \"status\": \"INITIATED\",\n  \"providerTxnId\": \"\",\n  \"amount\": 0,\n  \"currency\": \"\",\n  \"payerReference\": \"\",\n  \"payerDisplayName\": \"\",\n  \"payerAnonymous\": false,\n  \"failureCode\": \"\",\n  \"failureReason\": \"\",\n  \"idempotencyKey\": \"\",\n  \"quoteBreakdown\": {},\n  \"transactionId\": 0\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-payment-request-payments-id",
+          "method": "DELETE",
+          "path": "/payment-request-payments/{id}",
+          "label": "delete_12",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-payment-request-payments-id",
+          "method": "GET",
+          "path": "/payment-request-payments/{id}",
+          "label": "get_12",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-payment-request-payments-id",
+          "method": "PUT",
+          "path": "/payment-request-payments/{id}",
+          "label": "update_12",
+          "hasBody": true,
+          "sampleBody": "{\n  \"paymentRequestId\": 0,\n  \"paymentMethodId\": 0,\n  \"status\": \"INITIATED\",\n  \"providerTxnId\": \"\",\n  \"amount\": 0,\n  \"currency\": \"\",\n  \"payerReference\": \"\",\n  \"payerDisplayName\": \"\",\n  \"payerAnonymous\": false,\n  \"failureCode\": \"\",\n  \"failureReason\": \"\",\n  \"idempotencyKey\": \"\",\n  \"quoteBreakdown\": {},\n  \"transactionId\": 0\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminpreviousdebtcontroller",
+      "tag": "AdminPreviousDebtController",
+      "label": "Previous Debt",
+      "operations": [
+        {
+          "key": "get-previous-debts",
+          "method": "GET",
+          "path": "/previous-debts",
+          "label": "list_10",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-previous-debts",
+          "method": "POST",
+          "path": "/previous-debts",
+          "label": "create_10",
+          "hasBody": true,
+          "sampleBody": "{\n  \"previousDebt\": 0,\n  \"accountId\": 0,\n  \"adminId\": 0\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-previous-debts-id",
+          "method": "DELETE",
+          "path": "/previous-debts/{id}",
+          "label": "delete_10",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-previous-debts-id",
+          "method": "GET",
+          "path": "/previous-debts/{id}",
+          "label": "get_10",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-previous-debts-id",
+          "method": "PUT",
+          "path": "/previous-debts/{id}",
+          "label": "update_10",
+          "hasBody": true,
+          "sampleBody": "{\n  \"previousDebt\": 0,\n  \"accountId\": 0,\n  \"adminId\": 0\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminprovidertokencontroller",
+      "tag": "AdminProviderTokenController",
+      "label": "Provider Token",
+      "operations": [
+        {
+          "key": "get-provider-tokens",
+          "method": "GET",
+          "path": "/provider-tokens",
+          "label": "list_9",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-provider-tokens",
+          "method": "POST",
+          "path": "/provider-tokens",
+          "label": "create_9",
+          "hasBody": true,
+          "sampleBody": "{\n  \"token\": \"\",\n  \"providerName\": \"UMEME\"\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-provider-tokens-id",
+          "method": "DELETE",
+          "path": "/provider-tokens/{id}",
+          "label": "delete_9",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-provider-tokens-id",
+          "method": "GET",
+          "path": "/provider-tokens/{id}",
+          "label": "get_9",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-provider-tokens-id",
+          "method": "PUT",
+          "path": "/provider-tokens/{id}",
+          "label": "update_9",
+          "hasBody": true,
+          "sampleBody": "{\n  \"token\": \"\",\n  \"providerName\": \"UMEME\"\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminprovincecontroller",
+      "tag": "AdminProvinceController",
+      "label": "Province",
+      "operations": [
+        {
+          "key": "get-provinces",
+          "method": "GET",
+          "path": "/provinces",
+          "label": "list_8",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-provinces",
+          "method": "POST",
+          "path": "/provinces",
+          "label": "create_8",
+          "hasBody": true,
+          "sampleBody": "{\n  \"name\": \"\",\n  \"countryId\": 0,\n  \"active\": false\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-provinces-id",
+          "method": "DELETE",
+          "path": "/provinces/{id}",
+          "label": "delete_8",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-provinces-id",
+          "method": "GET",
+          "path": "/provinces/{id}",
+          "label": "get_8",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-provinces-id",
+          "method": "PUT",
+          "path": "/provinces/{id}",
+          "label": "update_8",
+          "hasBody": true,
+          "sampleBody": "{\n  \"name\": \"\",\n  \"countryId\": 0,\n  \"active\": false\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminreloadlyoperatoramountcontroller",
+      "tag": "AdminReloadlyOperatorAmountController",
+      "label": "Reloadly Operator Amount",
+      "operations": [
+        {
+          "key": "get-reloadly-operator-amounts",
+          "method": "GET",
+          "path": "/reloadly-operator-amounts",
+          "label": "list_7",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-reloadly-operator-amounts",
+          "method": "POST",
+          "path": "/reloadly-operator-amounts",
+          "label": "create_7",
+          "hasBody": true,
+          "sampleBody": "{\n  \"paymentMethodPaymentProviderId\": 0,\n  \"minAmount\": 0,\n  \"maxAmount\": 0,\n  \"operatorId\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-reloadly-operator-amounts-id",
+          "method": "DELETE",
+          "path": "/reloadly-operator-amounts/{id}",
+          "label": "delete_7",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-reloadly-operator-amounts-id",
+          "method": "GET",
+          "path": "/reloadly-operator-amounts/{id}",
+          "label": "get_7",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-reloadly-operator-amounts-id",
+          "method": "PUT",
+          "path": "/reloadly-operator-amounts/{id}",
+          "label": "update_7",
+          "hasBody": true,
+          "sampleBody": "{\n  \"paymentMethodPaymentProviderId\": 0,\n  \"minAmount\": 0,\n  \"maxAmount\": 0,\n  \"operatorId\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminreportcontroller",
+      "tag": "AdminReportController",
+      "label": "Report",
+      "operations": [
+        {
+          "key": "get-report",
+          "method": "GET",
+          "path": "/report",
+          "label": "getReport",
+          "hasBody": false,
+          "queryParams": [
+            "startDate",
+            "endDate"
+          ],
+          "pathParams": []
+        }
+      ]
+    },
+    {
+      "key": "adminsavingcontroller",
+      "tag": "AdminSavingController",
+      "label": "Saving",
+      "operations": [
+        {
+          "key": "get-savings",
+          "method": "GET",
+          "path": "/savings",
+          "label": "list_4",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-savings",
+          "method": "POST",
+          "path": "/savings",
+          "label": "create_4",
+          "hasBody": true,
+          "sampleBody": "{\n  \"name\": \"\",\n  \"description\": \"\",\n  \"internalReference\": \"\",\n  \"startsAt\": \"2025-11-24T23:58:22.877Z\",\n  \"endsAt\": \"2025-11-24T23:58:22.877Z\",\n  \"withdrawnAt\": \"2025-11-24T23:58:22.877Z\",\n  \"status\": \"INACTIVE\",\n  \"accountId\": 0,\n  \"savingProductId\": 0\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-savings-id",
+          "method": "DELETE",
+          "path": "/savings/{id}",
+          "label": "delete_4",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-savings-id",
+          "method": "GET",
+          "path": "/savings/{id}",
+          "label": "get_4",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-savings-id",
+          "method": "PUT",
+          "path": "/savings/{id}",
+          "label": "update_4",
+          "hasBody": true,
+          "sampleBody": "{\n  \"name\": \"\",\n  \"description\": \"\",\n  \"internalReference\": \"\",\n  \"startsAt\": \"2025-11-24T23:58:22.875Z\",\n  \"endsAt\": \"2025-11-24T23:58:22.875Z\",\n  \"withdrawnAt\": \"2025-11-24T23:58:22.875Z\",\n  \"status\": \"INACTIVE\",\n  \"accountId\": 0,\n  \"savingProductId\": 0\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminsavingactivitycontroller",
+      "tag": "AdminSavingActivityController",
+      "label": "Saving Activity",
+      "operations": [
+        {
+          "key": "get-saving-activities",
+          "method": "GET",
+          "path": "/saving-activities",
+          "label": "list_6",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-saving-activities",
+          "method": "POST",
+          "path": "/saving-activities",
+          "label": "create_6",
+          "hasBody": true,
+          "sampleBody": "{\n  \"internalReference\": \"\",\n  \"activityType\": \"DEPOSIT\",\n  \"savingId\": 0,\n  \"transactionId\": 0\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-saving-activities-id",
+          "method": "DELETE",
+          "path": "/saving-activities/{id}",
+          "label": "delete_6",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-saving-activities-id",
+          "method": "GET",
+          "path": "/saving-activities/{id}",
+          "label": "get_6",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-saving-activities-id",
+          "method": "PUT",
+          "path": "/saving-activities/{id}",
+          "label": "update_6",
+          "hasBody": true,
+          "sampleBody": "{\n  \"internalReference\": \"\",\n  \"activityType\": \"DEPOSIT\",\n  \"savingId\": 0,\n  \"transactionId\": 0\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminsavingproductcontroller",
+      "tag": "AdminSavingProductController",
+      "label": "Saving Product",
+      "operations": [
+        {
+          "key": "get-saving-products",
+          "method": "GET",
+          "path": "/saving-products",
+          "label": "list_5",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-saving-products",
+          "method": "POST",
+          "path": "/saving-products",
+          "label": "create_5",
+          "hasBody": true,
+          "sampleBody": "{\n  \"title\": \"\",\n  \"shortDescription\": \"\",\n  \"icon\": \"\",\n  \"iconColor\": \"\",\n  \"interestPercentage\": 0,\n  \"interestType\": \"DAILY\",\n  \"active\": false,\n  \"rank\": 0,\n  \"code\": \"LOCKED_SAVING\"\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-saving-products-id",
+          "method": "DELETE",
+          "path": "/saving-products/{id}",
+          "label": "delete_5",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-saving-products-id",
+          "method": "GET",
+          "path": "/saving-products/{id}",
+          "label": "get_5",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-saving-products-id",
+          "method": "PUT",
+          "path": "/saving-products/{id}",
+          "label": "update_5",
+          "hasBody": true,
+          "sampleBody": "{\n  \"title\": \"\",\n  \"shortDescription\": \"\",\n  \"icon\": \"\",\n  \"iconColor\": \"\",\n  \"interestPercentage\": 0,\n  \"interestType\": \"DAILY\",\n  \"active\": false,\n  \"rank\": 0,\n  \"code\": \"LOCKED_SAVING\"\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminstripecustomercontroller",
+      "tag": "AdminStripeCustomerController",
+      "label": "Stripe Customer",
+      "operations": [
+        {
+          "key": "get-stripe-customers",
+          "method": "GET",
+          "path": "/stripe-customers",
+          "label": "list_3",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-stripe-customers",
+          "method": "POST",
+          "path": "/stripe-customers",
+          "label": "create_3",
+          "hasBody": true,
+          "sampleBody": "{\n  \"accountId\": 0,\n  \"stripeId\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-stripe-customers-id",
+          "method": "DELETE",
+          "path": "/stripe-customers/{id}",
+          "label": "delete_3",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-stripe-customers-id",
+          "method": "GET",
+          "path": "/stripe-customers/{id}",
+          "label": "get_3",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-stripe-customers-id",
+          "method": "PUT",
+          "path": "/stripe-customers/{id}",
+          "label": "update_3",
+          "hasBody": true,
+          "sampleBody": "{\n  \"accountId\": 0,\n  \"stripeId\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminterritorycontroller",
+      "tag": "AdminTerritoryController",
+      "label": "Territory",
+      "operations": [
+        {
+          "key": "get-territories",
+          "method": "GET",
+          "path": "/territories",
+          "label": "list_2",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-territories",
+          "method": "POST",
+          "path": "/territories",
+          "label": "create_2",
+          "hasBody": true,
+          "sampleBody": "{\n  \"name\": \"\",\n  \"provinceId\": 0,\n  \"active\": false\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-territories-id",
+          "method": "DELETE",
+          "path": "/territories/{id}",
+          "label": "delete_2",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-territories-id",
+          "method": "GET",
+          "path": "/territories/{id}",
+          "label": "get_2",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-territories-id",
+          "method": "PUT",
+          "path": "/territories/{id}",
+          "label": "update_2",
+          "hasBody": true,
+          "sampleBody": "{\n  \"name\": \"\",\n  \"provinceId\": 0,\n  \"active\": false\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "admintransactioncontroller",
+      "tag": "AdminTransactionController",
+      "label": "Transaction",
+      "operations": [
+        {
+          "key": "get-transactions",
+          "method": "GET",
+          "path": "/transactions",
+          "label": "findTransactions",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size",
+            "service",
+            "balanceEffect",
+            "status",
+            "startDate",
+            "endDate",
+            "reference"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "patch-transactions-transactionid-approve",
+          "method": "PATCH",
+          "path": "/transactions/{transactionId}/approve",
+          "label": "approveTransaction",
+          "hasBody": true,
+          "sampleBody": "{\n  \"amount\": 0,\n  \"message\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": [
+            "transactionId"
+          ]
+        },
+        {
+          "key": "patch-transactions-transactionid-reject",
+          "method": "PATCH",
+          "path": "/transactions/{transactionId}/reject",
+          "label": "rejectTransaction",
+          "hasBody": true,
+          "sampleBody": "{\n  \"amount\": 0,\n  \"message\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": [
+            "transactionId"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminusercontroller",
+      "tag": "AdminUserController",
+      "label": "User",
+      "operations": [
+        {
+          "key": "get-users",
+          "method": "GET",
+          "path": "/users",
+          "label": "list_1",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-users",
+          "method": "POST",
+          "path": "/users",
+          "label": "create_1",
+          "hasBody": true,
+          "sampleBody": "{\n  \"internalReference\": \"\",\n  \"oauthId\": \"\",\n  \"firstName\": \"\",\n  \"middleName\": \"\",\n  \"lastName\": \"\",\n  \"username\": \"\",\n  \"dob\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-users-id",
+          "method": "DELETE",
+          "path": "/users/{id}",
+          "label": "delete_1",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-users-id",
+          "method": "GET",
+          "path": "/users/{id}",
+          "label": "get_1",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-users-id",
+          "method": "PUT",
+          "path": "/users/{id}",
+          "label": "update_1",
+          "hasBody": true,
+          "sampleBody": "{\n  \"internalReference\": \"\",\n  \"oauthId\": \"\",\n  \"firstName\": \"\",\n  \"middleName\": \"\",\n  \"lastName\": \"\",\n  \"username\": \"\",\n  \"dob\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adminwebhookeventcontroller",
+      "tag": "AdminWebhookEventController",
+      "label": "Webhook Event",
+      "operations": [
+        {
+          "key": "get-webhook-events",
+          "method": "GET",
+          "path": "/webhook-events",
+          "label": "list",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-webhook-events",
+          "method": "POST",
+          "path": "/webhook-events",
+          "label": "create",
+          "hasBody": true,
+          "sampleBody": "{\n  \"hash\": \"\",\n  \"provider\": \"\",\n  \"eventType\": \"\",\n  \"payload\": \"\",\n  \"lastError\": \"\",\n  \"retries\": 0,\n  \"processedAt\": \"2025-11-24T23:58:22.877Z\"\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "delete-webhook-events-id",
+          "method": "DELETE",
+          "path": "/webhook-events/{id}",
+          "label": "delete",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-webhook-events-id",
+          "method": "GET",
+          "path": "/webhook-events/{id}",
+          "label": "get",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-webhook-events-id",
+          "method": "PUT",
+          "path": "/webhook-events/{id}",
+          "label": "update",
+          "hasBody": true,
+          "sampleBody": "{\n  \"hash\": \"\",\n  \"provider\": \"\",\n  \"eventType\": \"\",\n  \"payload\": \"\",\n  \"lastError\": \"\",\n  \"retries\": 0,\n  \"processedAt\": \"2025-11-24T23:58:22.869Z\"\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    }
+  ]
+}

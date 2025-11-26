@@ -1,0 +1,11 @@
+node_modules
+.next
+out
+.env.local
+.env.development
+.env.production
+npm-debug.log*
+.DS_Store
+.idea
+*.log
+.env
