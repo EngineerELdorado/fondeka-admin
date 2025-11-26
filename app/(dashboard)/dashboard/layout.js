@@ -63,8 +63,8 @@ export default function DashboardLayout({ children }) {
         flexDirection: 'column',
         gap: '1rem'
       }}>
-        <div style={{ fontWeight: 900, letterSpacing: 0.6, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          <span style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--accent-soft)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', fontWeight: 800 }}>F</span>
+        <div style={{ fontWeight: 900, letterSpacing: 0.6, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <img src="/icon.svg" alt="Fondeka" width={34} height={34} style={{ borderRadius: '10px' }} />
           Fondeka Admin
         </div>
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>

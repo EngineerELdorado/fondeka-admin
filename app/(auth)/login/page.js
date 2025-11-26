@@ -60,9 +60,15 @@ export default function LoginPage() {
 
   return (
     <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div className="card" style={{ width: '480px', maxWidth: '90%' }}>
-        <h1 style={{ margin: '0 0 0.25rem', fontSize: '28px' }}>{title}</h1>
-        <p style={{ color: '#6b7280', margin: '0 0 1.2rem' }}>{helperText[step]}</p>
+      <div className="card" style={{ width: '480px', maxWidth: '90%', display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'stretch' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <img src="/icon.svg" alt="Fondeka" width={36} height={36} style={{ borderRadius: '10px' }} />
+          <div>
+            <h1 style={{ margin: 0, fontSize: '24px' }}>{title}</h1>
+            <div style={{ color: '#6b7280', fontSize: '13px' }}>Secure admin access</div>
+          </div>
+        </div>
+        <p style={{ color: '#6b7280', margin: '0' }}>{helperText[step]}</p>
 
         <form onSubmit={handleSubmit}>
           {step === STEPS.EMAIL && (
