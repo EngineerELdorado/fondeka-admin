@@ -19,6 +19,7 @@ const navItems = [
   { href: '/dashboard/savings', label: 'Savings' },
   { href: '/dashboard/esim', label: 'eSIM' },
   { href: '/dashboard/users', label: 'Users' },
+  { href: '/dashboard/fees', label: 'Fee Configs' },
   { href: '/dashboard/geo', label: 'Geo' },
   { href: '/dashboard/payments', label: 'Payments' },
   { href: '/dashboard/report', label: 'Reports' },
