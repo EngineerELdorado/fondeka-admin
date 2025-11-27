@@ -49,7 +49,7 @@ export default function EsimProvidersPage() {
   const [showEdit, setShowEdit] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const [draft, setDraft] = useState(emptyState);
-  the [selected, setSelected] = useState(null);
+  const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
   const fetchRows = async () => {
