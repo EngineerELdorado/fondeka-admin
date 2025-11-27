@@ -31,7 +31,7 @@ const DetailGrid = ({ rows }) => (
 export default function KycsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(10);
+  const [size, setSize] = useState(25);
   const [status, setStatus] = useState('PENDING');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);

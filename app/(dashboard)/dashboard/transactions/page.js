@@ -31,7 +31,7 @@ const DetailGrid = ({ rows }) => (
 export default function TransactionsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(10);
+  const [size, setSize] = useState(25);
   const [reference, setReference] = useState('');
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);

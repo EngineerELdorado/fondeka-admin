@@ -26,7 +26,7 @@ const Modal = ({ title, onClose, children }) => (
 export default function LoanApplicationsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(10);
+  const [size, setSize] = useState(25);
   const [loanType, setLoanType] = useState('');
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);

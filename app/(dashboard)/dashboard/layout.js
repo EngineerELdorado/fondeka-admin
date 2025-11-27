@@ -10,7 +10,7 @@ const navItems = [
   { href: '/dashboard/payments', label: 'Payment Methods' },
   // Products cluster
   { href: '/dashboard/loans', label: 'Loans & Products' },
-  { href: '/dashboard/bills', label: 'Bill Products' },
+  { href: '/dashboard/bills', label: 'Bills & Products' },
   { href: '/dashboard/cards', label: 'Cards & Products' },
   { href: '/dashboard/crypto', label: 'Cryptos & Products' },
   { href: '/dashboard/savings', label: 'Savings & Products' },

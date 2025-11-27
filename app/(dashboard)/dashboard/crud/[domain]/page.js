@@ -132,7 +132,7 @@ export default function CrudDomainPage({ params }) {
   const [listError, setListError] = useState(null);
   const [listLoading, setListLoading] = useState(false);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(10);
+  const [size, setSize] = useState(25);
 
   const [selectedId, setSelectedId] = useState('');
   const [detail, setDetail] = useState(null);
