@@ -43,6 +43,7 @@ export default function MethodCryptoNetworksPage() {
   const [size, setSize] = useState(25);
   const [methods, setMethods] = useState([]);
   const [networks, setNetworks] = useState([]);
+  const [arrangeBy, setArrangeBy] = useState('id');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
@@ -110,6 +111,16 @@ export default function MethodCryptoNetworksPage() {
       )
     }
   ], []);
+
+  const sortedRows = useMemo(() => {
+    const arr = [...rows];
+    if (arrangeBy === 'method') {
+      arr.sort((a, b) => (a.paymentMethodName || '').localeCompare(b.paymentMethodName || ''));
+    } else if (arrangeBy === 'network') {
+      arr.sort((a, b) => (a.cryptoNetworkName || '').localeCompare(b.cryptoNetworkName || ''));
+    }
+    return arr;
+  }, [rows, arrangeBy]);
 
   const openCreate = () => {
     setDraft(emptyState);
@@ -244,6 +255,14 @@ export default function MethodCryptoNetworksPage() {
           <label htmlFor="size">Size</label>
           <input id="size" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
         </div>
+        <div>
+          <label htmlFor="arrangeBy">Arrange by</label>
+          <select id="arrangeBy" value={arrangeBy} onChange={(e) => setArrangeBy(e.target.value)}>
+            <option value="id">Default</option>
+            <option value="method">Payment Method</option>
+            <option value="network">Crypto Network</option>
+          </select>
+        </div>
         <button type="button" onClick={fetchRows} disabled={loading} className="btn-primary">
           {loading ? 'Loading…' : 'Refresh'}
         </button>
@@ -255,7 +274,7 @@ export default function MethodCryptoNetworksPage() {
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
-      <DataTable columns={columns} rows={rows} emptyLabel="No links found" />
+      <DataTable columns={columns} rows={sortedRows} emptyLabel="No links found" />
 
       {showCreate && (
         <Modal title="Add method/crypto network link" onClose={() => setShowCreate(false)}>
