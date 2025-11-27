@@ -42,6 +42,8 @@ export default function OfferOptionsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(25);
+  const [offers, setOffers] = useState([]);
+  const [options, setOptions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
@@ -73,11 +75,27 @@ export default function OfferOptionsPage() {
     fetchRows();
   }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    const loadLookups = async () => {
+      try {
+        const [offerRes, optionRes] = await Promise.all([
+          api.billProductBillProviderOffers.list(new URLSearchParams({ page: '0', size: '200' })),
+          api.billProductBillProviderOptions.list(new URLSearchParams({ page: '0', size: '200' }))
+        ]);
+        const offerList = Array.isArray(offerRes) ? offerRes : offerRes?.content || [];
+        const optionList = Array.isArray(optionRes) ? optionRes : optionRes?.content || [];
+        setOffers(offerList || []);
+        setOptions(optionList || []);
+      } catch {
+        // ignore option loading failures
+      }
+    };
+    loadLookups();
+  }, []);
+
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
-    { key: 'billProductBillProviderOfferId', label: 'Offer ID' },
     { key: 'billProductBillProviderOfferName', label: 'Offer Name' },
-    { key: 'billProductBillProviderOptionId', label: 'Option ID' },
     { key: 'billProductBillProviderOptionName', label: 'Option Name' },
     {
       key: 'actions',
@@ -162,22 +180,34 @@ export default function OfferOptionsPage() {
   const renderForm = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="offerId">Offer ID</label>
-        <input
+        <label htmlFor="offerId">Offer</label>
+        <select
           id="offerId"
-          type="number"
           value={draft.billProductBillProviderOfferId}
           onChange={(e) => setDraft((p) => ({ ...p, billProductBillProviderOfferId: e.target.value }))}
-        />
+        >
+          <option value="">Select offer</option>
+          {offers.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.displayName || o.name || `Offer #${o.id}`}
+            </option>
+          ))}
+        </select>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="optionId">Option ID</label>
-        <input
+        <label htmlFor="optionId">Option</label>
+        <select
           id="optionId"
-          type="number"
           value={draft.billProductBillProviderOptionId}
           onChange={(e) => setDraft((p) => ({ ...p, billProductBillProviderOptionId: e.target.value }))}
-        />
+        >
+          <option value="">Select option</option>
+          {options.map((opt) => (
+            <option key={opt.id} value={opt.id}>
+              {opt.displayName || opt.name || `Option #${opt.id}`}
+            </option>
+          ))}
+        </select>
       </div>
     </div>
   );
@@ -186,7 +216,7 @@ export default function OfferOptionsPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <div style={{ fontWeight: 800, fontSize: '20px' }}>Offer Options Join</div>
+          <div style={{ fontWeight: 800, fontSize: '20px' }}>Offer ↔ Option</div>
           <div style={{ color: 'var(--muted)' }}>Link offers to provider options.</div>
         </div>
         <Link href="/dashboard/bills" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>

@@ -29,6 +29,8 @@ export default function BillProductProvidersPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(25);
+  const [products, setProducts] = useState([]);
+  const [providers, setProviders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
@@ -60,6 +62,24 @@ export default function BillProductProvidersPage() {
   useEffect(() => {
     fetchRows();
   }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const loadOptions = async () => {
+      try {
+        const [prodRes, provRes] = await Promise.all([
+          api.billProducts.list(new URLSearchParams({ page: '0', size: '200' })),
+          api.billProviders.list(new URLSearchParams({ page: '0', size: '200' }))
+        ]);
+        const prodList = Array.isArray(prodRes) ? prodRes : prodRes?.content || [];
+        const provList = Array.isArray(provRes) ? provRes : provRes?.content || [];
+        setProducts(prodList);
+        setProviders(provList);
+      } catch {
+        // silent fail for option loading
+      }
+    };
+    loadOptions();
+  }, []);
 
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
@@ -152,22 +172,34 @@ export default function BillProductProvidersPage() {
   const renderForm = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="billProductId">Bill Product ID</label>
-        <input
+        <label htmlFor="billProductId">Bill Product</label>
+        <select
           id="billProductId"
-          type="number"
           value={draft.billProductId}
           onChange={(e) => setDraft((prev) => ({ ...prev, billProductId: e.target.value }))}
-        />
+        >
+          <option value="">Select product</option>
+          {products.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.displayName || p.name || p.id}
+            </option>
+          ))}
+        </select>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="billProviderId">Bill Provider ID</label>
-        <input
+        <label htmlFor="billProviderId">Bill Provider</label>
+        <select
           id="billProviderId"
-          type="number"
           value={draft.billProviderId}
           onChange={(e) => setDraft((prev) => ({ ...prev, billProviderId: e.target.value }))}
-        />
+        >
+          <option value="">Select provider</option>
+          {providers.map((prov) => (
+            <option key={prov.id} value={prov.id}>
+              {prov.name || prov.displayName || prov.id}
+            </option>
+          ))}
+        </select>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="rank">Rank</label>

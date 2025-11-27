@@ -82,9 +82,6 @@ export default function BillProductsPage() {
   }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const columns = useMemo(() => [
-    { key: 'id', label: 'ID' },
-    { key: 'code', label: 'Code' },
-    { key: 'name', label: 'Name' },
     { key: 'displayName', label: 'Display' },
     { key: 'type', label: 'Type' },
     { key: 'rank', label: 'Rank' },

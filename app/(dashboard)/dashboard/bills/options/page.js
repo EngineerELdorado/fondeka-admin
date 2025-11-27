@@ -52,6 +52,7 @@ export default function BillOptionsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(25);
+  const [mappings, setMappings] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
@@ -83,9 +84,21 @@ export default function BillOptionsPage() {
     fetchRows();
   }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    const loadMappings = async () => {
+      try {
+        const res = await api.billProductBillProviders.list(new URLSearchParams({ page: '0', size: '200' }));
+        const list = Array.isArray(res) ? res : res?.content || [];
+        setMappings(list || []);
+      } catch {
+        // ignore option loading errors
+      }
+    };
+    loadMappings();
+  }, []);
+
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
-    { key: 'billProductBillProviderId', label: 'Prod/Prov ID' },
     { key: 'name', label: 'Name' },
     { key: 'displayName', label: 'Display' },
     { key: 'price', label: 'Price', render: (row) => `${row.price ?? ''} ${row.currency ?? ''}`.trim() },
@@ -178,13 +191,19 @@ export default function BillOptionsPage() {
   const renderForm = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="billProductBillProviderId">Product/Provider ID</label>
-        <input
+        <label htmlFor="billProductBillProviderId">Product/Provider</label>
+        <select
           id="billProductBillProviderId"
-          type="number"
           value={draft.billProductBillProviderId}
           onChange={(e) => setDraft((p) => ({ ...p, billProductBillProviderId: e.target.value }))}
-        />
+        >
+          <option value="">Select mapping</option>
+          {mappings.map((m) => (
+            <option key={m.id} value={m.id}>
+              {(m.billProductName || 'Product')} / {(m.billProviderName || 'Provider')} {m.id ? `(#${m.id})` : ''}
+            </option>
+          ))}
+        </select>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="name">Name</label>
