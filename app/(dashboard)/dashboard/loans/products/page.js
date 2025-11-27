@@ -108,12 +108,18 @@ export default function LoanProductsPage() {
   }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const columns = useMemo(() => [
-    { key: 'id', label: 'ID' },
     { key: 'title', label: 'Title' },
-    { key: 'code', label: 'Code' },
-    { key: 'loanType', label: 'Loan Type' },
+    {
+      key: 'duration',
+      label: 'Duration',
+      render: (row) => {
+        const amount = row.maxDuration;
+        const unit = row.durationType || '';
+        if (amount === null || amount === undefined || amount === '') return unit || '—';
+        return `${amount} ${unit}`.trim();
+      }
+    },
     { key: 'interestPercentage', label: 'Interest %' },
-    { key: 'durationType', label: 'Duration Type' },
     { key: 'active', label: 'Active' },
     {
       key: 'actions',

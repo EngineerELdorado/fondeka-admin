@@ -29,7 +29,7 @@ const navItems = [
 ];
 
 export default function DashboardLayout({ children }) {
-  const { isAuthenticated, logout, refreshSession } = useAuth();
+  const { isAuthenticated, loading, logout, refreshSession } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [theme, setTheme] = useState('light');
@@ -52,31 +52,35 @@ export default function DashboardLayout({ children }) {
   }, [refreshSession]);
 
   useEffect(() => {
+    if (loading) return;
     if (!isAuthenticated) {
       router.replace('/login');
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, loading, router]);
 
   const isActive = (href) => {
     return pathname === href || pathname.startsWith(`${href}/`);
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', background: 'var(--bg)', color: 'var(--text)' }}>
-      <aside style={{
-        width: '240px',
-        borderRight: `1px solid var(--border)`,
-        background: 'var(--surface)',
-        padding: '1rem 1.1rem',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '1rem'
-      }}>
+    <div className="dashboard-shell" style={{ minHeight: '100vh', display: 'flex', background: 'var(--bg)', color: 'var(--text)' }}>
+      <aside
+        className="dashboard-nav"
+        style={{
+          width: '240px',
+          borderRight: `1px solid var(--border)`,
+          background: 'var(--surface)',
+          padding: '1rem 1.1rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '1rem'
+        }}
+      >
         <div style={{ fontWeight: 900, letterSpacing: 0.6, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <img src="/icon.svg" alt="Fondeka" width={34} height={34} style={{ borderRadius: '10px' }} />
           Fondeka Admin
         </div>
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+        <nav className="dashboard-nav-links" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
           {navItems.map((item) => (
             <Link
               key={item.href}
@@ -124,18 +128,21 @@ export default function DashboardLayout({ children }) {
       </aside>
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <header style={{
-          height: '72px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0 1.5rem',
-          borderBottom: `1px solid var(--border)`,
-          background: 'var(--surface)',
-          position: 'sticky',
-          top: 0,
-          zIndex: 10
-        }}>
+        <header
+          className="dashboard-header"
+          style={{
+            height: '72px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0 1.5rem',
+            borderBottom: `1px solid var(--border)`,
+            background: 'var(--surface)',
+            position: 'sticky',
+            top: 0,
+            zIndex: 10
+          }}
+        >
           <div style={{ fontWeight: 700 }}>Dashboard</div>
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             <input placeholder="Search…" style={{ minWidth: '220px' }} />
@@ -144,7 +151,7 @@ export default function DashboardLayout({ children }) {
             </div>
           </div>
         </header>
-        <main style={{ padding: '1.25rem 1.5rem', flex: 1 }}>
+        <main className="dashboard-main" style={{ padding: '1.25rem 1.5rem', flex: 1 }}>
           {children}
         </main>
       </div>
