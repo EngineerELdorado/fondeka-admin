@@ -36,8 +36,7 @@ export default function DashboardLayout({ children }) {
 
   useEffect(() => {
     const stored = typeof window !== 'undefined' ? localStorage.getItem('fondeka-theme') : null;
-    const prefersDark = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const initial = stored || (prefersDark ? 'dark' : 'light');
+    const initial = stored || 'light';
     setTheme(initial);
   }, []);
 
