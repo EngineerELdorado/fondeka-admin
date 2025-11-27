@@ -5,12 +5,13 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
-const emptyState = { firstName: '', lastName: '', email: '', role: '' };
+const emptyState = { firstName: '', lastName: '', email: '', phoneNumber: '', role: '' };
 
 const toPayload = (state) => ({
   firstName: state.firstName,
   lastName: state.lastName,
   email: state.email,
+  phoneNumber: state.phoneNumber,
   role: state.role
 });
 
@@ -77,6 +78,7 @@ export default function AdminsPage() {
     { key: 'firstName', label: 'First name' },
     { key: 'lastName', label: 'Last name' },
     { key: 'email', label: 'Email' },
+    { key: 'phoneNumber', label: 'Phone' },
     { key: 'role', label: 'Role' },
     {
       key: 'actions',
@@ -104,6 +106,7 @@ export default function AdminsPage() {
       firstName: row.firstName ?? '',
       lastName: row.lastName ?? '',
       email: row.email ?? '',
+      phoneNumber: row.phoneNumber ?? '',
       role: row.role ?? ''
     });
     setShowEdit(true);
@@ -175,6 +178,10 @@ export default function AdminsPage() {
         <input id="email" type="email" value={draft.email} onChange={(e) => setDraft((p) => ({ ...p, email: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="phoneNumber">Phone number</label>
+        <input id="phoneNumber" value={draft.phoneNumber} onChange={(e) => setDraft((p) => ({ ...p, phoneNumber: e.target.value }))} placeholder="+243..." />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="role">Role</label>
         <input id="role" value={draft.role} onChange={(e) => setDraft((p) => ({ ...p, role: e.target.value }))} placeholder="SUPER_ADMIN / ADMIN / STAFF" />
       </div>
@@ -243,6 +250,7 @@ export default function AdminsPage() {
               { label: 'First name', value: selected?.firstName },
               { label: 'Last name', value: selected?.lastName },
               { label: 'Email', value: selected?.email },
+              { label: 'Phone', value: selected?.phoneNumber },
               { label: 'Role', value: selected?.role }
             ]}
           />

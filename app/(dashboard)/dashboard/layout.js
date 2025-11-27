@@ -13,9 +13,9 @@ const navItems = [
   { href: '/dashboard/bills', label: 'Bills & Products' },
   { href: '/dashboard/cards', label: 'Cards & Products' },
   { href: '/dashboard/crypto', label: 'Cryptos & Products' },
+  { href: '/dashboard/esim', label: 'eSIMs & Providers' },
   { href: '/dashboard/savings', label: 'Savings & Products' },
   // Other menus
-  { href: '/dashboard/esim', label: 'eSIMs & Providers' },
   { href: '/dashboard/accounts', label: 'Accounts' },
   { href: '/dashboard/transactions', label: 'Transactions' },
   { href: '/dashboard/payment-requests', label: 'Payment Requests' },
