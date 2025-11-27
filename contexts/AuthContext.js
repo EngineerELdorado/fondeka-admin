@@ -45,6 +45,15 @@ export function AuthProvider({ children }) {
   const requestEmailCode = useCallback(async (email) => {
     setLoading(true);
     try {
+      // Ensure we start from a clean auth state; Cognito rejects signIn when a user is already signed in.
+      try {
+        await signOut({ global: true });
+      } catch {
+        // ignore, best-effort reset
+      }
+      setSession(null);
+      api.setAuthToken(null);
+
       const res = await signIn({
         username: email,
         options: { authFlowType: 'CUSTOM_WITHOUT_SRP' }
