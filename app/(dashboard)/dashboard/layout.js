@@ -7,21 +7,23 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const navItems = [
   { href: '/dashboard', label: 'Overview' },
+  { href: '/dashboard/payments', label: 'Payment Methods' },
+  // Products cluster
+  { href: '/dashboard/loans', label: 'Loans & Products' },
+  { href: '/dashboard/bills', label: 'Bill Products' },
+  { href: '/dashboard/cards', label: 'Cards & Products' },
+  { href: '/dashboard/crypto', label: 'Cryptos & Products' },
+  { href: '/dashboard/savings', label: 'Savings & Products' },
+  // Other menus
+  { href: '/dashboard/esim', label: 'eSIMs & Providers' },
   { href: '/dashboard/accounts', label: 'Accounts' },
   { href: '/dashboard/transactions', label: 'Transactions' },
-  { href: '/dashboard/loans', label: 'Loans' },
+  { href: '/dashboard/payment-requests', label: 'Payment Requests' },
+  { href: '/dashboard/users', label: 'Users' },
   { href: '/dashboard/kycs', label: 'KYCs' },
   { href: '/dashboard/admins', label: 'Admins' },
-  { href: '/dashboard/bills', label: 'Bills' },
-  { href: '/dashboard/cards', label: 'Cards' },
-  { href: '/dashboard/crypto', label: 'Crypto' },
-  { href: '/dashboard/payment-requests', label: 'Payment Requests' },
-  { href: '/dashboard/savings', label: 'Savings' },
-  { href: '/dashboard/esim', label: 'eSIM' },
-  { href: '/dashboard/users', label: 'Users' },
   { href: '/dashboard/fees', label: 'Fee Configs' },
   { href: '/dashboard/geo', label: 'Geo' },
-  { href: '/dashboard/payments', label: 'Payments' },
   { href: '/dashboard/report', label: 'Reports' },
   { href: '/dashboard/crud', label: 'Explorer' }
 ];

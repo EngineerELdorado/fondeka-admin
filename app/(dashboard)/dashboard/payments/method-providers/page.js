@@ -41,6 +41,9 @@ export default function MethodProvidersPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
+  const [methods, setMethods] = useState([]);
+  const [providers, setProviders] = useState([]);
+  const [arrangeBy, setArrangeBy] = useState('id');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
@@ -72,10 +75,33 @@ export default function MethodProvidersPage() {
     fetchRows();
   }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    const fetchOptions = async () => {
+      try {
+        const [pmRes, provRes] = await Promise.all([
+          api.paymentMethods.list(new URLSearchParams({ page: '0', size: '100' })),
+          api.paymentProviders.list(new URLSearchParams({ page: '0', size: '100' }))
+        ]);
+        const pmList = Array.isArray(pmRes) ? pmRes : pmRes?.content || [];
+        const provList = Array.isArray(provRes) ? provRes : provRes?.content || [];
+        setMethods(pmList);
+        setProviders(provList);
+      } catch {
+        // ignore silently for options
+      }
+    };
+    fetchOptions();
+  }, []);
+
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
     { key: 'paymentMethodName', label: 'Method' },
     { key: 'paymentProviderName', label: 'Provider' },
+    {
+      key: 'countryName',
+      label: 'Country',
+      render: (row) => row.countryName || 'GLOBAL'
+    },
     { key: 'rank', label: 'Rank' },
     { key: 'active', label: 'Active' },
     {
@@ -90,6 +116,18 @@ export default function MethodProvidersPage() {
       )
     }
   ], []);
+
+  const sortedRows = useMemo(() => {
+    const arr = [...rows];
+    if (arrangeBy === 'method') {
+      arr.sort((a, b) => (a.paymentMethodName || '').localeCompare(b.paymentMethodName || ''));
+    } else if (arrangeBy === 'provider') {
+      arr.sort((a, b) => (a.paymentProviderName || '').localeCompare(b.paymentProviderName || ''));
+    } else if (arrangeBy === 'country') {
+      arr.sort((a, b) => (a.countryName || 'GLOBAL').localeCompare(b.countryName || 'GLOBAL'));
+    }
+    return arr;
+  }, [rows, arrangeBy]);
 
   const openCreate = () => {
     setDraft(emptyState);
@@ -163,22 +201,34 @@ export default function MethodProvidersPage() {
   const renderForm = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="paymentMethodId">Payment Method ID</label>
-        <input
+        <label htmlFor="paymentMethodId">Payment Method</label>
+        <select
           id="paymentMethodId"
-          type="number"
           value={draft.paymentMethodId}
           onChange={(e) => setDraft((p) => ({ ...p, paymentMethodId: e.target.value }))}
-        />
+        >
+          <option value="">Select method</option>
+          {methods.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.name || m.displayName || m.id}
+            </option>
+          ))}
+        </select>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="paymentProviderId">Payment Provider ID</label>
-        <input
+        <label htmlFor="paymentProviderId">Payment Provider</label>
+        <select
           id="paymentProviderId"
-          type="number"
           value={draft.paymentProviderId}
           onChange={(e) => setDraft((p) => ({ ...p, paymentProviderId: e.target.value }))}
-        />
+        >
+          <option value="">Select provider</option>
+          {providers.map((prov) => (
+            <option key={prov.id} value={prov.id}>
+              {prov.name || prov.displayName || prov.id}
+            </option>
+          ))}
+        </select>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="rank">Rank</label>
@@ -212,6 +262,15 @@ export default function MethodProvidersPage() {
           <label htmlFor="size">Size</label>
           <input id="size" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
         </div>
+        <div>
+          <label htmlFor="arrangeBy">Arrange by</label>
+          <select id="arrangeBy" value={arrangeBy} onChange={(e) => setArrangeBy(e.target.value)}>
+            <option value="id">Default</option>
+            <option value="method">Payment Method</option>
+            <option value="provider">Payment Provider</option>
+            <option value="country">Country</option>
+          </select>
+        </div>
         <button type="button" onClick={fetchRows} disabled={loading} className="btn-primary">
           {loading ? 'Loading…' : 'Refresh'}
         </button>
@@ -223,7 +282,7 @@ export default function MethodProvidersPage() {
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
-      <DataTable columns={columns} rows={rows} emptyLabel="No links found" />
+      <DataTable columns={columns} rows={sortedRows} emptyLabel="No links found" />
 
       {showCreate && (
         <Modal title="Add method/provider link" onClose={() => setShowCreate(false)}>
@@ -252,6 +311,7 @@ export default function MethodProvidersPage() {
               { label: 'ID', value: selected?.id },
               { label: 'Method', value: selected?.paymentMethodName || selected?.paymentMethodId },
               { label: 'Provider', value: selected?.paymentProviderName || selected?.paymentProviderId },
+              { label: 'Country', value: selected?.countryName || 'GLOBAL' },
               { label: 'Rank', value: selected?.rank },
               { label: 'Active', value: selected?.active ? 'Yes' : 'No' },
               { label: 'Created', value: selected?.createdAt },

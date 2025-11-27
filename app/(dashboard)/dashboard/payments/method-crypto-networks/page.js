@@ -41,6 +41,8 @@ export default function MethodCryptoNetworksPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
+  const [methods, setMethods] = useState([]);
+  const [networks, setNetworks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
@@ -71,6 +73,24 @@ export default function MethodCryptoNetworksPage() {
   useEffect(() => {
     fetchRows();
   }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const fetchOptions = async () => {
+      try {
+        const [pmRes, netRes] = await Promise.all([
+          api.paymentMethods.list(new URLSearchParams({ page: '0', size: '100' })),
+          api.cryptoNetworks.list(new URLSearchParams({ page: '0', size: '100' }))
+        ]);
+        const pmList = Array.isArray(pmRes) ? pmRes : pmRes?.content || [];
+        const netList = Array.isArray(netRes) ? netRes : netRes?.content || [];
+        setMethods(pmList);
+        setNetworks(netList);
+      } catch {
+        // ignore silently
+      }
+    };
+    fetchOptions();
+  }, []);
 
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
@@ -163,22 +183,34 @@ export default function MethodCryptoNetworksPage() {
   const renderForm = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="paymentMethodId">Payment Method ID</label>
-        <input
+        <label htmlFor="paymentMethodId">Payment Method</label>
+        <select
           id="paymentMethodId"
-          type="number"
           value={draft.paymentMethodId}
           onChange={(e) => setDraft((p) => ({ ...p, paymentMethodId: e.target.value }))}
-        />
+        >
+          <option value="">Select method</option>
+          {methods.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.name || m.displayName || m.id}
+            </option>
+          ))}
+        </select>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="cryptoNetworkId">Crypto Network ID</label>
-        <input
+        <label htmlFor="cryptoNetworkId">Crypto Network</label>
+        <select
           id="cryptoNetworkId"
-          type="number"
           value={draft.cryptoNetworkId}
           onChange={(e) => setDraft((p) => ({ ...p, cryptoNetworkId: e.target.value }))}
-        />
+        >
+          <option value="">Select network</option>
+          {networks.map((n) => (
+            <option key={n.id} value={n.id}>
+              {n.name || n.displayName || n.id}
+            </option>
+          ))}
+        </select>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="rank">Rank</label>

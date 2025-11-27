@@ -56,6 +56,8 @@ export default function PaymentMethodsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
+  const [countries, setCountries] = useState([]);
+  const [arrangeBy, setArrangeBy] = useState('id');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
@@ -87,10 +89,23 @@ export default function PaymentMethodsPage() {
     fetchRows();
   }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const res = await api.countries.list(new URLSearchParams({ page: '0', size: '200' }));
+        const list = Array.isArray(res) ? res : res?.content || [];
+        setCountries(list || []);
+      } catch {
+        // ignore silently
+      }
+    };
+    fetchCountries();
+  }, []);
+
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
-    { key: 'name', label: 'Name' },
     { key: 'displayName', label: 'Display' },
+    { key: 'countryName', label: 'Country', render: (row) => row.countryName || 'GLOBAL' },
     { key: 'type', label: 'Type' },
     { key: 'rank', label: 'Rank' },
     { key: 'active', label: 'Active' },
@@ -106,6 +121,18 @@ export default function PaymentMethodsPage() {
       )
     }
   ], []);
+
+  const sortedRows = useMemo(() => {
+    const arr = [...rows];
+    if (arrangeBy === 'country') {
+      arr.sort((a, b) => (a.countryName || 'GLOBAL').localeCompare(b.countryName || 'GLOBAL'));
+    } else if (arrangeBy === 'type') {
+      arr.sort((a, b) => (a.type || '').localeCompare(b.type || ''));
+    } else if (arrangeBy === 'active') {
+      arr.sort((a, b) => Number(b.active) - Number(a.active));
+    }
+    return arr;
+  }, [rows, arrangeBy]);
 
   const openCreate = () => {
     setDraft(emptyState);
@@ -193,33 +220,62 @@ export default function PaymentMethodsPage() {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="type">Type</label>
-        <input id="type" value={draft.type} onChange={(e) => setDraft((p) => ({ ...p, type: e.target.value }))} />
+        <input id="type" value={draft.type} onChange={(e) => setDraft((p) => ({ ...p, type: e.target.value }))} placeholder="e.g. MOBILE_MONEY" />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="rank">Rank</label>
         <input id="rank" type="number" value={draft.rank} onChange={(e) => setDraft((p) => ({ ...p, rank: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="countryId">Country ID</label>
-        <input id="countryId" type="number" value={draft.countryId} onChange={(e) => setDraft((p) => ({ ...p, countryId: e.target.value }))} />
+        <label htmlFor="countryId">Country</label>
+        <select id="countryId" value={draft.countryId} onChange={(e) => setDraft((p) => ({ ...p, countryId: e.target.value }))}>
+          <option value="">GLOBAL</option>
+          {countries.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name} ({c.alpha2Code || c.alpha3Code || c.id})
+            </option>
+          ))}
+        </select>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="logoUrl">Logo URL</label>
-        <input id="logoUrl" value={draft.logoUrl} onChange={(e) => setDraft((p) => ({ ...p, logoUrl: e.target.value }))} />
+        <textarea
+          id="logoUrl"
+          rows={2}
+          value={draft.logoUrl}
+          onChange={(e) => setDraft((p) => ({ ...p, logoUrl: e.target.value }))}
+          style={{ resize: 'vertical' }}
+        />
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.5rem' }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          <input type="checkbox" checked={draft.active} onChange={(e) => setDraft((p) => ({ ...p, active: e.target.checked }))} />
-          Active
-        </label>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          <input type="checkbox" checked={draft.allowingCollection} onChange={(e) => setDraft((p) => ({ ...p, allowingCollection: e.target.checked }))} />
-          Allow collection
-        </label>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          <input type="checkbox" checked={draft.allowingPayout} onChange={(e) => setDraft((p) => ({ ...p, allowingPayout: e.target.checked }))} />
-          Allow payout
-        </label>
+      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        {[
+          { key: 'active', label: 'Active', value: draft.active },
+          { key: 'allowingCollection', label: 'Allow collection', value: draft.allowingCollection },
+          { key: 'allowingPayout', label: 'Allow payout', value: draft.allowingPayout }
+        ].map((item) => (
+          <label
+            key={item.key}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.55rem 0.75rem',
+              border: `1px solid var(--border)`,
+              borderRadius: '10px',
+              background: 'var(--surface)',
+              cursor: 'pointer',
+              minWidth: '200px'
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={item.value}
+              onChange={(e) => setDraft((p) => ({ ...p, [item.key]: e.target.checked }))}
+              style={{ width: '18px', height: '18px' }}
+            />
+            <span>{item.label}</span>
+          </label>
+        ))}
       </div>
     </div>
   );
@@ -245,6 +301,15 @@ export default function PaymentMethodsPage() {
           <label htmlFor="size">Size</label>
           <input id="size" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
         </div>
+        <div>
+          <label htmlFor="arrangeBy">Arrange by</label>
+          <select id="arrangeBy" value={arrangeBy} onChange={(e) => setArrangeBy(e.target.value)}>
+            <option value="id">Default</option>
+            <option value="country">Country</option>
+            <option value="type">Type</option>
+            <option value="active">Active</option>
+          </select>
+        </div>
         <button type="button" onClick={fetchRows} disabled={loading} className="btn-primary">
           {loading ? 'Loading…' : 'Refresh'}
         </button>
@@ -256,7 +321,7 @@ export default function PaymentMethodsPage() {
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
-      <DataTable columns={columns} rows={rows} emptyLabel="No payment methods found" />
+      <DataTable columns={columns} rows={sortedRows} emptyLabel="No payment methods found" />
 
       {showCreate && (
         <Modal title="Add payment method" onClose={() => setShowCreate(false)}>
@@ -287,10 +352,10 @@ export default function PaymentMethodsPage() {
               { label: 'Display', value: selected?.displayName },
               { label: 'Type', value: selected?.type },
               { label: 'Rank', value: selected?.rank },
+              { label: 'Country', value: selected?.countryName || 'GLOBAL' },
               { label: 'Active', value: selected?.active ? 'Yes' : 'No' },
               { label: 'Allow collection', value: selected?.allowingCollection ? 'Yes' : 'No' },
               { label: 'Allow payout', value: selected?.allowingPayout ? 'Yes' : 'No' },
-              { label: 'Country ID', value: selected?.countryId },
               { label: 'Logo URL', value: selected?.logoUrl },
               { label: 'Created', value: selected?.createdAt },
               { label: 'Updated', value: selected?.updatedAt }
