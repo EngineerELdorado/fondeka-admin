@@ -16,11 +16,8 @@ const navItems = [
   { href: '/dashboard/esim', label: 'eSIMs & Providers' },
   { href: '/dashboard/savings', label: 'Savings & Products' },
   // Other menus
-  { href: '/dashboard/accounts', label: 'Accounts' },
+  { href: '/dashboard/accounts', label: 'Accounts / Users' },
   { href: '/dashboard/transactions', label: 'Transactions' },
-  { href: '/dashboard/payment-requests', label: 'Payment Requests' },
-  { href: '/dashboard/users', label: 'Users' },
-  { href: '/dashboard/kycs', label: 'KYCs' },
   { href: '/dashboard/admins', label: 'Admins' },
   { href: '/dashboard/fees', label: 'Fee Configs' },
   { href: '/dashboard/geo', label: 'Geo' },

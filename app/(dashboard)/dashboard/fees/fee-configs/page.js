@@ -5,18 +5,49 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
+const serviceOptions = ['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'PAYMENT_REQUEST', 'E_SIM', 'AIRTIME_AND_DATA', 'GIFT_CARDS', 'OTHER'];
+
+const actionOptions = [
+  'BUY_CARD',
+  'BUY_CRYPTO',
+  'BUY_GIFT_CARD',
+  'E_SIM_PURCHASE',
+  'E_SIM_TOPUP',
+  'FUND_CARD',
+  'FUND_WALLET',
+  'LOAN_DISBURSEMENT',
+  'PAY_ELECTRICITY_BILL',
+  'PAY_INTERNET_BILL',
+  'PAY_REQUEST',
+  'PAY_TV_SUBSCRIPTION',
+  'PAY_WATER_BILL',
+  'RECEIVE_CRYPTO',
+  'REPAY_LOAN',
+  'SELL_CRYPTO',
+  'SEND_AIRTIME',
+  'SEND_CRYPTO',
+  'WITHDRAW_FROM_WALLET'
+].sort();
+
 const emptyState = {
   paymentMethodPaymentProviderId: '',
+  countryId: '',
+  service: '',
   action: '',
+  customAction: '',
   providerFeePercentage: '',
   providerFlatFee: '',
   ourFeePercentage: '',
   ourFlatFee: ''
 };
 
+const resolveAction = (state) => (state.action === '__custom' ? state.customAction : state.action);
+
 const toPayload = (state) => ({
   paymentMethodPaymentProviderId: state.paymentMethodPaymentProviderId === '' ? null : Number(state.paymentMethodPaymentProviderId),
-  action: state.action,
+  countryId: state.countryId === '' ? null : Number(state.countryId),
+  service: state.service || null,
+  action: resolveAction(state),
   providerFeePercentage: state.providerFeePercentage === '' ? null : Number(state.providerFeePercentage),
   providerFlatFee: state.providerFlatFee === '' ? null : Number(state.providerFlatFee),
   ourFeePercentage: state.ourFeePercentage === '' ? null : Number(state.ourFeePercentage),
@@ -58,7 +89,10 @@ const DetailGrid = ({ rows }) => (
 export default function FeeConfigsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(25);
+  const [size, setSize] = useState(100);
+  const [countries, setCountries] = useState([]);
+  const [pmps, setPmps] = useState([]);
+  const [arrangeBy, setArrangeBy] = useState('action');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
@@ -90,11 +124,75 @@ export default function FeeConfigsPage() {
     fetchRows();
   }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    const fetchOptions = async () => {
+      try {
+        const [pmpRes, countryRes] = await Promise.all([
+          api.paymentMethodPaymentProviders.list(new URLSearchParams({ page: '0', size: '200' })),
+          api.countries.list(new URLSearchParams({ page: '0', size: '200' }))
+        ]);
+        const toList = (res) => (Array.isArray(res) ? res : res?.content || []);
+        setPmps(toList(pmpRes));
+        setCountries(toList(countryRes));
+      } catch {
+        // soft fail for options
+      }
+    };
+    fetchOptions();
+  }, []);
+
+  const getCountryLabel = (row) => row.countryName || row.country || row.countryCode || 'GLOBAL';
+
+  const getPmpLabel = (row) => {
+    if (!row?.paymentMethodPaymentProviderId) return 'GLOBAL';
+    const match = pmps.find((p) => Number(p.id) === Number(row.paymentMethodPaymentProviderId));
+    if (match) {
+      const method = match.paymentMethodName || match.paymentMethodDisplayName || 'Method';
+      const provider = match.paymentProviderName || 'Provider';
+      return `${method} → ${provider}`;
+    }
+    const fallbackLabel = [row.paymentMethodName, row.paymentProviderName].filter(Boolean).join(' → ');
+    return fallbackLabel ? `${fallbackLabel} (#${row.paymentMethodPaymentProviderId})` : `PMPP #${row.paymentMethodPaymentProviderId}`;
+  };
+
+  const sortedRows = useMemo(() => {
+    const arr = [...rows];
+    const compare = (a, b) => {
+      const aVal = a?.toUpperCase?.() ? a.toUpperCase() : a || '';
+      const bVal = b?.toUpperCase?.() ? b.toUpperCase() : b || '';
+      return String(aVal).localeCompare(String(bVal));
+    };
+    if (arrangeBy === 'action') {
+      arr.sort((a, b) => compare(a.action, b.action));
+    } else if (arrangeBy === 'service') {
+      arr.sort((a, b) => compare(a.service || 'ALL', b.service || 'ALL'));
+    } else if (arrangeBy === 'country') {
+      arr.sort((a, b) => compare(getCountryLabel(a), getCountryLabel(b)));
+    } else if (arrangeBy === 'pmp') {
+      arr.sort((a, b) => compare(getPmpLabel(a), getPmpLabel(b)));
+    }
+    return arr;
+  }, [arrangeBy, rows, pmps]);
+
   const columns = useMemo(
     () => [
       { key: 'id', label: 'ID' },
-      { key: 'paymentMethodPaymentProviderId', label: 'Method/Provider ID' },
+      {
+        key: 'service',
+        label: 'Service',
+        render: (row) => row.service || 'ALL'
+      },
       { key: 'action', label: 'Action' },
+      {
+        key: 'country',
+        label: 'Country',
+        render: (row) => getCountryLabel(row)
+      },
+      {
+        key: 'paymentMethodPaymentProviderId',
+        label: 'PMPP scope',
+        render: (row) => getPmpLabel(row)
+      },
       { key: 'providerFeePercentage', label: 'Provider %' },
       { key: 'providerFlatFee', label: 'Provider flat' },
       { key: 'ourFeePercentage', label: 'Our %' },
@@ -117,7 +215,7 @@ export default function FeeConfigsPage() {
         )
       }
     ],
-    []
+    [pmps]
   );
 
   const openCreate = () => {
@@ -128,10 +226,14 @@ export default function FeeConfigsPage() {
   };
 
   const openEdit = (row) => {
+    const actionChoice = actionOptions.includes(row.action) ? row.action : row.action ? '__custom' : '';
     setSelected(row);
     setDraft({
       paymentMethodPaymentProviderId: row.paymentMethodPaymentProviderId ?? '',
-      action: row.action ?? '',
+      countryId: row.countryId ?? '',
+      service: row.service ?? '',
+      action: actionChoice,
+      customAction: actionChoice === '__custom' ? row.action || '' : '',
       providerFeePercentage: row.providerFeePercentage ?? '',
       providerFlatFee: row.providerFlatFee ?? '',
       ourFeePercentage: row.ourFeePercentage ?? '',
@@ -149,13 +251,41 @@ export default function FeeConfigsPage() {
     setError(null);
   };
 
+  const validateDraft = (state) => {
+    const resolved = resolveAction(state);
+    if (!resolved) return 'Action is required.';
+    if (state.paymentMethodPaymentProviderId !== '' && Number(state.paymentMethodPaymentProviderId) < 0) return 'PMPP ID must be non-negative.';
+    if (state.countryId !== '' && Number(state.countryId) < 0) return 'Country ID must be non-negative.';
+    if (state.service === '__custom') return 'Service value is invalid.';
+    const numericFields = [
+      { key: 'providerFeePercentage', value: state.providerFeePercentage },
+      { key: 'providerFlatFee', value: state.providerFlatFee },
+      { key: 'ourFeePercentage', value: state.ourFeePercentage },
+      { key: 'ourFlatFee', value: state.ourFlatFee }
+    ];
+    const invalid = numericFields.find((item) => item.value !== '' && Number(item.value) < 0);
+    if (invalid) return 'Fee values cannot be negative.';
+    return null;
+  };
+
   const handleCreate = async () => {
+    const validationError = validateDraft(draft);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
     setError(null);
     setInfo(null);
     try {
       await api.feeConfigs.create(toPayload(draft));
       setInfo('Created fee config.');
-      setShowCreate(false);
+      setDraft((p) => ({
+        ...p,
+        providerFeePercentage: '',
+        providerFlatFee: '',
+        ourFeePercentage: '',
+        ourFlatFee: ''
+      }));
       fetchRows();
     } catch (err) {
       setError(err.message);
@@ -164,6 +294,11 @@ export default function FeeConfigsPage() {
 
   const handleUpdate = async () => {
     if (!selected?.id) return;
+    const validationError = validateDraft(draft);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
     setError(null);
     setInfo(null);
     try {
@@ -194,38 +329,94 @@ export default function FeeConfigsPage() {
   const renderForm = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="paymentMethodPaymentProviderId">Method/Provider ID</label>
-        <input
-          id="paymentMethodPaymentProviderId"
-          type="number"
-          value={draft.paymentMethodPaymentProviderId}
-          onChange={(e) => setDraft((p) => ({ ...p, paymentMethodPaymentProviderId: e.target.value }))}
-        />
+        <label htmlFor="service">Service</label>
+        <select id="service" value={draft.service} onChange={(e) => setDraft((p) => ({ ...p, service: e.target.value }))}>
+          <option value="">All services</option>
+          {serviceOptions.map((svc) => (
+            <option key={svc} value={svc}>
+              {svc}
+            </option>
+          ))}
+        </select>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="action">Action</label>
-        <input id="action" value={draft.action} onChange={(e) => setDraft((p) => ({ ...p, action: e.target.value }))} placeholder="FUND_WALLET / PAY_REQUEST ..." />
+        <select
+          id="action"
+          value={draft.action}
+          onChange={(e) => setDraft((p) => ({ ...p, action: e.target.value, customAction: e.target.value === '__custom' ? p.customAction : '' }))}
+        >
+          <option value="">Select action</option>
+          {actionOptions.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+          <option value="__custom">Other (custom)</option>
+        </select>
+        {draft.action === '__custom' && (
+          <input
+            style={{ marginTop: '0.25rem' }}
+            placeholder="Enter custom action"
+            value={draft.customAction}
+            onChange={(e) => setDraft((p) => ({ ...p, customAction: e.target.value }))}
+          />
+        )}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="countryId">Country</label>
+        <select id="countryId" value={draft.countryId} onChange={(e) => setDraft((p) => ({ ...p, countryId: e.target.value }))}>
+          <option value="">All countries (global)</option>
+          {countries.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name} ({c.alpha2Code}) #{c.id}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="paymentMethodPaymentProviderId">Method/Provider ID</label>
+        <select
+          id="paymentMethodPaymentProviderId"
+          value={draft.paymentMethodPaymentProviderId}
+          onChange={(e) => setDraft((p) => ({ ...p, paymentMethodPaymentProviderId: e.target.value }))}
+        >
+          <option value="">Global (no PMPP)</option>
+          {pmps.map((pmp) => (
+            <option key={pmp.id} value={pmp.id}>
+              {pmp.paymentMethodName || pmp.paymentMethodDisplayName || 'Method'} → {pmp.paymentProviderName || 'Provider'}
+              {pmp.countryName ? ` (${pmp.countryName})` : ''} #{pmp.id}
+            </option>
+          ))}
+        </select>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="providerFeePercentage">Provider %</label>
         <input
           id="providerFeePercentage"
           type="number"
+          min={0}
           value={draft.providerFeePercentage}
           onChange={(e) => setDraft((p) => ({ ...p, providerFeePercentage: e.target.value }))}
         />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="providerFlatFee">Provider flat</label>
-        <input id="providerFlatFee" type="number" value={draft.providerFlatFee} onChange={(e) => setDraft((p) => ({ ...p, providerFlatFee: e.target.value }))} />
+        <input
+          id="providerFlatFee"
+          type="number"
+          min={0}
+          value={draft.providerFlatFee}
+          onChange={(e) => setDraft((p) => ({ ...p, providerFlatFee: e.target.value }))}
+        />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="ourFeePercentage">Our %</label>
-        <input id="ourFeePercentage" type="number" value={draft.ourFeePercentage} onChange={(e) => setDraft((p) => ({ ...p, ourFeePercentage: e.target.value }))} />
+        <input id="ourFeePercentage" type="number" min={0} value={draft.ourFeePercentage} onChange={(e) => setDraft((p) => ({ ...p, ourFeePercentage: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="ourFlatFee">Our flat</label>
-        <input id="ourFlatFee" type="number" value={draft.ourFlatFee} onChange={(e) => setDraft((p) => ({ ...p, ourFlatFee: e.target.value }))} />
+        <input id="ourFlatFee" type="number" min={0} value={draft.ourFlatFee} onChange={(e) => setDraft((p) => ({ ...p, ourFlatFee: e.target.value }))} />
       </div>
     </div>
   );
@@ -257,6 +448,15 @@ export default function FeeConfigsPage() {
         <button type="button" onClick={openCreate} className="btn-success">
           Add fee config
         </button>
+        <div>
+          <label htmlFor="arrangeBy">Arrange by</label>
+          <select id="arrangeBy" value={arrangeBy} onChange={(e) => setArrangeBy(e.target.value)}>
+            <option value="action">Action</option>
+            <option value="service">Service</option>
+            <option value="country">Country</option>
+            <option value="pmp">PMPP</option>
+          </select>
+        </div>
       </div>
 
       {error && (
@@ -270,7 +470,7 @@ export default function FeeConfigsPage() {
         </div>
       )}
 
-      <DataTable columns={columns} rows={rows} emptyLabel="No fee configs found" />
+      <DataTable columns={columns} rows={sortedRows} emptyLabel="No fee configs found" />
 
       {showCreate && (
         <Modal title="Add fee config" onClose={() => setShowCreate(false)}>
@@ -305,7 +505,9 @@ export default function FeeConfigsPage() {
           <DetailGrid
             rows={[
               { label: 'ID', value: selected?.id },
-              { label: 'Method/Provider ID', value: selected?.paymentMethodPaymentProviderId },
+              { label: 'Method/Provider', value: getPmpLabel(selected || {}) },
+              { label: 'Country', value: getCountryLabel(selected || {}) },
+              { label: 'Service', value: selected?.service || 'ALL' },
               { label: 'Action', value: selected?.action },
               { label: 'Provider %', value: selected?.providerFeePercentage },
               { label: 'Provider flat', value: selected?.providerFlatFee },
