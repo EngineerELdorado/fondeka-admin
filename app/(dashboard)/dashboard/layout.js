@@ -16,10 +16,10 @@ const navItems = [
   { href: '/dashboard/esim', label: 'eSIMs & Providers' },
   { href: '/dashboard/savings', label: 'Savings & Products' },
   // Other menus
-  { href: '/dashboard/accounts', label: 'Accounts / Users' },
+  { href: '/dashboard/accounts/accounts', label: 'Accounts / Users' },
   { href: '/dashboard/transactions', label: 'Transactions' },
   { href: '/dashboard/admins', label: 'Admins' },
-  { href: '/dashboard/fees', label: 'Fee Configs' },
+  { href: '/dashboard/fees/fee-configs', label: 'Fee Configs' },
   { href: '/dashboard/geo', label: 'Geo' },
   { href: '/dashboard/report', label: 'Reports' },
   { href: '/dashboard/crud', label: 'Explorer' }
