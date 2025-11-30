@@ -29,6 +29,15 @@ const actionOptions = [
   'WITHDRAW_FROM_WALLET'
 ].sort();
 
+const initialFilters = {
+  action: '',
+  service: '',
+  countryId: '',
+  paymentMethodPaymentProviderId: '',
+  paymentMethodId: '',
+  paymentProviderId: ''
+};
+
 const emptyState = {
   paymentMethodPaymentProviderId: '',
   countryId: '',
@@ -86,12 +95,39 @@ const DetailGrid = ({ rows }) => (
   </div>
 );
 
+const FilterChip = ({ label, onClear }) => (
+  <span
+    style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '0.35rem',
+      padding: '0.35rem 0.6rem',
+      background: 'var(--muted-bg, #f3f4f6)',
+      borderRadius: '999px',
+      fontSize: '13px',
+      color: 'var(--text)'
+    }}
+  >
+    {label}
+    <button
+      type="button"
+      onClick={onClear}
+      style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--muted)' }}
+      aria-label={`Clear ${label}`}
+    >
+      ×
+    </button>
+  </span>
+);
+
 export default function FeeConfigsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(100);
   const [countries, setCountries] = useState([]);
   const [pmps, setPmps] = useState([]);
+  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [paymentProviders, setPaymentProviders] = useState([]);
   const [arrangeBy, setArrangeBy] = useState('action');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -102,6 +138,39 @@ export default function FeeConfigsPage() {
   const [draft, setDraft] = useState(emptyState);
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [filters, setFilters] = useState(initialFilters);
+  const [appliedFilters, setAppliedFilters] = useState(initialFilters);
+
+  const activeFilterChips = useMemo(() => {
+    const chips = [];
+    const add = (label, key) => chips.push({ label, key });
+    Object.entries(appliedFilters).forEach(([key, value]) => {
+      if (value === '' || value === null || value === undefined) return;
+      switch (key) {
+        case 'service':
+          add(`Service: ${value}`, key);
+          break;
+        case 'action':
+          add(`Action: ${value}`, key);
+          break;
+        case 'countryId':
+          add(`Country ID: ${value}`, key);
+          break;
+        case 'paymentMethodPaymentProviderId':
+          add(`PMPP: ${value}`, key);
+          break;
+        case 'paymentMethodId':
+          add(`Method: ${value}`, key);
+          break;
+        case 'paymentProviderId':
+          add(`Provider: ${value}`, key);
+          break;
+        default:
+          break;
+      }
+    });
+    return chips;
+  }, [appliedFilters]);
 
   const fetchRows = async () => {
     setLoading(true);
@@ -110,6 +179,21 @@ export default function FeeConfigsPage() {
       const params = new URLSearchParams();
       params.set('page', String(page));
       params.set('size', String(size));
+      Object.entries(appliedFilters).forEach(([key, value]) => {
+        if (value === '' || value === null || value === undefined) return;
+        const numericKeys = [
+          'countryId',
+          'paymentMethodPaymentProviderId',
+          'paymentMethodId',
+          'paymentProviderId'
+        ];
+        if (numericKeys.includes(key)) {
+          const num = Number(value);
+          if (!Number.isNaN(num)) params.set(key, String(num));
+        } else {
+          params.set(key, String(value));
+        }
+      });
       const res = await api.feeConfigs.list(params);
       const list = Array.isArray(res) ? res : res?.content || [];
       setRows(list || []);
@@ -122,18 +206,22 @@ export default function FeeConfigsPage() {
 
   useEffect(() => {
     fetchRows();
-  }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [page, size, appliedFilters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const fetchOptions = async () => {
       try {
-        const [pmpRes, countryRes] = await Promise.all([
+        const [pmpRes, countryRes, pmRes, provRes] = await Promise.all([
           api.paymentMethodPaymentProviders.list(new URLSearchParams({ page: '0', size: '200' })),
-          api.countries.list(new URLSearchParams({ page: '0', size: '200' }))
+          api.countries.list(new URLSearchParams({ page: '0', size: '200' })),
+          api.paymentMethods.list(new URLSearchParams({ page: '0', size: '200' })),
+          api.paymentProviders.list(new URLSearchParams({ page: '0', size: '200' }))
         ]);
         const toList = (res) => (Array.isArray(res) ? res : res?.content || []);
         setPmps(toList(pmpRes));
         setCountries(toList(countryRes));
+        setPaymentMethods(toList(pmRes));
+        setPaymentProviders(toList(provRes));
       } catch {
         // soft fail for options
       }
@@ -191,7 +279,15 @@ export default function FeeConfigsPage() {
       {
         key: 'paymentMethodPaymentProviderId',
         label: 'PMPP scope',
-        render: (row) => getPmpLabel(row)
+        render: (row) => (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+            <div>{getPmpLabel(row)}</div>
+            <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', fontSize: '12px', color: 'var(--muted)' }}>
+              {row.paymentMethodName && <span>Method: {row.paymentMethodName}</span>}
+              {row.paymentProviderName && <span>Provider: {row.paymentProviderName}</span>}
+            </div>
+          </div>
+        )
       },
       { key: 'providerFeePercentage', label: 'Provider %' },
       { key: 'providerFlatFee', label: 'Provider flat' },
@@ -456,6 +552,124 @@ export default function FeeConfigsPage() {
             <option value="country">Country</option>
             <option value="pmp">PMPP</option>
           </select>
+        </div>
+      </div>
+
+      {activeFilterChips.length > 0 && (
+        <div className="card" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+          {activeFilterChips.map((chip) => (
+            <FilterChip
+              key={chip.key}
+              label={chip.label}
+              onClear={() => {
+                const next = { ...appliedFilters, [chip.key]: '' };
+                setAppliedFilters(next);
+                setFilters((p) => ({ ...p, [chip.key]: '' }));
+              }}
+            />
+          ))}
+        </div>
+      )}
+
+      <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="filterService">Service</label>
+            <select id="filterService" value={filters.service} onChange={(e) => setFilters((p) => ({ ...p, service: e.target.value }))}>
+              <option value="">All</option>
+              {serviceOptions.map((svc) => (
+                <option key={svc} value={svc}>
+                  {svc}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="filterAction">Action</label>
+            <select id="filterAction" value={filters.action} onChange={(e) => setFilters((p) => ({ ...p, action: e.target.value }))}>
+              <option value="">All</option>
+              {actionOptions.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="filterCountry">Country</label>
+            <select id="filterCountry" value={filters.countryId} onChange={(e) => setFilters((p) => ({ ...p, countryId: e.target.value }))}>
+              <option value="">All</option>
+              {countries.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} ({c.alpha2Code})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="filterPaymentMethod">Payment Method</label>
+            <select id="filterPaymentMethod" value={filters.paymentMethodId} onChange={(e) => setFilters((p) => ({ ...p, paymentMethodId: e.target.value }))}>
+              <option value="">All</option>
+              {paymentMethods.map((pm) => (
+                <option key={pm.id} value={pm.id}>
+                  {pm.name || pm.displayName || pm.id}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="filterPaymentProvider">Payment Provider</label>
+            <select id="filterPaymentProvider" value={filters.paymentProviderId} onChange={(e) => setFilters((p) => ({ ...p, paymentProviderId: e.target.value }))}>
+              <option value="">All</option>
+              {paymentProviders.map((prov) => (
+                <option key={prov.id} value={prov.id}>
+                  {prov.name || prov.displayName || prov.id}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="filterPmp">PMPP</label>
+            <select
+              id="filterPmp"
+              value={filters.paymentMethodPaymentProviderId}
+              onChange={(e) => setFilters((p) => ({ ...p, paymentMethodPaymentProviderId: e.target.value }))}
+            >
+              <option value="">All</option>
+              {pmps.map((pmp) => (
+                <option key={pmp.id} value={pmp.id}>
+                  {pmp.paymentMethodName || pmp.paymentMethodDisplayName || 'Method'} → {pmp.paymentProviderName || 'Provider'}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <button
+            type="button"
+            onClick={() => {
+              setPage(0);
+              setAppliedFilters(filters);
+            }}
+            disabled={loading}
+            className="btn-primary"
+          >
+            {loading ? 'Applying…' : 'Apply filters'}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setFilters(initialFilters);
+              setAppliedFilters(initialFilters);
+              setPage(0);
+            }}
+            disabled={loading}
+            className="btn-neutral"
+          >
+            Reset
+          </button>
+          <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Only applied filters are sent to the API.</span>
         </div>
       </div>
 

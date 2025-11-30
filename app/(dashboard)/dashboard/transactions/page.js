@@ -117,6 +117,13 @@ export default function TransactionsPage() {
   const [showDetail, setShowDetail] = useState(false);
   const [selected, setSelected] = useState(null);
 
+  const formatDateTime = (value) => {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+  };
+
   const fetchRows = async () => {
     setLoading(true);
     setError(null);
@@ -147,6 +154,37 @@ export default function TransactionsPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const renderStatusBadge = (value) => {
+    if (!value) return '—';
+    const val = String(value).toUpperCase();
+    const tone =
+      val === 'COMPLETED'
+        ? { bg: '#ECFDF3', fg: '#15803D' }
+        : val === 'PROCESSING'
+          ? { bg: '#EFF6FF', fg: '#1D4ED8' }
+          : val === 'FAILED'
+            ? { bg: '#FEF2F2', fg: '#B91C1C' }
+            : val === 'CANCELED' || val === 'CANCELLED'
+              ? { bg: '#FFF7ED', fg: '#C2410C' }
+              : { bg: '#E5E7EB', fg: '#374151' };
+    return (
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          padding: '0.2rem 0.5rem',
+          borderRadius: '999px',
+          fontSize: '12px',
+          fontWeight: 700,
+          background: tone.bg,
+          color: tone.fg
+        }}
+      >
+        {val}
+      </span>
+    );
   };
 
   useEffect(() => {
@@ -260,14 +298,26 @@ export default function TransactionsPage() {
 
   const columns = useMemo(
     () => [
-      { key: 'id', label: 'ID' },
-      { key: 'createdAt', label: 'Created' },
+      {
+        key: 'id',
+        label: 'ID',
+        render: (row) => row.transactionId || row.id
+      },
+      {
+        key: 'createdAt',
+        label: 'Created',
+        render: (row) => formatDateTime(row.createdAt)
+      },
       { key: 'reference', label: 'Reference' },
       { key: 'externalReference', label: 'External ref' },
-      { key: 'action', label: 'Action' },
       { key: 'service', label: 'Service' },
+      { key: 'action', label: 'Action' },
       { key: 'balanceEffect', label: 'Effect' },
-      { key: 'status', label: 'Status' },
+      {
+        key: 'status',
+        label: 'Status',
+        render: (row) => renderStatusBadge(row.status)
+      },
       {
         key: 'amount',
         label: 'Amount',
@@ -517,27 +567,26 @@ export default function TransactionsPage() {
         <Modal title={`Transaction ${selected?.reference || selected?.id}`} onClose={() => setShowDetail(false)}>
           <DetailGrid
             rows={[
-              { label: 'ID', value: selected?.id },
-              { label: 'Created', value: selected?.createdAt },
+              { label: 'Transaction ID', value: selected?.transactionId || selected?.id },
+              { label: 'Created', value: formatDateTime(selected?.createdAt) },
               { label: 'Reference', value: selected?.reference },
               { label: 'External ref', value: selected?.externalReference },
               { label: 'Operator ref', value: selected?.operatorReference },
-              { label: 'Idempotency key', value: selected?.idempotencyKey },
               { label: 'Service', value: selected?.service },
               { label: 'Action', value: selected?.action },
               { label: 'Effect', value: selected?.balanceEffect },
               { label: 'Status', value: selected?.status },
               { label: 'Amount', value: `${selected?.amount ?? '—'} ${selected?.currency || ''}`.trim() },
+              { label: 'Gross amount', value: selected?.grossAmount },
+              { label: 'External fee', value: selected?.externalFeeAmount },
+              { label: 'Internal fee', value: selected?.internalFeeAmount },
+              { label: 'Other fees', value: selected?.otherFeesAmount },
+              { label: 'All fees', value: selected?.allFees },
+              { label: 'Commission amount', value: selected?.commissionAmount },
               { label: 'Recipient', value: selected?.recipient },
-              { label: 'Customer', value: selected?.customer },
-              { label: 'Username', value: selected?.username },
-              { label: 'Account ref', value: selected?.accountReference },
-              { label: 'User ref', value: selected?.userReference },
-              { label: 'Payment method', value: selected?.paymentMethodName },
-              { label: 'Payment provider', value: selected?.paymentProviderName },
-              { label: 'PMPP ID', value: selected?.paymentMethodPaymentProviderId },
-              { label: 'Refunded', value: selected?.refunded ? 'Yes' : 'No' },
-              { label: 'Updated', value: selected?.updatedAt }
+              { label: 'Payment method', value: selected?.paymentMethodName || selected?.paymentMethodId },
+              { label: 'Payment provider', value: selected?.paymentProviderName || selected?.paymentProviderId },
+              { label: 'Refunded', value: selected?.refunded ? 'Yes' : 'No' }
             ]}
           />
         </Modal>
