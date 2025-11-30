@@ -18,6 +18,8 @@ const navItems = [
   // Other menus
   { href: '/dashboard/accounts/accounts', label: 'Accounts / Users' },
   { href: '/dashboard/transactions', label: 'Transactions' },
+  { href: '/dashboard/kycs', label: 'KYCs' },
+  { href: '/dashboard/kyc-caps', label: 'KycCaps' },
   { href: '/dashboard/admins', label: 'Admins' },
   { href: '/dashboard/fees/fee-configs', label: 'Fee Configs' },
   { href: '/dashboard/geo', label: 'Geo' },

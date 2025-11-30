@@ -97,6 +97,37 @@ export default function AccountsListPage() {
   const [showDetail, setShowDetail] = useState(false);
   const [selected, setSelected] = useState(null);
 
+  const renderStatusBadge = (value) => {
+    if (!value) return '—';
+    const val = String(value).toUpperCase();
+    const tone =
+      val === 'COMPLETED'
+        ? { bg: '#ECFDF3', fg: '#15803D' }
+        : val === 'PROCESSING'
+          ? { bg: '#EFF6FF', fg: '#1D4ED8' }
+          : val === 'FAILED'
+            ? { bg: '#FEF2F2', fg: '#B91C1C' }
+            : val === 'CANCELED' || val === 'CANCELLED'
+              ? { bg: '#FFF7ED', fg: '#C2410C' }
+              : { bg: '#E5E7EB', fg: '#374151' };
+    return (
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          padding: '0.2rem 0.5rem',
+          borderRadius: '999px',
+          fontSize: '12px',
+          fontWeight: 700,
+          background: tone.bg,
+          color: tone.fg
+        }}
+      >
+        {val}
+      </span>
+    );
+  };
+
   const fetchRows = async () => {
     setLoading(true);
     setError(null);
@@ -378,7 +409,7 @@ export default function AccountsListPage() {
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr>
-                        {['Created', 'Reference', 'Status', 'Action', 'Service', 'Amount', 'Effect', 'Refunded'].map((label) => (
+                        {['Created', 'Reference', 'Status', 'Service', 'Action', 'Amount'].map((label) => (
                           <th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid #e5e7eb', color: '#6b7280' }}>
                             {label}
                           </th>
@@ -388,16 +419,14 @@ export default function AccountsListPage() {
                     <tbody>
                       {selected.lastTransactions.map((txn) => (
                         <tr key={txn.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                          <td style={{ padding: '0.5rem' }}>{txn.createdAt}</td>
+                          <td style={{ padding: '0.5rem' }}>{formatDateTime(txn.createdAt)}</td>
                           <td style={{ padding: '0.5rem' }}>{txn.reference}</td>
-                          <td style={{ padding: '0.5rem' }}>{txn.status}</td>
-                          <td style={{ padding: '0.5rem' }}>{txn.action}</td>
+                          <td style={{ padding: '0.5rem' }}>{renderStatusBadge(txn.status)}</td>
                           <td style={{ padding: '0.5rem' }}>{txn.service}</td>
+                          <td style={{ padding: '0.5rem' }}>{txn.action}</td>
                           <td style={{ padding: '0.5rem' }}>
                             {txn.amount} {txn.currency || ''}
                           </td>
-                          <td style={{ padding: '0.5rem' }}>{txn.debitOrCredit}</td>
-                          <td style={{ padding: '0.5rem' }}>{txn.refunded ? 'Yes' : 'No'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -468,3 +497,9 @@ export default function AccountsListPage() {
     </div>
   );
 }
+const formatDateTime = (value) => {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+};
