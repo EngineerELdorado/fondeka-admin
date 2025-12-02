@@ -20,6 +20,7 @@ const navItems = [
   { href: '/dashboard/transactions', label: 'Transactions' },
   { href: '/dashboard/kycs', label: 'KYCs' },
   { href: '/dashboard/kyc-caps', label: 'KycCaps' },
+  { href: '/dashboard/redis-caches', label: 'Redis Caches' },
   { href: '/dashboard/admins', label: 'Admins' },
   { href: '/dashboard/fees/fee-configs', label: 'Fee Configs' },
   { href: '/dashboard/geo', label: 'Geo' },
