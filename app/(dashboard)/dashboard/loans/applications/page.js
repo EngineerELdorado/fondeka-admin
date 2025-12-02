@@ -5,16 +5,29 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
+const statusOptions = ['PENDING', 'APPROVED', 'REJECTED', 'FAILED', 'CANCELLED', 'OPEN', 'CLOSED'];
+
+const emptyFilters = {
+  loanType: '',
+  applicationStatus: '',
+  fromDate: '',
+  toDate: '',
+  loanReference: '',
+  transactionReference: '',
+  externalTransactionReference: '',
+  accountReference: '',
+  userEmailOrUsername: '',
+  userPhoneNumber: '',
+  minAmount: '',
+  maxAmount: ''
+};
+
 const Modal = ({ title, onClose, children }) => (
   <div className="modal-backdrop">
     <div className="modal-surface">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ fontWeight: 800 }}>{title}</div>
-        <button
-          type="button"
-          onClick={onClose}
-          style={{ border: 'none', background: 'transparent', fontSize: '18px', cursor: 'pointer', color: 'var(--text)' }}
-        >
+        <button type="button" onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: '18px', cursor: 'pointer', color: 'var(--text)' }}>
           ×
         </button>
       </div>
@@ -23,27 +36,99 @@ const Modal = ({ title, onClose, children }) => (
   </div>
 );
 
+const DetailGrid = ({ rows }) => (
+  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+    {rows.map((row) => (
+      <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px' }}>
+        <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
+        <div style={{ fontWeight: 700 }}>{row.value ?? '—'}</div>
+      </div>
+    ))}
+  </div>
+);
+
+const FilterChip = ({ label, onClear }) => (
+  <span
+    style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '0.35rem',
+      padding: '0.35rem 0.6rem',
+      background: 'var(--muted-bg, #f3f4f6)',
+      borderRadius: '999px',
+      fontSize: '13px',
+      color: 'var(--text)'
+    }}
+  >
+    {label}
+    <button
+      type="button"
+      onClick={onClear}
+      style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--muted)' }}
+      aria-label={`Clear ${label}`}
+    >
+      ×
+    </button>
+  </span>
+);
+
 export default function LoanApplicationsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(25);
-  const [loanType, setLoanType] = useState('');
-  const [status, setStatus] = useState('');
+  const [size, setSize] = useState(50);
+  const [filters, setFilters] = useState(emptyFilters);
+  const [appliedFilters, setAppliedFilters] = useState(emptyFilters);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null); // { row, action }
+  const [decisionComments, setDecisionComments] = useState('');
+  const [showDetail, setShowDetail] = useState(false);
+  const [selected, setSelected] = useState(null);
+
+  const formatDateTime = (value) => {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+  };
 
   const fetchRows = async () => {
     setLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams({ page: String(page), size: String(size) });
-      if (loanType) params.set('loanType', loanType);
-      if (status) params.set('applicationStatus', status);
-      const res = await api.listLoans(params);
+      Object.entries(appliedFilters).forEach(([key, value]) => {
+        if (value === '' || value === null || value === undefined) return;
+        if (['minAmount', 'maxAmount'].includes(key)) {
+          const num = Number(value);
+          if (!Number.isNaN(num)) params.set(key, String(num));
+        } else if (['fromDate', 'toDate'].includes(key)) {
+          const ts = Date.parse(value);
+          if (!Number.isNaN(ts)) params.set(key, String(ts));
+        } else {
+          params.set(key, String(value));
+        }
+      });
+      const res = await api.loans.list(params);
       const list = Array.isArray(res) ? res : res?.content || [];
-      setRows(list || []);
+      const normalized = (list || []).map((item) => ({
+        ...item,
+        id: item.loan?.id ?? item.id,
+        loanReference: item.loan?.reference || item.loanReference,
+        loanType: item.loan?.loanType || item.loanType,
+        applicationStatus: item.loan?.applicationStatus || item.applicationStatus,
+        amount: item.loan?.amount ?? item.amount,
+        currency: item.loan?.currency || item.currency,
+        createdAt: item.loan?.createdAt || item.createdAt,
+        accountReference: item.accountReference,
+        userEmailOrUsername: item.username || item.email || item.userEmailOrUsername,
+        userPhoneNumber: item.phoneNumber || item.userPhoneNumber,
+        transactionReference: item.transactionReference,
+        transactionExternalReference: item.transactionExternalReference,
+        customer: item.customer
+      }));
+      setRows(normalized);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -53,20 +138,101 @@ export default function LoanApplicationsPage() {
 
   useEffect(() => {
     fetchRows();
-  }, [page, size, loanType, status]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [page, size, appliedFilters]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const activeFilterChips = useMemo(() => {
+    const chips = [];
+    const add = (label, key) => chips.push({ label, key });
+    Object.entries(appliedFilters).forEach(([key, value]) => {
+      if (value === '' || value === null || value === undefined) return;
+      switch (key) {
+        case 'loanType':
+          add(`Loan type: ${value}`, key);
+          break;
+        case 'applicationStatus':
+          add(`Status: ${value}`, key);
+          break;
+        case 'accountReference':
+          add(`Account ref: ${value}`, key);
+          break;
+        case 'userEmailOrUsername':
+          add(`User: ${value}`, key);
+          break;
+        case 'userPhoneNumber':
+          add(`Phone: ${value}`, key);
+          break;
+        case 'loanReference':
+          add(`Loan ref: ${value}`, key);
+          break;
+        case 'transactionReference':
+          add(`Txn ref: ${value}`, key);
+          break;
+        case 'externalTransactionReference':
+          add(`Txn external: ${value}`, key);
+          break;
+        case 'minAmount':
+          add(`Min amount: ${value}`, key);
+          break;
+        case 'maxAmount':
+          add(`Max amount: ${value}`, key);
+          break;
+        case 'fromDate':
+          add(`From: ${value}`, key);
+          break;
+        case 'toDate':
+          add(`To: ${value}`, key);
+          break;
+        default:
+          break;
+      }
+    });
+    return chips;
+  }, [appliedFilters]);
 
   const columns = useMemo(
     () => [
       { key: 'id', label: 'ID' },
-      { key: 'borrowerName', label: 'Borrower' },
+      { key: 'loanReference', label: 'Loan ref' },
+      {
+        key: 'amount',
+        label: 'Amount',
+        render: (row) => `${row.amount ?? '—'} ${row.currency || ''}`.trim()
+      },
       { key: 'loanType', label: 'Type' },
       { key: 'applicationStatus', label: 'Status' },
-      { key: 'createdDate', label: 'Created' },
+      {
+        key: 'accountReference',
+        label: 'Account',
+        render: (row) => row.accountReference || '—'
+      },
+      {
+        key: 'customer',
+        label: 'Customer',
+        render: (row) => row.customer || '—'
+      },
+      {
+        key: 'userEmailOrUsername',
+        label: 'User',
+        render: (row) => row.userEmailOrUsername || row.username || '—'
+      },
+      {
+        key: 'transactionReference',
+        label: 'Txn ref',
+        render: (row) => row.transactionReference || '—'
+      },
+      {
+        key: 'createdAt',
+        label: 'Created',
+        render: (row) => formatDateTime(row.createdAt)
+      },
       {
         key: 'actions',
         label: 'Actions',
         render: (row) => (
           <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+            <button type="button" onClick={() => { setSelected(row); setShowDetail(true); }} className="btn-neutral">
+              View
+            </button>
             <button type="button" onClick={() => setConfirmAction({ row, action: 'approve' })} className="btn-success">
               Approve
             </button>
@@ -86,15 +252,16 @@ export default function LoanApplicationsPage() {
     setError(null);
     setInfo(null);
     try {
-      const payload = { note: 'Handled via admin dashboard' };
+      const payload = { decisionComments: decisionComments || undefined };
       if (action === 'approve') {
-        await api.approveLoan(row.id, payload);
+        await api.loans.approve(row.id, payload);
         setInfo(`Approved loan ${row.id}.`);
       } else {
-        await api.rejectLoan(row.id, payload);
+        await api.loans.reject(row.id, payload);
         setInfo(`Rejected loan ${row.id}.`);
       }
       setConfirmAction(null);
+      setDecisionComments('');
       fetchRows();
     } catch (err) {
       setError(err.message);
@@ -105,59 +272,183 @@ export default function LoanApplicationsPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <div style={{ fontWeight: 800, fontSize: '20px' }}>Loan Applications</div>
-          <div style={{ color: 'var(--muted)' }}>Browse loan applications and take decisions.</div>
+          <div style={{ fontWeight: 800, fontSize: '20px' }}>Loans</div>
+          <div style={{ color: 'var(--muted)' }}>Filter, review, and approve/reject loans.</div>
         </div>
         <Link href="/dashboard/loans" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
           ← Loans
         </Link>
       </div>
 
-      <div className="card" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
-        <div>
-          <label htmlFor="loanType">Loan type</label>
-          <input id="loanType" value={loanType} onChange={(e) => setLoanType(e.target.value)} placeholder="e.g. PERSONAL" />
+      <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="loanType">Loan type</label>
+            <input id="loanType" value={filters.loanType} onChange={(e) => setFilters((p) => ({ ...p, loanType: e.target.value }))} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="applicationStatus">Status</label>
+            <select id="applicationStatus" value={filters.applicationStatus} onChange={(e) => setFilters((p) => ({ ...p, applicationStatus: e.target.value }))}>
+              <option value="">All</option>
+              {statusOptions.map((st) => (
+                <option key={st} value={st}>
+                  {st}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="loanReference">Loan reference</label>
+            <input id="loanReference" value={filters.loanReference} onChange={(e) => setFilters((p) => ({ ...p, loanReference: e.target.value }))} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="transactionReference">Transaction ref</label>
+            <input id="transactionReference" value={filters.transactionReference} onChange={(e) => setFilters((p) => ({ ...p, transactionReference: e.target.value }))} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="externalTransactionReference">External tx ref</label>
+            <input
+              id="externalTransactionReference"
+              value={filters.externalTransactionReference}
+              onChange={(e) => setFilters((p) => ({ ...p, externalTransactionReference: e.target.value }))}
+            />
+          </div>
         </div>
-        <div>
-          <label htmlFor="status">Status</label>
-          <input id="status" value={status} onChange={(e) => setStatus(e.target.value)} placeholder="e.g. APPROVED" />
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="accountReference">Account ref</label>
+            <input id="accountReference" value={filters.accountReference} onChange={(e) => setFilters((p) => ({ ...p, accountReference: e.target.value }))} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="userEmailOrUsername">Email/Username</label>
+            <input id="userEmailOrUsername" value={filters.userEmailOrUsername} onChange={(e) => setFilters((p) => ({ ...p, userEmailOrUsername: e.target.value }))} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="userPhoneNumber">Phone</label>
+            <input id="userPhoneNumber" value={filters.userPhoneNumber} onChange={(e) => setFilters((p) => ({ ...p, userPhoneNumber: e.target.value }))} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="minAmount">Min amount</label>
+              <input id="minAmount" type="number" value={filters.minAmount} onChange={(e) => setFilters((p) => ({ ...p, minAmount: e.target.value }))} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="maxAmount">Max amount</label>
+              <input id="maxAmount" type="number" value={filters.maxAmount} onChange={(e) => setFilters((p) => ({ ...p, maxAmount: e.target.value }))} />
+            </div>
+          </div>
         </div>
-        <div>
-          <label htmlFor="loanPage">Page</label>
-          <input id="loanPage" type="number" min={0} value={page} onChange={(e) => setPage(Number(e.target.value))} />
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="fromDate">Created from</label>
+            <input id="fromDate" type="datetime-local" value={filters.fromDate} onChange={(e) => setFilters((p) => ({ ...p, fromDate: e.target.value }))} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="toDate">Created to</label>
+            <input id="toDate" type="datetime-local" value={filters.toDate} onChange={(e) => setFilters((p) => ({ ...p, toDate: e.target.value }))} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="page">Page</label>
+              <input id="page" type="number" min={0} value={page} onChange={(e) => setPage(Number(e.target.value))} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="size">Size</label>
+              <input id="size" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
+            </div>
+          </div>
         </div>
-        <div>
-          <label htmlFor="loanSize">Size</label>
-          <input id="loanSize" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.5rem' }}>
-          <button type="button" onClick={fetchRows} disabled={loading} className="btn-primary">
-            {loading ? 'Loading…' : 'Refresh'}
+
+        <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <button
+            type="button"
+            onClick={() => {
+              setPage(0);
+              setAppliedFilters(filters);
+            }}
+            disabled={loading}
+            className="btn-primary"
+          >
+            {loading ? 'Applying…' : 'Apply filters'}
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              setFilters(emptyFilters);
+              setAppliedFilters(emptyFilters);
+              setPage(0);
+            }}
+            disabled={loading}
+            className="btn-neutral"
+          >
+            Reset
+          </button>
+          <button type="button" onClick={fetchRows} disabled={loading} className="btn-neutral">
+            {loading ? 'Refreshing…' : 'Refresh'}
+          </button>
+          <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Only applied filters are sent to the API.</span>
         </div>
+
+        {activeFilterChips.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+            {activeFilterChips.map((chip) => (
+              <FilterChip
+                key={chip.key}
+                label={chip.label}
+                onClear={() => {
+                  const next = { ...appliedFilters, [chip.key]: '' };
+                  setAppliedFilters(next);
+                  setFilters((p) => ({ ...p, [chip.key]: '' }));
+                }}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
-      {error && (
-        <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>
-          {error}
-        </div>
-      )}
-      {info && (
-        <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>
-          {info}
-        </div>
-      )}
+      {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
+      {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
       <DataTable columns={columns} rows={rows} emptyLabel="No loans found" />
 
+      {showDetail && (
+        <Modal title={`Loan ${selected?.loanReference || selected?.id}`} onClose={() => { setShowDetail(false); setSelected(null); }}>
+          <DetailGrid
+            rows={[
+              { label: 'ID', value: selected?.id },
+              { label: 'Reference', value: selected?.loanReference },
+              { label: 'Customer', value: selected?.customer },
+              { label: 'Amount', value: `${selected?.amount ?? '—'} ${selected?.currency || ''}`.trim() },
+              { label: 'Type', value: selected?.loanType },
+              { label: 'Status', value: selected?.applicationStatus },
+              { label: 'Account ref', value: selected?.accountReference },
+              { label: 'User', value: selected?.userEmailOrUsername },
+              { label: 'Phone', value: selected?.userPhoneNumber },
+              { label: 'Txn ref', value: selected?.transactionReference },
+              { label: 'Txn external ref', value: selected?.transactionExternalReference },
+              { label: 'Created', value: formatDateTime(selected?.createdAt) }
+            ]}
+          />
+        </Modal>
+      )}
+
       {confirmAction && (
-        <Modal
-          title={`${confirmAction.action === 'approve' ? 'Approve' : 'Reject'} loan ${confirmAction.row.id}`}
-          onClose={() => setConfirmAction(null)}
-        >
+        <Modal title={`${confirmAction.action === 'approve' ? 'Approve' : 'Reject'} loan ${confirmAction.row.id}`} onClose={() => setConfirmAction(null)}>
           <div style={{ color: 'var(--muted)', marginBottom: '0.75rem' }}>
             Are you sure you want to {confirmAction.action} loan <strong>{confirmAction.row.id}</strong> for{' '}
-            <strong>{confirmAction.row.borrowerName || 'this user'}</strong>?
+            <strong>{confirmAction.row.borrowerName || confirmAction.row.customer || 'this user'}</strong>?
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.75rem' }}>
+            <label htmlFor="decisionComments">Comments (optional)</label>
+            <textarea
+              id="decisionComments"
+              rows={3}
+              value={decisionComments}
+              onChange={(e) => setDecisionComments(e.target.value)}
+              placeholder="Add a brief note about your decision"
+            />
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" onClick={() => setConfirmAction(null)} className="btn-neutral">

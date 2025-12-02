@@ -17,10 +17,7 @@ const emptyState = {
   interestPercentage: '',
   minAmount: '',
   maxAmount: '',
-  taxPercentage: '',
-  serviceFeePercentage: '',
   finePercentage: '',
-  otherFees: '',
   rank: '',
   loanType: '',
   code: '',
@@ -39,10 +36,7 @@ const toPayload = (state) => ({
   interestPercentage: state.interestPercentage === '' ? null : Number(state.interestPercentage),
   minAmount: state.minAmount === '' ? null : Number(state.minAmount),
   maxAmount: state.maxAmount === '' ? null : Number(state.maxAmount),
-  taxPercentage: state.taxPercentage === '' ? null : Number(state.taxPercentage),
-  serviceFeePercentage: state.serviceFeePercentage === '' ? null : Number(state.serviceFeePercentage),
   finePercentage: state.finePercentage === '' ? null : Number(state.finePercentage),
-  otherFees: state.otherFees === '' ? null : Number(state.otherFees),
   rank: state.rank === '' ? null : Number(state.rank),
   loanType: state.loanType,
   code: state.code,
@@ -155,10 +149,7 @@ export default function LoanProductsPage() {
       interestPercentage: row.interestPercentage ?? '',
       minAmount: row.minAmount ?? '',
       maxAmount: row.maxAmount ?? '',
-      taxPercentage: row.taxPercentage ?? '',
-      serviceFeePercentage: row.serviceFeePercentage ?? '',
       finePercentage: row.finePercentage ?? '',
-      otherFees: row.otherFees ?? '',
       rank: row.rank ?? '',
       loanType: row.loanType ?? '',
       code: row.code ?? '',
@@ -265,20 +256,8 @@ export default function LoanProductsPage() {
         <input id="maxAmount" type="number" value={draft.maxAmount} onChange={(e) => setDraft((p) => ({ ...p, maxAmount: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="taxPercentage">Tax %</label>
-        <input id="taxPercentage" type="number" value={draft.taxPercentage} onChange={(e) => setDraft((p) => ({ ...p, taxPercentage: e.target.value }))} />
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="serviceFeePercentage">Service fee %</label>
-        <input id="serviceFeePercentage" type="number" value={draft.serviceFeePercentage} onChange={(e) => setDraft((p) => ({ ...p, serviceFeePercentage: e.target.value }))} />
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="finePercentage">Fine %</label>
         <input id="finePercentage" type="number" value={draft.finePercentage} onChange={(e) => setDraft((p) => ({ ...p, finePercentage: e.target.value }))} />
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="otherFees">Other fees</label>
-        <input id="otherFees" type="number" value={draft.otherFees} onChange={(e) => setDraft((p) => ({ ...p, otherFees: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="rank">Rank</label>
@@ -369,14 +348,10 @@ export default function LoanProductsPage() {
               { label: 'Max duration', value: selected?.maxDuration },
               { label: 'Min amount', value: selected?.minAmount },
               { label: 'Max amount', value: selected?.maxAmount },
-              { label: 'Tax %', value: selected?.taxPercentage },
-              { label: 'Service fee %', value: selected?.serviceFeePercentage },
               { label: 'Fine %', value: selected?.finePercentage },
-              { label: 'Other fees', value: selected?.otherFees },
               { label: 'Rank', value: selected?.rank },
               { label: 'Active', value: selected?.active ? 'Yes' : 'No' },
-              { label: 'Created', value: selected?.createdAt },
-              { label: 'Updated', value: selected?.updatedAt }
+              { label: 'Created', value: selected?.createdAt }
             ]}
           />
         </Modal>

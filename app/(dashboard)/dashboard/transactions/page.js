@@ -309,10 +309,26 @@ export default function TransactionsPage() {
         render: (row) => formatDateTime(row.createdAt)
       },
       { key: 'reference', label: 'Reference' },
-      { key: 'externalReference', label: 'External ref' },
-      { key: 'service', label: 'Service' },
-      { key: 'action', label: 'Action' },
-      { key: 'balanceEffect', label: 'Effect' },
+      {
+        key: 'externalReference',
+        label: 'External ref',
+        render: (row) => row.externalReference || '—'
+      },
+      {
+        key: 'service',
+        label: 'Service',
+        render: (row) => row.service || 'ALL'
+      },
+      {
+        key: 'action',
+        label: 'Action',
+        render: (row) => row.action || '—'
+      },
+      {
+        key: 'balanceEffect',
+        label: 'Effect',
+        render: (row) => row.balanceEffect || '—'
+      },
       {
         key: 'status',
         label: 'Status',
@@ -323,8 +339,16 @@ export default function TransactionsPage() {
         label: 'Amount',
         render: (row) => `${row.amount ?? '—'} ${row.currency || ''}`.trim()
       },
-      { key: 'paymentMethodName', label: 'Method' },
-      { key: 'paymentProviderName', label: 'Provider' },
+      {
+        key: 'paymentMethodName',
+        label: 'Method',
+        render: (row) => row.paymentMethodName || row.paymentMethodId || '—'
+      },
+      {
+        key: 'paymentProviderName',
+        label: 'Provider',
+        render: (row) => row.paymentProviderName || row.paymentProviderId || '—'
+      },
       {
         key: 'actions',
         label: 'Actions',
