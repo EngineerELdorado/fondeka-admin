@@ -5,16 +5,28 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
+const statusOptions = ['IN_PREPARATION', 'ACTIVE', 'FAILED', 'BLOCKED_BY_USER', 'BLOCKED_BY_ADMIN', 'DELETED_BY_PROVIDER'];
+
 const emptyState = {
   internalReference: '',
   name: '',
   externalReference: '',
-  status: '',
+  status: 'IN_PREPARATION',
   last4: '',
   cardHolderId: '',
   accountId: '',
   issued: false,
   cardProductCardProviderId: ''
+};
+
+const emptyFilters = {
+  status: '',
+  issued: '',
+  accountId: '',
+  cardHolderId: '',
+  internalReference: '',
+  externalReference: '',
+  name: ''
 };
 
 const toPayload = (state) => ({
@@ -52,10 +64,45 @@ const DetailGrid = ({ rows }) => (
   </div>
 );
 
+const StatusBadge = ({ value }) => {
+  if (!value) return '—';
+  const val = String(value).toUpperCase();
+  const tone =
+    val === 'ACTIVE'
+      ? { bg: '#ECFDF3', fg: '#15803D' }
+      : val === 'IN_PREPARATION'
+        ? { bg: '#EFF6FF', fg: '#1D4ED8' }
+        : val === 'FAILED'
+          ? { bg: '#FEF2F2', fg: '#B91C1C' }
+          : val === 'BLOCKED_BY_ADMIN' || val === 'BLOCKED_BY_USER'
+            ? { bg: '#FFF7ED', fg: '#9A3412' }
+            : val === 'DELETED_BY_PROVIDER'
+              ? { bg: '#E5E7EB', fg: '#374151' }
+              : { bg: '#E5E7EB', fg: '#374151' };
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: '0.2rem 0.5rem',
+        borderRadius: '999px',
+        fontSize: '12px',
+        fontWeight: 700,
+        background: tone.bg,
+        color: tone.fg
+      }}
+    >
+      {val}
+    </span>
+  );
+};
+
 export default function CardsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(25);
+  const [filters, setFilters] = useState(emptyFilters);
+  const [appliedFilters, setAppliedFilters] = useState(emptyFilters);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
@@ -65,6 +112,8 @@ export default function CardsPage() {
   const [draft, setDraft] = useState(emptyState);
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [confirmBlock, setConfirmBlock] = useState(null);
+  const [confirmUnblock, setConfirmUnblock] = useState(null);
 
   const fetchRows = async () => {
     setLoading(true);
@@ -73,8 +122,16 @@ export default function CardsPage() {
       const params = new URLSearchParams();
       params.set('page', String(page));
       params.set('size', String(size));
+      Object.entries(appliedFilters).forEach(([key, value]) => {
+        if (value === '' || value === null || value === undefined) return;
+        if (key === 'issued') {
+          params.set('issued', String(value));
+        } else {
+          params.set(key, String(value));
+        }
+      });
       const res = await api.cards.list(params);
-      const list = Array.isArray(res) ? res : res?.content || [];
+    const list = Array.isArray(res) ? res : res?.content || [];
       setRows(list || []);
     } catch (err) {
       setError(err.message);
@@ -85,14 +142,16 @@ export default function CardsPage() {
 
   useEffect(() => {
     fetchRows();
-  }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [page, size, appliedFilters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
     { key: 'name', label: 'Name' },
-    { key: 'status', label: 'Status' },
-    { key: 'last4', label: 'Last 4' },
-    { key: 'issued', label: 'Issued' },
+    { key: 'status', label: 'Status', render: (row) => <StatusBadge value={row.status} /> },
+    { key: 'last4', label: 'Last 4', render: (row) => row.last4 || '—' },
+    { key: 'issued', label: 'Issued', render: (row) => (row.issued ? 'Yes' : 'No') },
+    { key: 'internalReference', label: 'Internal ref' },
+    { key: 'externalReference', label: 'External ref', render: (row) => row.externalReference || '—' },
     {
       key: 'actions',
       label: 'Actions',
@@ -100,6 +159,11 @@ export default function CardsPage() {
         <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
           <button type="button" onClick={() => openDetail(row)} className="btn-neutral">View</button>
           <button type="button" onClick={() => openEdit(row)} className="btn-neutral">Edit</button>
+          {row.status === 'BLOCKED_BY_ADMIN' ? (
+            <button type="button" onClick={() => setConfirmUnblock(row)} className="btn-success">Unblock</button>
+          ) : (
+            <button type="button" onClick={() => setConfirmBlock(row)} className="btn-danger">Block</button>
+          )}
           <button type="button" onClick={() => setConfirmDelete(row)} className="btn-danger">Delete</button>
         </div>
       )
@@ -180,6 +244,34 @@ export default function CardsPage() {
     }
   };
 
+  const handleBlock = async () => {
+    if (!confirmBlock?.id) return;
+    setError(null);
+    setInfo(null);
+    try {
+      await api.cards.block(confirmBlock.id);
+      setInfo(`Blocked card ${confirmBlock.id}.`);
+      setConfirmBlock(null);
+      fetchRows();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleUnblock = async () => {
+    if (!confirmUnblock?.id) return;
+    setError(null);
+    setInfo(null);
+    try {
+      await api.cards.unblock(confirmUnblock.id);
+      setInfo(`Unblocked card ${confirmUnblock.id}.`);
+      setConfirmUnblock(null);
+      fetchRows();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   const renderForm = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -196,7 +288,13 @@ export default function CardsPage() {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="status">Status</label>
-        <input id="status" value={draft.status} onChange={(e) => setDraft((p) => ({ ...p, status: e.target.value }))} placeholder="ACTIVE, INACTIVE..." />
+        <select id="status" value={draft.status} onChange={(e) => setDraft((p) => ({ ...p, status: e.target.value }))}>
+          {statusOptions.map((st) => (
+            <option key={st} value={st}>
+              {st}
+            </option>
+          ))}
+        </select>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="last4">Last 4</label>
@@ -238,21 +336,93 @@ export default function CardsPage() {
         </Link>
       </div>
 
-      <div className="card" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-        <div>
-          <label htmlFor="page">Page</label>
-          <input id="page" type="number" min={0} value={page} onChange={(e) => setPage(Number(e.target.value))} />
+      <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="statusFilter">Status</label>
+            <select
+              id="statusFilter"
+              value={filters.status}
+              onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value }))}
+            >
+              <option value="">All</option>
+              {statusOptions.map((st) => (
+                <option key={st} value={st}>
+                  {st}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="issuedFilter">Issued</label>
+            <select
+              id="issuedFilter"
+              value={filters.issued}
+              onChange={(e) => setFilters((p) => ({ ...p, issued: e.target.value }))}
+            >
+              <option value="">All</option>
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="internalReference">Internal reference</label>
+            <input id="internalReference" value={filters.internalReference} onChange={(e) => setFilters((p) => ({ ...p, internalReference: e.target.value }))} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="externalReference">External reference</label>
+            <input id="externalReference" value={filters.externalReference} onChange={(e) => setFilters((p) => ({ ...p, externalReference: e.target.value }))} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="nameFilter">Name</label>
+            <input id="nameFilter" value={filters.name} onChange={(e) => setFilters((p) => ({ ...p, name: e.target.value }))} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="accountId">Account ID</label>
+            <input id="accountId" type="number" value={filters.accountId} onChange={(e) => setFilters((p) => ({ ...p, accountId: e.target.value }))} />
+          </div>
         </div>
-        <div>
-          <label htmlFor="size">Size</label>
-          <input id="size" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="page">Page</label>
+            <input id="page" type="number" min={0} value={page} onChange={(e) => setPage(Number(e.target.value))} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="size">Size</label>
+            <input id="size" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
+          </div>
         </div>
-        <button type="button" onClick={fetchRows} disabled={loading} className="btn-primary">
-          {loading ? 'Loading…' : 'Refresh'}
-        </button>
-        <button type="button" onClick={openCreate} className="btn-success">
-          Add card
-        </button>
+        <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <button
+            type="button"
+            onClick={() => {
+              setPage(0);
+              setAppliedFilters(filters);
+            }}
+            disabled={loading}
+            className="btn-primary"
+          >
+            {loading ? 'Applying…' : 'Apply filters'}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setFilters(emptyFilters);
+              setAppliedFilters(emptyFilters);
+              setPage(0);
+            }}
+            disabled={loading}
+            className="btn-neutral"
+          >
+            Reset
+          </button>
+          <button type="button" onClick={fetchRows} disabled={loading} className="btn-neutral">
+            {loading ? 'Refreshing…' : 'Refresh'}
+          </button>
+          <button type="button" onClick={openCreate} className="btn-success">
+            Add card
+          </button>
+        </div>
       </div>
 
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
@@ -288,10 +458,8 @@ export default function CardsPage() {
               { label: 'Internal ref', value: selected?.internalReference },
               { label: 'Name', value: selected?.name },
               { label: 'External ref', value: selected?.externalReference },
-              { label: 'Status', value: selected?.status },
+              { label: 'Status', value: <StatusBadge value={selected?.status} /> },
               { label: 'Last 4', value: selected?.last4 },
-              { label: 'Card holder ID', value: selected?.cardHolderId },
-              { label: 'Account ID', value: selected?.accountId },
               { label: 'Issued', value: String(selected?.issued) },
               { label: 'Product/provider ID', value: selected?.cardProductCardProviderId }
             ]}
@@ -307,6 +475,30 @@ export default function CardsPage() {
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" onClick={() => setConfirmDelete(null)} className="btn-neutral">Cancel</button>
             <button type="button" onClick={handleDelete} className="btn-danger">Delete</button>
+          </div>
+        </Modal>
+      )}
+
+      {confirmBlock && (
+        <Modal title="Block card" onClose={() => setConfirmBlock(null)}>
+          <div style={{ color: 'var(--muted)' }}>
+            Block card <strong>{confirmBlock.name || confirmBlock.id}</strong>? Users will not be able to use it.
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+            <button type="button" onClick={() => setConfirmBlock(null)} className="btn-neutral">Cancel</button>
+            <button type="button" onClick={handleBlock} className="btn-danger">Block</button>
+          </div>
+        </Modal>
+      )}
+
+      {confirmUnblock && (
+        <Modal title="Unblock card" onClose={() => setConfirmUnblock(null)}>
+          <div style={{ color: 'var(--muted)' }}>
+            Unblock card <strong>{confirmUnblock.name || confirmUnblock.id}</strong>? Status will move to ACTIVE.
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+            <button type="button" onClick={() => setConfirmUnblock(null)} className="btn-neutral">Cancel</button>
+            <button type="button" onClick={handleUnblock} className="btn-success">Unblock</button>
           </div>
         </Modal>
       )}
