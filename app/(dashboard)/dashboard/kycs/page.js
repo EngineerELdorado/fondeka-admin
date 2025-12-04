@@ -159,6 +159,13 @@ export default function KycsPage() {
   const [updateDraft, setUpdateDraft] = useState(emptyUpdateDraft);
   const [levelOptions, setLevelOptions] = useState([]);
 
+  const formatDate = (value) => {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
   const formatDateTime = (value) => {
     if (!value) return '—';
     const date = new Date(value);
@@ -546,13 +553,13 @@ export default function KycsPage() {
               { label: 'Level', value: selected?.level },
               { label: 'Country', value: selected?.country },
               { label: 'Account ref', value: selected?.accountRef || selected?.accountReference },
-              { label: 'Account ID', value: selected?.accountId },
               { label: 'User', value: selected?.fullName || [selected?.firstName, selected?.otherNames, selected?.lastName].filter(Boolean).join(' ') || selected?.username || selected?.email },
               { label: 'Internal ref', value: selected?.internalRef },
               { label: 'External ref', value: selected?.externalRef },
               { label: 'ID number', value: selected?.idNumber },
-              { label: 'Updated', value: formatDateTime(selected?.updatedAt) },
-              { label: 'Created', value: formatDateTime(selected?.createdAt) }
+              { label: 'DOB', value: formatDate(selected?.dob) },
+              { label: 'Issued at', value: formatDateTime(selected?.issuedAt) },
+              { label: 'Expires at', value: formatDateTime(selected?.expiresAt) }
             ]}
           />
         </Modal>
