@@ -5,13 +5,29 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
-const emptyState = { cryptoProductId: '', cryptoNetworkId: '', rank: '', displayName: '', active: true };
+const emptyState = {
+  cryptoProductId: '',
+  cryptoNetworkId: '',
+  rank: '',
+  displayName: '',
+  dailyBuyLimitUsd: '',
+  dailySellLimitUsd: '',
+  dailySendLimitUsd: '',
+  dailyReceiveLimitUsd: '',
+  dailySwapLimitUsd: '',
+  active: true
+};
 
 const toPayload = (state) => ({
   cryptoProductId: Number(state.cryptoProductId) || 0,
   cryptoNetworkId: Number(state.cryptoNetworkId) || 0,
   rank: state.rank === '' ? null : Number(state.rank),
   displayName: state.displayName || null,
+  dailyBuyLimitUsd: Number(state.dailyBuyLimitUsd || 0),
+  dailySellLimitUsd: Number(state.dailySellLimitUsd || 0),
+  dailySendLimitUsd: Number(state.dailySendLimitUsd || 0),
+  dailyReceiveLimitUsd: Number(state.dailyReceiveLimitUsd || 0),
+  dailySwapLimitUsd: Number(state.dailySwapLimitUsd || 0),
   active: Boolean(state.active)
 });
 
@@ -51,6 +67,8 @@ export default function CryptoProductNetworksPage() {
   const [draft, setDraft] = useState(emptyState);
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [networks, setNetworks] = useState([]);
 
   const fetchRows = async () => {
     setLoading(true);
@@ -72,6 +90,24 @@ export default function CryptoProductNetworksPage() {
   useEffect(() => {
     fetchRows();
   }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const loadLookups = async () => {
+      try {
+        const params = new URLSearchParams();
+        params.set('page', '0');
+        params.set('size', '200');
+        const [prodRes, netRes] = await Promise.all([api.cryptoProducts.list(params), api.cryptoNetworks.list(params)]);
+        const prodList = Array.isArray(prodRes) ? prodRes : prodRes?.content || [];
+        const netList = Array.isArray(netRes) ? netRes : netRes?.content || [];
+        setProducts(prodList || []);
+        setNetworks(netList || []);
+      } catch (err) {
+        setError(err.message);
+      }
+    };
+    loadLookups();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
@@ -124,6 +160,11 @@ export default function CryptoProductNetworksPage() {
       cryptoNetworkId: row.cryptoNetworkId ?? '',
       rank: row.rank ?? '',
       displayName: row.displayName ?? '',
+      dailyBuyLimitUsd: row.dailyBuyLimitUsd ?? '',
+      dailySellLimitUsd: row.dailySellLimitUsd ?? '',
+      dailySendLimitUsd: row.dailySendLimitUsd ?? '',
+      dailyReceiveLimitUsd: row.dailyReceiveLimitUsd ?? '',
+      dailySwapLimitUsd: row.dailySwapLimitUsd ?? '',
       active: Boolean(row.active)
     });
     setShowEdit(true);
@@ -183,12 +224,26 @@ export default function CryptoProductNetworksPage() {
   const renderForm = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="cryptoProductId">Crypto product ID</label>
-        <input id="cryptoProductId" type="number" value={draft.cryptoProductId} onChange={(e) => setDraft((p) => ({ ...p, cryptoProductId: e.target.value }))} />
+        <label htmlFor="cryptoProductId">Crypto product</label>
+        <select id="cryptoProductId" value={draft.cryptoProductId} onChange={(e) => setDraft((p) => ({ ...p, cryptoProductId: e.target.value }))}>
+          <option value="">Select product</option>
+          {products.map((prod) => (
+            <option key={prod.id} value={prod.id}>
+              {prod.displayName || prod.currency || `Product ${prod.id}`}
+            </option>
+          ))}
+        </select>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="cryptoNetworkId">Crypto network ID</label>
-        <input id="cryptoNetworkId" type="number" value={draft.cryptoNetworkId} onChange={(e) => setDraft((p) => ({ ...p, cryptoNetworkId: e.target.value }))} />
+        <label htmlFor="cryptoNetworkId">Crypto network</label>
+        <select id="cryptoNetworkId" value={draft.cryptoNetworkId} onChange={(e) => setDraft((p) => ({ ...p, cryptoNetworkId: e.target.value }))}>
+          <option value="">Select network</option>
+          {networks.map((net) => (
+            <option key={net.id} value={net.id}>
+              {net.name || `Network ${net.id}`}
+            </option>
+          ))}
+        </select>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="displayName">Display name</label>
@@ -196,7 +251,67 @@ export default function CryptoProductNetworksPage() {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="rank">Rank</label>
-        <input id="rank" type="number" value={draft.rank} onChange={(e) => setDraft((p) => ({ ...p, rank: e.target.value }))} />
+        <input id="rank" type="number" min={0} value={draft.rank} onChange={(e) => setDraft((p) => ({ ...p, rank: e.target.value }))} />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="dailyBuyLimitUsd">Daily buy limit (USD)</label>
+        <input
+          id="dailyBuyLimitUsd"
+          type="number"
+          min={0}
+          step="any"
+          value={draft.dailyBuyLimitUsd}
+          onChange={(e) => setDraft((p) => ({ ...p, dailyBuyLimitUsd: e.target.value }))}
+          placeholder="0 = uses default"
+        />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="dailySellLimitUsd">Daily sell limit (USD)</label>
+        <input
+          id="dailySellLimitUsd"
+          type="number"
+          min={0}
+          step="any"
+          value={draft.dailySellLimitUsd}
+          onChange={(e) => setDraft((p) => ({ ...p, dailySellLimitUsd: e.target.value }))}
+          placeholder="0 = uses default"
+        />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="dailySendLimitUsd">Daily send limit (USD)</label>
+        <input
+          id="dailySendLimitUsd"
+          type="number"
+          min={0}
+          step="any"
+          value={draft.dailySendLimitUsd}
+          onChange={(e) => setDraft((p) => ({ ...p, dailySendLimitUsd: e.target.value }))}
+          placeholder="0 = uses default"
+        />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="dailyReceiveLimitUsd">Daily receive limit (USD)</label>
+        <input
+          id="dailyReceiveLimitUsd"
+          type="number"
+          min={0}
+          step="any"
+          value={draft.dailyReceiveLimitUsd}
+          onChange={(e) => setDraft((p) => ({ ...p, dailyReceiveLimitUsd: e.target.value }))}
+          placeholder="0 = uses default"
+        />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="dailySwapLimitUsd">Daily swap limit (USD)</label>
+        <input
+          id="dailySwapLimitUsd"
+          type="number"
+          min={0}
+          step="any"
+          value={draft.dailySwapLimitUsd}
+          onChange={(e) => setDraft((p) => ({ ...p, dailySwapLimitUsd: e.target.value }))}
+          placeholder="0 = uses default"
+        />
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <input id="active" type="checkbox" checked={draft.active} onChange={(e) => setDraft((p) => ({ ...p, active: e.target.checked }))} />
@@ -270,6 +385,11 @@ export default function CryptoProductNetworksPage() {
               { label: 'Crypto network', value: selected?.cryptoNetworkName },
               { label: 'Display name', value: selected?.displayName },
               { label: 'Rank', value: selected?.rank },
+              { label: 'Daily buy limit (USD)', value: Number(selected?.dailyBuyLimitUsd) === 0 ? 'Uses default' : selected?.dailyBuyLimitUsd },
+              { label: 'Daily sell limit (USD)', value: Number(selected?.dailySellLimitUsd) === 0 ? 'Uses default' : selected?.dailySellLimitUsd },
+              { label: 'Daily send limit (USD)', value: Number(selected?.dailySendLimitUsd) === 0 ? 'Uses default' : selected?.dailySendLimitUsd },
+              { label: 'Daily receive limit (USD)', value: Number(selected?.dailyReceiveLimitUsd) === 0 ? 'Uses default' : selected?.dailyReceiveLimitUsd },
+              { label: 'Daily swap limit (USD)', value: Number(selected?.dailySwapLimitUsd) === 0 ? 'Uses default' : selected?.dailySwapLimitUsd },
               { label: 'Active', value: String(selected?.active) }
             ]}
           />

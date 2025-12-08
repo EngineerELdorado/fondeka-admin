@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
-const statusOptions = ['IN_PREPARATION', 'ACTIVE', 'FAILED', 'BLOCKED_BY_USER', 'BLOCKED_BY_ADMIN', 'BLOCKED_BY_PROVIDER'];
+const statusOptions = ['IN_PREPARATION', 'ACTIVE', 'FAILED', 'BLOCKED_BY_USER', 'BLOCKED_BY_ADMIN', 'DELETED_BY_PROVIDER'];
 
 const emptyState = {
   internalReference: '',
@@ -76,7 +76,7 @@ const StatusBadge = ({ value }) => {
           ? { bg: '#FEF2F2', fg: '#B91C1C' }
           : val === 'BLOCKED_BY_ADMIN' || val === 'BLOCKED_BY_USER'
             ? { bg: '#FFF7ED', fg: '#9A3412' }
-            : val === 'BLOCKED_BY_PROVIDER'
+            : val === 'DELETED_BY_PROVIDER'
               ? { bg: '#E5E7EB', fg: '#374151' }
               : { bg: '#E5E7EB', fg: '#374151' };
   return (

@@ -14,7 +14,8 @@ const emptyState = {
   allowingCollection: false,
   allowingPayout: false,
   rank: '',
-  countryId: ''
+  countryId: '',
+  defaultForFees: false
 };
 
 const toPayload = (state) => ({
@@ -26,7 +27,22 @@ const toPayload = (state) => ({
   allowingCollection: Boolean(state.allowingCollection),
   allowingPayout: Boolean(state.allowingPayout),
   rank: state.rank === '' ? null : Number(state.rank),
-  countryId: state.countryId === '' ? null : Number(state.countryId)
+  countryId: state.countryId === '' ? null : Number(state.countryId),
+  defaultForFees: Boolean(state.defaultForFees)
+});
+
+const toUpdatePayloadFromRow = (row, overrides = {}) => ({
+  name: row.name,
+  displayName: row.displayName,
+  logoUrl: row.logoUrl,
+  type: row.type,
+  active: Boolean(row.active),
+  allowingCollection: Boolean(row.allowingCollection),
+  allowingPayout: Boolean(row.allowingPayout),
+  rank: row.rank === '' ? null : Number(row.rank),
+  countryId: row.countryId === '' ? null : Number(row.countryId),
+  defaultForFees: false,
+  ...overrides
 });
 
 const Modal = ({ title, onClose, children }) => (
@@ -68,6 +84,21 @@ export default function PaymentMethodsPage() {
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
+  const unsetOtherDefaults = async (keepId) => {
+    try {
+      const res = await api.paymentMethods.list(new URLSearchParams({ page: '0', size: '200' }));
+      const list = Array.isArray(res) ? res : res?.content || [];
+      const conflicts = (list || []).filter((pm) => pm.defaultForFees && pm.id !== keepId);
+      await Promise.all(
+        conflicts.map((pm) =>
+          api.paymentMethods.update(pm.id, toUpdatePayloadFromRow(pm, { defaultForFees: false }))
+        )
+      );
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   const fetchRows = async () => {
     setLoading(true);
     setError(null);
@@ -108,6 +139,7 @@ export default function PaymentMethodsPage() {
     { key: 'countryName', label: 'Country', render: (row) => row.countryName || 'GLOBAL' },
     { key: 'type', label: 'Type' },
     { key: 'rank', label: 'Rank' },
+    { key: 'defaultForFees', label: 'Default for fees', render: (row) => (row.defaultForFees ? 'Yes' : 'No') },
     { key: 'active', label: 'Active' },
     {
       key: 'actions',
@@ -152,7 +184,8 @@ export default function PaymentMethodsPage() {
       allowingCollection: Boolean(row.allowingCollection),
       allowingPayout: Boolean(row.allowingPayout),
       rank: row.rank ?? '',
-      countryId: row.countryId ?? ''
+      countryId: row.countryId ?? '',
+      defaultForFees: Boolean(row.defaultForFees)
     });
     setShowEdit(true);
     setInfo(null);
@@ -170,7 +203,11 @@ export default function PaymentMethodsPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.paymentMethods.create(toPayload(draft));
+      const res = await api.paymentMethods.create(toPayload(draft));
+      const newId = res?.id;
+      if (draft.defaultForFees && newId) {
+        await unsetOtherDefaults(newId);
+      }
       setInfo('Created payment method.');
       setShowCreate(false);
       fetchRows();
@@ -185,6 +222,9 @@ export default function PaymentMethodsPage() {
     setInfo(null);
     try {
       await api.paymentMethods.update(selected.id, toPayload(draft));
+      if (draft.defaultForFees) {
+        await unsetOtherDefaults(selected.id);
+      }
       setInfo(`Updated payment method ${selected.id}.`);
       setShowEdit(false);
       fetchRows();
@@ -251,7 +291,8 @@ export default function PaymentMethodsPage() {
         {[
           { key: 'active', label: 'Active', value: draft.active },
           { key: 'allowingCollection', label: 'Allow collection', value: draft.allowingCollection },
-          { key: 'allowingPayout', label: 'Allow payout', value: draft.allowingPayout }
+          { key: 'allowingPayout', label: 'Allow payout', value: draft.allowingPayout },
+          { key: 'defaultForFees', label: 'Default for fees', value: draft.defaultForFees }
         ].map((item) => (
           <label
             key={item.key}
@@ -356,6 +397,7 @@ export default function PaymentMethodsPage() {
               { label: 'Active', value: selected?.active ? 'Yes' : 'No' },
               { label: 'Allow collection', value: selected?.allowingCollection ? 'Yes' : 'No' },
               { label: 'Allow payout', value: selected?.allowingPayout ? 'Yes' : 'No' },
+              { label: 'Default for fees', value: selected?.defaultForFees ? 'Yes' : 'No' },
               { label: 'Logo URL', value: selected?.logoUrl },
               { label: 'Created', value: selected?.createdAt },
               { label: 'Updated', value: selected?.updatedAt }

@@ -26,6 +26,7 @@ const actionOptions = [
   'SELL_CRYPTO',
   'SEND_AIRTIME',
   'SEND_CRYPTO',
+  'SWAP_CRYPTO',
   'WITHDRAW_FROM_WALLET'
 ].sort();
 

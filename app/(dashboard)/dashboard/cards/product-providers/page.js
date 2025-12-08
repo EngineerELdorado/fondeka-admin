@@ -13,8 +13,6 @@ const emptyState = {
   price: '',
   monthlyMaintenanceCost: '',
   transactionFeePercentage: '',
-  validityLength: '',
-  validityType: '',
   active: true
 };
 
@@ -26,8 +24,6 @@ const toPayload = (state) => ({
   price: state.price === '' ? null : Number(state.price),
   monthlyMaintenanceCost: state.monthlyMaintenanceCost === '' ? null : Number(state.monthlyMaintenanceCost),
   transactionFeePercentage: state.transactionFeePercentage === '' ? null : Number(state.transactionFeePercentage),
-  validityLength: state.validityLength === '' ? null : Number(state.validityLength),
-  validityType: state.validityType || null,
   active: Boolean(state.active)
 });
 
@@ -67,9 +63,6 @@ export default function CardProductProvidersPage() {
   const [draft, setDraft] = useState(emptyState);
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
-  const [cardProducts, setCardProducts] = useState([]);
-  const [cardProviders, setCardProviders] = useState([]);
-  const validityTypeOptions = ['DAYS', 'MONTHS', 'YEARS'];
 
   const fetchRows = async () => {
     setLoading(true);
@@ -88,28 +81,9 @@ export default function CardProductProvidersPage() {
     }
   };
 
-  const fetchLookups = async () => {
-    try {
-      const params = new URLSearchParams();
-      params.set('page', '0');
-      params.set('size', '200');
-      const [productsRes, providersRes] = await Promise.all([api.cardProducts.list(params), api.cardProviders.list(params)]);
-      const products = Array.isArray(productsRes) ? productsRes : productsRes?.content || [];
-      const providers = Array.isArray(providersRes) ? providersRes : providersRes?.content || [];
-      setCardProducts(products || []);
-      setCardProviders(providers || []);
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
   useEffect(() => {
     fetchRows();
   }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    fetchLookups();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
@@ -150,8 +124,6 @@ export default function CardProductProvidersPage() {
       price: row.price ?? '',
       monthlyMaintenanceCost: row.monthlyMaintenanceCost ?? '',
       transactionFeePercentage: row.transactionFeePercentage ?? '',
-      validityLength: row.validityLength ?? '',
-      validityType: row.validityType ?? '',
       active: Boolean(row.active)
     });
     setShowEdit(true);
@@ -211,26 +183,12 @@ export default function CardProductProvidersPage() {
   const renderForm = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="cardProductId">Card product</label>
-        <select id="cardProductId" value={draft.cardProductId} onChange={(e) => setDraft((p) => ({ ...p, cardProductId: e.target.value }))}>
-          <option value="">Select product</option>
-          {cardProducts.map((prod) => (
-            <option key={prod.id} value={prod.id}>
-              {prod.cardBrandName || prod.name || `Product ${prod.id}`}
-            </option>
-          ))}
-        </select>
+        <label htmlFor="cardProductId">Card product ID</label>
+        <input id="cardProductId" type="number" value={draft.cardProductId} onChange={(e) => setDraft((p) => ({ ...p, cardProductId: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="cardProviderId">Card provider</label>
-        <select id="cardProviderId" value={draft.cardProviderId} onChange={(e) => setDraft((p) => ({ ...p, cardProviderId: e.target.value }))}>
-          <option value="">Select provider</option>
-          {cardProviders.map((prov) => (
-            <option key={prov.id} value={prov.id}>
-              {prov.cardProviderName || prov.name || `Provider ${prov.id}`}
-            </option>
-          ))}
-        </select>
+        <label htmlFor="cardProviderId">Card provider ID</label>
+        <input id="cardProviderId" type="number" value={draft.cardProviderId} onChange={(e) => setDraft((p) => ({ ...p, cardProviderId: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="currency">Currency</label>
@@ -252,27 +210,6 @@ export default function CardProductProvidersPage() {
           value={draft.monthlyMaintenanceCost}
           onChange={(e) => setDraft((p) => ({ ...p, monthlyMaintenanceCost: e.target.value }))}
         />
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="validityLength">Validity length</label>
-        <input
-          id="validityLength"
-          type="number"
-          min={0}
-          value={draft.validityLength}
-          onChange={(e) => setDraft((p) => ({ ...p, validityLength: e.target.value }))}
-        />
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="validityType">Validity type</label>
-        <select id="validityType" value={draft.validityType} onChange={(e) => setDraft((p) => ({ ...p, validityType: e.target.value }))}>
-          <option value="">Select type</option>
-          {validityTypeOptions.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
-            </option>
-          ))}
-        </select>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="transactionFeePercentage">Transaction fee %</label>
@@ -357,8 +294,6 @@ export default function CardProductProvidersPage() {
               { label: 'Price', value: selected?.price },
               { label: 'Purchase cost', value: selected?.purchaseCost },
               { label: 'Monthly maintenance', value: selected?.monthlyMaintenanceCost },
-              { label: 'Validity length', value: selected?.validityLength },
-              { label: 'Validity type', value: selected?.validityType },
               { label: 'Transaction fee %', value: selected?.transactionFeePercentage },
               { label: 'Active', value: String(selected?.active) }
             ]}
