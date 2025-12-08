@@ -16,6 +16,12 @@ const toPayload = (state) => ({
   active: Boolean(state.active)
 });
 
+const formatSpread = (value) => {
+  const num = Number(value);
+  if (Number.isNaN(num)) return '—';
+  return `${(num * 100).toFixed(2)}%`;
+};
+
 const Modal = ({ title, onClose, children }) => (
   <div className="modal-backdrop">
     <div className="modal-surface">
@@ -79,6 +85,8 @@ export default function CryptoProductsPage() {
     { key: 'currency', label: 'Currency' },
     { key: 'displayName', label: 'Display name' },
     { key: 'rate', label: 'Rate' },
+    { key: 'ask', label: 'Ask spread', render: (row) => formatSpread(row.ask) },
+    { key: 'bid', label: 'Bid spread', render: (row) => formatSpread(row.bid) },
     { key: 'active', label: 'Active' },
     {
       key: 'actions',
@@ -106,8 +114,8 @@ export default function CryptoProductsPage() {
       currency: row.currency ?? '',
       displayName: row.displayName ?? '',
       rate: row.rate ?? '',
-      ask: row.ask ?? '',
-      bid: row.bid ?? '',
+      ask: row.ask != null ? Number(row.ask) * 100 : '',
+      bid: row.bid != null ? Number(row.bid) * 100 : '',
       active: Boolean(row.active)
     });
     setShowEdit(true);
@@ -179,12 +187,32 @@ export default function CryptoProductsPage() {
         <input id="rate" type="number" value={draft.rate} onChange={(e) => setDraft((p) => ({ ...p, rate: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="ask">Ask</label>
-        <input id="ask" type="number" value={draft.ask} onChange={(e) => setDraft((p) => ({ ...p, ask: e.target.value }))} />
+        <label htmlFor="ask">Ask spread (%)</label>
+        <input
+          id="ask"
+          type="number"
+          min={0}
+          max={100}
+          step="0.0000000001"
+          value={draft.ask}
+          onChange={(e) => setDraft((p) => ({ ...p, ask: e.target.value }))}
+          placeholder="2 = 2%"
+        />
+        <small style={{ color: 'var(--muted)' }}>Enter percent as a number (e.g., 2 = 2%).</small>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="bid">Bid</label>
-        <input id="bid" type="number" value={draft.bid} onChange={(e) => setDraft((p) => ({ ...p, bid: e.target.value }))} />
+        <label htmlFor="bid">Bid spread (%)</label>
+        <input
+          id="bid"
+          type="number"
+          min={0}
+          max={100}
+          step="0.0000000001"
+          value={draft.bid}
+          onChange={(e) => setDraft((p) => ({ ...p, bid: e.target.value }))}
+          placeholder="1 = 1%"
+        />
+        <small style={{ color: 'var(--muted)' }}>Enter percent as a number (e.g., 1 = 1%).</small>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <input id="active" type="checkbox" checked={draft.active} onChange={(e) => setDraft((p) => ({ ...p, active: e.target.checked }))} />
@@ -255,8 +283,8 @@ export default function CryptoProductsPage() {
               { label: 'Currency', value: selected?.currency },
               { label: 'Display name', value: selected?.displayName },
               { label: 'Rate', value: selected?.rate },
-              { label: 'Ask', value: selected?.ask },
-              { label: 'Bid', value: selected?.bid },
+              { label: 'Ask spread', value: formatSpread(selected?.ask) },
+              { label: 'Bid spread', value: formatSpread(selected?.bid) },
               { label: 'Active', value: String(selected?.active) }
             ]}
           />
