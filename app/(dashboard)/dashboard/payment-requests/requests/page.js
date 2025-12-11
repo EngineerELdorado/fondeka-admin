@@ -23,6 +23,35 @@ const emptyState = {
   expiresAt: ''
 };
 
+const typeOptions = ['QUICK_CHARGE', 'DONATION', 'INVOICE'];
+const approvalStatusOptions = ['PENDING', 'APPROVED', 'REJECTED'];
+const lifecycleOptions = ['DRAFT', 'ACTIVE', 'EXPIRED', 'ARCHIVED'];
+const feeInclusionOptions = ['ON_TOP', 'ABSORBED'];
+
+const initialFilters = {
+  id: '',
+  accountId: '',
+  linkCode: '',
+  email: '',
+  phoneNumber: '',
+  titleContains: '',
+  descriptionContains: '',
+  type: '',
+  approvalStatus: '',
+  lifecycle: '',
+  currency: '',
+  amountGte: '',
+  amountLte: '',
+  minAmountGte: '',
+  minAmountLte: '',
+  maxAmountGte: '',
+  maxAmountLte: '',
+  activationAfter: '',
+  activationBefore: '',
+  expiresAfter: '',
+  expiresBefore: ''
+};
+
 const toPayload = (state) => ({
   accountId: Number(state.accountId) || 0,
   type: state.type,
@@ -53,6 +82,58 @@ const Modal = ({ title, onClose, children }) => (
   </div>
 );
 
+const FilterChip = ({ label, onClear }) => (
+  <span
+    style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '0.35rem',
+      padding: '0.35rem 0.6rem',
+      background: 'var(--muted-bg, #f3f4f6)',
+      borderRadius: '999px',
+      fontSize: '13px',
+      color: 'var(--text)'
+    }}
+  >
+    {label}
+    <button
+      type="button"
+      onClick={onClear}
+      style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--muted)' }}
+      aria-label={`Clear ${label}`}
+    >
+      ×
+    </button>
+  </span>
+);
+
+const Badge = ({ children, tone = 'neutral' }) => {
+  const palette =
+    tone === 'success'
+      ? { bg: '#ECFDF3', fg: '#15803D' }
+      : tone === 'info'
+        ? { bg: '#EFF6FF', fg: '#1D4ED8' }
+        : tone === 'danger'
+          ? { bg: '#FEF2F2', fg: '#B91C1C' }
+          : { bg: '#E5E7EB', fg: '#374151' };
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: '0.2rem 0.55rem',
+        borderRadius: '999px',
+        background: palette.bg,
+        color: palette.fg,
+        fontSize: '12px',
+        fontWeight: 700
+      }}
+    >
+      {children || '—'}
+    </span>
+  );
+};
+
 const DetailGrid = ({ rows }) => (
   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
     {rows.map((row) => (
@@ -77,6 +158,8 @@ export default function PaymentRequestsPage() {
   const [draft, setDraft] = useState(emptyState);
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [filters, setFilters] = useState(initialFilters);
+  const [appliedFilters, setAppliedFilters] = useState(initialFilters);
 
   const fetchRows = async () => {
     setLoading(true);
@@ -85,6 +168,27 @@ export default function PaymentRequestsPage() {
       const params = new URLSearchParams();
       params.set('page', String(page));
       params.set('size', String(size));
+      const addIf = (key, value) => {
+        if (value === '' || value === null || value === undefined) return;
+        params.set(key, String(value));
+      };
+      Object.entries(appliedFilters).forEach(([key, value]) => {
+        if (value === '' || value === null || value === undefined) return;
+        if (['id', 'accountId'].includes(key)) {
+          const num = Number(value);
+          if (!Number.isNaN(num)) addIf(key, num);
+        } else if (
+          ['amountGte', 'amountLte', 'minAmountGte', 'minAmountLte', 'maxAmountGte', 'maxAmountLte'].includes(key)
+        ) {
+          const num = Number(value);
+          if (!Number.isNaN(num)) addIf(key, num);
+        } else if (['activationAfter', 'activationBefore', 'expiresAfter', 'expiresBefore'].includes(key)) {
+          const ts = Date.parse(value);
+          if (!Number.isNaN(ts)) addIf(key, ts);
+        } else {
+          addIf(key, value);
+        }
+      });
       const res = await api.paymentRequests.list(params);
       const list = Array.isArray(res) ? res : res?.content || [];
       setRows(list || []);
@@ -97,16 +201,52 @@ export default function PaymentRequestsPage() {
 
   useEffect(() => {
     fetchRows();
-  }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [page, size, appliedFilters]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const applyFilters = () => {
+    setPage(0);
+    setAppliedFilters(filters);
+  };
+
+  const clearFilters = () => {
+    setFilters(initialFilters);
+    setAppliedFilters(initialFilters);
+    setPage(0);
+  };
+
+  const formatDateTime = (value) => {
+    if (!value) return '—';
+    const date = new Date(Number(value));
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+  };
 
   const columns = useMemo(() => [
-    { key: 'id', label: 'ID' },
     { key: 'accountId', label: 'Account ID' },
     { key: 'type', label: 'Type' },
     { key: 'amount', label: 'Amount' },
     { key: 'currency', label: 'Currency' },
-    { key: 'lifecycle', label: 'Lifecycle' },
-    { key: 'approvalStatus', label: 'Approval' },
+    {
+      key: 'approvalStatus',
+      label: 'Approval',
+      render: (row) => <Badge tone="info">{row.approvalStatus}</Badge>
+    },
+    {
+      key: 'lifecycle',
+      label: 'Lifecycle',
+      render: (row) => <Badge tone="success">{row.lifecycle}</Badge>
+    },
+    { key: 'linkCode', label: 'Link code' },
+    {
+      key: 'timing',
+      label: 'Activation / Expiry',
+      render: (row) => (
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <span>{formatDateTime(row.activationAt)}</span>
+          <span style={{ color: 'var(--muted)' }}>{formatDateTime(row.expiresAt)}</span>
+        </div>
+      )
+    },
     {
       key: 'actions',
       label: 'Actions',
@@ -208,7 +348,14 @@ export default function PaymentRequestsPage() {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="type">Type</label>
-        <input id="type" value={draft.type} onChange={(e) => setDraft((p) => ({ ...p, type: e.target.value }))} placeholder="QUICK_CHARGE / INVOICE / DONATION" />
+        <select id="type" value={draft.type} onChange={(e) => setDraft((p) => ({ ...p, type: e.target.value }))}>
+          <option value="">Select type</option>
+          {typeOptions.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </select>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="title">Title</label>
@@ -244,15 +391,36 @@ export default function PaymentRequestsPage() {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="feeInclusion">Fee inclusion</label>
-        <input id="feeInclusion" value={draft.feeInclusion} onChange={(e) => setDraft((p) => ({ ...p, feeInclusion: e.target.value }))} placeholder="ON_TOP / ABSORBED" />
+        <select id="feeInclusion" value={draft.feeInclusion} onChange={(e) => setDraft((p) => ({ ...p, feeInclusion: e.target.value }))}>
+          <option value="">Select</option>
+          {feeInclusionOptions.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </select>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="approvalStatus">Approval</label>
-        <input id="approvalStatus" value={draft.approvalStatus} onChange={(e) => setDraft((p) => ({ ...p, approvalStatus: e.target.value }))} />
+        <select id="approvalStatus" value={draft.approvalStatus} onChange={(e) => setDraft((p) => ({ ...p, approvalStatus: e.target.value }))}>
+          <option value="">Select</option>
+          {approvalStatusOptions.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </select>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="lifecycle">Lifecycle</label>
-        <input id="lifecycle" value={draft.lifecycle} onChange={(e) => setDraft((p) => ({ ...p, lifecycle: e.target.value }))} placeholder="DRAFT / ACTIVE / ..." />
+        <select id="lifecycle" value={draft.lifecycle} onChange={(e) => setDraft((p) => ({ ...p, lifecycle: e.target.value }))}>
+          <option value="">Select</option>
+          {lifecycleOptions.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </select>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="activationAt">Activation at</label>
@@ -277,18 +445,158 @@ export default function PaymentRequestsPage() {
         </Link>
       </div>
 
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <div style={{ fontWeight: 700 }}>Search & Filters</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="f-id">ID</label>
+            <input id="f-id" type="number" value={filters.id} onChange={(e) => setFilters((p) => ({ ...p, id: e.target.value }))} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="f-accountId">Account ID</label>
+            <input id="f-accountId" type="number" value={filters.accountId} onChange={(e) => setFilters((p) => ({ ...p, accountId: e.target.value }))} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="f-linkCode">Link code</label>
+            <input id="f-linkCode" value={filters.linkCode} onChange={(e) => setFilters((p) => ({ ...p, linkCode: e.target.value }))} placeholder="PR-ABC123" />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="f-email">Payer email</label>
+            <input id="f-email" value={filters.email} onChange={(e) => setFilters((p) => ({ ...p, email: e.target.value }))} placeholder="owner@example.com" />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="f-phoneNumber">Payer phone</label>
+            <input id="f-phoneNumber" value={filters.phoneNumber} onChange={(e) => setFilters((p) => ({ ...p, phoneNumber: e.target.value }))} placeholder="+243..." />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="f-titleContains">Title contains</label>
+            <input id="f-titleContains" value={filters.titleContains} onChange={(e) => setFilters((p) => ({ ...p, titleContains: e.target.value }))} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="f-descriptionContains">Description contains</label>
+            <input id="f-descriptionContains" value={filters.descriptionContains} onChange={(e) => setFilters((p) => ({ ...p, descriptionContains: e.target.value }))} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="f-type">Type</label>
+            <select id="f-type" value={filters.type} onChange={(e) => setFilters((p) => ({ ...p, type: e.target.value }))}>
+              <option value="">Any</option>
+              {typeOptions.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="f-approvalStatus">Approval status</label>
+            <select id="f-approvalStatus" value={filters.approvalStatus} onChange={(e) => setFilters((p) => ({ ...p, approvalStatus: e.target.value }))}>
+              <option value="">Any</option>
+              {approvalStatusOptions.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="f-lifecycle">Lifecycle</label>
+            <select id="f-lifecycle" value={filters.lifecycle} onChange={(e) => setFilters((p) => ({ ...p, lifecycle: e.target.value }))}>
+              <option value="">Any</option>
+              {lifecycleOptions.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="f-currency">Currency</label>
+            <input id="f-currency" value={filters.currency} onChange={(e) => setFilters((p) => ({ ...p, currency: e.target.value }))} placeholder="USD" />
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0.65rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="f-amountGte">Amount ≥</label>
+            <input id="f-amountGte" type="number" value={filters.amountGte} onChange={(e) => setFilters((p) => ({ ...p, amountGte: e.target.value }))} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="f-amountLte">Amount ≤</label>
+            <input id="f-amountLte" type="number" value={filters.amountLte} onChange={(e) => setFilters((p) => ({ ...p, amountLte: e.target.value }))} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="f-minAmountGte">Min amount ≥</label>
+            <input id="f-minAmountGte" type="number" value={filters.minAmountGte} onChange={(e) => setFilters((p) => ({ ...p, minAmountGte: e.target.value }))} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="f-minAmountLte">Min amount ≤</label>
+            <input id="f-minAmountLte" type="number" value={filters.minAmountLte} onChange={(e) => setFilters((p) => ({ ...p, minAmountLte: e.target.value }))} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="f-maxAmountGte">Max amount ≥</label>
+            <input id="f-maxAmountGte" type="number" value={filters.maxAmountGte} onChange={(e) => setFilters((p) => ({ ...p, maxAmountGte: e.target.value }))} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="f-maxAmountLte">Max amount ≤</label>
+            <input id="f-maxAmountLte" type="number" value={filters.maxAmountLte} onChange={(e) => setFilters((p) => ({ ...p, maxAmountLte: e.target.value }))} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="f-activationAfter">Activation after</label>
+            <input id="f-activationAfter" type="datetime-local" value={filters.activationAfter} onChange={(e) => setFilters((p) => ({ ...p, activationAfter: e.target.value }))} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="f-activationBefore">Activation before</label>
+            <input id="f-activationBefore" type="datetime-local" value={filters.activationBefore} onChange={(e) => setFilters((p) => ({ ...p, activationBefore: e.target.value }))} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="f-expiresAfter">Expires after</label>
+            <input id="f-expiresAfter" type="datetime-local" value={filters.expiresAfter} onChange={(e) => setFilters((p) => ({ ...p, expiresAfter: e.target.value }))} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="f-expiresBefore">Expires before</label>
+            <input id="f-expiresBefore" type="datetime-local" value={filters.expiresBefore} onChange={(e) => setFilters((p) => ({ ...p, expiresBefore: e.target.value }))} />
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <button type="button" onClick={applyFilters} className="btn-primary" disabled={loading}>
+            {loading ? 'Loading…' : 'Apply filters'}
+          </button>
+          <button type="button" onClick={clearFilters} className="btn-neutral" disabled={loading}>
+            Clear
+          </button>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <label htmlFor="page">Page</label>
+            <input id="page" type="number" min={0} value={page} onChange={(e) => setPage(Number(e.target.value))} />
+            <label htmlFor="size">Size</label>
+            <input id="size" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
+          </div>
+          <button type="button" onClick={fetchRows} disabled={loading} className="btn-neutral">
+            Refresh
+          </button>
+        </div>
+
+        {Object.entries(appliedFilters)
+          .filter(([, value]) => value !== '' && value !== null && value !== undefined)
+          .length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+              {Object.entries(appliedFilters)
+                .filter(([, value]) => value !== '' && value !== null && value !== undefined)
+                .map(([key, value]) => (
+                  <FilterChip
+                    key={key}
+                    label={`${key}=${value}`}
+                    onClear={() => {
+                      setFilters((p) => ({ ...p, [key]: '' }));
+                      setAppliedFilters((p) => ({ ...p, [key]: '' }));
+                    }}
+                  />
+                ))}
+            </div>
+          )}
+      </div>
+
       <div className="card" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-        <div>
-          <label htmlFor="page">Page</label>
-          <input id="page" type="number" min={0} value={page} onChange={(e) => setPage(Number(e.target.value))} />
-        </div>
-        <div>
-          <label htmlFor="size">Size</label>
-          <input id="size" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
-        </div>
-        <button type="button" onClick={fetchRows} disabled={loading} className="btn-primary">
-          {loading ? 'Loading…' : 'Refresh'}
-        </button>
         <button type="button" onClick={openCreate} className="btn-success">
           Add payment request
         </button>
@@ -325,6 +633,7 @@ export default function PaymentRequestsPage() {
             rows={[
               { label: 'ID', value: selected?.id },
               { label: 'Account ID', value: selected?.accountId },
+              { label: 'Link code', value: selected?.linkCode },
               { label: 'Type', value: selected?.type },
               { label: 'Title', value: selected?.title },
               { label: 'Description', value: selected?.description },
@@ -337,8 +646,8 @@ export default function PaymentRequestsPage() {
               { label: 'Fee inclusion', value: selected?.feeInclusion },
               { label: 'Approval status', value: selected?.approvalStatus },
               { label: 'Lifecycle', value: selected?.lifecycle },
-              { label: 'Activation at', value: selected?.activationAt },
-              { label: 'Expires at', value: selected?.expiresAt }
+              { label: 'Activation at', value: formatDateTime(selected?.activationAt) },
+              { label: 'Expires at', value: formatDateTime(selected?.expiresAt) }
             ]}
           />
         </Modal>

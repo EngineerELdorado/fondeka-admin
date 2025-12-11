@@ -3,7 +3,7 @@
 import Link from 'next/link';
 
 const sections = [
-  { href: '/dashboard/payment-requests/requests', title: 'Payment Requests', blurb: 'Create and manage payment requests.' },
+  { href: '/dashboard/payment-requests/requests', title: 'Payment Requests', blurb: 'Search, create, and manage payment requests.' },
   { href: '/dashboard/payment-requests/items', title: 'Request Items', blurb: 'Line items linked to payment requests.' },
   { href: '/dashboard/payment-requests/payments', title: 'Request Payments', blurb: 'Payments made toward requests.' },
   { href: '/dashboard/crud?domain=payment-requests', title: 'Explorer', blurb: 'Access all payment request endpoints if needed.' }
