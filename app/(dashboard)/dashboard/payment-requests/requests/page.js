@@ -236,6 +236,7 @@ export default function PaymentRequestsPage() {
       label: 'Lifecycle',
       render: (row) => <Badge tone="success">{row.lifecycle}</Badge>
     },
+    { key: 'createdAt', label: 'Created', render: (row) => formatDateTime(row.createdAt) },
     { key: 'linkCode', label: 'Link code' },
     {
       key: 'timing',
@@ -610,7 +611,7 @@ export default function PaymentRequestsPage() {
       {showCreate && (
         <Modal title="Add payment request" onClose={() => setShowCreate(false)}>
           {renderForm()}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+          <div className="modal-actions">
             <button type="button" onClick={() => setShowCreate(false)} className="btn-neutral">Cancel</button>
             <button type="button" onClick={handleCreate} className="btn-success">Create</button>
           </div>
@@ -620,7 +621,7 @@ export default function PaymentRequestsPage() {
       {showEdit && (
         <Modal title={`Edit payment request ${selected?.id}`} onClose={() => setShowEdit(false)}>
           {renderForm()}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+          <div className="modal-actions">
             <button type="button" onClick={() => setShowEdit(false)} className="btn-neutral">Cancel</button>
             <button type="button" onClick={handleUpdate} className="btn-primary">Save</button>
           </div>
@@ -647,7 +648,8 @@ export default function PaymentRequestsPage() {
               { label: 'Approval status', value: selected?.approvalStatus },
               { label: 'Lifecycle', value: selected?.lifecycle },
               { label: 'Activation at', value: formatDateTime(selected?.activationAt) },
-              { label: 'Expires at', value: formatDateTime(selected?.expiresAt) }
+              { label: 'Expires at', value: formatDateTime(selected?.expiresAt) },
+              { label: 'Created at', value: formatDateTime(selected?.createdAt) }
             ]}
           />
         </Modal>
@@ -658,7 +660,7 @@ export default function PaymentRequestsPage() {
           <div style={{ color: 'var(--muted)' }}>
             Delete payment request <strong>{confirmDelete.title || confirmDelete.id}</strong>? This cannot be undone.
           </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+          <div className="modal-actions">
             <button type="button" onClick={() => setConfirmDelete(null)} className="btn-neutral">Cancel</button>
             <button type="button" onClick={handleDelete} className="btn-danger">Delete</button>
           </div>

@@ -262,7 +262,7 @@ export default function CryptoInvoicesPage() {
       {showCreate && (
         <Modal title="Add crypto invoice" onClose={() => setShowCreate(false)}>
           {renderForm()}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+          <div className="modal-actions">
             <button type="button" onClick={() => setShowCreate(false)} className="btn-neutral">
               Cancel
             </button>
@@ -276,7 +276,7 @@ export default function CryptoInvoicesPage() {
       {showEdit && (
         <Modal title={`Edit invoice ${selected?.id}`} onClose={() => setShowEdit(false)}>
           {renderForm()}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+          <div className="modal-actions">
             <button type="button" onClick={() => setShowEdit(false)} className="btn-neutral">
               Cancel
             </button>
@@ -309,7 +309,7 @@ export default function CryptoInvoicesPage() {
           <div style={{ color: 'var(--muted)' }}>
             Delete invoice <strong>{confirmDelete.internalReference || confirmDelete.id}</strong>? This cannot be undone.
           </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+          <div className="modal-actions">
             <button type="button" onClick={() => setConfirmDelete(null)} className="btn-neutral">
               Cancel
             </button>
