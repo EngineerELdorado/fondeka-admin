@@ -18,6 +18,8 @@ const navItems = [
   { href: '/dashboard/payment-requests', label: 'Payment Requests' },
   // Other menus
   { href: '/dashboard/accounts/accounts', label: 'Accounts / Users' },
+  { href: '/dashboard/trusted-devices', label: 'Trusted Devices' },
+  { href: '/dashboard/device-replacement-requests', label: 'Device Replacement Requests' },
   { href: '/dashboard/transactions', label: 'Transactions' },
   { href: '/dashboard/kycs', label: 'KYCs' },
   { href: '/dashboard/kyc-caps', label: 'KycCaps' },

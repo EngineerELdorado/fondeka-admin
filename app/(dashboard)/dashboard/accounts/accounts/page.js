@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { DataTable } from '@/components/DataTable';
+import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
 
 const initialFilters = {
@@ -85,6 +86,7 @@ const Badge = ({ children }) => (
 );
 
 export default function AccountsListPage() {
+  const { pushToast } = useToast();
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(50);
@@ -96,6 +98,30 @@ export default function AccountsListPage() {
   const [info, setInfo] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
   const [selected, setSelected] = useState(null);
+  const [detailAccount, setDetailAccount] = useState(null);
+  const [detailTransactions, setDetailTransactions] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [customPricing, setCustomPricing] = useState(null);
+  const [customPricingLoading, setCustomPricingLoading] = useState(false);
+  const [customPricingMissing, setCustomPricingMissing] = useState(false);
+  const [kycCap, setKycCap] = useState(null);
+  const [kycCapLoading, setKycCapLoading] = useState(false);
+
+  const [showCredit, setShowCredit] = useState(false);
+  const [creditAmount, setCreditAmount] = useState('');
+  const [creditNote, setCreditNote] = useState('');
+  const [creditError, setCreditError] = useState(null);
+  const [creditLoading, setCreditLoading] = useState(false);
+
+  const [showPricingForm, setShowPricingForm] = useState(false);
+  const [pricingExtraLoan, setPricingExtraLoan] = useState('');
+  const [pricingMaxCollection, setPricingMaxCollection] = useState('');
+  const [pricingMaxPayout, setPricingMaxPayout] = useState('');
+  const [pricingNote, setPricingNote] = useState('');
+  const [pricingError, setPricingError] = useState(null);
+  const [pricingSaving, setPricingSaving] = useState(false);
+  const [showPricingRemove, setShowPricingRemove] = useState(false);
+  const [pricingRemoving, setPricingRemoving] = useState(false);
 
   const renderStatusBadge = (value) => {
     if (!value) return '—';
@@ -170,8 +196,10 @@ export default function AccountsListPage() {
         raw: item
       }));
       setRows(flattened);
+      return flattened;
     } catch (err) {
       setError(err.message);
+      return null;
     } finally {
       setLoading(false);
     }
@@ -271,10 +299,222 @@ export default function AccountsListPage() {
 
   const openDetail = (row) => {
     setSelected(row);
+    setDetailAccount(null);
+    setDetailTransactions(null);
     setShowDetail(true);
     setInfo(null);
     setError(null);
+    setShowCredit(false);
+    setCreditAmount('');
+    setCreditNote('');
+    setCreditError(null);
+
+    setCustomPricing(null);
+    setCustomPricingMissing(false);
+    setShowPricingForm(false);
+    setPricingExtraLoan('');
+    setPricingMaxCollection('');
+    setPricingMaxPayout('');
+    setPricingNote('');
+    setPricingError(null);
+    setShowPricingRemove(false);
+    setKycCap(null);
   };
+
+  const loadCustomPricing = async (accountId) => {
+    if (!accountId && accountId !== 0) return;
+    setCustomPricingLoading(true);
+    setPricingError(null);
+    try {
+      const res = await api.accounts.getCustomPricing(accountId);
+      setCustomPricing(res || null);
+      setCustomPricingMissing(false);
+    } catch (err) {
+      if (err?.status === 404) {
+        setCustomPricing(null);
+        setCustomPricingMissing(true);
+      } else {
+        setCustomPricing(null);
+        setCustomPricingMissing(false);
+        setPricingError(err.message || 'Failed to load custom pricing');
+      }
+    } finally {
+      setCustomPricingLoading(false);
+    }
+  };
+
+  const loadKycCap = async (kycLevel) => {
+    const num = Number(kycLevel);
+    if (!Number.isFinite(num)) {
+      setKycCap(null);
+      return;
+    }
+    setKycCapLoading(true);
+    try {
+      const params = new URLSearchParams({ page: '0', size: '1', level: String(num) });
+      const res = await api.kycCaps.list(params);
+      const list = Array.isArray(res) ? res : res?.content || [];
+      setKycCap(list?.[0] || null);
+    } catch {
+      setKycCap(null);
+    } finally {
+      setKycCapLoading(false);
+    }
+  };
+
+  const loadAccountDetail = async ({ accountId, accountReference }) => {
+    if (!accountId && accountId !== 0) return;
+    setDetailLoading(true);
+    try {
+      const fresh = await api.accounts.get(accountId);
+      setDetailAccount(fresh || null);
+
+      const ref = fresh?.accountReference || accountReference;
+      if (ref) {
+        const txParams = new URLSearchParams({ page: '0', size: '10', accountReference: String(ref) });
+        const txRes = await api.transactions.list(txParams);
+        const list = Array.isArray(txRes) ? txRes : txRes?.content || [];
+        setDetailTransactions(list || []);
+      } else {
+        setDetailTransactions(null);
+      }
+
+      await loadCustomPricing(accountId);
+      await loadKycCap(fresh?.kycLevel ?? selected?.kycLevel);
+    } catch (err) {
+      pushToast({ tone: 'error', message: err.message || 'Failed to load account details' });
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!showDetail || !selected?.id) return;
+    loadAccountDetail({ accountId: selected.id, accountReference: selected.accountReference });
+  }, [showDetail, selected?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const submitCredit = async () => {
+    setCreditError(null);
+    const amountNum = Number(creditAmount);
+    if (!Number.isFinite(amountNum) || amountNum < 0.01) {
+      setCreditError('Amount must be at least 0.01');
+      return;
+    }
+    if (!selected?.id) {
+      setCreditError('No account selected');
+      return;
+    }
+
+    setCreditLoading(true);
+    try {
+      const payload = { amount: amountNum, ...(creditNote?.trim() ? { note: creditNote.trim() } : {}) };
+      const res = await api.accounts.creditWalletBonus(selected.id, payload);
+      pushToast({
+        tone: 'success',
+        message: `Bonus credited: ${res?.amount ?? amountNum} (ref ${res?.reference || '—'})`
+      });
+      setShowCredit(false);
+      setCreditAmount('');
+      setCreditNote('');
+
+      await loadAccountDetail({ accountId: selected.id, accountReference: selected.accountReference });
+      const refreshed = await fetchRows();
+      const updated = refreshed?.find?.((r) => r.id === selected.id);
+      if (updated) setSelected(updated);
+    } catch (err) {
+      setCreditError(err.message);
+      pushToast({ tone: 'error', message: err.message });
+    } finally {
+      setCreditLoading(false);
+    }
+  };
+
+  const openPricingForm = (seed) => {
+    setPricingError(null);
+    setShowPricingRemove(false);
+    setShowPricingForm(true);
+    const source = seed || customPricing || {};
+    setPricingExtraLoan(source?.extraLoanEligibilityAmount !== undefined && source?.extraLoanEligibilityAmount !== null ? String(source.extraLoanEligibilityAmount) : '0');
+    setPricingMaxCollection(source?.maxCollectionAmount !== undefined && source?.maxCollectionAmount !== null ? String(source.maxCollectionAmount) : '');
+    setPricingMaxPayout(source?.maxPayoutAmount !== undefined && source?.maxPayoutAmount !== null ? String(source.maxPayoutAmount) : '');
+    setPricingNote(source?.note ? String(source.note) : '');
+  };
+
+  const submitPricing = async () => {
+    setPricingError(null);
+    if (!selected?.id) {
+      setPricingError('No account selected');
+      return;
+    }
+
+    const extraLoan = Number(pricingExtraLoan);
+    if (!Number.isFinite(extraLoan) || extraLoan < 0) {
+      setPricingError('Extra loan eligibility amount must be 0 or more');
+      return;
+    }
+
+    const parseOptional = (raw) => {
+      if (raw === '' || raw === null || raw === undefined) return null;
+      const num = Number(raw);
+      if (!Number.isFinite(num) || num < 0) return NaN;
+      return num;
+    };
+
+    const maxCollection = parseOptional(pricingMaxCollection);
+    if (Number.isNaN(maxCollection)) {
+      setPricingError('Max collection amount must be a number (or empty)');
+      return;
+    }
+    const maxPayout = parseOptional(pricingMaxPayout);
+    if (Number.isNaN(maxPayout)) {
+      setPricingError('Max payout amount must be a number (or empty)');
+      return;
+    }
+
+    setPricingSaving(true);
+    try {
+      const payload = {
+        extraLoanEligibilityAmount: extraLoan,
+        maxCollectionAmount: maxCollection,
+        maxPayoutAmount: maxPayout,
+        note: pricingNote?.trim() ? pricingNote.trim() : null
+      };
+      await api.accounts.updateCustomPricing(selected.id, payload);
+      pushToast({ tone: 'success', message: 'Custom pricing saved' });
+      setShowPricingForm(false);
+      await loadCustomPricing(selected.id);
+      await loadAccountDetail({ accountId: selected.id, accountReference: selected.accountReference });
+    } catch (err) {
+      const message = err.message || 'Failed to save custom pricing';
+      setPricingError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setPricingSaving(false);
+    }
+  };
+
+  const removePricing = async () => {
+    if (!selected?.id) return;
+    setPricingRemoving(true);
+    setPricingError(null);
+    try {
+      await api.accounts.removeCustomPricing(selected.id);
+      pushToast({ tone: 'success', message: 'Custom pricing removed' });
+      setShowPricingRemove(false);
+      setCustomPricing(null);
+      setCustomPricingMissing(true);
+      await loadAccountDetail({ accountId: selected.id, accountReference: selected.accountReference });
+    } catch (err) {
+      const message = err.message || 'Failed to remove custom pricing';
+      setPricingError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setPricingRemoving(false);
+    }
+  };
+
+  const accountView = detailAccount || selected;
+  const txView = detailTransactions || selected?.lastTransactions || [];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -387,22 +627,181 @@ export default function AccountsListPage() {
       <DataTable columns={columns} rows={rows} emptyLabel="No accounts found" />
 
       {showDetail && (
-        <Modal title={`Account ${selected?.accountReference || selected?.id}`} onClose={() => setShowDetail(false)}>
+        <Modal
+          title={`Account ${accountView?.accountReference || accountView?.accountNumber || selected?.accountReference || selected?.id}`}
+          onClose={() => setShowDetail(false)}
+        >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <button type="button" onClick={() => setShowCredit(true)} className="btn-success">
+                Credit wallet (Bonus)
+              </button>
+              <button
+                type="button"
+                onClick={() => loadAccountDetail({ accountId: selected?.id, accountReference: selected?.accountReference })}
+                className="btn-neutral"
+                disabled={detailLoading}
+              >
+                {detailLoading ? 'Refreshing…' : 'Refresh'}
+              </button>
+              <span style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                {detailLoading ? 'Loading latest account data…' : ' '}
+              </span>
+            </div>
+
             <DetailGrid
               rows={[
                 { label: 'Account ID', value: selected?.id },
-                { label: 'Account reference', value: selected?.accountReference },
-                { label: 'User', value: selected?.userName || selected?.username },
-                { label: 'Country', value: selected?.countryName || selected?.countryCode || '—' },
-                { label: 'KYC status', value: selected?.kycStatus },
-                { label: 'KYC level', value: selected?.kycLevel },
-                { label: 'Balance', value: selected?.balance },
-                { label: 'Eligible loan', value: selected?.eligibleLoanAmount }
+                { label: 'Account reference', value: accountView?.accountReference || selected?.accountReference },
+                { label: 'User', value: selected?.userName || selected?.username || accountView?.username },
+                { label: 'Country', value: selected?.countryName || selected?.countryCode || accountView?.countryCode || '—' },
+                { label: 'KYC status', value: accountView?.kycStatus ?? selected?.kycStatus },
+                { label: 'KYC level', value: accountView?.kycLevel ?? selected?.kycLevel },
+                { label: 'Balance', value: accountView?.balance ?? selected?.balance },
+                { label: 'Eligible loan', value: accountView?.eligibleLoanAmount ?? selected?.eligibleLoanAmount }
               ]}
             />
 
-            {selected?.lastTransactions?.length > 0 && (
+            <div className="card" style={{ padding: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                  <div style={{ fontWeight: 800 }}>Custom Pricing</div>
+                  <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                    Per-account overrides for loan eligibility and deposit/withdrawal caps.
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <button type="button" className="btn-neutral btn-sm" onClick={() => loadCustomPricing(selected?.id)} disabled={customPricingLoading}>
+                    {customPricingLoading ? 'Loading…' : 'Reload'}
+                  </button>
+                  {(customPricingMissing || !customPricing) && (
+                    <button type="button" className="btn-primary btn-sm" onClick={() => openPricingForm({ extraLoanEligibilityAmount: 0 })}>
+                      Add custom pricing
+                    </button>
+                  )}
+                  {customPricing && (
+                    <>
+                      <button type="button" className="btn-primary btn-sm" onClick={() => openPricingForm(customPricing)}>
+                        Edit
+                      </button>
+                      <button type="button" className="btn-danger btn-sm" onClick={() => setShowPricingRemove(true)} disabled={pricingRemoving}>
+                        Remove
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ marginTop: '0.75rem' }}>
+                {customPricingLoading && <div style={{ color: 'var(--muted)' }}>Loading custom pricing…</div>}
+                {!customPricingLoading && (customPricingMissing || !customPricing) && (
+                  <div style={{ color: 'var(--muted)' }}>No custom pricing configured.</div>
+                )}
+                {!customPricingLoading && customPricing && (
+                  <DetailGrid
+                    rows={[
+                      { label: 'Extra loan eligibility', value: customPricing.extraLoanEligibilityAmount },
+                      { label: 'Max collection', value: customPricing.maxCollectionAmount ?? 'Default' },
+                      { label: 'Max payout', value: customPricing.maxPayoutAmount ?? 'Default' },
+                      { label: 'Note', value: customPricing.note ?? '—' },
+                      { label: 'Updated', value: customPricing.updatedAt ? formatDateTime(customPricing.updatedAt) : '—' }
+                    ]}
+                  />
+                )}
+
+                <div style={{ marginTop: '0.85rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    <div style={{ fontWeight: 800 }}>Effective caps</div>
+                    <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                      KYC level: {accountView?.kycLevel ?? selected?.kycLevel ?? '—'} {kycCapLoading ? '• loading KYC caps…' : ''}
+                    </div>
+                  </div>
+
+                  {kycCap && (
+                    <div style={{ overflowX: 'auto', marginTop: '0.5rem' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '520px' }}>
+                        <thead>
+                          <tr>
+                            {['Limit', 'Base (KYC)', 'Override (custom)', 'Effective'].map((label) => (
+                              <th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                                {label}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(() => {
+                            const eligibleLoanEffective = accountView?.eligibleLoanAmount ?? selected?.eligibleLoanAmount ?? null;
+                            const extraLoan = customPricing?.extraLoanEligibilityAmount ?? 0;
+                            const eligibleLoanBase =
+                              Number.isFinite(Number(eligibleLoanEffective)) && Number.isFinite(Number(extraLoan))
+                                ? Math.max(0, Number(eligibleLoanEffective) - Number(extraLoan))
+                                : null;
+
+                            const kycCollection = kycCap?.maxCollectionAmount ?? null;
+                            const overrideCollection = customPricing?.maxCollectionAmount ?? null;
+                            const effectiveCollection = (customPricing?.maxCollectionAmount ?? kycCollection) ?? null;
+
+                            const kycPayout = kycCap?.maxPayoutAmount ?? null;
+                            const overridePayout = customPricing?.maxPayoutAmount ?? null;
+                            const effectivePayout = (customPricing?.maxPayoutAmount ?? kycPayout) ?? null;
+
+                            const rows = [
+                              {
+                                label: 'Loan eligibility (computed)',
+                                base: eligibleLoanBase,
+                                override: extraLoan,
+                                effective: eligibleLoanEffective
+                              },
+                              {
+                                label: 'Max collection (deposit)',
+                                base: kycCollection,
+                                override: overrideCollection,
+                                effective: effectiveCollection
+                              },
+                              {
+                                label: 'Max payout (withdrawal)',
+                                base: kycPayout,
+                                override: overridePayout,
+                                effective: effectivePayout
+                              }
+                            ];
+
+                            const fmt = (v, { empty = '—', defaultLabel = 'Default' } = {}) => {
+                              if (v === null || v === undefined) return empty;
+                              if (v === defaultLabel) return defaultLabel;
+                              return String(v);
+                            };
+
+                            return rows.map((row) => (
+                              <tr key={row.label} style={{ borderBottom: '1px solid var(--border)' }}>
+                                <td style={{ padding: '0.5rem', fontWeight: 700 }}>{row.label}</td>
+                                <td style={{ padding: '0.5rem' }}>{fmt(row.base)}</td>
+                                <td style={{ padding: '0.5rem' }}>{fmt(row.override, { empty: 'None' })}</td>
+                                <td style={{ padding: '0.5rem' }}>{fmt(row.effective)}</td>
+                              </tr>
+                            ));
+                          })()}
+                        </tbody>
+                      </table>
+                      <div style={{ marginTop: '0.4rem', color: 'var(--muted)', fontSize: '12px' }}>
+                        Loan eligibility uses the computed `eligibleLoanAmount` from the account record; the “Override” column uses `extraLoanEligibilityAmount` from custom pricing when available.
+                      </div>
+                    </div>
+                  )}
+
+                  {!kycCapLoading && !kycCap && (
+                    <div style={{ marginTop: '0.5rem', color: 'var(--muted)', fontSize: '13px' }}>
+                      No KYC cap found for this KYC level; effective limits may be unknown.
+                    </div>
+                  )}
+                </div>
+
+                {pricingError && <div style={{ marginTop: '0.6rem', color: '#b91c1c', fontWeight: 700 }}>{pricingError}</div>}
+              </div>
+            </div>
+
+            {txView?.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 <div style={{ fontWeight: 700 }}>Recent transactions (max 10)</div>
                 <div style={{ overflowX: 'auto' }}>
@@ -417,8 +816,8 @@ export default function AccountsListPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {selected.lastTransactions.map((txn) => (
-                        <tr key={txn.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      {txView.map((txn) => (
+                        <tr key={txn.transactionId || txn.id || txn.reference} style={{ borderBottom: '1px solid #f1f5f9' }}>
                           <td style={{ padding: '0.5rem' }}>{formatDateTime(txn.createdAt)}</td>
                           <td style={{ padding: '0.5rem' }}>{txn.reference}</td>
                           <td style={{ padding: '0.5rem' }}>{renderStatusBadge(txn.status)}</td>
@@ -491,6 +890,123 @@ export default function AccountsListPage() {
                 </div>
               </div>
             )}
+          </div>
+        </Modal>
+      )}
+
+      {showCredit && (
+        <Modal title="Credit wallet (Bonus)" onClose={() => (!creditLoading ? setShowCredit(false) : null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ color: 'var(--muted)' }}>
+              Crediting account <span style={{ fontWeight: 800 }}>{accountView?.accountReference || selected?.accountReference || selected?.id}</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="creditAmount">Amount</label>
+                <input
+                  id="creditAmount"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={creditAmount}
+                  onChange={(e) => setCreditAmount(e.target.value)}
+                  placeholder="25.50"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="creditNote">Note (optional)</label>
+                <input id="creditNote" value={creditNote} onChange={(e) => setCreditNote(e.target.value)} placeholder="Manual bonus for customer" />
+              </div>
+            </div>
+            {creditError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{creditError}</div>}
+            <div className="modal-actions">
+              <button type="button" onClick={() => setShowCredit(false)} className="btn-neutral" disabled={creditLoading}>
+                Cancel
+              </button>
+              <button type="button" onClick={submitCredit} className="btn-success" disabled={creditLoading}>
+                {creditLoading ? 'Crediting…' : 'Credit bonus'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showPricingForm && (
+        <Modal title={`${customPricing ? 'Edit' : 'Add'} custom pricing`} onClose={() => (!pricingSaving ? setShowPricingForm(false) : null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="extraLoanEligibilityAmount">Extra loan eligibility amount</label>
+                <input
+                  id="extraLoanEligibilityAmount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={pricingExtraLoan}
+                  onChange={(e) => setPricingExtraLoan(e.target.value)}
+                  placeholder="200.00"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="maxCollectionAmount">Max collection amount (optional)</label>
+                <input
+                  id="maxCollectionAmount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={pricingMaxCollection}
+                  onChange={(e) => setPricingMaxCollection(e.target.value)}
+                  placeholder="500.00"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="maxPayoutAmount">Max payout amount (optional)</label>
+                <input
+                  id="maxPayoutAmount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={pricingMaxPayout}
+                  onChange={(e) => setPricingMaxPayout(e.target.value)}
+                  placeholder="300.00"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="pricingNote">Note (optional)</label>
+                <input id="pricingNote" value={pricingNote} onChange={(e) => setPricingNote(e.target.value)} placeholder="VIP customer" />
+              </div>
+            </div>
+            {pricingError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{pricingError}</div>}
+            <div className="modal-actions">
+              <button type="button" className="btn-neutral" disabled={pricingSaving} onClick={() => setShowPricingForm(false)}>
+                Cancel
+              </button>
+              <button type="button" className="btn-primary" disabled={pricingSaving} onClick={submitPricing}>
+                {pricingSaving ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showPricingRemove && (
+        <Modal title="Remove custom pricing" onClose={() => (!pricingRemoving ? setShowPricingRemove(false) : null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ fontWeight: 700 }}>
+              Remove custom pricing for account <span style={{ fontWeight: 900 }}>{accountView?.accountReference || selected?.accountReference || selected?.id}</span>?
+            </div>
+            <div style={{ color: 'var(--muted)' }}>
+              This will revert to standard KYC caps/scoring rules for loan eligibility and deposit/withdrawal limits.
+            </div>
+            {pricingError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{pricingError}</div>}
+            <div className="modal-actions">
+              <button type="button" className="btn-neutral" disabled={pricingRemoving} onClick={() => setShowPricingRemove(false)}>
+                Cancel
+              </button>
+              <button type="button" className="btn-danger" disabled={pricingRemoving} onClick={removePricing}>
+                {pricingRemoving ? 'Removing…' : 'Confirm remove'}
+              </button>
+            </div>
           </div>
         </Modal>
       )}

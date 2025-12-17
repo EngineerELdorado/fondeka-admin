@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { DataTable } from '@/components/DataTable';
+import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
 
 const serviceOptions = ['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'PAYMENT_REQUEST', 'E_SIM', 'AIRTIME_AND_DATA', 'GIFT_CARDS', 'OTHER'];
@@ -103,6 +104,7 @@ const FilterChip = ({ label, onClear }) => (
 );
 
 export default function TransactionsPage() {
+  const { pushToast } = useToast();
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(50);
@@ -116,6 +118,13 @@ export default function TransactionsPage() {
   const [info, setInfo] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
   const [selected, setSelected] = useState(null);
+  const [accountSummary, setAccountSummary] = useState(null);
+  const [accountLoading, setAccountLoading] = useState(false);
+
+  const [showRefund, setShowRefund] = useState(false);
+  const [refundNote, setRefundNote] = useState('');
+  const [refundError, setRefundError] = useState(null);
+  const [refundLoading, setRefundLoading] = useState(false);
 
   const formatDateTime = (value) => {
     if (!value) return '—';
@@ -124,15 +133,15 @@ export default function TransactionsPage() {
     return date.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
   };
 
-  const fetchRows = async () => {
+  const fetchRowsFor = async ({ targetPage, targetSize, targetFilters }) => {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ page: String(page), size: String(size) });
+      const params = new URLSearchParams({ page: String(targetPage), size: String(targetSize) });
       const addIf = (key, value) => {
         if (value !== '' && value !== null && value !== undefined) params.set(key, String(value));
       };
-      Object.entries(appliedFilters).forEach(([key, value]) => {
+      Object.entries(targetFilters).forEach(([key, value]) => {
         if (value === '' || value === null || value === undefined) return;
         if (['minAmount', 'maxAmount', 'paymentMethodId', 'paymentProviderId', 'paymentMethodPaymentProviderId'].includes(key)) {
           const num = Number(value);
@@ -149,12 +158,16 @@ export default function TransactionsPage() {
       const res = await api.transactions.list(params);
       const list = Array.isArray(res) ? res : res?.content || [];
       setRows(list || []);
+      return list || [];
     } catch (err) {
       setError(err.message);
+      return null;
     } finally {
       setLoading(false);
     }
   };
+
+  const fetchRows = async () => fetchRowsFor({ targetPage: page, targetSize: size, targetFilters: appliedFilters });
 
   const renderStatusBadge = (value) => {
     if (!value) return '—';
@@ -369,6 +382,108 @@ export default function TransactionsPage() {
     setShowDetail(true);
     setInfo(null);
     setError(null);
+    setShowRefund(false);
+    setRefundNote('');
+    setRefundError(null);
+    setAccountSummary(null);
+  };
+
+  const showRefundTransaction = async ({ refundReference, refundTransactionId }) => {
+    if (!refundReference && !refundTransactionId) return;
+
+    const next = { ...initialFilters, reference: refundReference ? String(refundReference) : '' };
+    setPage(0);
+    setFilters(next);
+    setAppliedFilters(next);
+    setShowRefund(false);
+    setShowDetail(false);
+
+    if (refundReference) {
+      pushToast({ tone: 'success', message: `Showing refund transaction: ${refundReference}` });
+    }
+
+    const list = await fetchRowsFor({ targetPage: 0, targetSize: size, targetFilters: next });
+    if (!list || list.length === 0) return;
+
+    const match = refundTransactionId
+      ? list.find((t) => String(t.transactionId || t.id) === String(refundTransactionId)) || list[0]
+      : list[0];
+    if (match) openDetail(match);
+  };
+
+  const loadAccountSummary = async (txn) => {
+    if (!txn) return;
+    setAccountLoading(true);
+    try {
+      if (txn.accountId !== undefined && txn.accountId !== null && txn.accountId !== '') {
+        const acc = await api.accounts.get(txn.accountId);
+        setAccountSummary(acc || null);
+        return;
+      }
+      if (txn.accountReference) {
+        const params = new URLSearchParams({ page: '0', size: '1', accountReference: String(txn.accountReference) });
+        const res = await api.accounts.list(params);
+        const list = Array.isArray(res) ? res : res?.content || [];
+        setAccountSummary(list?.[0] || null);
+      }
+    } catch (err) {
+      setAccountSummary(null);
+      pushToast({ tone: 'error', message: err.message || 'Failed to load account balance' });
+    } finally {
+      setAccountLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!showDetail || !selected) return;
+    loadAccountSummary(selected);
+  }, [showDetail, selected?.transactionId, selected?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const canRefundSelected = useMemo(() => {
+    if (!selected) return false;
+    const effect = String(selected.balanceEffect || '').toUpperCase();
+    const status = String(selected.status || '').toUpperCase();
+    const refunded = Boolean(selected.refunded) || Boolean(selected.refundedAt);
+    return effect === 'DEBIT' && (status === 'FAILED' || status === 'PROCESSING') && !refunded;
+  }, [selected]);
+
+  const submitRefund = async () => {
+    setRefundError(null);
+    const transactionId = selected?.transactionId || selected?.id;
+    if (!transactionId) {
+      setRefundError('Missing transaction id');
+      return;
+    }
+
+    setRefundLoading(true);
+    try {
+      const payload = refundNote?.trim() ? { note: refundNote.trim() } : undefined;
+      const res = await api.transactions.refundToWallet(transactionId, payload);
+      pushToast({ tone: 'success', message: `Refund created: ${res?.refundReference || '—'}` });
+      setShowRefund(false);
+      setRefundNote('');
+
+      setSelected((prev) => ({
+        ...(prev || {}),
+        refunded: true,
+        refundedAt: res?.refundedAt || prev?.refundedAt,
+        refundReference: res?.refundReference,
+        refundTransactionId: res?.refundTransactionId
+      }));
+
+      await fetchRows();
+      await loadAccountSummary(selected);
+      await showRefundTransaction({ refundReference: res?.refundReference, refundTransactionId: res?.refundTransactionId });
+    } catch (err) {
+      const message = err?.message || 'Refund failed';
+      setRefundError(message);
+      pushToast({ tone: 'error', message });
+      if (String(message).toLowerCase().includes('already refunded')) {
+        setSelected((prev) => ({ ...(prev || {}), refunded: true }));
+      }
+    } finally {
+      setRefundLoading(false);
+    }
   };
 
   return (
@@ -589,30 +704,80 @@ export default function TransactionsPage() {
 
       {showDetail && (
         <Modal title={`Transaction ${selected?.reference || selected?.id}`} onClose={() => setShowDetail(false)}>
-          <DetailGrid
-            rows={[
-              { label: 'Transaction ID', value: selected?.transactionId || selected?.id },
-              { label: 'Created', value: formatDateTime(selected?.createdAt) },
-              { label: 'Reference', value: selected?.reference },
-              { label: 'External ref', value: selected?.externalReference },
-              { label: 'Operator ref', value: selected?.operatorReference },
-              { label: 'Service', value: selected?.service },
-              { label: 'Action', value: selected?.action },
-              { label: 'Effect', value: selected?.balanceEffect },
-              { label: 'Status', value: selected?.status },
-              { label: 'Amount', value: `${selected?.amount ?? '—'} ${selected?.currency || ''}`.trim() },
-              { label: 'Gross amount', value: selected?.grossAmount },
-              { label: 'External fee', value: selected?.externalFeeAmount },
-              { label: 'Internal fee', value: selected?.internalFeeAmount },
-              { label: 'Other fees', value: selected?.otherFeesAmount },
-              { label: 'All fees', value: selected?.allFees },
-              { label: 'Commission amount', value: selected?.commissionAmount },
-              { label: 'Recipient', value: selected?.recipient },
-              { label: 'Payment method', value: selected?.paymentMethodName || selected?.paymentMethodId },
-              { label: 'Payment provider', value: selected?.paymentProviderName || selected?.paymentProviderId },
-              { label: 'Refunded', value: selected?.refunded ? 'Yes' : 'No' }
-            ]}
-          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+            <DetailGrid
+              rows={[
+                { label: 'Transaction ID', value: selected?.transactionId || selected?.id },
+                { label: 'Created', value: formatDateTime(selected?.createdAt) },
+                { label: 'Reference', value: selected?.reference },
+                { label: 'External ref', value: selected?.externalReference },
+                { label: 'Operator ref', value: selected?.operatorReference },
+                { label: 'Service', value: selected?.service },
+                { label: 'Action', value: selected?.action },
+                { label: 'Effect', value: selected?.balanceEffect },
+                { label: 'Status', value: selected?.status },
+                { label: 'Amount', value: `${selected?.amount ?? '—'} ${selected?.currency || ''}`.trim() },
+                { label: 'Account ref', value: selected?.accountReference || '—' },
+                { label: 'Account balance', value: accountLoading ? 'Loading…' : accountSummary?.balance ?? '—' },
+                { label: 'Gross amount', value: selected?.grossAmount },
+                { label: 'External fee', value: selected?.externalFeeAmount },
+                { label: 'Internal fee', value: selected?.internalFeeAmount },
+                { label: 'Other fees', value: selected?.otherFeesAmount },
+                { label: 'All fees', value: selected?.allFees },
+                { label: 'Commission amount', value: selected?.commissionAmount },
+                { label: 'Recipient', value: selected?.recipient },
+                { label: 'Payment method', value: selected?.paymentMethodName || selected?.paymentMethodId },
+                { label: 'Payment provider', value: selected?.paymentProviderName || selected?.paymentProviderId },
+                { label: 'Refunded', value: selected?.refunded || selected?.refundedAt ? 'Yes' : 'No' },
+                { label: 'Refund ref', value: selected?.refundReference || '—' },
+                { label: 'Refund txn ID', value: selected?.refundTransactionId || '—' }
+              ]}
+            />
+
+            <div className="modal-actions">
+              <button type="button" onClick={() => loadAccountSummary(selected)} className="btn-neutral" disabled={accountLoading}>
+                {accountLoading ? 'Refreshing…' : 'Refresh balance'}
+              </button>
+              {canRefundSelected && (
+                <button type="button" onClick={() => setShowRefund(true)} className="btn-danger">
+                  Refund to wallet
+                </button>
+              )}
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showRefund && (
+        <Modal title="Refund to wallet" onClose={() => (!refundLoading ? setShowRefund(false) : null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gap: '0.35rem' }}>
+              <div>
+                <span style={{ color: 'var(--muted)' }}>Original:</span>{' '}
+                <span style={{ fontWeight: 800 }}>{selected?.reference || selected?.transactionId || selected?.id}</span>
+              </div>
+              <div>
+                <span style={{ color: 'var(--muted)' }}>Amount:</span>{' '}
+                <span style={{ fontWeight: 800 }}>{`${selected?.amount ?? '—'} ${selected?.currency || ''}`.trim()}</span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="refundNote">Note (optional)</label>
+              <input id="refundNote" value={refundNote} onChange={(e) => setRefundNote(e.target.value)} placeholder="Provider failed, refunding customer" />
+            </div>
+
+            {refundError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{refundError}</div>}
+
+            <div className="modal-actions">
+              <button type="button" onClick={() => setShowRefund(false)} className="btn-neutral" disabled={refundLoading}>
+                Cancel
+              </button>
+              <button type="button" onClick={submitRefund} className="btn-danger" disabled={refundLoading}>
+                {refundLoading ? 'Creating refund…' : 'Confirm refund'}
+              </button>
+            </div>
+          </div>
         </Modal>
       )}
     </div>
