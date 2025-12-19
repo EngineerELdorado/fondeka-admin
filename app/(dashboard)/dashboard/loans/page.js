@@ -8,6 +8,7 @@ const sections = [
   { href: '/dashboard/loans/decisions', title: 'Loan Decisions', blurb: 'Review and manage admin decisions for applications.' },
   { href: '/dashboard/loans/installments', title: 'Loan Installments', blurb: 'Maintain installment schedules and repayment status.' },
   { href: '/dashboard/loans/installment-payments', title: 'Installment Payments', blurb: 'Track payments applied to loan installments.' },
+  { href: '/dashboard/loans/archived-pending', title: 'Archived Pending Loans', blurb: 'Import and manage archived pending loans list.' },
   { href: '/dashboard/crud?domain=loans', title: 'Explorer', blurb: 'Access full loan endpoints when needed.' }
 ];
 

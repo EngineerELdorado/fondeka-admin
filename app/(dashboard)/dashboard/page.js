@@ -315,7 +315,7 @@ export default function DashboardPage() {
     { label: 'Completed', value: formatNumber(totals.completedCount), sub: `Volume ${formatCurrency(totals.completedVolume)}`, tone: '#16a34a' },
     { label: 'Failed', value: formatNumber(totals.failedCount), sub: `Volume ${formatCurrency(totals.failedVolume)}`, tone: '#b91c1c' },
     { label: 'Processing', value: formatNumber(totals.processingCount), sub: `Volume ${formatCurrency(totals.processingVolume)}`, tone: '#1d4ed8' },
-    { label: 'Fee revenue', value: formatCurrency(totals.feeRevenue), sub: 'Fees', tone: '#2563eb' },
+    { label: 'Fee revenue', value: formatCurrency(totals.feeRevenue), sub: 'Fees', tone: '#7c3aed' },
     { label: 'Commission revenue', value: formatCurrency(totals.commissionRevenue), sub: 'Commissions', tone: '#7c3aed' }
   ];
 
@@ -611,6 +611,7 @@ export default function DashboardPage() {
                     />
                     <Legend />
                     <Line type="monotone" dataKey="volume" name="Volume" stroke="#2563eb" strokeWidth={2.5} dot={false} yAxisId="left" />
+                    <Line type="monotone" dataKey="ourFees" name="Our fees" stroke="#7c3aed" strokeWidth={2} dot={false} yAxisId="left" />
                     <Line type="monotone" dataKey="count" name="Count" stroke="#16a34a" strokeWidth={2} dot={false} yAxisId="right" />
                   </LineChart>
                 </ResponsiveContainer>
