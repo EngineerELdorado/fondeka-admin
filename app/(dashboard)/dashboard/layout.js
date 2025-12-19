@@ -19,16 +19,13 @@ const navItems = [
   // Other menus
   { href: '/dashboard/accounts/accounts', label: 'Accounts / Users' },
   { href: '/dashboard/trusted-devices', label: 'Trusted Devices' },
-  { href: '/dashboard/device-replacement-requests', label: 'Device Replacement Requests' },
   { href: '/dashboard/transactions', label: 'Transactions' },
   { href: '/dashboard/kycs', label: 'KYCs' },
   { href: '/dashboard/kyc-caps', label: 'KycCaps' },
   { href: '/dashboard/redis-caches', label: 'Redis Caches' },
   { href: '/dashboard/admins', label: 'Admins' },
   { href: '/dashboard/fees/fee-configs', label: 'Fee Configs' },
-  { href: '/dashboard/geo', label: 'Geo' },
-  { href: '/dashboard/report', label: 'Reports' },
-  { href: '/dashboard/crud', label: 'Explorer' }
+  { href: '/dashboard/geo', label: 'Geo' }
 ];
 
 export default function DashboardLayout({ children }) {
@@ -70,7 +67,8 @@ export default function DashboardLayout({ children }) {
       <aside
         className="dashboard-nav"
         style={{
-          width: '240px',
+          width: '260px',
+          minWidth: '240px',
           borderRight: `1px solid var(--border)`,
           background: 'var(--surface)',
           padding: '1rem 1.1rem',

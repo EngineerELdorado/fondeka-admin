@@ -17,6 +17,8 @@ const emptyFilters = {
   deviceName: '',
   userRef: '',
   userId: '',
+  userEmail: '',
+  userPhone: '',
   sortBy: 'createdAt',
   sortDir: 'desc'
 };
@@ -248,9 +250,14 @@ export default function TrustedDevicesPage() {
           <div style={{ fontWeight: 800, fontSize: '20px' }}>Trusted Devices</div>
           <div style={{ color: 'var(--muted)' }}>Search, trust, revoke, or delete registered devices.</div>
         </div>
-        <Link href="/dashboard" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
-          ← Dashboard
-        </Link>
+        <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <Link href="/dashboard/device-replacement-requests" className="btn-neutral">
+            Replacement requests
+          </Link>
+          <Link href="/dashboard" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
+            ← Dashboard
+          </Link>
+        </div>
       </div>
 
       {info && (
@@ -278,6 +285,14 @@ export default function TrustedDevicesPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="userRef">User ref</label>
             <input id="userRef" value={filters.userRef} onChange={(e) => setFilters((p) => ({ ...p, userRef: e.target.value }))} placeholder="internal reference" />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="userEmail">User email</label>
+            <input id="userEmail" value={filters.userEmail} onChange={(e) => setFilters((p) => ({ ...p, userEmail: e.target.value }))} placeholder="email@example.com" />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="userPhone">User phone contains</label>
+            <input id="userPhone" value={filters.userPhone} onChange={(e) => setFilters((p) => ({ ...p, userPhone: e.target.value }))} placeholder="+243" />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="deviceId">Device ID</label>

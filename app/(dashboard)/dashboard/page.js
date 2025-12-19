@@ -1,175 +1,724 @@
 'use client';
 
-'use client';
-
 import { useEffect, useMemo, useState } from 'react';
+import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 import { api } from '@/lib/api';
 
-const kpiConfig = [
-  { key: 'totalAccounts', label: 'Accounts', accent: 'var(--accent)' },
-  { key: 'totalLoans', label: 'Loans', accent: 'var(--warning)' },
-  { key: 'totalApprovedLoans', label: 'Approved', accent: 'var(--success)' },
-  { key: 'totalRejectedLoans', label: 'Rejected', accent: 'var(--danger)' },
-  { key: 'totalTransactions', label: 'Transactions', accent: 'var(--accent)' },
-  { key: 'totalPendingKyc', label: 'Pending KYC', accent: 'var(--warning)' }
-];
+const formatNumber = (val) => {
+  if (val === null || val === undefined) return '—';
+  const num = Number(val);
+  if (Number.isNaN(num)) return val;
+  return num.toLocaleString();
+};
 
-const mockCourses = [
-  { id: 1, name: 'Collections Ops', category: 'Ops', duration: '6h', price: '$0', status: 'Active' },
-  { id: 2, name: 'Risk Playbook', category: 'Risk', duration: '4h', price: '$0', status: 'Active' },
-  { id: 3, name: 'Compliance 101', category: 'Compliance', duration: '3h', price: '$0', status: 'Draft' }
-];
+const formatCurrency = (val) => {
+  if (val === null || val === undefined) return '—';
+  const num = Number(val);
+  if (Number.isNaN(num)) return val;
+  return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+const formatDateTime = (value) => {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+};
+
+const formatInputDate = (date) => {
+  if (!date || Number.isNaN(date.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
+
+const toMillis = (value, { endOfDay = false } = {}) => {
+  if (!value) return null;
+  const raw = String(value);
+  const hasTime = raw.includes('T');
+  let date;
+  if (hasTime) {
+    date = new Date(raw);
+  } else {
+    const [y, m, d] = raw.split('-').map((v) => Number(v));
+    if (!y || !m || !d) return null;
+    date = new Date(y, m - 1, d, endOfDay ? 23 : 0, endOfDay ? 59 : 0, endOfDay ? 59 : 0, endOfDay ? 999 : 0);
+  }
+  if (Number.isNaN(date.getTime())) return null;
+  if (hasTime && !endOfDay) return date.getTime();
+  if (hasTime && endOfDay) {
+    date.setHours(23, 59, 59, 999);
+  }
+  return date.getTime();
+};
+
+const formatInputDateTime = (date) => {
+  if (!date || Number.isNaN(date.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
+const serviceOptions = ['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'PAYMENT_REQUEST', 'E_SIM', 'AIRTIME_AND_DATA', 'GIFT_CARDS', 'OTHER'];
+const actionOptions = [
+  'BUY_CARD',
+  'BUY_CRYPTO',
+  'BUY_GIFT_CARD',
+  'E_SIM_PURCHASE',
+  'E_SIM_TOPUP',
+  'FUND_CARD',
+  'FUND_WALLET',
+  'LOAN_DISBURSEMENT',
+  'LOAN_REQUEST',
+  'PAY_BILL',
+  'PAY_ELECTRICITY_BILL',
+  'PAY_INTERNET_BILL',
+  'PAY_TV_SUBSCRIPTION',
+  'PAY_WATER_BILL',
+  'PAY_REQUEST',
+  'REPAY_LOAN',
+  'SELL_CRYPTO',
+  'SEND_AIRTIME',
+  'SEND_CRYPTO',
+  'WITHDRAW_FROM_WALLET'
+].sort();
+const statusOptions = ['INITIATED', 'PROCESSING', 'COMPLETED', 'FAILED', 'CANCELED'];
+
+const initialFilters = (() => {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  return {
+    accountId: '',
+    accountReference: '',
+    userReference: '',
+    userEmail: '',
+    userPhone: '',
+    countryId: '',
+    service: '',
+    action: '',
+    status: '',
+    paymentMethodId: '',
+    paymentProviderId: '',
+    startDate: formatInputDate(start),
+    endDate: formatInputDate(end)
+  };
+})();
+
+const Pill = ({ children, tone = 'var(--accent)', soft }) => (
+  <span
+    className="pill"
+    style={{
+      background: soft || 'var(--accent-soft)',
+      color: tone,
+      fontWeight: 700,
+      border: `1px solid color-mix(in srgb, ${tone} 32%, transparent)`
+    }}
+  >
+    {children}
+  </span>
+);
+
+const Table = ({ columns, rows, emptyLabel = 'No data' }) => (
+  <div style={{ overflowX: 'auto' }}>
+    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <thead>
+        <tr style={{ color: 'var(--muted)' }}>
+          {columns.map((col) => (
+            <th key={col.key} style={{ textAlign: 'left', padding: '0.5rem' }}>
+              {col.label}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {(!rows || rows.length === 0) && (
+          <tr>
+            <td colSpan={columns.length} style={{ padding: '0.75rem', color: 'var(--muted)' }}>
+              {emptyLabel}
+            </td>
+          </tr>
+        )}
+        {rows?.map((row, idx) => (
+          <tr key={idx} style={{ borderTop: '1px solid var(--border)' }}>
+            {columns.map((col) => (
+              <td key={col.key} style={{ padding: '0.5rem', fontWeight: col.bold ? 700 : 500 }}>
+                {col.render ? col.render(row) : row[col.key]}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+);
 
 export default function DashboardPage() {
-  const [report, setReport] = useState(null);
+  const [filters, setFilters] = useState(initialFilters);
+  const [appliedFilters, setAppliedFilters] = useState(initialFilters);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [showFilters, setShowFilters] = useState(false);
+  const [datePreset, setDatePreset] = useState('');
+  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [paymentProviders, setPaymentProviders] = useState([]);
+  const [countries, setCountries] = useState([]);
+
+  const applyFilters = () => {
+    setAppliedFilters(filters);
+    setShowFilters(false);
+  };
+
+  const resetFilters = () => {
+    setFilters(initialFilters);
+    setAppliedFilters(initialFilters);
+    setDatePreset('');
+  };
 
   useEffect(() => {
-    api.getReport().then(setReport).catch((err) => setError(err.message));
+    const fetchDashboard = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const params = new URLSearchParams();
+        Object.entries(appliedFilters).forEach(([key, value]) => {
+          if (value === '' || value === null || value === undefined) return;
+          if (['accountId', 'countryId', 'paymentMethodId', 'paymentProviderId'].includes(key)) {
+            const num = Number(value);
+            if (!Number.isNaN(num)) params.set(key, String(num));
+          } else if (['startDate', 'endDate'].includes(key)) {
+            const ts = toMillis(value, { endOfDay: key === 'endDate' });
+            if (ts !== null) params.set(key, String(ts));
+          } else {
+            params.set(key, String(value));
+          }
+        });
+        const res = await api.getDashboard(params);
+        setData(res || null);
+        setLastUpdated(new Date());
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDashboard();
+  }, [appliedFilters]);
+
+  useEffect(() => {
+    const fetchOptions = async () => {
+      try {
+        const [pmRes, provRes, countryRes] = await Promise.all([
+          api.paymentMethods.list(new URLSearchParams({ page: '0', size: '200' })),
+          api.paymentProviders.list(new URLSearchParams({ page: '0', size: '200' })),
+          api.countries.list(new URLSearchParams({ page: '0', size: '200' }))
+        ]);
+        const toList = (res) => (Array.isArray(res) ? res : res?.content || []);
+        setPaymentMethods(toList(pmRes));
+        setPaymentProviders(toList(provRes));
+        setCountries(toList(countryRes));
+      } catch {
+        // silent fail; dropdowns will stay empty
+      }
+    };
+    fetchOptions();
   }, []);
 
-  const kpis = useMemo(() => kpiConfig.map((kpi) => ({
-    ...kpi,
-    value: report?.[kpi.key] ?? '—'
-  })), [report]);
+  const totals = data?.totals || {};
+  const metrics = data?.metrics || {};
+  const timeseries = data?.timeseries || [];
+  const chartData = useMemo(
+    () =>
+      (timeseries || [])
+        .slice()
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+        .map((p) => ({
+          ...p,
+          label: p.date
+        })),
+    [timeseries]
+  );
+
+  const dateLabel = useMemo(() => {
+    const start = appliedFilters.startDate ? new Date(appliedFilters.startDate) : null;
+    const end = appliedFilters.endDate ? new Date(appliedFilters.endDate) : null;
+    const today = new Date();
+    const sameDay = start && end && start.toDateString() === end.toDateString();
+    const isToday =
+      start &&
+      end &&
+      sameDay &&
+      start.getFullYear() === today.getFullYear() &&
+      start.getMonth() === today.getMonth() &&
+      start.getDate() === today.getDate();
+
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+    const isYesterday =
+      start &&
+      end &&
+      sameDay &&
+      start.getFullYear() === yesterday.getFullYear() &&
+      start.getMonth() === yesterday.getMonth() &&
+      start.getDate() === yesterday.getDate();
+
+    const startOfWeek = new Date(today);
+    const day = startOfWeek.getDay();
+    const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1); // Monday as first
+    startOfWeek.setDate(diff);
+    startOfWeek.setHours(0, 0, 0, 0);
+    const isThisWeek =
+      start &&
+      end &&
+      start.getTime() === startOfWeek.getTime() &&
+      end.getFullYear() === today.getFullYear() &&
+      end.getMonth() === today.getMonth();
+
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
+    const isThisMonth =
+      start &&
+      end &&
+      start.getTime() === startOfMonth.getTime() &&
+      end.getFullYear() === endOfMonth.getFullYear() &&
+      end.getMonth() === endOfMonth.getMonth() &&
+      end.getDate() === endOfMonth.getDate();
+
+    const startOfYear = new Date(today.getFullYear(), 0, 1);
+    const endOfYear = new Date(today.getFullYear(), 11, 31, 23, 59, 59, 999);
+    const isThisYear =
+      start &&
+      end &&
+      start.getTime() === startOfYear.getTime() &&
+      end.getFullYear() === endOfYear.getFullYear() &&
+      end.getMonth() === endOfYear.getMonth() &&
+      end.getDate() === endOfYear.getDate();
+
+    if (isToday) return 'Viewing today';
+    if (isYesterday) return 'Viewing yesterday';
+    if (isThisWeek) return 'Viewing this week';
+    if (isThisMonth) return 'Viewing this month';
+    if (isThisYear) return 'Viewing this year';
+    if (start && end) {
+      return `${formatDateTime(start)} → ${formatDateTime(end)}`;
+    }
+    return 'Date range not set';
+  }, [appliedFilters.startDate, appliedFilters.endDate]);
+
+  const activeFilterCount = useMemo(
+    () => Object.values(appliedFilters).filter((v) => v !== '' && v !== null && v !== undefined).length,
+    [appliedFilters]
+  );
+
+  const kpiCards = [
+    { label: 'Transactions', value: formatNumber(totals.totalCount), sub: `Volume ${formatCurrency(totals.totalVolume)}` },
+    { label: 'Completed', value: formatNumber(totals.completedCount), sub: `Volume ${formatCurrency(totals.completedVolume)}`, tone: '#16a34a' },
+    { label: 'Failed', value: formatNumber(totals.failedCount), sub: `Volume ${formatCurrency(totals.failedVolume)}`, tone: '#b91c1c' },
+    { label: 'Processing', value: formatNumber(totals.processingCount), sub: `Volume ${formatCurrency(totals.processingVolume)}`, tone: '#1d4ed8' },
+    { label: 'Fee revenue', value: formatCurrency(totals.feeRevenue), sub: 'Fees', tone: '#2563eb' },
+    { label: 'Commission revenue', value: formatCurrency(totals.commissionRevenue), sub: 'Commissions', tone: '#7c3aed' }
+  ];
+
+  const applyDatePreset = (preset) => {
+    const now = new Date();
+    const end = new Date(now);
+    end.setHours(23, 59, 59, 999);
+
+    if (preset === 'today') {
+      const start = new Date(now);
+      start.setHours(0, 0, 0, 0);
+      setFilters((p) => ({ ...p, startDate: formatInputDate(start), endDate: formatInputDate(end) }));
+      setDatePreset(preset);
+      return;
+    }
+
+    if (preset === 'last7') {
+      const start = new Date(now);
+      start.setHours(0, 0, 0, 0);
+      start.setDate(start.getDate() - 6);
+      setFilters((p) => ({ ...p, startDate: formatInputDate(start), endDate: formatInputDate(end) }));
+      setDatePreset(preset);
+      return;
+    }
+
+    if (preset === 'month') {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      setFilters((p) => ({ ...p, startDate: formatInputDate(start), endDate: formatInputDate(end) }));
+      setDatePreset(preset);
+      return;
+    }
+
+    if (preset === 'year') {
+      const start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+      setFilters((p) => ({ ...p, startDate: formatInputDate(start), endDate: formatInputDate(end) }));
+      setDatePreset(preset);
+      return;
+    }
+
+    setFilters((p) => ({ ...p, startDate: '', endDate: '' }));
+    setDatePreset('');
+  };
+
+  const metricCards = [
+    { key: 'cardsIssued', label: 'Cards issued' },
+    { key: 'loansDisbursed', label: 'Loans disbursed' },
+    { key: 'loanDisbursedVolume', label: 'Loan disbursed volume' },
+    { key: 'loansOpen', label: 'Loans open' },
+    { key: 'loansOutstanding', label: 'Loans outstanding' },
+    { key: 'esimsPurchased', label: 'eSIM purchases' },
+    { key: 'airtimePurchases', label: 'Airtime purchases' },
+    { key: 'billPayments', label: 'Bill payments' },
+    { key: 'cryptoTransactions', label: 'Crypto transactions' },
+    { key: 'kycApproved', label: 'KYC approved' },
+    { key: 'newAccounts', label: 'New accounts' },
+    { key: 'activeAccounts', label: 'Active accounts' }
+  ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem' }}>
-        {kpis.map((kpi) => (
-          <div key={kpi.key} className="card" style={{ gap: '0.4rem', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ fontSize: '13px', color: 'var(--muted)' }}>{kpi.label}</div>
-            <div style={{ fontSize: '28px', fontWeight: 800, color: kpi.accent }}>{kpi.value}</div>
-            <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Since last week</div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem' }}>
-        <div className="card" style={{ minHeight: '260px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-            <div style={{ fontWeight: 700 }}>Performance</div>
-            <div style={{ display: 'flex', gap: '0.35rem' }}>
-              <span className="pill" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>This Week</span>
-              <span className="pill" style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981' }}>Last Week</span>
+      <div className="card" style={{ display: 'grid', gap: '0.9rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <div style={{ fontWeight: 900, fontSize: '22px' }}>Performance</div>
+              <div className="pill" style={{ background: 'var(--accent-soft)', color: 'var(--accent)', fontWeight: 900, fontSize: '13px' }}>
+                {dateLabel}
+              </div>
             </div>
+            <div style={{ color: 'var(--muted)' }}>Clean view across services, rails, geos, and accounts.</div>
           </div>
-          <div style={{
-            height: '200px',
-            background: 'linear-gradient(180deg, rgba(37,99,235,0.15), rgba(37,99,235,0))',
-            borderRadius: '12px',
-            border: `1px dashed var(--border)`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'var(--muted)'
-          }}>
-            Area chart placeholder
-          </div>
-        </div>
-        <div className="card" style={{ display: 'grid', gap: '0.6rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontWeight: 700 }}>Upcoming Session</div>
-            <span className="pill" style={{ background: 'rgba(239,68,68,0.12)', color: 'var(--danger)' }}>Live</span>
-          </div>
-          <div style={{ display: 'grid', gap: '0.35rem', color: 'var(--muted)', fontSize: '14px' }}>
-            <div>🗓️ Today, 3:00 PM</div>
-            <div>⏱️ 45 minutes</div>
-            <div>👤 Host: Ops Team</div>
-          </div>
-          <button
-            type="button"
-            style={{
-              padding: '0.75rem 1rem',
-              borderRadius: '10px',
-              border: 'none',
-              background: 'var(--accent)',
-              color: '#fff',
-              cursor: 'pointer'
-            }}
-          >
-            Join session
-          </button>
-          <div style={{
-            height: '120px',
-            borderRadius: '12px',
-            background: 'linear-gradient(135deg, var(--accent-soft), rgba(37,99,235,0.05))',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'var(--muted)'
-          }}
-          >
-            Illustration
-          </div>
-        </div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem' }}>
-        <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
-            <div style={{ fontWeight: 700 }}>All Courses</div>
-            <button type="button" style={{ padding: '0.55rem 0.85rem', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--surface)', cursor: 'pointer' }}>
-              Add course
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            {lastUpdated && <span style={{ color: 'var(--muted)', fontSize: '12px' }}>Updated {formatDateTime(lastUpdated)}</span>}
+            <button type="button" onClick={() => setAppliedFilters((p) => ({ ...p }))} className="btn-neutral" disabled={loading}>
+              {loading ? 'Refreshing…' : 'Refresh'}
             </button>
           </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-            <thead>
-              <tr style={{ color: 'var(--muted)' }}>
-                <th style={{ textAlign: 'left', padding: '0.55rem 0.35rem' }}>#</th>
-                <th style={{ textAlign: 'left', padding: '0.55rem 0.35rem' }}>Name</th>
-                <th style={{ textAlign: 'left', padding: '0.55rem 0.35rem' }}>Category</th>
-                <th style={{ textAlign: 'left', padding: '0.55rem 0.35rem' }}>Duration</th>
-                <th style={{ textAlign: 'left', padding: '0.55rem 0.35rem' }}>Price</th>
-                <th style={{ textAlign: 'left', padding: '0.55rem 0.35rem' }}>Status</th>
-                <th style={{ textAlign: 'left', padding: '0.55rem 0.35rem' }}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {mockCourses.map((course) => (
-                <tr key={course.id} style={{ borderBottom: `1px solid var(--border)` }}>
-                  <td style={{ padding: '0.55rem 0.35rem' }}>{course.id}</td>
-                  <td style={{ padding: '0.55rem 0.35rem' }}>{course.name}</td>
-                  <td style={{ padding: '0.55rem 0.35rem' }}>{course.category}</td>
-                  <td style={{ padding: '0.55rem 0.35rem' }}>{course.duration}</td>
-                  <td style={{ padding: '0.55rem 0.35rem' }}>{course.price}</td>
-                  <td style={{ padding: '0.55rem 0.35rem' }}>
-                    <span className="pill" style={{ background: course.status === 'Active' ? 'rgba(22,163,74,0.1)' : 'rgba(249,115,22,0.12)', color: course.status === 'Active' ? 'var(--success)' : 'var(--warning)' }}>
-                      {course.status}
-                    </span>
-                  </td>
-                  <td style={{ padding: '0.55rem 0.35rem' }}>
-                    <button type="button" style={{ padding: '0.35rem 0.65rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--surface)', cursor: 'pointer' }}>
-                      View
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
-        <div className="card" style={{ minHeight: '260px' }}>
-          <div style={{ fontWeight: 700, marginBottom: '0.6rem' }}>Course Schedule</div>
-          <div style={{
-            height: '200px',
-            borderRadius: '12px',
-            background: 'linear-gradient(135deg, rgba(22,163,74,0.12), rgba(37,99,235,0.12))',
-            border: `1px dashed var(--border)`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'var(--muted)'
-          }}>
-            Stacked bars placeholder
+
+        <div className="card" style={{ border: `1px dashed var(--border)`, background: 'color-mix(in srgb, var(--surface) 95%, var(--bg) 5%)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.6rem' }}>
+            <div style={{ fontWeight: 700 }}>Filters</div>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              {activeFilterCount > 0 && <Pill tone="#0ea5e9">Applied: {activeFilterCount}</Pill>}
+              <button type="button" className="btn-neutral btn-sm" onClick={() => setShowFilters((p) => !p)}>
+                {showFilters ? 'Hide filters' : 'Show filters'}
+              </button>
+            </div>
           </div>
+
+          {showFilters && (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '0.5rem', marginTop: '0.75rem', alignItems: 'end' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: '0' }}>
+                  <label htmlFor="startDate" style={{ color: 'var(--muted)', fontSize: '12px' }}>Start</label>
+                  <input
+                    id="startDate"
+                    type="date"
+                    value={filters.startDate}
+                    onChange={(e) => {
+                      setFilters((p) => ({ ...p, startDate: e.target.value }));
+                      setDatePreset('');
+                    }}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: '0' }}>
+                  <label htmlFor="endDate" style={{ color: 'var(--muted)', fontSize: '12px' }}>End</label>
+                  <input
+                    id="endDate"
+                    type="date"
+                    value={filters.endDate}
+                    onChange={(e) => {
+                      setFilters((p) => ({ ...p, endDate: e.target.value }));
+                      setDatePreset('');
+                    }}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                  <button type="button" className={`btn-sm ${datePreset === 'today' ? 'btn-primary' : 'btn-neutral'}`} onClick={() => applyDatePreset('today')}>
+                    Today
+                  </button>
+                  <button type="button" className={`btn-sm ${datePreset === 'last7' ? 'btn-primary' : 'btn-neutral'}`} onClick={() => applyDatePreset('last7')}>
+                    Last 7 days
+                  </button>
+                  <button type="button" className={`btn-sm ${datePreset === 'month' ? 'btn-primary' : 'btn-neutral'}`} onClick={() => applyDatePreset('month')}>
+                    This month
+                  </button>
+                  <button type="button" className={`btn-sm ${datePreset === 'year' ? 'btn-primary' : 'btn-neutral'}`} onClick={() => applyDatePreset('year')}>
+                    This year
+                  </button>
+                  <button type="button" className="btn-ghost btn-sm" onClick={() => applyDatePreset('')}>
+                    Clear
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem', marginTop: '0.75rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="service" style={{ color: 'var(--muted)', fontSize: '12px' }}>Service</label>
+                  <select id="service" value={filters.service} onChange={(e) => setFilters((p) => ({ ...p, service: e.target.value }))}>
+                    <option value="">All</option>
+                    {serviceOptions.map((svc) => (
+                      <option key={svc} value={svc}>
+                        {svc}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="status" style={{ color: 'var(--muted)', fontSize: '12px' }}>Status</label>
+                  <select id="status" value={filters.status} onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value }))}>
+                    <option value="">Any</option>
+                    {statusOptions.map((st) => (
+                      <option key={st} value={st}>
+                        {st}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="paymentMethodId" style={{ color: 'var(--muted)', fontSize: '12px' }}>Payment method</label>
+                  <select id="paymentMethodId" value={filters.paymentMethodId} onChange={(e) => setFilters((p) => ({ ...p, paymentMethodId: e.target.value }))}>
+                    <option value="">Any</option>
+                    {paymentMethods.map((pm) => (
+                      <option key={pm.id} value={pm.id}>
+                        {pm.name || pm.displayName || pm.id}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="paymentProviderId" style={{ color: 'var(--muted)', fontSize: '12px' }}>Payment provider</label>
+                  <select id="paymentProviderId" value={filters.paymentProviderId} onChange={(e) => setFilters((p) => ({ ...p, paymentProviderId: e.target.value }))}>
+                    <option value="">Any</option>
+                    {paymentProviders.map((prov) => (
+                      <option key={prov.id} value={prov.id}>
+                        {prov.name || prov.displayName || prov.id}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="accountReference" style={{ color: 'var(--muted)', fontSize: '12px' }}>Account ref</label>
+                  <input id="accountReference" value={filters.accountReference} onChange={(e) => setFilters((p) => ({ ...p, accountReference: e.target.value }))} />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="userReference" style={{ color: 'var(--muted)', fontSize: '12px' }}>User ref</label>
+                  <input id="userReference" value={filters.userReference} onChange={(e) => setFilters((p) => ({ ...p, userReference: e.target.value }))} />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="countryId" style={{ color: 'var(--muted)', fontSize: '12px' }}>Country</label>
+                  <select id="countryId" value={filters.countryId} onChange={(e) => setFilters((p) => ({ ...p, countryId: e.target.value }))}>
+                    <option value="">Any</option>
+                    {countries.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} {c.alpha2Code ? `(${c.alpha2Code})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="accountId" style={{ color: 'var(--muted)', fontSize: '12px' }}>Account ID</label>
+                  <input id="accountId" value={filters.accountId} onChange={(e) => setFilters((p) => ({ ...p, accountId: e.target.value }))} />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="action" style={{ color: 'var(--muted)', fontSize: '12px' }}>Action</label>
+                  <select id="action" value={filters.action} onChange={(e) => setFilters((p) => ({ ...p, action: e.target.value }))}>
+                    <option value="">Any</option>
+                    {actionOptions.map((act) => (
+                      <option key={act} value={act}>
+                        {act}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="userEmail" style={{ color: 'var(--muted)', fontSize: '12px' }}>User email</label>
+                  <input id="userEmail" value={filters.userEmail} onChange={(e) => setFilters((p) => ({ ...p, userEmail: e.target.value }))} placeholder="email@example.com" />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="userPhone" style={{ color: 'var(--muted)', fontSize: '12px' }}>User phone</label>
+                  <input id="userPhone" value={filters.userPhone} onChange={(e) => setFilters((p) => ({ ...p, userPhone: e.target.value }))} placeholder="+243" />
+                </div>
+              </div>
+            </>
+          )}
+
+          {showFilters && (
+            <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap', marginTop: '0.6rem' }}>
+              <button type="button" className="btn-primary" onClick={applyFilters} disabled={loading}>
+                {loading ? 'Applying…' : 'Apply filters'}
+              </button>
+              <button type="button" className="btn-neutral" onClick={resetFilters} disabled={loading}>
+                Reset
+              </button>
+              <span style={{ fontSize: '12px', color: 'var(--muted)' }}>All tiles respect the filters/date window.</span>
+            </div>
+          )}
         </div>
       </div>
 
       {error && (
-        <div className="card" style={{ color: 'var(--danger)', fontWeight: 600 }}>
+        <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>
           {error}
         </div>
       )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.75rem' }}>
+        {kpiCards.map((kpi) => (
+          <div key={kpi.label} className="card" style={{ display: 'grid', gap: '0.2rem' }}>
+            <div style={{ fontSize: '13px', color: 'var(--muted)' }}>{kpi.label}</div>
+            <div style={{ fontSize: '26px', fontWeight: 800, color: kpi.tone || 'var(--accent)' }}>{kpi.value}</div>
+            <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{kpi.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem', alignItems: 'start' }}>
+        <div style={{ display: 'grid', gap: '1rem' }}>
+          <div className="card" style={{ display: 'grid', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontWeight: 800 }}>Volume trend</div>
+              <Pill tone="#2563eb">Volume</Pill>
+            </div>
+            {chartData.length === 0 ? (
+              <div style={{ color: 'var(--muted)', minHeight: '200px', display: 'flex', alignItems: 'center' }}>No data in this window</div>
+            ) : (
+              <div style={{ width: '100%', height: 220 }}>
+                <ResponsiveContainer>
+                  <LineChart data={chartData} margin={{ top: 10, right: 20, bottom: 5, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                    <YAxis
+                      yAxisId="left"
+                      tickFormatter={(v) => formatCurrency(v)}
+                      tick={{ fontSize: 11 }}
+                      width={70}
+                    />
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      tickFormatter={(v) => formatNumber(v)}
+                      tick={{ fontSize: 11 }}
+                      width={50}
+                    />
+                    <Tooltip
+                      formatter={(value, name) => {
+                        if (name === 'volume') return [formatCurrency(value), 'Volume'];
+                        if (name === 'count') return [formatNumber(value), 'Count'];
+                        return [value, name];
+                      }}
+                      labelFormatter={(label) => `Date: ${label}`}
+                    />
+                    <Legend />
+                    <Line type="monotone" dataKey="volume" name="Volume" stroke="#2563eb" strokeWidth={2.5} dot={false} yAxisId="left" />
+                    <Line type="monotone" dataKey="count" name="Count" stroke="#16a34a" strokeWidth={2} dot={false} yAxisId="right" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+            {timeseries.length > 0 && (
+              <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', color: 'var(--muted)', fontSize: '12px' }}>
+                <span>From {timeseries[0]?.date}</span>
+                <span>→</span>
+                <span>{timeseries[timeseries.length - 1]?.date}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontWeight: 800 }}>Service mix</div>
+              <Pill tone="#2563eb">Volume {formatCurrency(totals.totalVolume)}</Pill>
+            </div>
+            <Table
+              columns={[
+                { key: 'service', label: 'Service' },
+                { key: 'count', label: 'Count', render: (row) => formatNumber(row.count), bold: true },
+                { key: 'volume', label: 'Volume', render: (row) => formatCurrency(row.volume) },
+                { key: 'fees', label: 'Fees', render: (row) => formatCurrency(row.fees) }
+              ]}
+              rows={data?.services}
+            />
+          </div>
+        </div>
+        <div className="card" style={{ display: 'grid', gap: '0.5rem' }}>
+          <div style={{ fontWeight: 800 }}>Key metrics</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.5rem' }}>
+            {metricCards.map((m) => (
+              <div key={m.key} style={{ padding: '0.75rem', border: `1px solid var(--border)`, borderRadius: '12px', display: 'grid', gap: '0.15rem', background: 'color-mix(in srgb, var(--surface) 90%, var(--accent-soft) 10%)' }}>
+                <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{m.label}</div>
+                <div style={{ fontWeight: 800, fontSize: '18px' }}>{formatNumber(metrics?.[m.key])}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1.25fr 1.25fr 1fr', gap: '1rem', alignItems: 'start' }}>
+        <div className="card" style={{ display: 'grid', gap: '0.5rem' }}>
+          <div style={{ fontWeight: 800 }}>Actions</div>
+          <Table
+            columns={[
+              { key: 'action', label: 'Action' },
+              { key: 'count', label: 'Count', render: (row) => formatNumber(row.count), bold: true },
+              { key: 'volume', label: 'Volume', render: (row) => formatCurrency(row.volume) }
+            ]}
+            rows={data?.actions}
+          />
+        </div>
+        <div className="card" style={{ display: 'grid', gap: '0.5rem' }}>
+          <div style={{ fontWeight: 800 }}>Payment rails</div>
+          <Table
+            columns={[
+              { key: 'paymentMethodName', label: 'Method', render: (row) => row.paymentMethodName || row.paymentMethodId || '—' },
+              { key: 'count', label: 'Count', render: (row) => formatNumber(row.count), bold: true },
+              { key: 'volume', label: 'Volume', render: (row) => formatCurrency(row.volume) }
+            ]}
+            rows={data?.paymentMethods}
+          />
+        </div>
+        <div className="card" style={{ display: 'grid', gap: '0.5rem' }}>
+          <div style={{ fontWeight: 800 }}>Geo</div>
+          <Table
+            columns={[
+              { key: 'countryName', label: 'Country', render: (row) => row.countryName || row.countryCode || row.countryId || '—' },
+              { key: 'count', label: 'Count', render: (row) => formatNumber(row.count), bold: true },
+              { key: 'volume', label: 'Volume', render: (row) => formatCurrency(row.volume) }
+            ]}
+            rows={data?.countries}
+          />
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem', alignItems: 'start' }}>
+        <div className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+            <div style={{ fontWeight: 800 }}>Top accounts</div>
+            <Pill tone="#0ea5e9">Leaderboard</Pill>
+          </div>
+          <Table
+            columns={[
+              { key: 'accountReference', label: 'Account', render: (row) => row.accountReference || row.accountId },
+              { key: 'username', label: 'Username', render: (row) => row.username || '—' },
+              { key: 'count', label: 'Transactions', render: (row) => formatNumber(row.count), bold: true },
+              { key: 'volume', label: 'Volume', render: (row) => formatCurrency(row.volume) }
+            ]}
+            rows={data?.topAccounts}
+            emptyLabel="No accounts in this window"
+          />
+        </div>
+        <div className="card" style={{ display: 'grid', gap: '0.5rem' }}>
+          <div style={{ fontWeight: 800 }}>Status health</div>
+          <Table
+            columns={[
+              { key: 'status', label: 'Status' },
+              { key: 'count', label: 'Count', render: (row) => formatNumber(row.count), bold: true },
+              { key: 'volume', label: 'Volume', render: (row) => formatCurrency(row.volume) }
+            ]}
+            rows={data?.statuses}
+          />
+        </div>
+      </div>
     </div>
   );
 }

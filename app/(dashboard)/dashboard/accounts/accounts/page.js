@@ -15,7 +15,8 @@ const initialFilters = {
   phone: '',
   countryId: '',
   startDate: '',
-  endDate: ''
+  endDate: '',
+  blacklisted: ''
 };
 
 const Modal = ({ title, onClose, children }) => (
@@ -107,6 +108,12 @@ export default function AccountsListPage() {
   const [kycCap, setKycCap] = useState(null);
   const [kycCapLoading, setKycCapLoading] = useState(false);
 
+  const [showBlacklistModal, setShowBlacklistModal] = useState(false);
+  const [showUnblacklistModal, setShowUnblacklistModal] = useState(false);
+  const [blacklistReason, setBlacklistReason] = useState('');
+  const [blacklistError, setBlacklistError] = useState(null);
+  const [blacklistLoading, setBlacklistLoading] = useState(false);
+
   const [showCredit, setShowCredit] = useState(false);
   const [creditAmount, setCreditAmount] = useState('');
   const [creditNote, setCreditNote] = useState('');
@@ -154,6 +161,27 @@ export default function AccountsListPage() {
     );
   };
 
+  const renderBlacklistBadge = (flag) => {
+    if (flag === null || flag === undefined) return '—';
+    const tone = flag ? { bg: '#FEF2F2', fg: '#B91C1C', label: 'Blacklisted' } : { bg: '#E5E7EB', fg: '#374151', label: 'No' };
+    return (
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          padding: '0.2rem 0.5rem',
+          borderRadius: '999px',
+          fontSize: '12px',
+          fontWeight: 700,
+          background: tone.bg,
+          color: tone.fg
+        }}
+      >
+        {tone.label}
+      </span>
+    );
+  };
+
   const fetchRows = async () => {
     setLoading(true);
     setError(null);
@@ -167,6 +195,10 @@ export default function AccountsListPage() {
         } else if (['startDate', 'endDate'].includes(key)) {
           const ts = Date.parse(value);
           if (!Number.isNaN(ts)) params.set(key, String(ts));
+        } else if (key === 'blacklisted') {
+          const normalized = typeof value === 'string' ? value.toLowerCase() : value;
+          if (normalized === true || normalized === 'true') params.set(key, 'true');
+          else if (normalized === false || normalized === 'false') params.set(key, 'false');
         } else {
           params.set(key, String(value));
         }
@@ -188,6 +220,7 @@ export default function AccountsListPage() {
         kycStatus: item.kycStatus,
         kycProvider: item.kycProvider,
         kycLevel: item.kycLevel,
+        blacklisted: item.blacklisted,
         balance: item.balance,
         previousDebt: item.previousDebt,
         eligibleLoanAmount: item.eligibleLoanAmount,
@@ -266,6 +299,9 @@ export default function AccountsListPage() {
         case 'endDate':
           add(`To: ${value}`, key);
           break;
+        case 'blacklisted':
+          add(`Blacklisted: ${value === true || value === 'true' ? 'Yes' : 'No'}`, key);
+          break;
         default:
           break;
       }
@@ -282,6 +318,7 @@ export default function AccountsListPage() {
       { key: 'phone', label: 'Phone' },
       { key: 'balance', label: 'Balance' },
       { key: 'eligibleLoanAmount', label: 'Eligible loan' },
+      { key: 'blacklisted', label: 'Blacklisted', render: (row) => renderBlacklistBadge(row.blacklisted) },
       {
         key: 'actions',
         label: 'Actions',
@@ -290,6 +327,32 @@ export default function AccountsListPage() {
             <button type="button" onClick={() => openDetail(row)} className="btn-neutral">
               View
             </button>
+            {row.blacklisted ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setBlacklistError(null);
+                  setSelected(row);
+                  setShowUnblacklistModal(true);
+                }}
+                className="btn-neutral"
+              >
+                Remove from blacklist
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setBlacklistError(null);
+                  setBlacklistReason('');
+                  setSelected(row);
+                  setShowBlacklistModal(true);
+                }}
+                className="btn-danger"
+              >
+                Blacklist
+              </button>
+            )}
           </div>
         )
       }
@@ -304,6 +367,10 @@ export default function AccountsListPage() {
     setShowDetail(true);
     setInfo(null);
     setError(null);
+    setShowBlacklistModal(false);
+    setShowUnblacklistModal(false);
+    setBlacklistReason('');
+    setBlacklistError(null);
     setShowCredit(false);
     setCreditAmount('');
     setCreditNote('');
@@ -392,6 +459,69 @@ export default function AccountsListPage() {
     if (!showDetail || !selected?.id) return;
     loadAccountDetail({ accountId: selected.id, accountReference: selected.accountReference });
   }, [showDetail, selected?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const refreshSelectedRow = async () => {
+    const refreshed = await fetchRows();
+    const updated = refreshed?.find?.((r) => r.id === selected?.id);
+    if (updated) setSelected(updated);
+    return updated;
+  };
+
+  const submitBlacklist = async () => {
+    setBlacklistError(null);
+    const reason = blacklistReason.trim();
+    if (!selected?.id) {
+      setBlacklistError('No account selected');
+      return;
+    }
+    if (!reason) {
+      setBlacklistError('Reason is required');
+      return;
+    }
+
+    setBlacklistLoading(true);
+    try {
+      await api.accounts.blacklist(selected.id, { reason });
+      pushToast({ tone: 'success', message: 'Account blacklisted' });
+      setShowBlacklistModal(false);
+      setBlacklistReason('');
+      const updated = await refreshSelectedRow();
+      if (showDetail && (updated?.id || selected?.id)) {
+        await loadAccountDetail({ accountId: updated?.id || selected.id, accountReference: updated?.accountReference || selected?.accountReference });
+      }
+    } catch (err) {
+      const message = err.message || 'Failed to blacklist account';
+      setBlacklistError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setBlacklistLoading(false);
+    }
+  };
+
+  const submitUnblacklist = async () => {
+    setBlacklistError(null);
+    if (!selected?.id) {
+      setBlacklistError('No account selected');
+      return;
+    }
+
+    setBlacklistLoading(true);
+    try {
+      await api.accounts.removeFromBlacklist(selected.id);
+      pushToast({ tone: 'success', message: 'Removed from blacklist' });
+      setShowUnblacklistModal(false);
+      const updated = await refreshSelectedRow();
+      if (showDetail && (updated?.id || selected?.id)) {
+        await loadAccountDetail({ accountId: updated?.id || selected.id, accountReference: updated?.accountReference || selected?.accountReference });
+      }
+    } catch (err) {
+      const message = err.message || 'Failed to remove from blacklist';
+      setBlacklistError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setBlacklistLoading(false);
+    }
+  };
 
   const submitCredit = async () => {
     setCreditError(null);
@@ -568,6 +698,14 @@ export default function AccountsListPage() {
               ))}
             </select>
           </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="blacklisted">Blacklisted</label>
+            <select id="blacklisted" value={filters.blacklisted} onChange={(e) => setFilters((p) => ({ ...p, blacklisted: e.target.value }))}>
+              <option value="">All</option>
+              <option value="true">Only blacklisted</option>
+              <option value="false">Only not blacklisted</option>
+            </select>
+          </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
@@ -636,6 +774,30 @@ export default function AccountsListPage() {
               <button type="button" onClick={() => setShowCredit(true)} className="btn-success">
                 Credit wallet (Bonus)
               </button>
+              {accountView?.blacklisted ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBlacklistError(null);
+                    setShowUnblacklistModal(true);
+                  }}
+                  className="btn-neutral"
+                >
+                  Remove from blacklist
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBlacklistError(null);
+                    setBlacklistReason('');
+                    setShowBlacklistModal(true);
+                  }}
+                  className="btn-danger"
+                >
+                  Blacklist
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => loadAccountDetail({ accountId: selected?.id, accountReference: selected?.accountReference })}
@@ -649,6 +811,12 @@ export default function AccountsListPage() {
               </span>
             </div>
 
+            {accountView?.blacklisted && (
+              <div className="card" style={{ border: '1px solid #fecaca', background: '#fef2f2', color: '#991b1b', fontWeight: 700 }}>
+                This account is currently blacklisted. They cannot transact until removed.
+              </div>
+            )}
+
             <DetailGrid
               rows={[
                 { label: 'Account ID', value: selected?.id },
@@ -657,6 +825,7 @@ export default function AccountsListPage() {
                 { label: 'Country', value: selected?.countryName || selected?.countryCode || accountView?.countryCode || '—' },
                 { label: 'KYC status', value: accountView?.kycStatus ?? selected?.kycStatus },
                 { label: 'KYC level', value: accountView?.kycLevel ?? selected?.kycLevel },
+                { label: 'Blacklisted', value: renderBlacklistBadge(accountView?.blacklisted ?? selected?.blacklisted) },
                 { label: 'Balance', value: accountView?.balance ?? selected?.balance },
                 { label: 'Eligible loan', value: accountView?.eligibleLoanAmount ?? selected?.eligibleLoanAmount }
               ]}
@@ -890,6 +1059,54 @@ export default function AccountsListPage() {
                 </div>
               </div>
             )}
+          </div>
+        </Modal>
+      )}
+
+      {showBlacklistModal && (
+        <Modal title="Blacklist account" onClose={() => (!blacklistLoading ? setShowBlacklistModal(false) : null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ color: 'var(--muted)' }}>
+              Add <span style={{ fontWeight: 800 }}>{selected?.userName || selected?.username || 'this user'}</span> to the blacklist. Blocked accounts cannot transact.
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="blacklistReason">Reason (required)</label>
+              <input
+                id="blacklistReason"
+                value={blacklistReason}
+                onChange={(e) => setBlacklistReason(e.target.value)}
+                placeholder="e.g. Chargeback risk or fraud investigation"
+              />
+            </div>
+            {blacklistError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{blacklistError}</div>}
+            <div className="modal-actions">
+              <button type="button" className="btn-neutral" disabled={blacklistLoading} onClick={() => setShowBlacklistModal(false)}>
+                Cancel
+              </button>
+              <button type="button" className="btn-danger" disabled={blacklistLoading} onClick={submitBlacklist}>
+                {blacklistLoading ? 'Blacklisting…' : 'Confirm blacklist'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showUnblacklistModal && (
+        <Modal title="Remove from blacklist" onClose={() => (!blacklistLoading ? setShowUnblacklistModal(false) : null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ fontWeight: 700 }}>
+              Allow account <span style={{ fontWeight: 900 }}>{selected?.accountReference || selected?.id}</span> to transact again?
+            </div>
+            <div style={{ color: 'var(--muted)' }}>This is safe to repeat; removal is idempotent.</div>
+            {blacklistError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{blacklistError}</div>}
+            <div className="modal-actions">
+              <button type="button" className="btn-neutral" disabled={blacklistLoading} onClick={() => setShowUnblacklistModal(false)}>
+                Cancel
+              </button>
+              <button type="button" className="btn-primary" disabled={blacklistLoading} onClick={submitUnblacklist}>
+                {blacklistLoading ? 'Updating…' : 'Remove from blacklist'}
+              </button>
+            </div>
           </div>
         </Modal>
       )}

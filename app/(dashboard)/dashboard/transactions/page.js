@@ -30,6 +30,39 @@ const actionOptions = [
 ].sort();
 const balanceEffectOptions = ['CREDIT', 'DEBIT', 'NONE'];
 const statusOptions = ['COMPLETED', 'PROCESSING', 'FAILED', 'PENDING', 'CANCELLED', 'REFUNDED', 'REVERSED'];
+const receiptTypes = [
+  'GENERIC',
+  'BILL_PAYMENT',
+  'GIFT_CARD',
+  'CARD_PURCHASE',
+  'CRYPTO_PAYOUT',
+  'CRYPTO_COLLECTION',
+  'LOAN_DISBURSEMENT',
+  'LOAN_REPAYMENT',
+  'WALLET_TRANSFER',
+  'AIRTIME',
+  'ESIM',
+  'PAYMENT_REQUEST'
+];
+const receiptStatusOptions = ['PROCESSING', 'COMPLETED', 'FAILED'];
+const receiptPayloadTemplates = {
+  BILL_PAYMENT: { providerReference: '', token: '', meterNumber: '', billerName: '', valueReceived: '', metadata: {} },
+  GIFT_CARD: {
+    giftCard: { cardNumber: '', pinCode: '', shortInstructions: '', longInstructions: '' },
+    providerReference: '',
+    value: ''
+  },
+  CARD_PURCHASE: { last4: '', cardholderName: '', providerCardRef: '', activationStatus: '', deliveryInfo: '' },
+  CRYPTO_PAYOUT: { txHash: '', network: '', explorerUrl: '', amount: '', address: '' },
+  CRYPTO_COLLECTION: { invoiceUrl: '', address: '', network: '', amountRequested: '', amountReceived: '', txHash: '' },
+  LOAN_REPAYMENT: { amountApplied: '', remainingDue: '', nextDueDate: '', loanRef: '' },
+  LOAN_DISBURSEMENT: { disbursedAmount: '', destination: '', dueDate: '', loanRef: '' },
+  WALLET_TRANSFER: { destination: '', providerReference: '', fees: '', netAmount: '' },
+  AIRTIME: { providerReference: '', token: '', destination: '', valueReceived: '' },
+  ESIM: { providerReference: '', qr: '', pin: '', puk: '', instructions: '' },
+  PAYMENT_REQUEST: { payer: '', requestReference: '', providerReference: '', note: '' },
+  GENERIC: { reference: '', note: '' }
+};
 
 const initialFilters = {
   reference: '',
@@ -121,6 +154,19 @@ export default function TransactionsPage() {
   const [accountSummary, setAccountSummary] = useState(null);
   const [accountLoading, setAccountLoading] = useState(false);
 
+  const [receipt, setReceipt] = useState(null);
+  const [receiptLoading, setReceiptLoading] = useState(false);
+  const [receiptError, setReceiptError] = useState(null);
+  const [showReceiptForm, setShowReceiptForm] = useState(false);
+  const [receiptSaving, setReceiptSaving] = useState(false);
+  const [receiptDeleteLoading, setReceiptDeleteLoading] = useState(false);
+  const [showReceiptDelete, setShowReceiptDelete] = useState(false);
+  const [receiptType, setReceiptType] = useState('');
+  const [receiptStatus, setReceiptStatus] = useState('');
+  const [receiptHumanMessage, setReceiptHumanMessage] = useState('');
+  const [receiptPayload, setReceiptPayload] = useState('{}');
+  const [receiptTemplateKey, setReceiptTemplateKey] = useState('');
+
   const [showRefund, setShowRefund] = useState(false);
   const [refundNote, setRefundNote] = useState('');
   const [refundError, setRefundError] = useState(null);
@@ -198,6 +244,25 @@ export default function TransactionsPage() {
         {val}
       </span>
     );
+  };
+
+  const loadReceipt = async (transactionId) => {
+    if (!transactionId) return;
+    setReceiptLoading(true);
+    setReceiptError(null);
+    try {
+      const res = await api.transactions.getReceipt(transactionId);
+      setReceipt(res || null);
+    } catch (err) {
+      setReceipt(null);
+      if (err?.status !== 404) {
+        const message = err?.message || 'Failed to load receipt';
+        setReceiptError(message);
+        pushToast({ tone: 'error', message });
+      }
+    } finally {
+      setReceiptLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -323,16 +388,6 @@ export default function TransactionsPage() {
       },
       { key: 'reference', label: 'Reference' },
       {
-        key: 'externalReference',
-        label: 'External ref',
-        render: (row) => row.externalReference || '—'
-      },
-      {
-        key: 'service',
-        label: 'Service',
-        render: (row) => row.service || 'ALL'
-      },
-      {
         key: 'action',
         label: 'Action',
         render: (row) => row.action || '—'
@@ -386,6 +441,12 @@ export default function TransactionsPage() {
     setRefundNote('');
     setRefundError(null);
     setAccountSummary(null);
+    setReceipt(null);
+    setReceiptError(null);
+    setShowReceiptForm(false);
+    setReceiptPayload('{}');
+    setShowReceiptDelete(false);
+    setReceiptTemplateKey('');
   };
 
   const showRefundTransaction = async ({ refundReference, refundTransactionId }) => {
@@ -437,6 +498,8 @@ export default function TransactionsPage() {
   useEffect(() => {
     if (!showDetail || !selected) return;
     loadAccountSummary(selected);
+    const transactionId = selected?.transactionId || selected?.id;
+    loadReceipt(transactionId);
   }, [showDetail, selected?.transactionId, selected?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const canRefundSelected = useMemo(() => {
@@ -446,6 +509,92 @@ export default function TransactionsPage() {
     const refunded = Boolean(selected.refunded) || Boolean(selected.refundedAt);
     return effect === 'DEBIT' && (status === 'FAILED' || status === 'PROCESSING') && !refunded;
   }, [selected]);
+
+  const openReceiptForm = () => {
+    setReceiptError(null);
+    setReceiptSaving(false);
+    setReceiptDeleteLoading(false);
+    setShowReceiptForm(true);
+    setReceiptType(receipt?.type || selected?.service || '');
+    setReceiptStatus(receipt?.status || selected?.status || '');
+    setReceiptHumanMessage(receipt?.humanMessage || '');
+    const payloadText = receipt?.payload ? JSON.stringify(receipt.payload, null, 2) : '{}';
+    setReceiptPayload(payloadText);
+    setReceiptTemplateKey('');
+  };
+
+  const submitReceipt = async () => {
+    setReceiptError(null);
+    const transactionId = selected?.transactionId || selected?.id;
+    if (!transactionId) {
+      setReceiptError('Missing transaction id');
+      return;
+    }
+
+    let parsedPayload = undefined;
+    if (receiptPayload && receiptPayload.trim()) {
+      try {
+        parsedPayload = JSON.parse(receiptPayload);
+      } catch (err) {
+        setReceiptError(`Payload must be valid JSON: ${err.message}`);
+        return;
+      }
+    }
+
+    const body = {
+      ...(receiptType ? { type: receiptType } : {}),
+      ...(receiptStatus ? { status: receiptStatus } : {}),
+      ...(receiptHumanMessage?.trim() ? { humanMessage: receiptHumanMessage.trim() } : {}),
+      ...(parsedPayload !== undefined ? { payload: parsedPayload } : {})
+    };
+
+    setReceiptSaving(true);
+    try {
+      const res = await api.transactions.upsertReceipt(transactionId, body);
+      setReceipt(res || body || {});
+      setShowReceiptForm(false);
+      pushToast({ tone: 'success', message: 'Receipt saved' });
+      await loadReceipt(transactionId);
+    } catch (err) {
+      const message = err?.message || 'Failed to save receipt';
+      setReceiptError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setReceiptSaving(false);
+    }
+  };
+
+  const applyReceiptTemplate = (key) => {
+    setReceiptTemplateKey(key);
+    if (!key) return;
+    const template = receiptPayloadTemplates[key];
+    if (!template) return;
+    setReceiptPayload(JSON.stringify(template, null, 2));
+    if (!receiptType) setReceiptType(key);
+  };
+
+  const deleteReceipt = async () => {
+    setReceiptError(null);
+    const transactionId = selected?.transactionId || selected?.id;
+    if (!transactionId) {
+      setReceiptError('Missing transaction id');
+      return;
+    }
+    setReceiptDeleteLoading(true);
+    try {
+      await api.transactions.deleteReceipt(transactionId);
+      setReceipt(null);
+      setShowReceiptForm(false);
+      setShowReceiptDelete(false);
+      pushToast({ tone: 'success', message: 'Receipt removed' });
+    } catch (err) {
+      const message = err?.message || 'Failed to delete receipt';
+      setReceiptError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setReceiptDeleteLoading(false);
+    }
+  };
 
   const submitRefund = async () => {
     setRefundError(null);
@@ -734,6 +883,65 @@ export default function TransactionsPage() {
               ]}
             />
 
+            <div className="card" style={{ padding: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                  <div style={{ fontWeight: 800 }}>Receipt</div>
+                  <div style={{ color: 'var(--muted)', fontSize: '13px' }}>View or edit transaction receipt details.</div>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <button type="button" className="btn-neutral btn-sm" onClick={() => loadReceipt(selected?.transactionId || selected?.id)} disabled={receiptLoading}>
+                    {receiptLoading ? 'Loading…' : 'Reload'}
+                  </button>
+                  <button type="button" className="btn-primary btn-sm" onClick={openReceiptForm} disabled={receiptLoading}>
+                    {receipt ? 'Edit receipt' : 'Add receipt'}
+                  </button>
+                  {receipt && (
+                    <button type="button" className="btn-danger btn-sm" onClick={() => setShowReceiptDelete(true)} disabled={receiptDeleteLoading}>
+                      Delete
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ marginTop: '0.75rem', display: 'grid', gap: '0.6rem' }}>
+                {receiptError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{receiptError}</div>}
+                {receiptLoading && <div style={{ color: 'var(--muted)' }}>Loading receipt…</div>}
+                {!receiptLoading && !receipt && <div style={{ color: 'var(--muted)' }}>No receipt on file.</div>}
+                {!receiptLoading && receipt && (
+                  <>
+                    <DetailGrid
+                      rows={[
+                        { label: 'Type', value: receipt.type || '—' },
+                        { label: 'Status', value: receipt.status || '—' },
+                        { label: 'Message', value: receipt.humanMessage || '—' },
+                        { label: 'Updated', value: formatDateTime(receipt.updatedAt) }
+                      ]}
+                    />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                      <div style={{ fontWeight: 700 }}>Payload</div>
+                      {receipt.payload ? (
+                        <pre
+                          style={{
+                            background: '#f8fafc',
+                            border: '1px solid var(--border)',
+                            borderRadius: '8px',
+                            padding: '0.75rem',
+                            fontSize: '12px',
+                            overflowX: 'auto'
+                          }}
+                        >
+                          {JSON.stringify(receipt.payload, null, 2)}
+                        </pre>
+                      ) : (
+                        <div style={{ color: 'var(--muted)' }}>No payload</div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
             <div className="modal-actions">
               <button type="button" onClick={() => loadAccountSummary(selected)} className="btn-neutral" disabled={accountLoading}>
                 {accountLoading ? 'Refreshing…' : 'Refresh balance'}
@@ -743,6 +951,108 @@ export default function TransactionsPage() {
                   Refund to wallet
                 </button>
               )}
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showReceiptForm && (
+        <Modal title={`${receipt ? 'Edit' : 'Add'} receipt`} onClose={() => (!receiptSaving ? setShowReceiptForm(false) : null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="receiptType">Type</label>
+                <select id="receiptType" value={receiptType} onChange={(e) => setReceiptType(e.target.value)}>
+                  <option value="">Infer from transaction</option>
+                  {receiptTypes.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="receiptStatus">Status</label>
+                <select id="receiptStatus" value={receiptStatus} onChange={(e) => setReceiptStatus(e.target.value)}>
+                  <option value="">Use transaction status</option>
+                  {receiptStatusOptions.map((st) => (
+                    <option key={st} value={st}>
+                      {st}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="receiptMessage">Message</label>
+              <input
+                id="receiptMessage"
+                value={receiptHumanMessage}
+                onChange={(e) => setReceiptHumanMessage(e.target.value)}
+                placeholder="e.g. Token delivered to email"
+              />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="receiptTemplate">Payload template (optional)</label>
+              <select id="receiptTemplate" value={receiptTemplateKey} onChange={(e) => applyReceiptTemplate(e.target.value)}>
+                <option value="">Choose a template</option>
+                {Object.keys(receiptPayloadTemplates).map((key) => (
+                  <option key={key} value={key}>
+                    {key}
+                  </option>
+                ))}
+              </select>
+              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                Prefill common payload shapes (gift card codes, bill tokens, crypto hashes, loan data, etc.).
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="receiptPayload">Payload (JSON)</label>
+              <textarea
+                id="receiptPayload"
+                value={receiptPayload}
+                onChange={(e) => setReceiptPayload(e.target.value)}
+                rows={8}
+                spellCheck="false"
+                style={{ fontFamily: 'monospace' }}
+              />
+              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                Include keys like codes, tokens, hashes, last4, receipt numbers, or instructions. Leave empty to keep existing payload.
+              </div>
+            </div>
+
+            {receiptError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{receiptError}</div>}
+
+            <div className="modal-actions">
+              <button type="button" className="btn-neutral" disabled={receiptSaving} onClick={() => setShowReceiptForm(false)}>
+                Cancel
+              </button>
+              <button type="button" className="btn-primary" disabled={receiptSaving} onClick={submitReceipt}>
+                {receiptSaving ? 'Saving…' : 'Save receipt'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showReceiptDelete && (
+        <Modal title="Delete receipt" onClose={() => (!receiptDeleteLoading ? setShowReceiptDelete(false) : null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ fontWeight: 700 }}>
+              Remove the receipt for <span style={{ fontWeight: 900 }}>{selected?.reference || selected?.transactionId || selected?.id}</span>?
+            </div>
+            <div style={{ color: 'var(--muted)' }}>This will delete receipt metadata and payload.</div>
+            {receiptError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{receiptError}</div>}
+            <div className="modal-actions">
+              <button type="button" className="btn-neutral" disabled={receiptDeleteLoading} onClick={() => setShowReceiptDelete(false)}>
+                Cancel
+              </button>
+              <button type="button" className="btn-danger" disabled={receiptDeleteLoading} onClick={deleteReceipt}>
+                {receiptDeleteLoading ? 'Deleting…' : 'Confirm delete'}
+              </button>
             </div>
           </div>
         </Modal>
