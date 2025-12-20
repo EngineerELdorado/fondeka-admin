@@ -107,6 +107,42 @@ export default function AccountsListPage() {
   const [customPricingMissing, setCustomPricingMissing] = useState(false);
   const [kycCap, setKycCap] = useState(null);
   const [kycCapLoading, setKycCapLoading] = useState(false);
+  const [feeConfigs, setFeeConfigs] = useState([]);
+  const [feeConfigsLoading, setFeeConfigsLoading] = useState(false);
+  const [feeConfigsError, setFeeConfigsError] = useState(null);
+  const [showFeeForm, setShowFeeForm] = useState(false);
+  const [feeFormId, setFeeFormId] = useState(null);
+  const [feeAction, setFeeAction] = useState('');
+  const [feeService, setFeeService] = useState('');
+  const [feePmpId, setFeePmpId] = useState('');
+  const [feeCountryId, setFeeCountryId] = useState('');
+  const [feeProviderPct, setFeeProviderPct] = useState('');
+  const [feeProviderFlat, setFeeProviderFlat] = useState('');
+  const [feeOurPct, setFeeOurPct] = useState('');
+  const [feeOurFlat, setFeeOurFlat] = useState('');
+  const [feeSaving, setFeeSaving] = useState(false);
+  const [pmps, setPmps] = useState([]);
+  const actionOptions = [
+    'BUY_CARD',
+    'BUY_CRYPTO',
+    'BUY_GIFT_CARD',
+    'E_SIM_PURCHASE',
+    'E_SIM_TOPUP',
+    'FUND_CARD',
+    'FUND_WALLET',
+    'LOAN_DISBURSEMENT',
+    'PAY_BILL',
+    'PAY_ELECTRICITY_BILL',
+    'PAY_INTERNET_BILL',
+    'PAY_TV_SUBSCRIPTION',
+    'PAY_WATER_BILL',
+    'PAY_REQUEST',
+    'REPAY_LOAN',
+    'SELL_CRYPTO',
+    'SEND_AIRTIME',
+    'SEND_CRYPTO',
+    'WITHDRAW_FROM_WALLET'
+  ].sort();
 
   const [showBlacklistModal, setShowBlacklistModal] = useState(false);
   const [showUnblacklistModal, setShowUnblacklistModal] = useState(false);
@@ -254,6 +290,18 @@ export default function AccountsListPage() {
     };
     fetchCountries();
   }, []);
+  useEffect(() => {
+    const fetchPmps = async () => {
+      try {
+        const res = await api.paymentMethodPaymentProviders.list(new URLSearchParams({ page: '0', size: '200' }));
+        const list = Array.isArray(res) ? res : res?.content || [];
+        setPmps(list);
+      } catch {
+        // ignore
+      }
+    };
+    fetchPmps();
+  }, []);
 
   const applyFilters = () => {
     setPage(0);
@@ -324,9 +372,9 @@ export default function AccountsListPage() {
         label: 'Actions',
         render: (row) => (
           <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-            <button type="button" onClick={() => openDetail(row)} className="btn-neutral">
+            <Link href={`/dashboard/accounts/accounts/${row.id}`} className="btn-neutral">
               View
-            </button>
+            </Link>
             {row.blacklisted ? (
               <button
                 type="button"
@@ -403,7 +451,7 @@ export default function AccountsListPage() {
       } else {
         setCustomPricing(null);
         setCustomPricingMissing(false);
-        setPricingError(err.message || 'Failed to load custom pricing');
+        setPricingError(err.message || 'Failed to load custom KYC caps');
       }
     } finally {
       setCustomPricingLoading(false);
@@ -429,6 +477,22 @@ export default function AccountsListPage() {
     }
   };
 
+  const loadFeeConfigs = async (accountId) => {
+    if (!accountId && accountId !== 0) return;
+    setFeeConfigsLoading(true);
+    setFeeConfigsError(null);
+    try {
+      const res = await api.accounts.feeConfigs.list(accountId);
+      const list = Array.isArray(res) ? res : res?.content || [];
+      setFeeConfigs(list || []);
+    } catch (err) {
+      setFeeConfigs([]);
+      setFeeConfigsError(err.message || 'Failed to load fee overrides');
+    } finally {
+      setFeeConfigsLoading(false);
+    }
+  };
+
   const loadAccountDetail = async ({ accountId, accountReference }) => {
     if (!accountId && accountId !== 0) return;
     setDetailLoading(true);
@@ -438,7 +502,7 @@ export default function AccountsListPage() {
 
       const ref = fresh?.accountReference || accountReference;
       if (ref) {
-        const txParams = new URLSearchParams({ page: '0', size: '10', accountReference: String(ref) });
+        const txParams = new URLSearchParams({ page: '0', size: '1', accountReference: String(ref) });
         const txRes = await api.transactions.list(txParams);
         const list = Array.isArray(txRes) ? txRes : txRes?.content || [];
         setDetailTransactions(list || []);
@@ -448,6 +512,7 @@ export default function AccountsListPage() {
 
       await loadCustomPricing(accountId);
       await loadKycCap(fresh?.kycLevel ?? selected?.kycLevel);
+      await loadFeeConfigs(accountId);
     } catch (err) {
       pushToast({ tone: 'error', message: err.message || 'Failed to load account details' });
     } finally {
@@ -559,6 +624,89 @@ export default function AccountsListPage() {
     }
   };
 
+  const openFeeForm = (fee) => {
+    setFeeConfigsError(null);
+    setFeeFormId(fee?.id || null);
+    setFeeAction(fee?.action || '');
+    setFeeService(fee?.service || '');
+    setFeePmpId(fee?.paymentMethodPaymentProviderId ?? '');
+    setFeeCountryId(fee?.countryId ?? '');
+    setFeeProviderPct(fee?.providerFeePercentage ?? '');
+    setFeeProviderFlat(fee?.providerFlatFee ?? '');
+    setFeeOurPct(fee?.ourFeePercentage ?? '');
+    setFeeOurFlat(fee?.ourFlatFee ?? '');
+    setShowFeeForm(true);
+  };
+
+  const resetFeeForm = () => {
+    setFeeFormId(null);
+    setFeeAction('');
+    setFeeService('');
+    setFeePmpId('');
+    setFeeCountryId('');
+    setFeeProviderPct('');
+    setFeeProviderFlat('');
+    setFeeOurPct('');
+    setFeeOurFlat('');
+  };
+
+  const submitFeeForm = async () => {
+    if (!selected?.id) {
+      setFeeConfigsError('No account selected');
+      return;
+    }
+    if (!feeAction) {
+      setFeeConfigsError('Action is required');
+      return;
+    }
+    const payload = {
+      action: feeAction,
+      service: feeService || null,
+      paymentMethodPaymentProviderId: feePmpId === '' ? null : Number(feePmpId),
+      countryId: feeCountryId === '' ? null : Number(feeCountryId),
+      providerFeePercentage: feeProviderPct === '' ? 0 : Number(feeProviderPct),
+      providerFlatFee: feeProviderFlat === '' ? 0 : Number(feeProviderFlat),
+      ourFeePercentage: feeOurPct === '' ? 0 : Number(feeOurPct),
+      ourFlatFee: feeOurFlat === '' ? 0 : Number(feeOurFlat)
+    };
+    setFeeSaving(true);
+    setFeeConfigsError(null);
+    try {
+      if (feeFormId) {
+        await api.accounts.feeConfigs.update(selected.id, feeFormId, payload);
+        pushToast({ tone: 'success', message: 'Fee override updated' });
+      } else {
+        await api.accounts.feeConfigs.create(selected.id, payload);
+        pushToast({ tone: 'success', message: 'Fee override added' });
+      }
+      resetFeeForm();
+      setShowFeeForm(false);
+      await loadFeeConfigs(selected.id);
+    } catch (err) {
+      const message = err.message || 'Failed to save fee override';
+      setFeeConfigsError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setFeeSaving(false);
+    }
+  };
+
+  const deleteFee = async (fee) => {
+    if (!selected?.id || !fee?.id) return;
+    const yes = window.confirm(`Delete fee override ${fee.action} (${fee.id})?`);
+    if (!yes) return;
+    setFeeConfigsError(null);
+    try {
+      await api.accounts.feeConfigs.remove(selected.id, fee.id);
+      pushToast({ tone: 'success', message: 'Fee override deleted' });
+      await loadFeeConfigs(selected.id);
+    } catch (err) {
+      const message = err.message || 'Failed to delete fee override';
+      setFeeConfigsError(message);
+      pushToast({ tone: 'error', message });
+    }
+  };
+
   const openPricingForm = (seed) => {
     setPricingError(null);
     setShowPricingRemove(false);
@@ -610,12 +758,12 @@ export default function AccountsListPage() {
         note: pricingNote?.trim() ? pricingNote.trim() : null
       };
       await api.accounts.updateCustomPricing(selected.id, payload);
-      pushToast({ tone: 'success', message: 'Custom pricing saved' });
+      pushToast({ tone: 'success', message: 'Custom KYC caps saved' });
       setShowPricingForm(false);
       await loadCustomPricing(selected.id);
       await loadAccountDetail({ accountId: selected.id, accountReference: selected.accountReference });
     } catch (err) {
-      const message = err.message || 'Failed to save custom pricing';
+      const message = err.message || 'Failed to save custom KYC caps';
       setPricingError(message);
       pushToast({ tone: 'error', message });
     } finally {
@@ -629,13 +777,13 @@ export default function AccountsListPage() {
     setPricingError(null);
     try {
       await api.accounts.removeCustomPricing(selected.id);
-      pushToast({ tone: 'success', message: 'Custom pricing removed' });
+      pushToast({ tone: 'success', message: 'Custom KYC caps removed' });
       setShowPricingRemove(false);
       setCustomPricing(null);
       setCustomPricingMissing(true);
       await loadAccountDetail({ accountId: selected.id, accountReference: selected.accountReference });
     } catch (err) {
-      const message = err.message || 'Failed to remove custom pricing';
+      const message = err.message || 'Failed to remove custom KYC caps';
       setPricingError(message);
       pushToast({ tone: 'error', message });
     } finally {
@@ -834,7 +982,7 @@ export default function AccountsListPage() {
             <div className="card" style={{ padding: '1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                  <div style={{ fontWeight: 800 }}>Custom Pricing</div>
+                  <div style={{ fontWeight: 800 }}>Custom KYC Caps</div>
                   <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
                     Per-account overrides for loan eligibility and deposit/withdrawal caps.
                   </div>
@@ -845,7 +993,7 @@ export default function AccountsListPage() {
                   </button>
                   {(customPricingMissing || !customPricing) && (
                     <button type="button" className="btn-primary btn-sm" onClick={() => openPricingForm({ extraLoanEligibilityAmount: 0 })}>
-                      Add custom pricing
+                      Add custom KYC caps
                     </button>
                   )}
                   {customPricing && (
@@ -862,9 +1010,9 @@ export default function AccountsListPage() {
               </div>
 
               <div style={{ marginTop: '0.75rem' }}>
-                {customPricingLoading && <div style={{ color: 'var(--muted)' }}>Loading custom pricing…</div>}
+                {customPricingLoading && <div style={{ color: 'var(--muted)' }}>Loading custom KYC caps…</div>}
                 {!customPricingLoading && (customPricingMissing || !customPricing) && (
-                  <div style={{ color: 'var(--muted)' }}>No custom pricing configured.</div>
+                  <div style={{ color: 'var(--muted)' }}>No custom KYC caps configured.</div>
                 )}
                 {!customPricingLoading && customPricing && (
                   <DetailGrid
@@ -954,7 +1102,7 @@ export default function AccountsListPage() {
                         </tbody>
                       </table>
                       <div style={{ marginTop: '0.4rem', color: 'var(--muted)', fontSize: '12px' }}>
-                        Loan eligibility uses the computed `eligibleLoanAmount` from the account record; the “Override” column uses `extraLoanEligibilityAmount` from custom pricing when available.
+                        Loan eligibility uses the computed `eligibleLoanAmount` from the account record; the “Override” column uses `extraLoanEligibilityAmount` from custom KYC caps when available.
                       </div>
                     </div>
                   )}
@@ -970,9 +1118,82 @@ export default function AccountsListPage() {
               </div>
             </div>
 
+            <div className="card" style={{ padding: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                  <div style={{ fontWeight: 800 }}>Custom Fee Overrides</div>
+                  <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                    Per-account fee rules. Leave PMPP blank for account-wide action overrides.
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <button type="button" className="btn-neutral btn-sm" onClick={() => loadFeeConfigs(selected?.id)} disabled={feeConfigsLoading}>
+                    {feeConfigsLoading ? 'Loading…' : 'Reload'}
+                  </button>
+                  <button type="button" className="btn-primary btn-sm" onClick={() => { resetFeeForm(); setShowFeeForm(true); }}>
+                    Add override
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ marginTop: '0.75rem' }}>
+                {feeConfigsError && <div style={{ color: '#b91c1c', fontWeight: 700, marginBottom: '0.4rem' }}>{feeConfigsError}</div>}
+                {feeConfigsLoading && <div style={{ color: 'var(--muted)' }}>Loading fee overrides…</div>}
+                {!feeConfigsLoading && feeConfigs.length === 0 && <div style={{ color: 'var(--muted)' }}>No fee overrides.</div>}
+                {!feeConfigsLoading && feeConfigs.length > 0 && (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '720px' }}>
+                      <thead>
+                        <tr>
+                          {['Action', 'Service', 'PMPP', 'Country', 'Provider %', 'Provider flat', 'Our %', 'Our flat', 'Updated', ''].map((h) => (
+                            <th key={h} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                              {h}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {feeConfigs.map((fee) => (
+                          <tr key={fee.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                            <td style={{ padding: '0.45rem' }}>{fee.action}</td>
+                            <td style={{ padding: '0.45rem' }}>{fee.service || '—'}</td>
+                            <td style={{ padding: '0.45rem' }}>
+                              {fee.paymentMethodPaymentProviderId
+                                ? (() => {
+                                    const match = pmps.find((p) => String(p.id) === String(fee.paymentMethodPaymentProviderId));
+                                    if (match) {
+                                      return `${match.paymentMethodName || match.paymentMethodDisplayName || 'Method'} → ${match.paymentProviderName || 'Provider'}`;
+                                    }
+                                    return fee.paymentMethodPaymentProviderId;
+                                  })()
+                                : '—'}
+                            </td>
+                            <td style={{ padding: '0.45rem' }}>{fee.countryId ?? '—'}</td>
+                            <td style={{ padding: '0.45rem' }}>{fee.providerFeePercentage}</td>
+                            <td style={{ padding: '0.45rem' }}>{fee.providerFlatFee}</td>
+                            <td style={{ padding: '0.45rem' }}>{fee.ourFeePercentage}</td>
+                            <td style={{ padding: '0.45rem' }}>{fee.ourFlatFee}</td>
+                            <td style={{ padding: '0.45rem' }}>{fee.updatedAt ? formatDateTime(fee.updatedAt) : '—'}</td>
+                            <td style={{ padding: '0.45rem', display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                              <button type="button" className="btn-neutral btn-sm" onClick={() => openFeeForm(fee)}>
+                                Edit
+                              </button>
+                              <button type="button" className="btn-danger btn-sm" onClick={() => deleteFee(fee)}>
+                                Delete
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {txView?.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <div style={{ fontWeight: 700 }}>Recent transactions (max 10)</div>
+                <div style={{ fontWeight: 700 }}>Recent transaction (last 1)</div>
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
@@ -1148,8 +1369,90 @@ export default function AccountsListPage() {
         </Modal>
       )}
 
+      {showFeeForm && (
+        <Modal title={`${feeFormId ? 'Edit' : 'Add'} fee override`} onClose={() => (!feeSaving ? setShowFeeForm(false) : null)}>
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            {feeConfigsError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{feeConfigsError}</div>}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="feeService">Service</label>
+                <select id="feeService" value={feeService} onChange={(e) => setFeeService(e.target.value)}>
+                  <option value="">None</option>
+                  {['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'PAYMENT_REQUEST', 'E_SIM', 'AIRTIME_AND_DATA', 'GIFT_CARDS', 'OTHER'].map((svc) => (
+                    <option key={svc} value={svc}>
+                      {svc}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="feeAction">Action *</label>
+                <select id="feeAction" value={feeAction} onChange={(e) => setFeeAction(e.target.value)}>
+                  <option value="">Select action</option>
+                  {actionOptions.map((act) => (
+                    <option key={act} value={act}>
+                      {act}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="feePmpId">Payment method / provider</label>
+                <select id="feePmpId" value={feePmpId} onChange={(e) => setFeePmpId(e.target.value)}>
+                  <option value="">Account-wide</option>
+                  {pmps.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {(p.paymentMethodName || p.paymentMethodDisplayName || 'Method') + ' → ' + (p.paymentProviderName || 'Provider')}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="feeCountryId">Country (optional)</label>
+                <select id="feeCountryId" value={feeCountryId} onChange={(e) => setFeeCountryId(e.target.value)}>
+                  <option value="">Any</option>
+                  {countries.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} {c.alpha2Code ? `(${c.alpha2Code})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.65rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="feeProviderPct">Provider fee %</label>
+                <input id="feeProviderPct" type="number" step="0.01" value={feeProviderPct} onChange={(e) => setFeeProviderPct(e.target.value)} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="feeProviderFlat">Provider flat</label>
+                <input id="feeProviderFlat" type="number" step="0.01" value={feeProviderFlat} onChange={(e) => setFeeProviderFlat(e.target.value)} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="feeOurPct">Our fee %</label>
+                <input id="feeOurPct" type="number" step="0.01" value={feeOurPct} onChange={(e) => setFeeOurPct(e.target.value)} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="feeOurFlat">Our flat</label>
+                <input id="feeOurFlat" type="number" step="0.01" value={feeOurFlat} onChange={(e) => setFeeOurFlat(e.target.value)} />
+              </div>
+            </div>
+
+            <div className="modal-actions">
+              <button type="button" className="btn-neutral" onClick={() => { if (!feeSaving) { resetFeeForm(); setShowFeeForm(false); } }} disabled={feeSaving}>
+                Cancel
+              </button>
+              <button type="button" className="btn-primary" onClick={submitFeeForm} disabled={feeSaving}>
+                {feeSaving ? 'Saving…' : feeFormId ? 'Update' : 'Add'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {showPricingForm && (
-        <Modal title={`${customPricing ? 'Edit' : 'Add'} custom pricing`} onClose={() => (!pricingSaving ? setShowPricingForm(false) : null)}>
+        <Modal title={`${customPricing ? 'Edit' : 'Add'} custom KYC caps`} onClose={() => (!pricingSaving ? setShowPricingForm(false) : null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -1207,10 +1510,10 @@ export default function AccountsListPage() {
       )}
 
       {showPricingRemove && (
-        <Modal title="Remove custom pricing" onClose={() => (!pricingRemoving ? setShowPricingRemove(false) : null)}>
+        <Modal title="Remove custom KYC caps" onClose={() => (!pricingRemoving ? setShowPricingRemove(false) : null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ fontWeight: 700 }}>
-              Remove custom pricing for account <span style={{ fontWeight: 900 }}>{accountView?.accountReference || selected?.accountReference || selected?.id}</span>?
+              Remove custom KYC caps for account <span style={{ fontWeight: 900 }}>{accountView?.accountReference || selected?.accountReference || selected?.id}</span>?
             </div>
             <div style={{ color: 'var(--muted)' }}>
               This will revert to standard KYC caps/scoring rules for loan eligibility and deposit/withdrawal limits.

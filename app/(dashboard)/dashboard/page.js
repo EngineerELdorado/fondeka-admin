@@ -151,6 +151,29 @@ const Table = ({ columns, rows, emptyLabel = 'No data' }) => (
   </div>
 );
 
+const Modal = ({ title, onClose, children }) => (
+  <div className="modal-backdrop">
+    <div className="modal-surface">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ fontWeight: 800 }}>{title}</div>
+        <button type="button" onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: '18px', cursor: 'pointer', color: 'var(--text)' }}>
+          ×
+        </button>
+      </div>
+      {children}
+    </div>
+  </div>
+);
+
+const formatCryptoHoldings = (list) =>
+  (list || []).map((item, idx) => ({
+    id: item.productNetworkId || idx,
+    asset: `${item.productName || item.symbol || 'Asset'} • ${item.networkName || ''}`.trim(),
+    symbol: item.symbol || '—',
+    balance: item.balance ?? '0',
+    balanceFiat: item.balanceFiat ?? '0'
+  }));
+
 export default function DashboardPage() {
   const [filters, setFilters] = useState(initialFilters);
   const [appliedFilters, setAppliedFilters] = useState(initialFilters);
@@ -163,6 +186,7 @@ export default function DashboardPage() {
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [paymentProviders, setPaymentProviders] = useState([]);
   const [countries, setCountries] = useState([]);
+  const [showHoldings, setShowHoldings] = useState(false);
 
   const applyFilters = () => {
     setAppliedFilters(filters);
@@ -227,6 +251,7 @@ export default function DashboardPage() {
   const totals = data?.totals || {};
   const metrics = data?.metrics || {};
   const timeseries = data?.timeseries || [];
+  const holdings = data?.holdings || {};
   const chartData = useMemo(
     () =>
       (timeseries || [])
@@ -311,12 +336,24 @@ export default function DashboardPage() {
   );
 
   const kpiCards = [
+    { label: 'Fiat balance', value: formatCurrency(holdings.fiatBalanceTotal), sub: 'Across fiat accounts', tone: '#2563eb' },
+    {
+      label: 'Crypto balance (USD)',
+      value: formatCurrency(holdings.cryptoBalanceFiat),
+      sub: 'All crypto converted',
+      tone: '#0ea5e9',
+      onClick: () => setShowHoldings(true)
+    },
     { label: 'Transactions', value: formatNumber(totals.totalCount), sub: `Volume ${formatCurrency(totals.totalVolume)}` },
     { label: 'Completed', value: formatNumber(totals.completedCount), sub: `Volume ${formatCurrency(totals.completedVolume)}`, tone: '#16a34a' },
     { label: 'Failed', value: formatNumber(totals.failedCount), sub: `Volume ${formatCurrency(totals.failedVolume)}`, tone: '#b91c1c' },
     { label: 'Processing', value: formatNumber(totals.processingCount), sub: `Volume ${formatCurrency(totals.processingVolume)}`, tone: '#1d4ed8' },
-    { label: 'Fee revenue', value: formatCurrency(totals.feeRevenue), sub: 'Fees', tone: '#7c3aed' },
-    { label: 'Commission revenue', value: formatCurrency(totals.commissionRevenue), sub: 'Commissions', tone: '#7c3aed' }
+    {
+      label: 'Revenue',
+      value: formatCurrency((Number(totals.feeRevenue) || 0) + (Number(totals.commissionRevenue) || 0)),
+      sub: 'Aggregated revenues',
+      tone: '#7c3aed'
+    }
   ];
 
   const applyDatePreset = (preset) => {
@@ -565,7 +602,15 @@ export default function DashboardPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.75rem' }}>
         {kpiCards.map((kpi) => (
-          <div key={kpi.label} className="card" style={{ display: 'grid', gap: '0.2rem' }}>
+          <div
+            key={kpi.label}
+            className="card"
+            style={{ display: 'grid', gap: '0.2rem', cursor: kpi.onClick ? 'pointer' : 'default' }}
+            onClick={kpi.onClick}
+            role={kpi.onClick ? 'button' : undefined}
+            tabIndex={kpi.onClick ? 0 : undefined}
+            onKeyDown={kpi.onClick ? (e) => (e.key === 'Enter' || e.key === ' ') && kpi.onClick() : undefined}
+          >
             <div style={{ fontSize: '13px', color: 'var(--muted)' }}>{kpi.label}</div>
             <div style={{ fontSize: '26px', fontWeight: 800, color: kpi.tone || 'var(--accent)' }}>{kpi.value}</div>
             <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{kpi.sub}</div>
@@ -655,7 +700,26 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.25fr 1.25fr 1fr', gap: '1rem', alignItems: 'start' }}>
+      {holdings.cryptoHoldings && holdings.cryptoHoldings.length > 0 && (
+        <div className="card" style={{ display: 'grid', gap: '0.6rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontWeight: 800 }}>Crypto holdings</div>
+            <Pill tone="#0ea5e9">Breakdown</Pill>
+          </div>
+          <Table
+            columns={[
+              { key: 'asset', label: 'Asset / Network', render: (row) => row.asset || '—' },
+              { key: 'symbol', label: 'Symbol' },
+              { key: 'balance', label: 'Balance', render: (row) => formatNumber(row.balance) },
+              { key: 'balanceFiat', label: 'USD', render: (row) => formatCurrency(row.balanceFiat) }
+            ]}
+            rows={formatCryptoHoldings(holdings.cryptoHoldings)}
+            emptyLabel="No crypto holdings"
+          />
+        </div>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem', alignItems: 'start' }}>
         <div className="card" style={{ display: 'grid', gap: '0.5rem' }}>
           <div style={{ fontWeight: 800 }}>Actions</div>
           <Table

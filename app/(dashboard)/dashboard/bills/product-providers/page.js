@@ -5,12 +5,13 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
-const emptyState = { billProductId: '', billProviderId: '', rank: '', active: true };
+const emptyState = { billProductId: '', billProviderId: '', rank: '', active: true, commissionPercentage: '' };
 
 const toPayload = (state) => ({
   billProductId: Number(state.billProductId) || 0,
   billProviderId: Number(state.billProviderId) || 0,
   rank: state.rank === '' ? null : Number(state.rank),
+  commissionPercentage: state.commissionPercentage === '' ? null : Number(state.commissionPercentage),
   active: Boolean(state.active)
 });
 
@@ -86,6 +87,11 @@ export default function BillProductProvidersPage() {
     { key: 'billProductName', label: 'Product' },
     { key: 'billProviderName', label: 'Provider' },
     { key: 'rank', label: 'Rank' },
+    {
+      key: 'commissionPercentage',
+      label: 'Commission (%)',
+      render: (row) => (row.commissionPercentage === null || row.commissionPercentage === undefined ? '—' : row.commissionPercentage)
+    },
     { key: 'active', label: 'Active' },
     {
       key: 'actions',
@@ -113,6 +119,7 @@ export default function BillProductProvidersPage() {
       billProductId: row.billProductId ?? '',
       billProviderId: row.billProviderId ?? '',
       rank: row.rank ?? '',
+      commissionPercentage: row.commissionPercentage ?? '',
       active: Boolean(row.active)
     });
     setShowEdit(true);
@@ -208,6 +215,16 @@ export default function BillProductProvidersPage() {
           type="number"
           value={draft.rank}
           onChange={(e) => setDraft((prev) => ({ ...prev, rank: e.target.value }))}
+        />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="commissionPercentage">Commission (%)</label>
+        <input
+          id="commissionPercentage"
+          type="number"
+          step="0.01"
+          value={draft.commissionPercentage}
+          onChange={(e) => setDraft((prev) => ({ ...prev, commissionPercentage: e.target.value }))}
         />
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -312,6 +329,7 @@ export default function BillProductProvidersPage() {
                 { label: 'Product', value: selected?.billProductName || selected?.billProductId },
                 { label: 'Provider', value: selected?.billProviderName || selected?.billProviderId },
                 { label: 'Rank', value: selected?.rank },
+                { label: 'Commission (%)', value: selected?.commissionPercentage ?? '—' },
                 { label: 'Active', value: selected?.active ? 'Yes' : 'No' },
                 { label: 'Created at', value: selected?.createdAt },
                 { label: 'Updated at', value: selected?.updatedAt }

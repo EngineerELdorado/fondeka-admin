@@ -63,6 +63,8 @@ export default function CardProductProvidersPage() {
   const [draft, setDraft] = useState(emptyState);
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [cardProducts, setCardProducts] = useState([]);
+  const [cardProviders, setCardProviders] = useState([]);
 
   const fetchRows = async () => {
     setLoading(true);
@@ -84,6 +86,23 @@ export default function CardProductProvidersPage() {
   useEffect(() => {
     fetchRows();
   }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const loadOptions = async () => {
+      try {
+        const [productsRes, providersRes] = await Promise.all([
+          api.cardProducts.list(new URLSearchParams({ page: '0', size: '200' })),
+          api.cardProviders.list(new URLSearchParams({ page: '0', size: '200' }))
+        ]);
+        const toList = (res) => (Array.isArray(res) ? res : res?.content || []);
+        setCardProducts(toList(productsRes));
+        setCardProviders(toList(providersRes));
+      } catch {
+        // ignore option fetch errors
+      }
+    };
+    loadOptions();
+  }, []);
 
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
@@ -183,12 +202,26 @@ export default function CardProductProvidersPage() {
   const renderForm = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="cardProductId">Card product ID</label>
-        <input id="cardProductId" type="number" value={draft.cardProductId} onChange={(e) => setDraft((p) => ({ ...p, cardProductId: e.target.value }))} />
+        <label htmlFor="cardProductId">Card product</label>
+        <select id="cardProductId" value={draft.cardProductId} onChange={(e) => setDraft((p) => ({ ...p, cardProductId: e.target.value }))}>
+          <option value="">Select product</option>
+          {cardProducts.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.cardBrandName || `Product ${p.id}`}
+            </option>
+          ))}
+        </select>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="cardProviderId">Card provider ID</label>
-        <input id="cardProviderId" type="number" value={draft.cardProviderId} onChange={(e) => setDraft((p) => ({ ...p, cardProviderId: e.target.value }))} />
+        <label htmlFor="cardProviderId">Card provider</label>
+        <select id="cardProviderId" value={draft.cardProviderId} onChange={(e) => setDraft((p) => ({ ...p, cardProviderId: e.target.value }))}>
+          <option value="">Select provider</option>
+          {cardProviders.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.cardProviderName || p.name || `Provider ${p.id}`}
+            </option>
+          ))}
+        </select>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="currency">Currency</label>

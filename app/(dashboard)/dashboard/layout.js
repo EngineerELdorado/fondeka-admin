@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const navItems = [
   { href: '/dashboard', label: 'Overview' },
+  { href: '/dashboard/accounts/accounts', label: 'Accounts / Users' },
   { href: '/dashboard/payments', label: 'Payment Methods' },
   // Products cluster
   { href: '/dashboard/loans', label: 'Loans & Products' },
@@ -17,7 +18,6 @@ const navItems = [
   { href: '/dashboard/savings', label: 'Savings & Products' },
   { href: '/dashboard/payment-requests', label: 'Payment Requests' },
   // Other menus
-  { href: '/dashboard/accounts/accounts', label: 'Accounts / Users' },
   { href: '/dashboard/trusted-devices', label: 'Trusted Devices' },
   { href: '/dashboard/transactions', label: 'Transactions' },
   { href: '/dashboard/kycs', label: 'KYCs' },

@@ -68,7 +68,6 @@ const initialFilters = {
   reference: '',
   externalReference: '',
   operatorReference: '',
-  idempotencyKey: '',
   action: '',
   service: '',
   balanceEffect: '',
@@ -76,11 +75,7 @@ const initialFilters = {
   paymentMethodId: '',
   paymentProviderId: '',
   paymentMethodPaymentProviderId: '',
-  accountReference: '',
-  userReference: '',
   userNameContains: '',
-  minAmount: '',
-  maxAmount: '',
   refunded: '',
   startDate: '',
   endDate: ''
@@ -189,7 +184,7 @@ export default function TransactionsPage() {
       };
       Object.entries(targetFilters).forEach(([key, value]) => {
         if (value === '' || value === null || value === undefined) return;
-        if (['minAmount', 'maxAmount', 'paymentMethodId', 'paymentProviderId', 'paymentMethodPaymentProviderId'].includes(key)) {
+        if (['paymentMethodId', 'paymentProviderId', 'paymentMethodPaymentProviderId'].includes(key)) {
           const num = Number(value);
           if (!Number.isNaN(num)) addIf(key, num);
         } else if (['startDate', 'endDate'].includes(key)) {
@@ -319,9 +314,6 @@ export default function TransactionsPage() {
         case 'operatorReference':
           add(`Operator ref: ${value}`, key);
           break;
-        case 'idempotencyKey':
-          add(`Idempotency: ${value}`, key);
-          break;
         case 'action':
           add(`Action: ${value}`, key);
           break;
@@ -343,20 +335,8 @@ export default function TransactionsPage() {
         case 'paymentMethodPaymentProviderId':
           add(`PMPP #${value}`, key);
           break;
-        case 'accountReference':
-          add(`Account: ${value}`, key);
-          break;
-        case 'userReference':
-          add(`User: ${value}`, key);
-          break;
         case 'userNameContains':
           add(`Username contains: ${value}`, key);
-          break;
-        case 'minAmount':
-          add(`Min amount: ${value}`, key);
-          break;
-        case 'maxAmount':
-          add(`Max amount: ${value}`, key);
           break;
         case 'refunded':
           add(`Refunded: ${value}`, key);
@@ -662,8 +642,8 @@ export default function TransactionsPage() {
             <input id="operatorReference" value={filters.operatorReference} onChange={(e) => setFilters((p) => ({ ...p, operatorReference: e.target.value }))} />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="idempotencyKey">Idempotency key</label>
-            <input id="idempotencyKey" value={filters.idempotencyKey} onChange={(e) => setFilters((p) => ({ ...p, idempotencyKey: e.target.value }))} />
+            <label htmlFor="userNameContains">Email or Phone</label>
+            <input id="userNameContains" value={filters.userNameContains} onChange={(e) => setFilters((p) => ({ ...p, userNameContains: e.target.value }))} />
           </div>
         </div>
 
@@ -759,31 +739,6 @@ export default function TransactionsPage() {
               <option value="true">Yes</option>
               <option value="false">No</option>
             </select>
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="accountReference">Account ref</label>
-            <input id="accountReference" value={filters.accountReference} onChange={(e) => setFilters((p) => ({ ...p, accountReference: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="userReference">User ref</label>
-            <input id="userReference" value={filters.userReference} onChange={(e) => setFilters((p) => ({ ...p, userReference: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="userNameContains">Username contains</label>
-            <input id="userNameContains" value={filters.userNameContains} onChange={(e) => setFilters((p) => ({ ...p, userNameContains: e.target.value }))} />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.5rem' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <label htmlFor="minAmount">Min amount</label>
-              <input id="minAmount" type="number" value={filters.minAmount} onChange={(e) => setFilters((p) => ({ ...p, minAmount: e.target.value }))} />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <label htmlFor="maxAmount">Max amount</label>
-              <input id="maxAmount" type="number" value={filters.maxAmount} onChange={(e) => setFilters((p) => ({ ...p, maxAmount: e.target.value }))} />
-            </div>
           </div>
         </div>
 

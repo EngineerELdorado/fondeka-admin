@@ -66,7 +66,9 @@ export function ToastProvider({ children }) {
 
 export function useToast() {
   const ctx = useContext(ToastContext);
-  if (!ctx) throw new Error('useToast must be used inside ToastProvider');
+  if (!ctx) {
+    // Fallback to avoid hard crashes if a component renders outside the provider
+    return { pushToast: () => {} };
+  }
   return ctx;
 }
-
