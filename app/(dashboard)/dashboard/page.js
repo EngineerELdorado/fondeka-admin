@@ -78,6 +78,7 @@ const actionOptions = [
   'SELL_CRYPTO',
   'SEND_AIRTIME',
   'SEND_CRYPTO',
+  'WITHDRAW_FROM_CARD',
   'WITHDRAW_FROM_WALLET'
 ].sort();
 const statusOptions = ['INITIATED', 'PROCESSING', 'COMPLETED', 'FAILED', 'CANCELED'];

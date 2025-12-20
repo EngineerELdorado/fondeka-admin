@@ -64,11 +64,11 @@ const fadeInStyle = (ready) => ({
 export default function AccountDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { pushToast } = useToast();
-  const accountId = params?.id;
+const { pushToast } = useToast();
+const accountId = params?.id;
 
-  const [account, setAccount] = useState(null);
-  const [loading, setLoading] = useState(false);
+const [account, setAccount] = useState(null);
+const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [customPricing, setCustomPricing] = useState(null);
@@ -141,10 +141,18 @@ export default function AccountDetailPage() {
   const [cryptoLimitNetworkId, setCryptoLimitNetworkId] = useState('');
   const [cryptoLimitBuy, setCryptoLimitBuy] = useState('');
   const [cryptoLimitSell, setCryptoLimitSell] = useState('');
-  const [cryptoLimitSend, setCryptoLimitSend] = useState('');
-  const [cryptoLimitReceive, setCryptoLimitReceive] = useState('');
-  const [cryptoLimitSwap, setCryptoLimitSwap] = useState('');
-  const [cryptoLimitSaving, setCryptoLimitSaving] = useState(false);
+const [cryptoLimitSend, setCryptoLimitSend] = useState('');
+const [cryptoLimitReceive, setCryptoLimitReceive] = useState('');
+const [cryptoLimitSwap, setCryptoLimitSwap] = useState('');
+const [cryptoLimitSaving, setCryptoLimitSaving] = useState(false);
+const [confirmPrompt, setConfirmPrompt] = useState(null);
+const [confirmLoading, setConfirmLoading] = useState(false);
+const [confirmError, setConfirmError] = useState('');
+const [showCredit, setShowCredit] = useState(false);
+const [creditAmount, setCreditAmount] = useState('');
+const [creditNote, setCreditNote] = useState('');
+const [creditError, setCreditError] = useState(null);
+const [creditLoading, setCreditLoading] = useState(false);
 
   const actionOptions = [
     'BUY_CARD',
@@ -165,6 +173,7 @@ export default function AccountDetailPage() {
     'SELL_CRYPTO',
     'SEND_AIRTIME',
     'SEND_CRYPTO',
+    'WITHDRAW_FROM_CARD',
     'WITHDRAW_FROM_WALLET'
   ].sort();
 
@@ -322,6 +331,43 @@ export default function AccountDetailPage() {
     loadAccount();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accountId]);
+
+  const openCredit = () => {
+    setCreditAmount('');
+    setCreditNote('');
+    setCreditError(null);
+    setShowCredit(true);
+  };
+
+  const submitCredit = async () => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) {
+      setCreditError('No account loaded');
+      return;
+    }
+    const amountNum = Number(creditAmount);
+    if (!Number.isFinite(amountNum) || amountNum <= 0) {
+      setCreditError('Amount must be greater than 0');
+      return;
+    }
+    setCreditLoading(true);
+    setCreditError(null);
+    try {
+      const payload = { amount: amountNum, ...(creditNote?.trim() ? { note: creditNote.trim() } : {}) };
+      const res = await api.accounts.creditWalletBonus(resolvedAccountId, payload);
+      pushToast({
+        tone: 'success',
+        message: `Bonus credited: ${res?.amount ?? amountNum}${res?.reference ? ` (ref ${res.reference})` : ''}`
+      });
+      setShowCredit(false);
+      await loadAccount();
+    } catch (err) {
+      const message = err.message || 'Failed to credit account';
+      setCreditError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setCreditLoading(false);
+    }
+  };
 
   useEffect(() => {
     const fetchOptions = async () => {
@@ -499,20 +545,25 @@ export default function AccountDetailPage() {
     }
   };
 
-  const deleteFee = async (fee) => {
+  const deleteFee = (fee) => {
     if (resolvedAccountId === null || resolvedAccountId === undefined || !fee?.id) return;
-    const yes = window.confirm(`Delete fee override ${fee.action} (${fee.id})?`);
-    if (!yes) return;
-    setFeeConfigsError(null);
-    try {
-      await api.accounts.feeConfigs.remove(resolvedAccountId, fee.id);
-      pushToast({ tone: 'success', message: 'Fee override deleted' });
-      await loadFeeConfigs(resolvedAccountId);
-    } catch (err) {
-      const message = err.message || 'Failed to delete fee override';
-      setFeeConfigsError(message);
-      pushToast({ tone: 'error', message });
-    }
+    openConfirm({
+      title: 'Delete fee override',
+      message: `Delete fee override ${fee.action} (${fee.id})?`,
+      onConfirm: async () => {
+        setFeeConfigsError(null);
+        try {
+          await api.accounts.feeConfigs.remove(resolvedAccountId, fee.id);
+          pushToast({ tone: 'success', message: 'Fee override deleted' });
+          await loadFeeConfigs(resolvedAccountId);
+        } catch (err) {
+          const message = err.message || 'Failed to delete fee override';
+          setFeeConfigsError(message);
+          pushToast({ tone: 'error', message });
+          throw err;
+        }
+      }
+    });
   };
 
   const openCardPriceForm = (override) => {
@@ -574,20 +625,25 @@ export default function AccountDetailPage() {
     }
   };
 
-  const deleteLoanRate = async (override) => {
+  const deleteLoanRate = (override) => {
     if (resolvedAccountId === null || resolvedAccountId === undefined || !override?.id) return;
-    const yes = window.confirm(`Delete loan rate override ${override.id}?`);
-    if (!yes) return;
-    setLoanRatesError(null);
-    try {
-      await api.accounts.loanRates.remove(resolvedAccountId, override.id);
-      pushToast({ tone: 'success', message: 'Loan rate override deleted' });
-      await loadLoanRates(resolvedAccountId);
-    } catch (err) {
-      const message = err.message || 'Failed to delete loan rate override';
-      setLoanRatesError(message);
-      pushToast({ tone: 'error', message });
-    }
+    openConfirm({
+      title: 'Delete loan rate override',
+      message: `Delete loan rate override ${override.id}?`,
+      onConfirm: async () => {
+        setLoanRatesError(null);
+        try {
+          await api.accounts.loanRates.remove(resolvedAccountId, override.id);
+          pushToast({ tone: 'success', message: 'Loan rate override deleted' });
+          await loadLoanRates(resolvedAccountId);
+        } catch (err) {
+          const message = err.message || 'Failed to delete loan rate override';
+          setLoanRatesError(message);
+          pushToast({ tone: 'error', message });
+          throw err;
+        }
+      }
+    });
   };
 
   const openCryptoRateForm = (override) => {
@@ -718,36 +774,46 @@ export default function AccountDetailPage() {
     }
   };
 
-  const deleteCryptoLimit = async (override) => {
+  const deleteCryptoLimit = (override) => {
     if (resolvedAccountId === null || resolvedAccountId === undefined || !override?.id) return;
-    const yes = window.confirm(`Delete crypto limit override ${override.id}?`);
-    if (!yes) return;
-    setCryptoLimitsError(null);
-    try {
-      await api.accounts.cryptoLimits.remove(resolvedAccountId, override.id);
-      pushToast({ tone: 'success', message: 'Crypto limit override deleted' });
-      await loadCryptoLimits(resolvedAccountId);
-    } catch (err) {
-      const message = err.message || 'Failed to delete crypto limit override';
-      setCryptoLimitsError(message);
-      pushToast({ tone: 'error', message });
-    }
+    openConfirm({
+      title: 'Delete crypto limit override',
+      message: `Delete crypto limit override ${override.id}?`,
+      onConfirm: async () => {
+        setCryptoLimitsError(null);
+        try {
+          await api.accounts.cryptoLimits.remove(resolvedAccountId, override.id);
+          pushToast({ tone: 'success', message: 'Crypto limit override deleted' });
+          await loadCryptoLimits(resolvedAccountId);
+        } catch (err) {
+          const message = err.message || 'Failed to delete crypto limit override';
+          setCryptoLimitsError(message);
+          pushToast({ tone: 'error', message });
+          throw err;
+        }
+      }
+    });
   };
 
-  const deleteCryptoRate = async (override) => {
+  const deleteCryptoRate = (override) => {
     if (resolvedAccountId === null || resolvedAccountId === undefined || !override?.id) return;
-    const yes = window.confirm(`Delete crypto rate override ${override.id}?`);
-    if (!yes) return;
-    setCryptoRatesError(null);
-    try {
-      await api.accounts.cryptoRates.remove(resolvedAccountId, override.id);
-      pushToast({ tone: 'success', message: 'Crypto rate override deleted' });
-      await loadCryptoRates(resolvedAccountId);
-    } catch (err) {
-      const message = err.message || 'Failed to delete crypto rate override';
-      setCryptoRatesError(message);
-      pushToast({ tone: 'error', message });
-    }
+    openConfirm({
+      title: 'Delete crypto rate override',
+      message: `Delete crypto rate override ${override.id}?`,
+      onConfirm: async () => {
+        setCryptoRatesError(null);
+        try {
+          await api.accounts.cryptoRates.remove(resolvedAccountId, override.id);
+          pushToast({ tone: 'success', message: 'Crypto rate override deleted' });
+          await loadCryptoRates(resolvedAccountId);
+        } catch (err) {
+          const message = err.message || 'Failed to delete crypto rate override';
+          setCryptoRatesError(message);
+          pushToast({ tone: 'error', message });
+          throw err;
+        }
+      }
+    });
   };
 
   const resetCardPriceForm = () => {
@@ -793,20 +859,25 @@ export default function AccountDetailPage() {
     }
   };
 
-  const deleteCardPrice = async (override) => {
+  const deleteCardPrice = (override) => {
     if (resolvedAccountId === null || resolvedAccountId === undefined || !override?.id) return;
-    const yes = window.confirm(`Delete card price override ${override.id}?`);
-    if (!yes) return;
-    setCardPricesError(null);
-    try {
-      await api.accounts.cardPrices.remove(resolvedAccountId, override.id);
-      pushToast({ tone: 'success', message: 'Card price override deleted' });
-      await loadCardPrices(resolvedAccountId);
-    } catch (err) {
-      const message = err.message || 'Failed to delete card price override';
-      setCardPricesError(message);
-      pushToast({ tone: 'error', message });
-    }
+    openConfirm({
+      title: 'Delete card price override',
+      message: `Delete card price override ${override.id}?`,
+      onConfirm: async () => {
+        setCardPricesError(null);
+        try {
+          await api.accounts.cardPrices.remove(resolvedAccountId, override.id);
+          pushToast({ tone: 'success', message: 'Card price override deleted' });
+          await loadCardPrices(resolvedAccountId);
+        } catch (err) {
+          const message = err.message || 'Failed to delete card price override';
+          setCardPricesError(message);
+          pushToast({ tone: 'error', message });
+          throw err;
+        }
+      }
+    });
   };
 
   const accountView = useMemo(() => account || {}, [account]);
@@ -817,6 +888,28 @@ export default function AccountDetailPage() {
     const num = Number(accountId);
     return Number.isFinite(num) ? num : null;
   }, [account, accountId]);
+
+  const openConfirm = ({ title, message, onConfirm }) => {
+    setConfirmPrompt({ title, message, onConfirm });
+    setConfirmError('');
+  };
+
+  const handleConfirm = async () => {
+    if (!confirmPrompt?.onConfirm) {
+      setConfirmPrompt(null);
+      return;
+    }
+    setConfirmLoading(true);
+    setConfirmError('');
+    try {
+      await confirmPrompt.onConfirm();
+      setConfirmPrompt(null);
+    } catch (err) {
+      setConfirmError(err.message || 'Failed to complete action');
+    } finally {
+      setConfirmLoading(false);
+    }
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -845,6 +938,9 @@ export default function AccountDetailPage() {
           </button>
           <button type="button" className="btn-neutral" onClick={loadAccount} disabled={loading}>
             {loading ? 'Refreshing…' : 'Refresh'}
+          </button>
+          <button type="button" className="btn-success" onClick={openCredit}>
+            Credit wallet
           </button>
         </div>
       </div>
@@ -1528,6 +1624,62 @@ export default function AccountDetailPage() {
               </button>
               <button type="button" className="btn-danger" disabled={pricingRemoving} onClick={removePricing}>
                 {pricingRemoving ? 'Removing…' : 'Confirm remove'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {confirmPrompt && (
+        <Modal title={confirmPrompt.title || 'Confirm action'} onClose={() => (!confirmLoading ? setConfirmPrompt(null) : null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ color: 'var(--text)' }}>{confirmPrompt.message || 'Are you sure?'}</div>
+            {confirmError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{confirmError}</div>}
+            <div className="modal-actions">
+              <button type="button" className="btn-neutral" onClick={() => setConfirmPrompt(null)} disabled={confirmLoading}>
+                Cancel
+              </button>
+              <button type="button" className="btn-danger" onClick={handleConfirm} disabled={confirmLoading}>
+                {confirmLoading ? 'Working…' : 'Confirm'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showCredit && (
+        <Modal title="Credit wallet (Bonus)" onClose={() => (!creditLoading ? setShowCredit(false) : null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="creditAmount">Amount</label>
+                <input
+                  id="creditAmount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={creditAmount}
+                  onChange={(e) => setCreditAmount(e.target.value)}
+                  placeholder="100.00"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="creditNote">Note (optional)</label>
+                <input
+                  id="creditNote"
+                  value={creditNote}
+                  onChange={(e) => setCreditNote(e.target.value)}
+                  placeholder="Manual bonus for customer"
+                />
+              </div>
+            </div>
+            {creditError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{creditError}</div>}
+            <div className="modal-actions">
+              <button type="button" className="btn-neutral" onClick={() => setShowCredit(false)} disabled={creditLoading}>
+                Cancel
+              </button>
+              <button type="button" className="btn-success" onClick={submitCredit} disabled={creditLoading}>
+                {creditLoading ? 'Crediting…' : 'Credit bonus'}
               </button>
             </div>
           </div>

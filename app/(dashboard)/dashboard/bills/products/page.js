@@ -10,15 +10,38 @@ const emptyState = {
   code: '',
   displayName: '',
   type: '',
+  logoUrl: '',
   rank: '',
+  countryIds: [],
   active: true
 };
+
+const typeOptions = ['TELEVISION', 'ELECTRICITY', 'INTERNET', 'WATER', 'STREAMING', 'AIRTIME', 'OTHERS'];
+const nameOptions = ['CANAL_PLUS', 'CANAL_BOX', 'STARLINK', 'LIQUID', 'SOCODEE', 'VIRUNGA', 'SNEL', 'DSTV', 'STARTIMES', 'REGIDESO', 'NETFLIX', 'AIRTIME'];
+const codeOptions = [
+  'CANAL_PLUS_RWANDA',
+  'CANAL_PLUS_DRC',
+  'CANAL_PLUS_BURUNDI',
+  'CANAL_BOX',
+  'STARLINK',
+  'SOCODEE',
+  'VIRUNGA',
+  'SNEL',
+  'LIQUID',
+  'DSTV',
+  'STARTIMES',
+  'REGIDESO',
+  'NETFLIX',
+  'AIRTIME'
+];
 
 const toPayload = (state) => ({
   name: state.name,
   code: state.code,
   displayName: state.displayName,
   type: state.type,
+  logoUrl: state.logoUrl || null,
+  countryIds: Array.isArray(state.countryIds) ? state.countryIds.map((id) => Number(id)).filter((n) => !Number.isNaN(n)) : [],
   rank: state.rank === '' ? null : Number(state.rank),
   active: Boolean(state.active)
 });
@@ -59,6 +82,11 @@ export default function BillProductsPage() {
   const [draft, setDraft] = useState(emptyState);
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [countries, setCountries] = useState([]);
+  const [countriesLoading, setCountriesLoading] = useState(false);
+  const [countriesError, setCountriesError] = useState(null);
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
+  const [countrySearch, setCountrySearch] = useState('');
 
   const fetchRows = async () => {
     setLoading(true);
@@ -81,9 +109,44 @@ export default function BillProductsPage() {
     fetchRows();
   }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    const loadCountries = async () => {
+      setCountriesError(null);
+      setCountriesLoading(true);
+      try {
+        const res = await api.countries.list(new URLSearchParams({ page: '0', size: '200' }));
+        const list = Array.isArray(res) ? res : res?.content || [];
+        setCountries(list || []);
+      } catch (err) {
+        setCountries([]);
+        setCountriesError(err.message || 'Failed to load countries');
+      }
+      setCountriesLoading(false);
+    };
+    loadCountries();
+  }, []);
+
   const columns = useMemo(() => [
     { key: 'displayName', label: 'Display' },
     { key: 'type', label: 'Type' },
+    {
+      key: 'country',
+      label: 'Countries',
+      render: (row) => {
+        const names = row.countryNames || row.countryName || [];
+        const codes = row.countryCodes || row.countryCode || [];
+        const ids = row.countryIds || row.countryId || [];
+        const list = Array.isArray(names) && names.length > 0
+          ? names
+          : Array.isArray(codes) && codes.length > 0
+            ? codes
+            : Array.isArray(ids) && ids.length > 0
+              ? ids
+              : [];
+        if (list.length === 0) return 'Global';
+        return list.join(', ');
+      }
+    },
     { key: 'rank', label: 'Rank' },
     { key: 'active', label: 'Active' },
     {
@@ -113,6 +176,8 @@ export default function BillProductsPage() {
       code: row.code ?? '',
       displayName: row.displayName ?? '',
       type: row.type ?? '',
+      logoUrl: row.logoUrl ?? '',
+      countryIds: row.countryIds || [],
       rank: row.rank ?? '',
       active: Boolean(row.active)
     });
@@ -174,11 +239,25 @@ export default function BillProductsPage() {
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="name">Name</label>
-        <input id="name" value={draft.name} onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))} />
+        <select id="name" value={draft.name} onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))}>
+          <option value="">Select name</option>
+          {nameOptions.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </select>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="code">Code</label>
-        <input id="code" value={draft.code} onChange={(e) => setDraft((p) => ({ ...p, code: e.target.value }))} />
+        <select id="code" value={draft.code} onChange={(e) => setDraft((p) => ({ ...p, code: e.target.value }))}>
+          <option value="">Select code</option>
+          {codeOptions.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </select>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="displayName">Display name</label>
@@ -186,7 +265,119 @@ export default function BillProductsPage() {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="type">Type</label>
-        <input id="type" value={draft.type} onChange={(e) => setDraft((p) => ({ ...p, type: e.target.value }))} />
+        <select id="type" value={draft.type} onChange={(e) => setDraft((p) => ({ ...p, type: e.target.value }))}>
+          <option value="">Select type</option>
+          {typeOptions.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', position: 'relative' }}>
+        <label htmlFor="countryIds">Countries (optional)</label>
+        <button
+          type="button"
+          id="countryIds"
+          className="btn-neutral"
+          style={{ justifyContent: 'space-between', display: 'flex', alignItems: 'center' }}
+          onClick={() => {
+            if (!showCountryPicker && countries.length === 0 && !countriesLoading) {
+              // retry fetch if nothing loaded yet
+              setCountriesError(null);
+              (async () => {
+                setCountriesLoading(true);
+                try {
+                  const res = await api.countries.list(new URLSearchParams({ page: '0', size: '200' }));
+                  const list = Array.isArray(res) ? res : res?.content || [];
+                  setCountries(list || []);
+                } catch (err) {
+                  setCountries([]);
+                  setCountriesError(err.message || 'Failed to load countries');
+                }
+                setCountriesLoading(false);
+              })();
+            }
+            setShowCountryPicker((v) => !v);
+          }}
+        >
+          {draft.countryIds.length === 0
+            ? 'Global (no countries selected)'
+            : `${draft.countryIds.length} selected`}
+          <span style={{ marginLeft: '0.5rem' }}>{showCountryPicker ? '▲' : '▼'}</span>
+        </button>
+        {showCountryPicker && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '100%',
+              left: 0,
+              zIndex: 10,
+              background: 'var(--surface)',
+              border: `1px solid var(--border)`,
+              borderRadius: '10px',
+              padding: '0.5rem',
+              marginTop: '0.25rem',
+          boxShadow: '0 8px 16px rgba(0,0,0,0.08)',
+          minWidth: '240px',
+          maxHeight: '220px',
+          overflowY: 'auto',
+          display: 'grid',
+          gap: '0.35rem'
+        }}
+      >
+        <input
+          type="text"
+          placeholder="Search country"
+          value={countrySearch}
+          onChange={(e) => setCountrySearch(e.target.value)}
+          style={{ width: '100%', padding: '0.4rem 0.6rem', border: '1px solid var(--border)', borderRadius: '8px' }}
+        />
+        {countriesLoading && <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Loading countries…</div>}
+        {countriesError && <div style={{ color: '#b91c1c', fontSize: '13px' }}>{countriesError}</div>}
+        {!countriesLoading && !countriesError && countries.length === 0 && (
+          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>No countries found.</div>
+        )}
+        {countries
+          .filter((c) => {
+            const term = countrySearch.trim().toLowerCase();
+            if (!term) return true;
+            return (
+              c.name?.toLowerCase().includes(term) ||
+              c.alpha2Code?.toLowerCase().includes(term) ||
+              String(c.id).includes(term)
+            );
+          })
+          .map((c) => {
+          const checked = draft.countryIds.includes(String(c.id)) || draft.countryIds.includes(Number(c.id));
+          return (
+            <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', justifyContent: 'space-between' }}>
+              <span>
+                {c.name} {c.alpha2Code ? `(${c.alpha2Code})` : ''}
+              </span>
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={(e) => {
+                  const value = String(c.id);
+                  setDraft((p) => {
+                    const set = new Set(p.countryIds.map(String));
+                    if (e.target.checked) set.add(value);
+                    else set.delete(value);
+                    return { ...p, countryIds: Array.from(set) };
+                  });
+                }}
+              />
+            </label>
+          );
+        })}
+      </div>
+    )}
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Leave empty for a global product.</div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="logoUrl">Logo URL (optional)</label>
+        <input id="logoUrl" value={draft.logoUrl} onChange={(e) => setDraft((p) => ({ ...p, logoUrl: e.target.value }))} placeholder="https://..." />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="rank">Rank</label>
@@ -279,6 +470,14 @@ export default function BillProductsPage() {
               { label: 'Name', value: selected?.name },
               { label: 'Display', value: selected?.displayName },
               { label: 'Type', value: selected?.type },
+              {
+                label: 'Countries',
+                value:
+                  (selected?.countryNames && selected.countryNames.join(', ')) ||
+                  (selected?.countryCodes && selected.countryCodes.join(', ')) ||
+                  (selected?.countryIds && selected.countryIds.join(', ')) ||
+                  'Global'
+              },
               { label: 'Rank', value: selected?.rank },
               { label: 'Active', value: selected?.active ? 'Yes' : 'No' },
               { label: 'Created', value: selected?.createdAt },

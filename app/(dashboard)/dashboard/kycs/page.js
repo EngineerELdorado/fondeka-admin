@@ -681,7 +681,7 @@ export default function KycsPage() {
               Cancel
             </button>
             <button type="button" onClick={handleDecision} className={decision.decision === 'APPROVE' ? 'btn-success' : 'btn-danger'}>
-              {decision.decision === 'APPROVE' ? 'Approve' : 'Reject'}
+              Submit
             </button>
           </div>
         </Modal>

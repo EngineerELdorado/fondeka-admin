@@ -27,6 +27,7 @@ const actionOptions = [
   'SEND_AIRTIME',
   'SEND_CRYPTO',
   'SWAP_CRYPTO',
+  'WITHDRAW_FROM_CARD',
   'WITHDRAW_FROM_WALLET'
 ].sort();
 
