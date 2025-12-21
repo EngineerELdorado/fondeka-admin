@@ -186,6 +186,21 @@ export default function BillProductsPage() {
     setError(null);
   };
 
+  const closeCreate = () => {
+    setShowCreate(false);
+    setDraft(emptyState);
+    setCountrySearch('');
+    setShowCountryPicker(false);
+  };
+
+  const closeEdit = () => {
+    setShowEdit(false);
+    setDraft(emptyState);
+    setSelected(null);
+    setCountrySearch('');
+    setShowCountryPicker(false);
+  };
+
   const openDetail = (row) => {
     setSelected(row);
     setShowDetail(true);
@@ -434,10 +449,10 @@ export default function BillProductsPage() {
       <DataTable columns={columns} rows={rows} emptyLabel="No bill products found" />
 
       {showCreate && (
-        <Modal title="Add bill product" onClose={() => setShowCreate(false)}>
+        <Modal title="Add bill product" onClose={closeCreate}>
           {renderForm()}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-            <button type="button" onClick={() => setShowCreate(false)} style={{ padding: '0.65rem 0.95rem', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}>
+            <button type="button" onClick={closeCreate} style={{ padding: '0.65rem 0.95rem', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}>
               Cancel
             </button>
             <button type="button" onClick={handleCreate} style={{ padding: '0.65rem 0.95rem', borderRadius: '10px', border: '1px solid var(--border)', background: '#22c55e', color: '#fff' }}>
@@ -448,10 +463,10 @@ export default function BillProductsPage() {
       )}
 
       {showEdit && (
-        <Modal title={`Edit bill product ${selected?.id}`} onClose={() => setShowEdit(false)}>
+        <Modal title={`Edit bill product ${selected?.id}`} onClose={closeEdit}>
           {renderForm()}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-            <button type="button" onClick={() => setShowEdit(false)} style={{ padding: '0.65rem 0.95rem', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}>
+            <button type="button" onClick={closeEdit} style={{ padding: '0.65rem 0.95rem', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}>
               Cancel
             </button>
             <button type="button" onClick={handleUpdate} style={{ padding: '0.65rem 0.95rem', borderRadius: '10px', border: '1px solid var(--border)', background: '#f97316', color: '#fff' }}>
