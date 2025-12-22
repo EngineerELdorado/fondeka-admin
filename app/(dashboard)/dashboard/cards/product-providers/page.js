@@ -13,6 +13,12 @@ const emptyState = {
   price: '',
   monthlyMaintenanceCost: '',
   transactionFeePercentage: '',
+  rank: '',
+  maxDailyLimit: '',
+  minFirstTopup: '',
+  minTransactionFeeAmount: '',
+  validityLength: '',
+  validityType: '',
   active: true
 };
 
@@ -24,6 +30,12 @@ const toPayload = (state) => ({
   price: state.price === '' ? null : Number(state.price),
   monthlyMaintenanceCost: state.monthlyMaintenanceCost === '' ? null : Number(state.monthlyMaintenanceCost),
   transactionFeePercentage: state.transactionFeePercentage === '' ? null : Number(state.transactionFeePercentage),
+  rank: state.rank === '' ? null : Number(state.rank),
+  maxDailyLimit: state.maxDailyLimit === '' ? null : Number(state.maxDailyLimit),
+  minFirstTopup: state.minFirstTopup === '' ? null : Number(state.minFirstTopup),
+  minTransactionFeeAmount: state.minTransactionFeeAmount === '' ? null : Number(state.minTransactionFeeAmount),
+  validityLength: state.validityLength === '' ? null : Number(state.validityLength),
+  validityType: state.validityType || null,
   active: Boolean(state.active)
 });
 
@@ -104,27 +116,78 @@ export default function CardProductProvidersPage() {
     loadOptions();
   }, []);
 
-  const columns = useMemo(() => [
-    { key: 'id', label: 'ID' },
-    { key: 'cardBrandName', label: 'Product' },
-    { key: 'cardProviderName', label: 'Provider' },
-    { key: 'currency', label: 'Currency' },
-    { key: 'price', label: 'Price' },
-    { key: 'purchaseCost', label: 'Cost' },
-    { key: 'transactionFeePercentage', label: 'Txn fee %' },
-    { key: 'active', label: 'Active' },
-    {
-      key: 'actions',
-      label: 'Actions',
-      render: (row) => (
-        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-          <button type="button" onClick={() => openDetail(row)} className="btn-neutral">View</button>
-          <button type="button" onClick={() => openEdit(row)} className="btn-neutral">Edit</button>
-          <button type="button" onClick={() => setConfirmDelete(row)} className="btn-danger">Delete</button>
-        </div>
-      )
-    }
-  ], []);
+  const fmtAmount = (row, key) => {
+    const val = row[key];
+    if (val === null || val === undefined || val === '') return '—';
+    return `${val}${row.currency ? ` ${row.currency}` : ''}`;
+  };
+
+  const columns = useMemo(
+    () => [
+      { key: 'id', label: 'ID' },
+      { key: 'cardBrandName', label: 'Product' },
+      { key: 'cardProviderName', label: 'Provider' },
+      {
+        key: 'price',
+        label: 'Price',
+        render: (row) => fmtAmount(row, 'price')
+      },
+      {
+        key: 'purchaseCost',
+        label: 'Cost',
+        render: (row) => fmtAmount(row, 'purchaseCost')
+      },
+      {
+        key: 'maxDailyLimit',
+        label: 'Max daily limit',
+        render: (row) => fmtAmount(row, 'maxDailyLimit')
+      },
+      {
+        key: 'minFirstTopup',
+        label: 'Min first top-up',
+        render: (row) => fmtAmount(row, 'minFirstTopup')
+      },
+      {
+        key: 'minTransactionFeeAmount',
+        label: 'Min txn fee',
+        render: (row) => fmtAmount(row, 'minTransactionFeeAmount')
+      },
+      {
+        key: 'transactionFeePercentage',
+        label: 'Txn fee %',
+        render: (row) =>
+          row.transactionFeePercentage === null || row.transactionFeePercentage === undefined ? '—' : row.transactionFeePercentage
+      },
+      {
+        key: 'rank',
+        label: 'Rank',
+        render: (row) => (row.rank === null || row.rank === undefined ? '—' : row.rank)
+      },
+      {
+        key: 'duration',
+        label: 'Duration',
+        render: (row) =>
+          row.validityLength && row.validityType ? `${row.validityLength} ${row.validityType}` : '—'
+      },
+      {
+        key: 'active',
+        label: 'Active',
+        render: (row) => (row.active === null || row.active === undefined ? '—' : String(row.active))
+      },
+      {
+        key: 'actions',
+        label: 'Actions',
+        render: (row) => (
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+            <button type="button" onClick={() => openDetail(row)} className="btn-neutral">View</button>
+            <button type="button" onClick={() => openEdit(row)} className="btn-neutral">Edit</button>
+            <button type="button" onClick={() => setConfirmDelete(row)} className="btn-danger">Delete</button>
+          </div>
+        )
+      }
+    ],
+    []
+  );
 
   const openCreate = () => {
     setDraft(emptyState);
@@ -143,6 +206,12 @@ export default function CardProductProvidersPage() {
       price: row.price ?? '',
       monthlyMaintenanceCost: row.monthlyMaintenanceCost ?? '',
       transactionFeePercentage: row.transactionFeePercentage ?? '',
+      rank: row.rank ?? '',
+      maxDailyLimit: row.maxDailyLimit ?? '',
+      minFirstTopup: row.minFirstTopup ?? '',
+      minTransactionFeeAmount: row.minTransactionFeeAmount ?? '',
+      validityLength: row.validityLength ?? '',
+      validityType: row.validityType ?? '',
       active: Boolean(row.active)
     });
     setShowEdit(true);
@@ -253,6 +322,69 @@ export default function CardProductProvidersPage() {
           onChange={(e) => setDraft((p) => ({ ...p, transactionFeePercentage: e.target.value }))}
         />
       </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <label htmlFor="validityLength">Validity length</label>
+          <input
+            id="validityLength"
+            type="number"
+            value={draft.validityLength}
+            onChange={(e) => setDraft((p) => ({ ...p, validityLength: e.target.value }))}
+            placeholder="12"
+          />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <label htmlFor="validityType">Validity type</label>
+          <select
+            id="validityType"
+            value={draft.validityType}
+            onChange={(e) => setDraft((p) => ({ ...p, validityType: e.target.value }))}
+          >
+            <option value="">Select</option>
+            {['DAYS', 'MONTHS', 'YEARS'].map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="rank">Rank</label>
+        <input id="rank" type="number" value={draft.rank} onChange={(e) => setDraft((p) => ({ ...p, rank: e.target.value }))} />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <label htmlFor="maxDailyLimit">Max daily limit</label>
+          <input
+            id="maxDailyLimit"
+            type="number"
+            value={draft.maxDailyLimit}
+            onChange={(e) => setDraft((p) => ({ ...p, maxDailyLimit: e.target.value }))}
+            placeholder="500.00"
+          />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <label htmlFor="minFirstTopup">Min first top-up</label>
+          <input
+            id="minFirstTopup"
+            type="number"
+            value={draft.minFirstTopup}
+            onChange={(e) => setDraft((p) => ({ ...p, minFirstTopup: e.target.value }))}
+            placeholder="50.00"
+          />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <label htmlFor="minTransactionFeeAmount">Min txn fee</label>
+          <input
+            id="minTransactionFeeAmount"
+            type="number"
+            value={draft.minTransactionFeeAmount}
+            onChange={(e) => setDraft((p) => ({ ...p, minTransactionFeeAmount: e.target.value }))}
+            placeholder="0.50"
+          />
+        </div>
+      </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <input id="active" type="checkbox" checked={draft.active} onChange={(e) => setDraft((p) => ({ ...p, active: e.target.checked }))} />
         <label htmlFor="active">Active</label>
@@ -323,12 +455,18 @@ export default function CardProductProvidersPage() {
               { label: 'Card product', value: selected?.cardBrandName },
               { label: 'Card provider ID', value: selected?.cardProviderId },
               { label: 'Card provider', value: selected?.cardProviderName },
-              { label: 'Currency', value: selected?.currency },
-              { label: 'Price', value: selected?.price },
-              { label: 'Purchase cost', value: selected?.purchaseCost },
-              { label: 'Monthly maintenance', value: selected?.monthlyMaintenanceCost },
-              { label: 'Transaction fee %', value: selected?.transactionFeePercentage },
-              { label: 'Active', value: String(selected?.active) }
+              { label: 'Currency', value: selected?.currency || '—' },
+              { label: 'Price', value: selected?.price ?? '—' },
+              { label: 'Purchase cost', value: selected?.purchaseCost ?? '—' },
+              { label: 'Monthly maintenance', value: selected?.monthlyMaintenanceCost ?? '—' },
+              { label: 'Max daily limit', value: selected?.maxDailyLimit ?? '—' },
+              { label: 'Min first top-up', value: selected?.minFirstTopup ?? '—' },
+              { label: 'Min txn fee', value: selected?.minTransactionFeeAmount ?? '—' },
+              { label: 'Transaction fee %', value: selected?.transactionFeePercentage ?? '—' },
+              { label: 'Validity length', value: selected?.validityLength ?? '—' },
+              { label: 'Validity type', value: selected?.validityType ?? '—' },
+              { label: 'Rank', value: selected?.rank ?? '—' },
+              { label: 'Active', value: selected?.active === undefined || selected?.active === null ? '—' : String(selected?.active) }
             ]}
           />
         </Modal>
