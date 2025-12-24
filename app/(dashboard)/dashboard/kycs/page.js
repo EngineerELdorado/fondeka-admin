@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
-const statusOptions = ['PENDING', 'APPROVED', 'REJECTED', 'FAILED', 'PROVISIONALLY_APPROVED', 'ADDITIONAL_VERIFICATION_NEEDED'];
+const statusOptions = ['PENDING', 'APPROVED', 'REJECTED', 'FAILED', 'PROVISIONALLY_APPROVED', 'ADDITIONAL_VERIFICATION_NEEDED', 'EXPIRED'];
 const docTypeOptions = [
   'DRIVERS_LICENSE',
   'PASSPORT',
@@ -119,7 +119,7 @@ const StatusBadge = ({ value }) => {
       ? { bg: '#ECFDF3', fg: '#15803D' }
       : val === 'PENDING'
         ? { bg: '#EFF6FF', fg: '#1D4ED8' }
-        : val === 'REJECTED'
+        : val === 'REJECTED' || val === 'FAILED' || val === 'EXPIRED'
           ? { bg: '#FEF2F2', fg: '#B91C1C' }
           : val === 'ADDITIONAL_VERIFICATION_NEEDED'
             ? { bg: '#FFF7ED', fg: '#C2410C' }
@@ -581,6 +581,7 @@ export default function KycsPage() {
                 <option value="">Select</option>
                 <option value="APPROVE">APPROVE</option>
                 <option value="REJECT">REJECT</option>
+                <option value="EXPIRE">EXPIRED</option>
               </select>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>

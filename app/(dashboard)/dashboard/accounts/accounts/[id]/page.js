@@ -70,6 +70,8 @@ const accountId = params?.id;
 const [account, setAccount] = useState(null);
 const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [trustedDeviceOverride, setTrustedDeviceOverride] = useState(false);
+  const [trustedDeviceSaving, setTrustedDeviceSaving] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [customPricing, setCustomPricing] = useState(null);
   const [customPricingLoading, setCustomPricingLoading] = useState(false);
@@ -332,11 +334,40 @@ const [creditLoading, setCreditLoading] = useState(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accountId]);
 
+  useEffect(() => {
+    if (account?.enforceTrustedDevice === undefined) return;
+    setTrustedDeviceOverride(Boolean(account.enforceTrustedDevice));
+  }, [account?.enforceTrustedDevice]);
+
   const openCredit = () => {
     setCreditAmount('');
     setCreditNote('');
     setCreditError(null);
     setShowCredit(true);
+  };
+
+  const saveTrustedDeviceOverride = async () => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) {
+      pushToast({ tone: 'error', message: 'No account loaded' });
+      return;
+    }
+    setTrustedDeviceSaving(true);
+    setError(null);
+    try {
+      const res = await api.accounts.update(resolvedAccountId, { enforceTrustedDevice: trustedDeviceOverride });
+      const nextValue = res?.enforceTrustedDevice ?? trustedDeviceOverride;
+      setAccount((prev) => (prev ? { ...prev, enforceTrustedDevice: Boolean(nextValue) } : prev));
+      pushToast({
+        tone: 'success',
+        message: `Trusted device override ${nextValue ? 'enabled' : 'disabled'}`
+      });
+    } catch (err) {
+      const message = err.message || 'Failed to update trusted device override';
+      setError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setTrustedDeviceSaving(false);
+    }
   };
 
   const submitCredit = async () => {
@@ -957,9 +988,38 @@ const [creditLoading, setCreditLoading] = useState(false);
           { label: 'User', value: accountView?.username },
           { label: 'KYC status', value: accountView?.kycStatus },
           { label: 'Balance', value: accountView?.balance },
-          { label: 'Eligible loan', value: accountView?.eligibleLoanAmount }
+          { label: 'Eligible loan', value: accountView?.eligibleLoanAmount },
+          {
+            label: 'Trusted device override',
+            value: accountView?.enforceTrustedDevice === undefined ? '—' : accountView?.enforceTrustedDevice ? 'Yes' : 'No'
+          }
         ]}
       />
+
+      <div className="card" style={{ padding: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+            <div style={{ fontWeight: 800 }}>Trusted Device Override</div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Enforce trusted device checks for this account even if the global flag is off.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+              <input type="checkbox" checked={trustedDeviceOverride} onChange={(e) => setTrustedDeviceOverride(e.target.checked)} />
+              {trustedDeviceOverride ? 'Enabled' : 'Disabled'}
+            </label>
+            <button
+              type="button"
+              className="btn-primary btn-sm"
+              onClick={saveTrustedDeviceOverride}
+              disabled={trustedDeviceSaving || resolvedAccountId === null || resolvedAccountId === undefined}
+            >
+              {trustedDeviceSaving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
+      </div>
 
       <div className="card" style={{ padding: '1rem', ...fadeInStyle(!customPricingLoading) }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>

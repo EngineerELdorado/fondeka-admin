@@ -99,6 +99,8 @@ const initialFilters = (() => {
     status: '',
     paymentMethodId: '',
     paymentProviderId: '',
+    billProductId: '',
+    billProviderId: '',
     startDate: formatInputDate(start),
     endDate: formatInputDate(end)
   };
@@ -186,6 +188,8 @@ export default function DashboardPage() {
   const [datePreset, setDatePreset] = useState('');
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [paymentProviders, setPaymentProviders] = useState([]);
+  const [billProducts, setBillProducts] = useState([]);
+  const [billProviders, setBillProviders] = useState([]);
   const [countries, setCountries] = useState([]);
   const [showHoldings, setShowHoldings] = useState(false);
 
@@ -208,7 +212,7 @@ export default function DashboardPage() {
         const params = new URLSearchParams();
         Object.entries(appliedFilters).forEach(([key, value]) => {
           if (value === '' || value === null || value === undefined) return;
-          if (['accountId', 'countryId', 'paymentMethodId', 'paymentProviderId'].includes(key)) {
+          if (['accountId', 'countryId', 'paymentMethodId', 'paymentProviderId', 'billProductId', 'billProviderId'].includes(key)) {
             const num = Number(value);
             if (!Number.isNaN(num)) params.set(key, String(num));
           } else if (['startDate', 'endDate'].includes(key)) {
@@ -233,14 +237,18 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchOptions = async () => {
       try {
-        const [pmRes, provRes, countryRes] = await Promise.all([
+        const [pmRes, provRes, billProductRes, billProviderRes, countryRes] = await Promise.all([
           api.paymentMethods.list(new URLSearchParams({ page: '0', size: '200' })),
           api.paymentProviders.list(new URLSearchParams({ page: '0', size: '200' })),
+          api.billProducts.list(new URLSearchParams({ page: '0', size: '200' })),
+          api.billProviders.list(new URLSearchParams({ page: '0', size: '200' })),
           api.countries.list(new URLSearchParams({ page: '0', size: '200' }))
         ]);
         const toList = (res) => (Array.isArray(res) ? res : res?.content || []);
         setPaymentMethods(toList(pmRes));
         setPaymentProviders(toList(provRes));
+        setBillProducts(toList(billProductRes));
+        setBillProviders(toList(billProviderRes));
         setCountries(toList(countryRes));
       } catch {
         // silent fail; dropdowns will stay empty
@@ -536,6 +544,28 @@ export default function DashboardPage() {
                   </select>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="billProductId" style={{ color: 'var(--muted)', fontSize: '12px' }}>Bill product</label>
+                  <select id="billProductId" value={filters.billProductId} onChange={(e) => setFilters((p) => ({ ...p, billProductId: e.target.value }))}>
+                    <option value="">Any</option>
+                    {billProducts.map((product) => (
+                      <option key={product.id} value={product.id}>
+                        {product.displayName || product.code || product.id}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="billProviderId" style={{ color: 'var(--muted)', fontSize: '12px' }}>Bill provider</label>
+                  <select id="billProviderId" value={filters.billProviderId} onChange={(e) => setFilters((p) => ({ ...p, billProviderId: e.target.value }))}>
+                    <option value="">Any</option>
+                    {billProviders.map((prov) => (
+                      <option key={prov.id} value={prov.id}>
+                        {prov.displayName || prov.name || prov.id}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   <label htmlFor="accountReference" style={{ color: 'var(--muted)', fontSize: '12px' }}>Account ref</label>
                   <input id="accountReference" value={filters.accountReference} onChange={(e) => setFilters((p) => ({ ...p, accountReference: e.target.value }))} />
                 </div>
@@ -741,6 +771,28 @@ export default function DashboardPage() {
               { key: 'volume', label: 'Volume', render: (row) => formatCurrency(row.volume) }
             ]}
             rows={data?.paymentMethods}
+          />
+        </div>
+        <div className="card" style={{ display: 'grid', gap: '0.5rem' }}>
+          <div style={{ fontWeight: 800 }}>Bill products</div>
+          <Table
+            columns={[
+              { key: 'billProductName', label: 'Product', render: (row) => row.billProductName || row.billProductId || '—' },
+              { key: 'count', label: 'Count', render: (row) => formatNumber(row.count), bold: true },
+              { key: 'volume', label: 'Volume', render: (row) => formatCurrency(row.volume) }
+            ]}
+            rows={data?.billProducts}
+          />
+        </div>
+        <div className="card" style={{ display: 'grid', gap: '0.5rem' }}>
+          <div style={{ fontWeight: 800 }}>Bill providers</div>
+          <Table
+            columns={[
+              { key: 'billProviderName', label: 'Provider', render: (row) => row.billProviderName || row.billProviderId || '—' },
+              { key: 'count', label: 'Count', render: (row) => formatNumber(row.count), bold: true },
+              { key: 'volume', label: 'Volume', render: (row) => formatCurrency(row.volume) }
+            ]}
+            rows={data?.billProviders}
           />
         </div>
         <div className="card" style={{ display: 'grid', gap: '0.5rem' }}>
