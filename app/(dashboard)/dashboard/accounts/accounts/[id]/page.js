@@ -1755,7 +1755,7 @@ const [creditLoading, setCreditLoading] = useState(false);
                 <label htmlFor="feeService">Service</label>
                 <select id="feeService" value={feeService} onChange={(e) => setFeeService(e.target.value)}>
                   <option value="">None</option>
-                  {['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'PAYMENT_REQUEST', 'E_SIM', 'AIRTIME_AND_DATA', 'GIFT_CARDS', 'OTHER'].map((svc) => (
+                  {['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'PAYMENT_REQUEST', 'E_SIM', 'AIRTIME_AND_DATA', 'OTHER'].map((svc) => (
                     <option key={svc} value={svc}>
                       {svc}
                     </option>

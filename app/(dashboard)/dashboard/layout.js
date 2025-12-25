@@ -30,7 +30,7 @@ const navItems = [
 ];
 
 export default function DashboardLayout({ children }) {
-  const { isAuthenticated, loading, logout, refreshSession } = useAuth();
+  const { isAuthenticated, loading, initialized, logout, refreshSession } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [theme, setTheme] = useState('light');
@@ -53,15 +53,27 @@ export default function DashboardLayout({ children }) {
   }, [refreshSession]);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || !initialized) return;
     if (!isAuthenticated) {
       router.replace('/login');
     }
-  }, [isAuthenticated, loading, router]);
+  }, [isAuthenticated, loading, initialized, router]);
 
   const isActive = (href) => {
     return pathname === href || pathname.startsWith(`${href}/`);
   };
+
+  if (!initialized) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', color: 'var(--text)' }}>
+        Loading session…
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <div className="dashboard-shell" style={{ minHeight: '100vh', display: 'flex', background: 'var(--bg)', color: 'var(--text)' }}>

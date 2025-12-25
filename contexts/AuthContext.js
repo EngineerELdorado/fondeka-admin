@@ -14,6 +14,7 @@ const AuthContext = createContext(undefined);
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [initialized, setInitialized] = useState(false);
 
   const refreshSession = useCallback(async (forceRefresh = false) => {
     setLoading(true);
@@ -27,6 +28,7 @@ export function AuthProvider({ children }) {
       console.error('Failed to refresh auth session', err);
     } finally {
       setLoading(false);
+      setInitialized(true);
     }
   }, []);
 
@@ -103,6 +105,7 @@ export function AuthProvider({ children }) {
   const value = {
     isAuthenticated,
     loading,
+    initialized,
     session,
     requestEmailCode,
     confirmEmailCode,
