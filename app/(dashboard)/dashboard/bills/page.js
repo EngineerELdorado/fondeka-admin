@@ -8,8 +8,7 @@ const sections = [
   { href: '/dashboard/bills/product-providers', title: 'Product ↔ Provider', blurb: 'Map bill products to providers with rank/active.' },
   { href: '/dashboard/bills/offers', title: 'Product/Provider Offers', blurb: 'Offers per product/provider mapping.' },
   { href: '/dashboard/bills/options', title: 'Product/Provider Options', blurb: 'Options tied to product/provider.' },
-  { href: '/dashboard/bills/offer-options', title: 'Offer ↔ Option', blurb: 'Join offers to options.' },
-  { href: '/dashboard/crud?domain=bills', title: 'Explorer', blurb: 'Access all bill endpoints if needed.' }
+  { href: '/dashboard/bills/offer-options', title: 'Offer ↔ Option', blurb: 'Join offers to options.' }
 ];
 
 export default function BillsHubPage() {

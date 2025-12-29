@@ -6,8 +6,7 @@ const sections = [
   { href: '/dashboard/geo/countries', title: 'Countries', blurb: 'Manage country codes and names.' },
   { href: '/dashboard/geo/provinces', title: 'Provinces', blurb: 'Provinces by country.' },
   { href: '/dashboard/geo/territories', title: 'Territories', blurb: 'Territories by province.' },
-  { href: '/dashboard/geo/municipalities', title: 'Municipalities', blurb: 'Municipalities by territory.' },
-  { href: '/dashboard/crud?domain=geo', title: 'Explorer', blurb: 'Access all geo endpoints if needed.' }
+  { href: '/dashboard/geo/municipalities', title: 'Municipalities', blurb: 'Municipalities by territory.' }
 ];
 
 export default function GeoHubPage() {

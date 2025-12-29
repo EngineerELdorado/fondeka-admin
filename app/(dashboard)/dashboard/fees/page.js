@@ -3,8 +3,7 @@
 import Link from 'next/link';
 
 const sections = [
-  { href: '/dashboard/fees/fee-configs', title: 'Fee Configs', blurb: 'Fees per action and provider/method.' },
-  { href: '/dashboard/crud?domain=fees', title: 'Explorer', blurb: 'Access all fee endpoints if needed.' }
+  { href: '/dashboard/fees/fee-configs', title: 'Fee Configs', blurb: 'Fees per action and provider/method.' }
 ];
 
 export default function FeesHubPage() {

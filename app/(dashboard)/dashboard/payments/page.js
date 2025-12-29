@@ -7,8 +7,7 @@ const sections = [
   { href: '/dashboard/payments/payment-providers', title: 'Payment Providers', blurb: 'Manage payment providers and ranking.' },
   { href: '/dashboard/payments/method-providers', title: 'Method ↔ Provider', blurb: 'Map payment methods to providers with rank/active.' },
   { href: '/dashboard/payments/method-crypto-networks', title: 'Method ↔ Crypto Network', blurb: 'Map payment methods to crypto networks.' },
-  { href: '/dashboard/fees/fee-configs', title: 'Fee Configs', blurb: 'Configure fees per action, service, country, PMPP.' },
-  { href: '/dashboard/crud?domain=payments', title: 'Explorer', blurb: 'Access all payment endpoints if needed.' }
+  { href: '/dashboard/fees/fee-configs', title: 'Fee Configs', blurb: 'Configure fees per action, service, country, PMPP.' }
 ];
 
 export default function PaymentsHubPage() {

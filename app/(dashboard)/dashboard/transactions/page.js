@@ -15,6 +15,7 @@ const actionOptions = [
   'E_SIM_TOPUP',
   'FUND_CARD',
   'FUND_WALLET',
+  'INTER_TRANSFER',
   'LOAN_DISBURSEMENT',
   'PAY_ELECTRICITY_BILL',
   'PAY_INTERNET_BILL',
@@ -78,6 +79,7 @@ const initialFilters = {
   paymentMethodPaymentProviderId: '',
   userNameContains: '',
   refunded: '',
+  needsManualRefund: '',
   startDate: '',
   endDate: ''
 };
@@ -170,6 +172,9 @@ export default function TransactionsPage() {
   const [refundNote, setRefundNote] = useState('');
   const [refundError, setRefundError] = useState(null);
   const [refundLoading, setRefundLoading] = useState(false);
+  const [showReplayConfirm, setShowReplayConfirm] = useState(false);
+  const [replayLoading, setReplayLoading] = useState(false);
+  const [replayError, setReplayError] = useState(null);
 
   const formatDateTime = (value) => {
     if (!value) return '—';
@@ -213,6 +218,19 @@ export default function TransactionsPage() {
   };
 
   const fetchRows = async () => fetchRowsFor({ targetPage: page, targetSize: size, targetFilters: appliedFilters });
+
+  const manualRefundViewActive = appliedFilters.needsManualRefund === 'true';
+  const showAllTransactions = () => {
+    setPage(0);
+    setFilters(initialFilters);
+    setAppliedFilters(initialFilters);
+  };
+  const showManualRefunds = () => {
+    const next = { ...initialFilters, needsManualRefund: 'true' };
+    setPage(0);
+    setFilters(next);
+    setAppliedFilters(next);
+  };
 
   const renderStatusBadge = (value) => {
     if (!value) return '—';
@@ -368,6 +386,9 @@ export default function TransactionsPage() {
         case 'refunded':
           add(`Refunded: ${value}`, key);
           break;
+        case 'needsManualRefund':
+          add(`Needs manual refund: ${value}`, key);
+          break;
         case 'startDate':
           add(`From: ${value}`, key);
           break;
@@ -400,6 +421,16 @@ export default function TransactionsPage() {
         render: (row) => row.action || '—'
       },
       {
+        key: 'service',
+        label: 'Service',
+        render: (row) => row.service || '—'
+      },
+      {
+        key: 'internalReference',
+        label: 'Internal ref',
+        render: (row) => row.internalReference || '—'
+      },
+      {
         key: 'balanceEffect',
         label: 'Effect',
         render: (row) => row.balanceEffect || '—'
@@ -408,6 +439,11 @@ export default function TransactionsPage() {
         key: 'status',
         label: 'Status',
         render: (row) => renderStatusBadge(row.status)
+      },
+      {
+        key: 'needsManualRefund',
+        label: 'Manual refund',
+        render: (row) => (row.needsManualRefund ? 'Yes' : 'No')
       },
       {
         key: 'amount',
@@ -518,6 +554,37 @@ export default function TransactionsPage() {
     return effect === 'DEBIT' && (status === 'FAILED' || status === 'PROCESSING') && !refunded;
   }, [selected]);
 
+  const canReplayFulfillment = useMemo(() => {
+    if (!selected) return false;
+    const status = String(selected.status || '').toUpperCase();
+    const action = String(selected.action || '').toUpperCase();
+    if (action === 'LOAN_REQUEST') return false;
+    return status !== 'FAILED' && status !== 'CANCELED' && status !== 'CANCELLED';
+  }, [selected]);
+
+  const handleReplayFulfillment = async () => {
+    const transactionId = selected?.transactionId || selected?.id;
+    if (!transactionId) {
+      setReplayError('Missing transaction id');
+      return;
+    }
+    setReplayLoading(true);
+    setReplayError(null);
+    try {
+      await api.transactions.replayLoanFulfillment(transactionId, 'CREDIT');
+      pushToast({ tone: 'success', message: 'Loan fulfillment replay started.' });
+      setShowReplayConfirm(false);
+      await fetchRows();
+      await loadReceipt(transactionId);
+    } catch (err) {
+      const message = err?.message || 'Failed to replay loan fulfillment';
+      setReplayError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setReplayLoading(false);
+    }
+  };
+
   const openReceiptForm = () => {
     setReceiptError(null);
     setReceiptSaving(false);
@@ -625,7 +692,8 @@ export default function TransactionsPage() {
         refunded: true,
         refundedAt: res?.refundedAt || prev?.refundedAt,
         refundReference: res?.refundReference,
-        refundTransactionId: res?.refundTransactionId
+        refundTransactionId: res?.refundTransactionId,
+        needsManualRefund: false
       }));
 
       await fetchRows();
@@ -656,6 +724,17 @@ export default function TransactionsPage() {
       </div>
 
       <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontSize: '13px', color: 'var(--muted)' }}>View</span>
+          <button type="button" onClick={showAllTransactions} className={manualRefundViewActive ? 'btn-neutral btn-sm' : 'btn-primary btn-sm'}>
+            All transactions
+          </button>
+          <button type="button" onClick={showManualRefunds} className={manualRefundViewActive ? 'btn-primary btn-sm' : 'btn-neutral btn-sm'}>
+            Manual refunds
+          </button>
+          {manualRefundViewActive && <span style={{ fontSize: '12px', color: 'var(--muted)' }}>Showing needsManualRefund=true</span>}
+        </div>
+
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="reference">Reference</label>
@@ -768,6 +847,18 @@ export default function TransactionsPage() {
               <option value="false">No</option>
             </select>
           </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="needsManualRefund">Needs manual refund</label>
+            <select
+              id="needsManualRefund"
+              value={filters.needsManualRefund}
+              onChange={(e) => setFilters((p) => ({ ...p, needsManualRefund: e.target.value }))}
+            >
+              <option value="">Any</option>
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+            </select>
+          </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
@@ -844,6 +935,7 @@ export default function TransactionsPage() {
                 { label: 'Reference', value: selected?.reference },
                 { label: 'External ref', value: selected?.externalReference },
                 { label: 'Operator ref', value: selected?.operatorReference },
+                { label: 'Internal ref', value: selected?.internalReference || '—' },
                 { label: 'Service', value: selected?.service },
                 { label: 'Action', value: selected?.action },
                 { label: 'Effect', value: selected?.balanceEffect },
@@ -861,6 +953,8 @@ export default function TransactionsPage() {
                 { label: 'Payment method', value: selected?.paymentMethodName || selected?.paymentMethodId },
                 { label: 'Payment provider', value: selected?.paymentProviderName || selected?.paymentProviderId },
                 { label: 'Refunded', value: selected?.refunded || selected?.refundedAt ? 'Yes' : 'No' },
+                { label: 'Refunded at', value: formatDateTime(selected?.refundedAt) },
+                { label: 'Needs manual refund', value: selected?.needsManualRefund ? 'Yes' : 'No' },
                 { label: 'Refund ref', value: selected?.refundReference || '—' },
                 { label: 'Refund txn ID', value: selected?.refundTransactionId || '—' }
               ]}
@@ -988,11 +1082,43 @@ export default function TransactionsPage() {
               <button type="button" onClick={() => loadAccountSummary(selected)} className="btn-neutral" disabled={accountLoading}>
                 {accountLoading ? 'Refreshing…' : 'Refresh balance'}
               </button>
+              {canReplayFulfillment && (
+                <button type="button" onClick={() => setShowReplayConfirm(true)} className="btn-primary">
+                  Replay loan fulfillment
+                </button>
+              )}
               {canRefundSelected && (
                 <button type="button" onClick={() => setShowRefund(true)} className="btn-danger">
                   Refund to wallet
                 </button>
               )}
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showReplayConfirm && (
+        <Modal title="Replay loan fulfillment" onClose={() => (!replayLoading ? setShowReplayConfirm(false) : null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ color: 'var(--muted)' }}>
+              This will resume fulfillment for this PAY_LATER purchase and may update the transaction to FUNDED.
+            </div>
+            {replayError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{replayError}</div>}
+            <DetailGrid
+              rows={[
+                { label: 'Transaction ID', value: selected?.transactionId || selected?.id },
+                { label: 'Reference', value: selected?.reference },
+                { label: 'Action', value: selected?.action },
+                { label: 'Status', value: selected?.status }
+              ]}
+            />
+            <div className="modal-actions">
+              <button type="button" className="btn-neutral" onClick={() => setShowReplayConfirm(false)} disabled={replayLoading}>
+                Cancel
+              </button>
+              <button type="button" className="btn-primary" onClick={handleReplayFulfillment} disabled={replayLoading}>
+                {replayLoading ? 'Replaying…' : 'Confirm replay'}
+              </button>
             </div>
           </div>
         </Modal>

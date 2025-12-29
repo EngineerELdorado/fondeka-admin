@@ -68,6 +68,7 @@ const actionOptions = [
   'E_SIM_TOPUP',
   'FUND_CARD',
   'FUND_WALLET',
+  'INTER_TRANSFER',
   'LOAN_DISBURSEMENT',
   'LOAN_REQUEST',
   'PAY_BILL',
@@ -194,15 +195,6 @@ export default function DashboardPage() {
   const [billProviders, setBillProviders] = useState([]);
   const [countries, setCountries] = useState([]);
   const [showHoldings, setShowHoldings] = useState(false);
-  const [receiptReport, setReceiptReport] = useState(null);
-  const [receiptLoading, setReceiptLoading] = useState(false);
-  const [receiptError, setReceiptError] = useState(null);
-  const [showReceiptConfirm, setShowReceiptConfirm] = useState(false);
-  const [receiptConfirmReport, setReceiptConfirmReport] = useState(null);
-  const [receiptRunning, setReceiptRunning] = useState(false);
-  const [auditLogs, setAuditLogs] = useState([]);
-  const [auditLoading, setAuditLoading] = useState(false);
-  const [auditError, setAuditError] = useState(null);
 
   const applyFilters = () => {
     setAppliedFilters(filters);
@@ -268,40 +260,6 @@ export default function DashboardPage() {
     fetchOptions();
   }, []);
 
-  const fetchReceiptReport = async () => {
-    setReceiptLoading(true);
-    setReceiptError(null);
-    try {
-      const res = await api.receipts.report();
-      setReceiptReport(res || null);
-    } catch (err) {
-      setReceiptError(err.message || 'Failed to load receipt report');
-    } finally {
-      setReceiptLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchReceiptReport();
-  }, []);
-
-  const fetchAuditLogs = async () => {
-    setAuditLoading(true);
-    setAuditError(null);
-    try {
-      const res = await api.auditLogs.list(new URLSearchParams({ page: '0', size: '10' }));
-      const list = Array.isArray(res) ? res : res?.content || [];
-      setAuditLogs(list || []);
-    } catch (err) {
-      setAuditError(err.message || 'Failed to load audit logs');
-    } finally {
-      setAuditLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchAuditLogs();
-  }, []);
 
   const totals = data?.totals || {};
   const metrics = data?.metrics || {};
@@ -723,32 +681,17 @@ export default function DashboardPage() {
                       tick={{ fontSize: 11 }}
                       width={70}
                     />
-                    <YAxis
-                      yAxisId="right"
-                      orientation="right"
-                      tickFormatter={(v) => formatNumber(v)}
-                      tick={{ fontSize: 11 }}
-                      width={50}
-                    />
                     <Tooltip
                       formatter={(value, name) => {
                         if (name === 'volume') return [formatCurrency(value), 'Volume'];
-                        if (name === 'fee') return [formatCurrency(value), 'Our fees'];
-                        if (name === 'commission') return [formatCurrency(value), 'Commission'];
                         if (name === 'revenue') return [formatCurrency(value), 'Total revenue'];
-                        if (name === 'providerFees') return [formatCurrency(value), 'Provider fees'];
-                        if (name === 'count') return [formatNumber(value), 'Count'];
                         return [value, name];
                       }}
                       labelFormatter={(label) => `Date: ${label}`}
                     />
                     <Legend />
-                    <Line type="monotone" dataKey="volume" name="Volume" stroke="#2563eb" strokeWidth={2.5} dot={false} yAxisId="left" />
-                    <Line type="monotone" dataKey="fee" name="Our fees" stroke="#7c3aed" strokeWidth={2} dot={false} yAxisId="left" />
-                    <Line type="monotone" dataKey="commission" name="Commission" stroke="#f97316" strokeWidth={2} dot={false} yAxisId="left" />
-                    <Line type="monotone" dataKey="revenue" name="Total revenue" stroke="#0f766e" strokeWidth={2} dot={false} yAxisId="left" />
-                    <Line type="monotone" dataKey="providerFees" name="Provider fees" stroke="#6b7280" strokeWidth={2} dot={false} yAxisId="left" />
-                    <Line type="monotone" dataKey="count" name="Count" stroke="#16a34a" strokeWidth={2} dot={false} yAxisId="right" />
+                    <Line type="monotone" dataKey="volume" name="Volume" stroke="#0f172a" strokeWidth={2.5} dot={false} yAxisId="left" />
+                    <Line type="monotone" dataKey="revenue" name="Total revenue" stroke="#16a34a" strokeWidth={2} dot={false} yAxisId="left" />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -833,87 +776,6 @@ export default function DashboardPage() {
             rows={data?.paymentMethods}
           />
         </div>
-        <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontWeight: 800 }}>Receipt health</div>
-            <button type="button" className="btn-neutral btn-sm" onClick={fetchReceiptReport} disabled={receiptLoading}>
-              {receiptLoading ? 'Refreshing…' : 'Refresh'}
-            </button>
-          </div>
-          {receiptError && <div style={{ color: '#b91c1c', fontWeight: 600 }}>{receiptError}</div>}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.5rem' }}>
-            <div style={{ padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '12px' }}>
-              <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Missing receipts</div>
-              <div style={{ fontWeight: 800, fontSize: '18px' }}>{formatNumber(receiptReport?.missingReceipts)}</div>
-            </div>
-            <div style={{ padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '12px' }}>
-              <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Missing payloads</div>
-              <div style={{ fontWeight: 800, fontSize: '18px' }}>{formatNumber(receiptReport?.missingPayloads)}</div>
-            </div>
-          </div>
-          <Table
-            columns={[
-              { key: 'service', label: 'Service' },
-              { key: 'missingReceipts', label: 'Missing receipts', render: (row) => formatNumber(row.missingReceipts), bold: true },
-              { key: 'missingPayloads', label: 'Missing payloads', render: (row) => formatNumber(row.missingPayloads) },
-              { key: 'fee', label: 'Our fees', render: (row) => formatCurrency(row.fee) },
-              { key: 'commission', label: 'Commission', render: (row) => formatCurrency(row.commission) },
-              { key: 'revenue', label: 'Total revenue', render: (row) => formatCurrency(row.revenue) }
-            ]}
-            rows={receiptReport?.byService}
-            emptyLabel={receiptLoading ? 'Loading…' : 'No receipt gaps detected'}
-          />
-          <div>
-            <button
-              type="button"
-              className="btn-primary btn-sm"
-              onClick={async () => {
-                setReceiptRunning(true);
-                setReceiptError(null);
-                try {
-                  const res = await api.receipts.backfill(true);
-                  setReceiptConfirmReport(res || null);
-                  setShowReceiptConfirm(true);
-                } catch (err) {
-                  setReceiptError(err.message || 'Failed to run dry run');
-                } finally {
-                  setReceiptRunning(false);
-                }
-              }}
-              disabled={receiptRunning}
-            >
-              {receiptRunning ? 'Running…' : 'Run backfill'}
-            </button>
-          </div>
-        </div>
-        <div className="card" style={{ display: 'grid', gap: '0.5rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontWeight: 800 }}>Audit log</div>
-            <button type="button" className="btn-neutral btn-sm" onClick={fetchAuditLogs} disabled={auditLoading}>
-              {auditLoading ? 'Refreshing…' : 'Refresh'}
-            </button>
-          </div>
-          {auditError && <div style={{ color: '#b91c1c', fontWeight: 600 }}>{auditError}</div>}
-          <Table
-            columns={[
-              { key: 'createdAt', label: 'Time', render: (row) => formatDateTime(row.createdAt || row.timestamp || row.time || row.loggedAt || row.updatedAt) },
-              { key: 'action', label: 'Action', render: (row) => row.action || '—' },
-              {
-                key: 'target',
-                label: 'Target',
-                render: (row) => {
-                  const type = row.targetType || row.target_type;
-                  const id = row.targetId || row.target_id;
-                  if (type || id) return `${type || 'target'} ${id ?? ''}`.trim();
-                  return '—';
-                }
-              },
-              { key: 'admin', label: 'Admin', render: (row) => row.adminName || row.adminEmail || row.adminId || row.actor || '—' }
-            ]}
-            rows={auditLogs}
-            emptyLabel={auditLoading ? 'Loading…' : 'No audit activity yet'}
-          />
-        </div>
         <div className="card" style={{ display: 'grid', gap: '0.5rem' }}>
           <div style={{ fontWeight: 800 }}>Bill products</div>
           <Table
@@ -985,62 +847,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {showReceiptConfirm && (
-        <Modal title="Confirm receipt backfill" onClose={() => setShowReceiptConfirm(false)}>
-          <div style={{ display: 'grid', gap: '0.75rem' }}>
-            <div style={{ color: 'var(--muted)' }}>
-              Dry run results. Proceeding will run the backfill and update the report.
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.5rem' }}>
-              <div style={{ padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '12px' }}>
-                <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Missing receipts</div>
-                <div style={{ fontWeight: 800, fontSize: '18px' }}>{formatNumber(receiptConfirmReport?.missingReceipts)}</div>
-              </div>
-              <div style={{ padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '12px' }}>
-                <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Missing payloads</div>
-                <div style={{ fontWeight: 800, fontSize: '18px' }}>{formatNumber(receiptConfirmReport?.missingPayloads)}</div>
-              </div>
-            </div>
-            <Table
-              columns={[
-                { key: 'service', label: 'Service' },
-                { key: 'missingReceipts', label: 'Missing receipts', render: (row) => formatNumber(row.missingReceipts), bold: true },
-                { key: 'missingPayloads', label: 'Missing payloads', render: (row) => formatNumber(row.missingPayloads) },
-                { key: 'fee', label: 'Our fees', render: (row) => formatCurrency(row.fee) },
-                { key: 'commission', label: 'Commission', render: (row) => formatCurrency(row.commission) },
-                { key: 'revenue', label: 'Total revenue', render: (row) => formatCurrency(row.revenue) }
-              ]}
-              rows={receiptConfirmReport?.byService}
-              emptyLabel="No receipt gaps detected"
-            />
-            <div className="modal-actions">
-              <button type="button" className="btn-neutral" onClick={() => setShowReceiptConfirm(false)}>
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={async () => {
-                  setReceiptRunning(true);
-                  setReceiptError(null);
-                  try {
-                    const res = await api.receipts.backfill(false);
-                    setReceiptReport(res || null);
-                    setShowReceiptConfirm(false);
-                  } catch (err) {
-                    setReceiptError(err.message || 'Failed to run backfill');
-                  } finally {
-                    setReceiptRunning(false);
-                  }
-                }}
-                disabled={receiptRunning}
-              >
-                {receiptRunning ? 'Running…' : 'Confirm backfill'}
-              </button>
-            </div>
-          </div>
-        </Modal>
-      )}
     </div>
   );
 }

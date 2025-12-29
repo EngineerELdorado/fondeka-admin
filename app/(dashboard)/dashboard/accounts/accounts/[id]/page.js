@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useToast } from '@/contexts/ToastContext';
-import { DataTable } from '@/components/DataTable';
 
 const Modal = ({ title, onClose, children }) => (
   <div className="modal-backdrop">
@@ -155,6 +154,16 @@ const [creditAmount, setCreditAmount] = useState('');
 const [creditNote, setCreditNote] = useState('');
 const [creditError, setCreditError] = useState(null);
 const [creditLoading, setCreditLoading] = useState(false);
+const [showNotification, setShowNotification] = useState(false);
+const [notificationSubject, setNotificationSubject] = useState('');
+const [notificationMessage, setNotificationMessage] = useState('');
+const [notificationChannels, setNotificationChannels] = useState(['PUSH']);
+const [notificationError, setNotificationError] = useState(null);
+const [notificationLoading, setNotificationLoading] = useState(false);
+const [notificationResult, setNotificationResult] = useState(null);
+const [loanEligibility, setLoanEligibility] = useState(null);
+const [loanEligibilityLoading, setLoanEligibilityLoading] = useState(false);
+const [loanEligibilityError, setLoanEligibilityError] = useState(null);
 
   const actionOptions = [
     'BUY_CARD',
@@ -194,6 +203,7 @@ const [creditLoading, setCreditLoading] = useState(false);
         setTransactions(list || []);
       }
       await loadCustomPricing(targetId);
+      await loadLoanEligibility(targetId);
       await loadKycCap(acc?.kycLevel);
       await loadFeeConfigs(targetId);
       await loadCardPrices(targetId);
@@ -346,6 +356,15 @@ const [creditLoading, setCreditLoading] = useState(false);
     setShowCredit(true);
   };
 
+  const openNotification = () => {
+    setNotificationSubject('');
+    setNotificationMessage('');
+    setNotificationChannels(['PUSH']);
+    setNotificationError(null);
+    setNotificationResult(null);
+    setShowNotification(true);
+  };
+
   const saveTrustedDeviceOverride = async () => {
     if (resolvedAccountId === null || resolvedAccountId === undefined) {
       pushToast({ tone: 'error', message: 'No account loaded' });
@@ -397,6 +416,64 @@ const [creditLoading, setCreditLoading] = useState(false);
       pushToast({ tone: 'error', message });
     } finally {
       setCreditLoading(false);
+    }
+  };
+
+  const submitNotification = async () => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) {
+      setNotificationError('No account loaded');
+      return;
+    }
+    const subject = notificationSubject.trim();
+    const messageText = notificationMessage.trim();
+    if (!subject || !messageText) {
+      setNotificationError('Subject and message are required');
+      return;
+    }
+    const selectedChannels = Array.from(new Set(notificationChannels));
+    if (selectedChannels.length === 0) {
+      setNotificationError('Select at least one channel');
+      return;
+    }
+    setNotificationLoading(true);
+    setNotificationError(null);
+    try {
+      const res = await api.notifications.pushTest({
+        accountId: resolvedAccountId,
+        subject,
+        message: messageText,
+        channels: selectedChannels
+      });
+      if (res?.attempted) {
+        pushToast({ tone: 'success', message: 'Notification sent' });
+        setNotificationResult(res);
+      } else {
+        const reason = res?.reason || 'Notification not attempted';
+        setNotificationError(reason);
+        pushToast({ tone: 'error', message: reason });
+        setNotificationResult(res);
+      }
+    } catch (err) {
+      const message = err.message || 'Failed to send notification';
+      setNotificationError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setNotificationLoading(false);
+    }
+  };
+
+  const loadLoanEligibility = async (id) => {
+    if (id === null || id === undefined) return;
+    setLoanEligibilityLoading(true);
+    setLoanEligibilityError(null);
+    try {
+      const res = await api.accounts.getLoanEligibility(id);
+      setLoanEligibility(res || null);
+    } catch (err) {
+      setLoanEligibility(null);
+      setLoanEligibilityError(err.message || 'Failed to load loan eligibility');
+    } finally {
+      setLoanEligibilityLoading(false);
     }
   };
 
@@ -970,6 +1047,9 @@ const [creditLoading, setCreditLoading] = useState(false);
           <button type="button" className="btn-neutral" onClick={loadAccount} disabled={loading}>
             {loading ? 'Refreshing…' : 'Refresh'}
           </button>
+          <button type="button" className="btn-neutral" onClick={openNotification}>
+            Send notification
+          </button>
           <button type="button" className="btn-success" onClick={openCredit}>
             Credit wallet
           </button>
@@ -995,6 +1075,43 @@ const [creditLoading, setCreditLoading] = useState(false);
           }
         ]}
       />
+
+      <div className="card" style={{ padding: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+            <div style={{ fontWeight: 800 }}>Loan eligibility</div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Based on completed, unrefunded transactions and custom overrides.
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn-neutral btn-sm"
+            onClick={() => loadLoanEligibility(resolvedAccountId)}
+            disabled={loanEligibilityLoading || resolvedAccountId === null || resolvedAccountId === undefined}
+          >
+            {loanEligibilityLoading ? 'Loading…' : 'Refresh'}
+          </button>
+        </div>
+
+        <div style={{ marginTop: '0.75rem' }}>
+          {loanEligibilityError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{loanEligibilityError}</div>}
+          {loanEligibilityLoading && <div style={{ color: 'var(--muted)' }}>Loading loan eligibility…</div>}
+          {!loanEligibilityLoading && !loanEligibility && <div style={{ color: 'var(--muted)' }}>No eligibility data available.</div>}
+          {!loanEligibilityLoading && loanEligibility && (
+            <DetailGrid
+              rows={[
+                { label: 'Account ID', value: loanEligibility.accountId },
+                { label: 'Has completed tx', value: loanEligibility.hasCompletedTransactions ? 'Yes' : 'No' },
+                { label: 'Profit', value: loanEligibility.profit },
+                { label: 'Base eligibility', value: loanEligibility.baseEligibility },
+                { label: 'Extra eligibility', value: loanEligibility.extraEligibility },
+                { label: 'Total eligibility', value: loanEligibility.totalEligibility }
+              ]}
+            />
+          )}
+        </div>
+      </div>
 
       <div className="card" style={{ padding: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
@@ -1740,6 +1857,76 @@ const [creditLoading, setCreditLoading] = useState(false);
               </button>
               <button type="button" className="btn-success" onClick={submitCredit} disabled={creditLoading}>
                 {creditLoading ? 'Crediting…' : 'Credit bonus'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showNotification && (
+        <Modal title="Send notification" onClose={() => (!notificationLoading ? setShowNotification(false) : null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Select at least one channel.</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="notificationSubject">Subject</label>
+                <input
+                  id="notificationSubject"
+                  value={notificationSubject}
+                  onChange={(e) => setNotificationSubject(e.target.value)}
+                  placeholder="Your title"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="notificationMessage">Message</label>
+                <textarea
+                  id="notificationMessage"
+                  rows={4}
+                  value={notificationMessage}
+                  onChange={(e) => setNotificationMessage(e.target.value)}
+                  placeholder="Your message"
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                {['PUSH', 'EMAIL', 'SMS', 'WHATSAPP'].map((channel) => (
+                  <label key={channel} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
+                    <input
+                      type="checkbox"
+                      checked={notificationChannels.includes(channel)}
+                      onChange={(e) => {
+                        setNotificationChannels((prev) => {
+                          if (e.target.checked) return Array.from(new Set([...prev, channel]));
+                          return prev.filter((item) => item !== channel);
+                        });
+                      }}
+                    />
+                    {channel}
+                  </label>
+                ))}
+              </div>
+            </div>
+            {notificationError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{notificationError}</div>}
+            {notificationResult?.channels?.length > 0 && (
+              <div style={{ border: `1px solid var(--border)`, borderRadius: '12px', padding: '0.65rem' }}>
+                <div style={{ fontWeight: 700, marginBottom: '0.4rem' }}>Channel status</div>
+                <div style={{ display: 'grid', gap: '0.35rem' }}>
+                  {notificationResult.channels.map((entry) => (
+                    <div key={entry.channel} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem' }}>
+                      <span style={{ fontWeight: 600 }}>{entry.channel}</span>
+                      <span style={{ color: entry.attempted ? '#15803d' : '#b91c1c' }}>
+                        {entry.attempted ? 'Sent' : entry.reason || 'Not attempted'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="modal-actions">
+              <button type="button" className="btn-neutral" onClick={() => setShowNotification(false)} disabled={notificationLoading}>
+                Cancel
+              </button>
+              <button type="button" className="btn-primary" onClick={submitNotification} disabled={notificationLoading}>
+                {notificationLoading ? 'Sending…' : 'Send'}
               </button>
             </div>
           </div>

@@ -15,6 +15,7 @@ const actionOptions = [
   'E_SIM_TOPUP',
   'FUND_CARD',
   'FUND_WALLET',
+  'INTER_TRANSFER',
   'LOAN_REQUEST',
   'PAY_ELECTRICITY_BILL',
   'PAY_INTERNET_BILL',

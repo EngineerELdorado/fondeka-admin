@@ -6,8 +6,7 @@ const sections = [
   { href: '/dashboard/accounts/accounts', title: 'Accounts', blurb: 'Search and review accounts, run AML check.' },
   { href: '/dashboard/accounts/balances', title: 'Account Balances', blurb: 'Manage balances per account.' },
   { href: '/dashboard/accounts/balance-activities', title: 'Balance Activities', blurb: 'Track balance changes (deposit/withdrawal).' },
-  { href: '/dashboard/accounts/transfers', title: 'Account Transfers', blurb: 'Transfers between accounts with transaction IDs.' },
-  { href: '/dashboard/crud?domain=accounts', title: 'Explorer', blurb: 'Access all account endpoints if needed.' }
+  { href: '/dashboard/accounts/transfers', title: 'Account Transfers', blurb: 'Transfers between accounts with transaction IDs.' }
 ];
 
 export default function AccountsHubPage() {

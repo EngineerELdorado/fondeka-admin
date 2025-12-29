@@ -9,8 +9,7 @@ const sections = [
   { href: '/dashboard/crypto/wallets', title: 'Crypto Wallets', blurb: 'Wallets by account and product/network.' },
   { href: '/dashboard/crypto/invoices', title: 'Crypto Invoices', blurb: 'Invoice addresses, expected amounts and status.' },
   { href: '/dashboard/crypto/payment-method-networks', title: 'Payment Method ↔ Crypto Network', blurb: 'Map payment methods to crypto networks.' },
-  { href: '/dashboard/crypto/price-history', title: 'Price History', blurb: 'Browse captured crypto prices.' },
-  { href: '/dashboard/crud?domain=crypto', title: 'Explorer', blurb: 'Access all crypto endpoints if needed.' }
+  { href: '/dashboard/crypto/price-history', title: 'Price History', blurb: 'Browse captured crypto prices.' }
 ];
 
 export default function CryptoHubPage() {

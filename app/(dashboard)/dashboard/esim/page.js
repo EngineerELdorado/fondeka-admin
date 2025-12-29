@@ -4,8 +4,7 @@ import Link from 'next/link';
 
 const sections = [
   { href: '/dashboard/esim/esims', title: 'eSIMs', blurb: 'Manage eSIMs (ICCID, status, country, data).' },
-  { href: '/dashboard/esim/providers', title: 'eSIM Providers', blurb: 'Manage eSIM providers (name, display, rank, default).' },
-  { href: '/dashboard/crud?domain=esim', title: 'Explorer', blurb: 'Access all eSIM endpoints if needed.' }
+  { href: '/dashboard/esim/providers', title: 'eSIM Providers', blurb: 'Manage eSIM providers (name, display, rank, default).' }
 ];
 
 export default function EsimHubPage() {

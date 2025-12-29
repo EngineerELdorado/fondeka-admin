@@ -10,7 +10,7 @@ const sections = [
   { href: '/dashboard/cards/cards', title: 'Cards', blurb: 'Issue and control individual cards.' },
   { href: '/dashboard/cards/card-activities', title: 'Card Activities', blurb: 'Track deposits/withdrawals on cards.' },
   { href: '/dashboard/cards/card-purchase-intents', title: 'Card Purchase Intents', blurb: 'Purchase intents linked to transactions.' },
-  { href: '/dashboard/crud?domain=cards', title: 'Explorer', blurb: 'Access all card endpoints if needed.' }
+  { href: '/dashboard/card-order-retries', title: 'Card Order Retries', blurb: 'Monitor and manage card order retry attempts.' }
 ];
 
 export default function CardsHubPage() {

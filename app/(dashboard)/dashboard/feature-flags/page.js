@@ -1,21 +1,52 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 
 const LABELS = {
-  trusted_device_enforcement: 'Enforce Trusted Device'
+  trusted_device_enforcement: 'Enforce Trusted Device',
+  auto_refund: 'Auto Refunds'
 };
 
 const WARNINGS = {
-  trusted_device_enforcement: 'Warning: Disabling trusted device enforcement reduces security for customer endpoints.'
+  trusted_device_enforcement: 'Warning: Disabling trusted device enforcement reduces security for customer endpoints.',
+  auto_refund: 'Warning: Disabling auto refunds will route failed refunds to manual review.'
 };
+
+const SUPPORTED_KEYS = [
+  'wallet',
+  'bill_payments',
+  'lending',
+  'card',
+  'crypto',
+  'payment_request',
+  'e_sim',
+  'airtime',
+  'beneficiary',
+  'kyc',
+  'device',
+  'fees',
+  'geo',
+  'transactions',
+  'payment_methods',
+  'support',
+  'storage',
+  'gift_cards'
+];
+
+const formatKeyPart = (value) =>
+  String(value || '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 
 const formatLabel = (key) => {
   if (LABELS[key]) return LABELS[key];
-  return String(key || '')
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (char) => char.toUpperCase());
+  const raw = String(key || '');
+  if (!raw.includes('.')) return formatKeyPart(raw);
+  return raw
+    .split('.')
+    .map((part) => formatKeyPart(part))
+    .join(' · ');
 };
 
 export default function FeatureFlagsPage() {
@@ -27,6 +58,28 @@ export default function FeatureFlagsPage() {
   const [confirm, setConfirm] = useState(null);
   const [draftKey, setDraftKey] = useState('');
   const [draftEnabled, setDraftEnabled] = useState(true);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+
+  const groupedFlags = useMemo(() => {
+    const groups = new Map();
+    flags.forEach((flag) => {
+      const rawKey = String(flag.key || '');
+      const groupKey = rawKey.includes('.') ? rawKey.split('.')[0] : 'modules';
+      const list = groups.get(groupKey) || [];
+      list.push(flag);
+      groups.set(groupKey, list);
+    });
+    const sortedGroups = Array.from(groups.entries()).sort(([a], [b]) => {
+      if (a === 'modules') return -1;
+      if (b === 'modules') return 1;
+      return a.localeCompare(b);
+    });
+    return sortedGroups.map(([groupKey, list]) => ({
+      key: groupKey,
+      label: groupKey === 'modules' ? 'Module flags' : formatKeyPart(groupKey),
+      flags: list.sort((a, b) => String(a.key || '').localeCompare(String(b.key || '')))
+    }));
+  }, [flags]);
 
   const loadFlags = async () => {
     setLoading(true);
@@ -96,6 +149,24 @@ export default function FeatureFlagsPage() {
     } finally {
       setSavingKey('');
       setConfirm(null);
+    }
+  };
+
+  const handleDeleteFlag = async () => {
+    if (!deleteConfirm?.key) return;
+    const key = deleteConfirm.key;
+    setSavingKey(key);
+    setError(null);
+    setInfo(null);
+    try {
+      await api.featureFlags.remove(key);
+      setFlags((prev) => prev.filter((flag) => flag.key !== key));
+      setInfo(`${formatLabel(key)} deleted.`);
+    } catch (err) {
+      setError(err.message || 'Failed to delete feature flag');
+    } finally {
+      setSavingKey('');
+      setDeleteConfirm(null);
     }
   };
 
@@ -174,30 +245,60 @@ export default function FeatureFlagsPage() {
             Save
           </button>
         </div>
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          Supported keys: {SUPPORTED_KEYS.join(', ')}
+        </div>
       </div>
 
       <div style={{ display: 'grid', gap: '0.85rem', maxWidth: '720px' }}>
         {loading && <div className="card">Loading feature flags…</div>}
         {!loading && flags.length === 0 && <div className="card">No feature flags available.</div>}
-        {flags.map((flag) => {
-          const label = formatLabel(flag.key);
-          const warning = WARNINGS[flag.key];
-          return (
-            <div key={flag.key} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
-                <div>
-                  <div style={{ fontWeight: 700 }}>{label}</div>
-                  <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{flag.key}</div>
-                </div>
-                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
-                  <input type="checkbox" checked={Boolean(flag.enabled)} onChange={() => handleToggle(flag.key)} disabled={loading || savingKey === flag.key} />
-                  {flag.enabled ? 'Enabled' : 'Disabled'}
-                </label>
-              </div>
-              {!flag.enabled && warning && <div style={{ color: '#b45309', fontWeight: 600 }}>{warning}</div>}
+        {groupedFlags.map((group) => (
+          <div key={group.key} className="card" style={{ display: 'grid', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontWeight: 800 }}>{group.label}</div>
+              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{group.flags.length} flags</div>
             </div>
-          );
-        })}
+            <div style={{ display: 'grid', gap: '0.75rem' }}>
+              {group.flags.map((flag) => {
+                const label = formatLabel(flag.key);
+                const warning = WARNINGS[flag.key];
+                return (
+                  <div key={flag.key} style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
+                      <div>
+                        <div style={{ fontWeight: 700 }}>{label}</div>
+                        <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{flag.key}</div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                          <input type="checkbox" checked={Boolean(flag.enabled)} onChange={() => handleToggle(flag.key)} disabled={loading || savingKey === flag.key} />
+                          {flag.enabled ? 'Enabled' : 'Disabled'}
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setDeleteConfirm({ key: flag.key })}
+                          disabled={savingKey === flag.key}
+                          style={{
+                            border: `1px solid var(--border)`,
+                            background: 'var(--surface)',
+                            padding: '0.45rem 0.7rem',
+                            borderRadius: '10px',
+                            cursor: 'pointer',
+                            color: 'var(--text)'
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                    {!flag.enabled && warning && <div style={{ color: '#b45309', fontWeight: 600 }}>{warning}</div>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
 
       {confirm && (
@@ -226,6 +327,38 @@ export default function FeatureFlagsPage() {
                 style={{ border: `1px solid #b91c1c`, background: '#b91c1c', color: '#fff', padding: '0.6rem 0.85rem', borderRadius: '10px', cursor: 'pointer' }}
               >
                 Disable
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteConfirm && (
+        <div className="modal-backdrop">
+          <div className="modal-surface" style={{ width: 'min(520px, 92vw)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.25rem', borderBottom: '1px solid var(--border)' }}>
+              <div style={{ fontWeight: 800 }}>Delete feature flag?</div>
+              <button type="button" onClick={() => setDeleteConfirm(null)} style={{ border: 'none', background: 'transparent', fontSize: '18px', cursor: 'pointer', color: 'var(--text)' }}>
+                ×
+              </button>
+            </div>
+            <div style={{ color: 'var(--muted)' }}>
+              Deleting <strong>{formatLabel(deleteConfirm.key)}</strong> resets it to the default behavior.
+            </div>
+            <div className="modal-actions">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirm(null)}
+                style={{ border: `1px solid var(--border)`, background: 'var(--surface)', padding: '0.6rem 0.85rem', borderRadius: '10px', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteFlag}
+                style={{ border: `1px solid #b91c1c`, background: '#b91c1c', color: '#fff', padding: '0.6rem 0.85rem', borderRadius: '10px', cursor: 'pointer' }}
+              >
+                Delete
               </button>
             </div>
           </div>

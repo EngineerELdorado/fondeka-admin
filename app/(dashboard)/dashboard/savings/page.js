@@ -5,8 +5,7 @@ import Link from 'next/link';
 const sections = [
   { href: '/dashboard/savings/products', title: 'Saving Products', blurb: 'Configure saving products (rates, terms).' },
   { href: '/dashboard/savings/savings', title: 'Savings', blurb: 'Manage individual savings accounts.' },
-  { href: '/dashboard/savings/activities', title: 'Saving Activities', blurb: 'Track deposits and withdrawals.' },
-  { href: '/dashboard/crud?domain=savings', title: 'Explorer', blurb: 'Access all savings endpoints if needed.' }
+  { href: '/dashboard/savings/activities', title: 'Saving Activities', blurb: 'Track deposits and withdrawals.' }
 ];
 
 export default function SavingsHubPage() {
