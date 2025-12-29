@@ -31,7 +31,7 @@ const actionOptions = [
   'WITHDRAW_FROM_WALLET'
 ].sort();
 const balanceEffectOptions = ['CREDIT', 'DEBIT', 'NONE'];
-const statusOptions = ['COMPLETED', 'PROCESSING', 'FAILED', 'PENDING', 'CANCELLED', 'REFUNDED', 'REVERSED', 'FUNDED'];
+const statusOptions = ['COMPLETED', 'PROCESSING', 'FAILED', 'PENDING', 'CANCELLED', 'REFUNDED', 'REVERSED', 'FUNDED', 'SUBMITTED', 'UNKNOWN'];
 const receiptTypes = [
   'GENERIC',
   'BILL_PAYMENT',
