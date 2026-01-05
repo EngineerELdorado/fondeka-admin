@@ -2,6 +2,10 @@ import React from 'react';
 
 export function DataTable({ columns, rows, emptyLabel = 'No data to display.', showIndex = true }) {
   const visibleCols = columns.filter((col) => col.key !== 'id');
+  const formatValue = (value) => {
+    if (value === null || value === undefined || value === '') return '—';
+    return value;
+  };
 
   return (
     <div className="card" style={{ overflowX: 'auto' }}>
@@ -32,7 +36,7 @@ export function DataTable({ columns, rows, emptyLabel = 'No data to display.', s
               {showIndex && <td style={{ padding: '0.75rem', color: 'var(--muted)' }}>{idx + 1 + (Array.isArray(rows?.pageOffset) ? 0 : 0)}</td>}
               {visibleCols.map((col) => (
                 <td key={String(col.key)} style={{ padding: '0.75rem' }}>
-                  {col.render ? col.render(row) : String(row[col.key])}
+                  {col.render ? formatValue(col.render(row)) : String(formatValue(row[col.key]))}
                 </td>
               ))}
             </tr>
