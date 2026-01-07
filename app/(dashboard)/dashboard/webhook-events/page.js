@@ -70,7 +70,15 @@ const emptyFilters = {
   minRetries: '',
   maxRetries: '',
   createdAfter: '',
-  createdBefore: ''
+  createdBefore: '',
+  transactionId: '',
+  internalReference: '',
+  externalReference: '',
+  operatorReference: '',
+  accountReference: '',
+  userReference: '',
+  userEmail: '',
+  reference: ''
 };
 
 export default function WebhookEventsPage() {
@@ -155,6 +163,18 @@ export default function WebhookEventsPage() {
         label: 'ID',
         render: (row) => <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{row.id ?? '—'}</span>
       },
+      {
+        key: 'transactionId',
+        label: 'Transaction',
+        render: (row) =>
+          row.transactionId ? (
+            <Link href={`/dashboard/transactions?transactionId=${encodeURIComponent(row.transactionId)}`} style={{ color: 'var(--primary)', textDecoration: 'none' }}>
+              {row.transactionId}
+            </Link>
+          ) : (
+            '—'
+          )
+      },
       { key: 'provider', label: 'Provider' },
       { key: 'eventType', label: 'Event Type' },
       {
@@ -175,11 +195,6 @@ export default function WebhookEventsPage() {
             {truncateText(row.lastError)}
           </span>
         )
-      },
-      {
-        key: 'payload',
-        label: 'Payload',
-        render: (row) => <span title={typeof row.payload === 'string' ? row.payload : safeStringify(row.payload)}>{payloadPreview(row.payload)}</span>
       },
       {
         key: 'actions',
@@ -342,6 +357,68 @@ export default function WebhookEventsPage() {
               onChange={(e) => setFilters((p) => ({ ...p, createdBefore: e.target.value }))}
             />
           </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="transactionId">Transaction ID</label>
+            <input
+              id="transactionId"
+              value={filters.transactionId}
+              onChange={(e) => setFilters((p) => ({ ...p, transactionId: e.target.value }))}
+              placeholder="Transaction ID"
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="reference">Reference</label>
+            <input id="reference" value={filters.reference} onChange={(e) => setFilters((p) => ({ ...p, reference: e.target.value }))} placeholder="Any reference" />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="internalReference">Internal ref</label>
+            <input
+              id="internalReference"
+              value={filters.internalReference}
+              onChange={(e) => setFilters((p) => ({ ...p, internalReference: e.target.value }))}
+              placeholder="Internal reference"
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="externalReference">External ref</label>
+            <input
+              id="externalReference"
+              value={filters.externalReference}
+              onChange={(e) => setFilters((p) => ({ ...p, externalReference: e.target.value }))}
+              placeholder="External reference"
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="operatorReference">Operator ref</label>
+            <input
+              id="operatorReference"
+              value={filters.operatorReference}
+              onChange={(e) => setFilters((p) => ({ ...p, operatorReference: e.target.value }))}
+              placeholder="Operator reference"
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="accountReference">Account ref</label>
+            <input
+              id="accountReference"
+              value={filters.accountReference}
+              onChange={(e) => setFilters((p) => ({ ...p, accountReference: e.target.value }))}
+              placeholder="Account reference"
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="userReference">User ref</label>
+            <input
+              id="userReference"
+              value={filters.userReference}
+              onChange={(e) => setFilters((p) => ({ ...p, userReference: e.target.value }))}
+              placeholder="User reference"
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="userEmail">User email</label>
+            <input id="userEmail" value={filters.userEmail} onChange={(e) => setFilters((p) => ({ ...p, userEmail: e.target.value }))} placeholder="User email" />
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.5rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="page">Page</label>
@@ -393,10 +470,25 @@ export default function WebhookEventsPage() {
                 <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>Provider</div>
                 <div style={{ fontWeight: 700 }}>{selected?.provider ?? '—'}</div>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px' }}>
-                <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>Event Type</div>
-                <div style={{ fontWeight: 700 }}>{selected?.eventType ?? '—'}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px' }}>
+              <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>Event Type</div>
+              <div style={{ fontWeight: 700 }}>{selected?.eventType ?? '—'}</div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px' }}>
+              <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>Transaction</div>
+              <div style={{ fontWeight: 700 }}>
+                {selected?.transactionId ? (
+                  <Link
+                    href={`/dashboard/transactions?transactionId=${encodeURIComponent(selected.transactionId)}`}
+                    style={{ color: 'var(--primary)', textDecoration: 'none' }}
+                  >
+                    {selected.transactionId}
+                  </Link>
+                ) : (
+                  '—'
+                )}
               </div>
+            </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px' }}>
                 <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>Retries</div>
                 <div style={{ fontWeight: 700 }}>{selected?.retries ?? 0}</div>

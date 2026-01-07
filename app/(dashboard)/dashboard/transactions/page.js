@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { DataTable } from '@/components/DataTable';
 import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
@@ -67,6 +68,7 @@ const receiptPayloadTemplates = {
 };
 
 const initialFilters = {
+  transactionId: '',
   reference: '',
   externalReference: '',
   operatorReference: '',
@@ -134,7 +136,19 @@ const FilterChip = ({ label, onClear }) => (
   </span>
 );
 
+const formatWebhookPayload = (payload) => {
+  if (payload === null || payload === undefined) return '';
+  if (typeof payload === 'string') return payload;
+  try {
+    return JSON.stringify(payload, null, 2);
+  } catch {
+    return String(payload);
+  }
+};
+
 export default function TransactionsPage() {
+  const searchParams = useSearchParams();
+  const queryAppliedRef = useRef(false);
   const { pushToast } = useToast();
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
@@ -179,6 +193,7 @@ export default function TransactionsPage() {
   const [replayLoading, setReplayLoading] = useState(false);
   const [replayError, setReplayError] = useState(null);
   const [refetchBillStatusLoading, setRefetchBillStatusLoading] = useState(false);
+  const webhookEvents = Array.isArray(selected?.webhookEvents) ? selected.webhookEvents : [];
 
   const formatDateTime = (value) => {
     if (!value) return '—';
@@ -200,6 +215,8 @@ export default function TransactionsPage() {
         if (['paymentMethodId', 'paymentProviderId', 'paymentMethodPaymentProviderId'].includes(key)) {
           const num = Number(value);
           if (!Number.isNaN(num)) addIf(key, num);
+        } else if (key === 'transactionId') {
+          addIf(key, value);
         } else if (['startDate', 'endDate'].includes(key)) {
           const ts = Date.parse(value);
           if (!Number.isNaN(ts)) addIf(key, ts);
@@ -337,6 +354,16 @@ export default function TransactionsPage() {
   }, [page, size, appliedFilters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    if (queryAppliedRef.current) return;
+    const transactionId = searchParams.get('transactionId');
+    if (!transactionId) return;
+    queryAppliedRef.current = true;
+    setPage(0);
+    setFilters((prev) => ({ ...prev, transactionId }));
+    setAppliedFilters((prev) => ({ ...prev, transactionId }));
+  }, [searchParams]);
+
+  useEffect(() => {
     const fetchOptions = async () => {
       try {
         const [pmRes, provRes, pmpRes] = await Promise.all([
@@ -376,7 +403,10 @@ export default function TransactionsPage() {
     };
     Object.entries(appliedFilters).forEach(([key, value]) => {
       if (value === '' || value === null || value === undefined) return;
-      switch (key) {
+        switch (key) {
+        case 'transactionId':
+          add(`Transaction ID: ${value}`, key);
+          break;
         case 'reference':
           add(`Reference: ${value}`, key);
           break;
@@ -797,6 +827,10 @@ export default function TransactionsPage() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="transactionId">Transaction ID</label>
+            <input id="transactionId" value={filters.transactionId} onChange={(e) => setFilters((p) => ({ ...p, transactionId: e.target.value }))} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="reference">Reference</label>
             <input id="reference" value={filters.reference} onChange={(e) => setFilters((p) => ({ ...p, reference: e.target.value }))} />
           </div>
@@ -1019,6 +1053,72 @@ export default function TransactionsPage() {
                 { label: 'Refund txn ID', value: selected?.refundTransactionId || '—' }
               ]}
             />
+
+            <div className="card" style={{ padding: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                  <div style={{ fontWeight: 800 }}>Webhook events</div>
+                  <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                    {webhookEvents.length > 0 ? `${webhookEvents.length} event${webhookEvents.length === 1 ? '' : 's'} linked.` : 'No webhook events linked.'}
+                  </div>
+                </div>
+              </div>
+
+              {webhookEvents.length > 0 && (
+                <div style={{ marginTop: '0.75rem', display: 'grid', gap: '0.75rem' }}>
+                  {webhookEvents.map((event) => (
+                    <div key={event.id ?? `${event.provider}-${event.createdAt}`} style={{ border: '1px solid var(--border)', borderRadius: '10px', padding: '0.75rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                        <div style={{ fontWeight: 700 }}>Event {event.id ?? '—'}</div>
+                        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{formatDateTime(event.createdAt)}</div>
+                      </div>
+                      <div style={{ marginTop: '0.6rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.6rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                          <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>Provider</div>
+                          <div style={{ fontWeight: 700 }}>{event.provider ?? '—'}</div>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                          <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>Event type</div>
+                          <div style={{ fontWeight: 700 }}>{event.eventType ?? '—'}</div>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                          <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>Transaction ID</div>
+                          <div style={{ fontWeight: 700 }}>{event.transactionId ?? '—'}</div>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                          <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>Retries</div>
+                          <div style={{ fontWeight: 700 }}>{event.retries ?? 0}</div>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                          <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>Processed at</div>
+                          <div style={{ fontWeight: 700 }}>{formatDateTime(event.processedAt)}</div>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                          <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>Last error</div>
+                          <div style={{ fontWeight: 700, color: event.lastError ? '#b91c1c' : 'inherit' }}>{event.lastError || '—'}</div>
+                        </div>
+                      </div>
+                      <details style={{ marginTop: '0.6rem' }}>
+                        <summary style={{ cursor: 'pointer', color: 'var(--primary)', fontWeight: 600 }}>Payload</summary>
+                        <pre
+                          style={{
+                            marginTop: '0.5rem',
+                            background: 'var(--surface)',
+                            border: '1px solid var(--border)',
+                            borderRadius: '8px',
+                            padding: '0.75rem',
+                            fontSize: '12px',
+                            overflowX: 'auto'
+                          }}
+                        >
+                          {formatWebhookPayload(event.payload) || 'No payload.'}
+                        </pre>
+                      </details>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <div className="card" style={{ padding: '1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>

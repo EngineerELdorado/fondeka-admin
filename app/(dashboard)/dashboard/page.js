@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 import { api } from '@/lib/api';
 
@@ -171,6 +171,19 @@ const Modal = ({ title, onClose, children }) => (
   </div>
 );
 
+const RefreshIcon = ({ size = 14 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path
+      d="M20 12a8 8 0 1 1-2.2-5.6"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path d="M20 5v6h-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 const formatCryptoHoldings = (list) =>
   (list || []).map((item, idx) => ({
     id: item.productNetworkId || idx,
@@ -187,6 +200,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [autoRefresh, setAutoRefresh] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [datePreset, setDatePreset] = useState('');
   const [paymentMethods, setPaymentMethods] = useState([]);
@@ -195,6 +209,7 @@ export default function DashboardPage() {
   const [billProviders, setBillProviders] = useState([]);
   const [countries, setCountries] = useState([]);
   const [showHoldings, setShowHoldings] = useState(false);
+  const refreshInFlight = useRef(false);
 
   const applyFilters = () => {
     setAppliedFilters(filters);
@@ -207,9 +222,13 @@ export default function DashboardPage() {
     setDatePreset('');
   };
 
-  useEffect(() => {
-    const fetchDashboard = async () => {
-      setLoading(true);
+  const fetchDashboard = useCallback(
+    async ({ silent = false } = {}) => {
+      if (refreshInFlight.current) return;
+      refreshInFlight.current = true;
+      if (!silent) {
+        setLoading(true);
+      }
       setError(null);
       try {
         const params = new URLSearchParams();
@@ -231,11 +250,26 @@ export default function DashboardPage() {
       } catch (err) {
         setError(err.message);
       } finally {
-        setLoading(false);
+        refreshInFlight.current = false;
+        if (!silent) {
+          setLoading(false);
+        }
       }
-    };
+    },
+    [appliedFilters]
+  );
+
+  useEffect(() => {
     fetchDashboard();
-  }, [appliedFilters]);
+  }, [fetchDashboard]);
+
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const interval = setInterval(() => {
+      fetchDashboard({ silent: true });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [autoRefresh, fetchDashboard]);
 
   useEffect(() => {
     const fetchOptions = async () => {
@@ -445,9 +479,43 @@ export default function DashboardPage() {
             <div style={{ color: 'var(--muted)' }}>Clean view across services, rails, geos, and accounts.</div>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            {lastUpdated && <span style={{ color: 'var(--muted)', fontSize: '12px' }}>Updated {formatDateTime(lastUpdated)}</span>}
-            <button type="button" onClick={() => setAppliedFilters((p) => ({ ...p }))} className="btn-neutral" disabled={loading}>
-              {loading ? 'Refreshing…' : 'Refresh'}
+            <button type="button" onClick={() => setAutoRefresh((prev) => !prev)} aria-pressed={autoRefresh} className="btn-neutral btn-sm">
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
+                <RefreshIcon size={14} />
+                Auto refresh
+                <span
+                  aria-hidden="true"
+                  style={{
+                    position: 'relative',
+                    width: '30px',
+                    height: '16px',
+                    borderRadius: '999px',
+                    border: `1px solid ${autoRefresh ? 'var(--accent)' : 'var(--border)'}`,
+                    background: autoRefresh ? 'color-mix(in srgb, var(--accent) 12%, var(--surface))' : 'var(--bg)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    padding: '1px',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <span
+                    style={{
+                      width: '12px',
+                      height: '12px',
+                      borderRadius: '999px',
+                      background: autoRefresh ? 'var(--accent)' : 'var(--muted)',
+                      transform: autoRefresh ? 'translateX(14px)' : 'translateX(0)',
+                      transition: 'all 0.2s ease'
+                    }}
+                  />
+                </span>
+              </span>
+            </button>
+            <button type="button" onClick={() => fetchDashboard()} className="btn-neutral" disabled={loading}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                <RefreshIcon size={14} />
+                {loading ? 'Refreshing…' : 'Refresh'}
+              </span>
             </button>
           </div>
         </div>
