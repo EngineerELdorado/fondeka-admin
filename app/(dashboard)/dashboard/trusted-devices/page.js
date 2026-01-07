@@ -88,9 +88,11 @@ export default function TrustedDevicesPage() {
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
   const [confirmRevoke, setConfirmRevoke] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
   const [detailsRow, setDetailsRow] = useState(null);
   const [actionLoading, setActionLoading] = useState('');
   const [pageMeta, setPageMeta] = useState({ totalElements: null, totalPages: null });
+  const [selectedIds, setSelectedIds] = useState(new Set());
 
   const openDetails = async (row) => {
     setDetailsRow(row);
@@ -137,6 +139,20 @@ export default function TrustedDevicesPage() {
   }, [page, size, appliedFilters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    if (!rows || rows.length === 0) {
+      setSelectedIds(new Set());
+      return;
+    }
+    setSelectedIds((prev) => {
+      const next = new Set();
+      rows.forEach((row) => {
+        if (prev.has(row.deviceId)) next.add(row.deviceId);
+      });
+      return next;
+    });
+  }, [rows]);
+
+  useEffect(() => {
     if (!info && !error) return;
     const t = setTimeout(() => {
       setInfo(null);
@@ -174,8 +190,74 @@ export default function TrustedDevicesPage() {
     }
   };
 
+  const handleDeleteDevices = async (deviceIds) => {
+    const ids = (deviceIds || []).map((id) => String(id).trim()).filter(Boolean);
+    if (ids.length === 0) {
+      setError('Select at least one device to delete.');
+      return;
+    }
+    setError(null);
+    setInfo(null);
+    setActionLoading(ids.length === 1 ? `delete-${ids[0]}` : 'delete-bulk');
+    try {
+      if (ids.length === 1) {
+        await api.devices.remove(ids[0]);
+        setInfo(`Deleted device ${ids[0]}.`);
+      } else {
+        await api.devices.removeMany(ids);
+        setInfo(`Deleted ${ids.length} devices.`);
+      }
+      setConfirmDelete(null);
+      setSelectedIds(new Set());
+      fetchRows();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setActionLoading('');
+    }
+  };
+
+  const toggleSelection = (deviceId) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(deviceId)) {
+        next.delete(deviceId);
+      } else {
+        next.add(deviceId);
+      }
+      return next;
+    });
+  };
+
+  const selectAllOnPage = () => {
+    if (!rows || rows.length === 0) return;
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      rows.forEach((row) => {
+        if (row.deviceId) next.add(row.deviceId);
+      });
+      return next;
+    });
+  };
+
+  const clearSelection = () => {
+    setSelectedIds(new Set());
+  };
+
   const columns = useMemo(
     () => [
+      {
+        key: 'select',
+        label: '',
+        render: (row) => (
+          <input
+            type="checkbox"
+            aria-label={`Select device ${row.deviceId}`}
+            checked={selectedIds.has(row.deviceId)}
+            onChange={() => toggleSelection(row.deviceId)}
+          />
+        )
+      },
       {
         key: 'deviceId',
         label: 'Device',
@@ -228,12 +310,20 @@ export default function TrustedDevicesPage() {
               <button type="button" onClick={() => setConfirmRevoke(row)} className="btn-danger btn-sm" disabled={actionLoading === `revoke-${row.deviceId}`}>
                 {actionLoading === `revoke-${row.deviceId}` ? 'Revoking…' : 'Revoke device'}
               </button>
+              <button
+                type="button"
+                onClick={() => setConfirmDelete({ deviceIds: [row.deviceId] })}
+                className="btn-danger btn-sm"
+                disabled={actionLoading === `delete-${row.deviceId}`}
+              >
+                {actionLoading === `delete-${row.deviceId}` ? 'Deleting…' : 'Delete device'}
+              </button>
             </div>
           </div>
         )
       }
     ],
-    [actionLoading]
+    [actionLoading, selectedIds]
   );
 
   const DetailCard = ({ label, children }) => (
@@ -362,6 +452,20 @@ export default function TrustedDevicesPage() {
           <button type="button" onClick={fetchRows} disabled={loading} className="btn-neutral">
             {loading ? 'Refreshing…' : 'Refresh'}
           </button>
+          <button type="button" onClick={selectAllOnPage} disabled={loading || rows.length === 0} className="btn-neutral">
+            Select page
+          </button>
+          <button type="button" onClick={clearSelection} disabled={selectedIds.size === 0} className="btn-neutral">
+            Clear selection
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirmDelete({ deviceIds: Array.from(selectedIds) })}
+            disabled={selectedIds.size === 0 || actionLoading === 'delete-bulk'}
+            className="btn-danger"
+          >
+            {actionLoading === 'delete-bulk' ? 'Deleting…' : `Delete selected (${selectedIds.size})`}
+          </button>
           {pageMeta.totalElements !== null && (
             <span style={{ color: 'var(--muted)', fontSize: '13px' }}>
               {pageMeta.totalElements} devices total
@@ -427,6 +531,16 @@ export default function TrustedDevicesPage() {
             >
               Revoke device
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                setConfirmDelete({ deviceIds: [detailsRow.deviceId] });
+                setDetailsRow(null);
+              }}
+              className="btn-danger"
+            >
+              Delete device
+            </button>
           </div>
         </Modal>
       )}
@@ -442,6 +556,27 @@ export default function TrustedDevicesPage() {
             </button>
             <button type="button" onClick={handleRevokeDevice} className="btn-danger" disabled={actionLoading === `revoke-${confirmRevoke.deviceId}`}>
               {actionLoading === `revoke-${confirmRevoke.deviceId}` ? 'Revoking…' : 'Revoke device'}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {confirmDelete && (
+        <Modal title="Delete device(s)" onClose={() => setConfirmDelete(null)}>
+          <div style={{ color: 'var(--muted)', marginBottom: '0.75rem' }}>
+            This will permanently delete {confirmDelete.deviceIds?.length === 1 ? 'this device' : 'these devices'} and any associated records. Proceed?
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+            <button type="button" onClick={() => setConfirmDelete(null)} className="btn-neutral">
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDeleteDevices(confirmDelete.deviceIds)}
+              className="btn-danger"
+              disabled={actionLoading.startsWith('delete-')}
+            >
+              {actionLoading.startsWith('delete-') ? 'Deleting…' : 'Delete'}
             </button>
           </div>
         </Modal>
