@@ -167,6 +167,9 @@ export default function TransactionsPage() {
   const [auditLogs, setAuditLogs] = useState([]);
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditError, setAuditError] = useState(null);
+  const [billStatusAuditLogs, setBillStatusAuditLogs] = useState([]);
+  const [billStatusAuditLoading, setBillStatusAuditLoading] = useState(false);
+  const [billStatusAuditError, setBillStatusAuditError] = useState(null);
 
   const [showRefund, setShowRefund] = useState(false);
   const [refundNote, setRefundNote] = useState('');
@@ -175,6 +178,7 @@ export default function TransactionsPage() {
   const [showReplayConfirm, setShowReplayConfirm] = useState(false);
   const [replayLoading, setReplayLoading] = useState(false);
   const [replayError, setReplayError] = useState(null);
+  const [refetchBillStatusLoading, setRefetchBillStatusLoading] = useState(false);
 
   const formatDateTime = (value) => {
     if (!value) return '—';
@@ -282,7 +286,7 @@ export default function TransactionsPage() {
     }
   };
 
-  const loadAuditLogs = async (transactionId) => {
+  const loadReceiptAuditLogs = async (transactionId) => {
     if (!transactionId) return;
     setAuditLoading(true);
     setAuditError(null);
@@ -302,6 +306,29 @@ export default function TransactionsPage() {
       setAuditError(err?.message || 'Failed to load audit logs');
     } finally {
       setAuditLoading(false);
+    }
+  };
+
+  const loadBillStatusAuditLogs = async (transactionId) => {
+    if (!transactionId) return;
+    setBillStatusAuditLoading(true);
+    setBillStatusAuditError(null);
+    try {
+      const params = new URLSearchParams({
+        action: 'BILL_STATUS_REFETCH',
+        targetType: 'transaction',
+        targetId: String(transactionId),
+        page: '0',
+        size: '20'
+      });
+      const res = await api.auditLogs.list(params);
+      const list = Array.isArray(res) ? res : res?.content || [];
+      setBillStatusAuditLogs(list || []);
+    } catch (err) {
+      setBillStatusAuditLogs([]);
+      setBillStatusAuditError(err?.message || 'Failed to load audit logs');
+    } finally {
+      setBillStatusAuditLoading(false);
     }
   };
 
@@ -490,6 +517,8 @@ export default function TransactionsPage() {
     setReceiptPayload('{}');
     setShowReceiptDelete(false);
     setReceiptTemplateKey('');
+    setBillStatusAuditLogs([]);
+    setBillStatusAuditError(null);
   };
 
   const showRefundTransaction = async ({ refundReference, refundTransactionId }) => {
@@ -543,7 +572,11 @@ export default function TransactionsPage() {
     loadAccountSummary(selected);
     const transactionId = selected?.transactionId || selected?.id;
     loadReceipt(transactionId);
-    loadAuditLogs(transactionId);
+    loadReceiptAuditLogs(transactionId);
+    const service = String(selected?.service || '').toUpperCase();
+    if (service === 'BILL_PAYMENTS') {
+      loadBillStatusAuditLogs(transactionId);
+    }
   }, [showDetail, selected?.transactionId, selected?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const canRefundSelected = useMemo(() => {
@@ -559,6 +592,14 @@ export default function TransactionsPage() {
     const status = String(selected.status || '').toUpperCase();
     const action = String(selected.action || '').toUpperCase();
     if (action === 'LOAN_REQUEST') return false;
+    return status !== 'FAILED' && status !== 'CANCELED' && status !== 'CANCELLED';
+  }, [selected]);
+
+  const canRefetchBillStatus = useMemo(() => {
+    if (!selected) return false;
+    const service = String(selected.service || '').toUpperCase();
+    const status = String(selected.status || '').toUpperCase();
+    if (service !== 'BILL_PAYMENTS') return false;
     return status !== 'FAILED' && status !== 'CANCELED' && status !== 'CANCELLED';
   }, [selected]);
 
@@ -582,6 +623,25 @@ export default function TransactionsPage() {
       pushToast({ tone: 'error', message });
     } finally {
       setReplayLoading(false);
+    }
+  };
+
+  const handleRefetchBillStatus = async () => {
+    const transactionId = selected?.transactionId || selected?.id;
+    if (!transactionId) {
+      pushToast({ tone: 'error', message: 'Missing transaction id' });
+      return;
+    }
+    setRefetchBillStatusLoading(true);
+    try {
+      await api.transactions.refetchBillStatus(transactionId);
+      pushToast({ tone: 'success', message: 'Bill status refetch requested.' });
+      await loadBillStatusAuditLogs(transactionId);
+    } catch (err) {
+      const message = err?.message || 'Failed to refetch bill status';
+      pushToast({ tone: 'error', message });
+    } finally {
+      setRefetchBillStatusLoading(false);
     }
   };
 
@@ -1022,7 +1082,7 @@ export default function TransactionsPage() {
             <div className="card" style={{ padding: '1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                  <div style={{ fontWeight: 800 }}>Audit log</div>
+                  <div style={{ fontWeight: 800 }}>Receipt backfill audit</div>
                   <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
                     Receipt backfill activity for this transaction.
                   </div>
@@ -1030,7 +1090,7 @@ export default function TransactionsPage() {
                 <button
                   type="button"
                   className="btn-neutral btn-sm"
-                  onClick={() => loadAuditLogs(selected?.transactionId || selected?.id)}
+                  onClick={() => loadReceiptAuditLogs(selected?.transactionId || selected?.id)}
                   disabled={auditLoading}
                 >
                   {auditLoading ? 'Loading…' : 'Refresh'}
@@ -1078,10 +1138,76 @@ export default function TransactionsPage() {
               </div>
             </div>
 
+            {String(selected?.service || '').toUpperCase() === 'BILL_PAYMENTS' && (
+              <div className="card" style={{ padding: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                    <div style={{ fontWeight: 800 }}>Bill status refetch audit</div>
+                    <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                      Refetch activity for this bill payment transaction.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-neutral btn-sm"
+                    onClick={() => loadBillStatusAuditLogs(selected?.transactionId || selected?.id)}
+                    disabled={billStatusAuditLoading}
+                  >
+                    {billStatusAuditLoading ? 'Loading…' : 'Refresh'}
+                  </button>
+                </div>
+
+                <div style={{ marginTop: '0.75rem' }}>
+                  {billStatusAuditError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{billStatusAuditError}</div>}
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr>
+                          {['Time', 'Action', 'Admin', 'Target'].map((label) => (
+                            <th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                              {label}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(!billStatusAuditLogs || billStatusAuditLogs.length === 0) && (
+                          <tr>
+                            <td colSpan={4} style={{ padding: '0.75rem', color: 'var(--muted)' }}>
+                              {billStatusAuditLoading ? 'Loading…' : 'No audit logs found.'}
+                            </td>
+                          </tr>
+                        )}
+                        {billStatusAuditLogs.map((row, idx) => {
+                          const targetType = row.targetType || row.target_type;
+                          const targetId = row.targetId || row.target_id;
+                          return (
+                            <tr key={row.id || idx} style={{ borderTop: '1px solid var(--border)' }}>
+                              <td style={{ padding: '0.5rem' }}>{formatDateTime(row.createdAt || row.timestamp || row.time || row.loggedAt || row.updatedAt)}</td>
+                              <td style={{ padding: '0.5rem', fontWeight: 600 }}>{row.action || '—'}</td>
+                              <td style={{ padding: '0.5rem' }}>{row.adminName || row.adminEmail || row.adminId || row.actor || '—'}</td>
+                              <td style={{ padding: '0.5rem' }}>
+                                {targetType || targetId ? `${targetType || 'target'} ${targetId ?? ''}`.trim() : '—'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="modal-actions">
               <button type="button" onClick={() => loadAccountSummary(selected)} className="btn-neutral" disabled={accountLoading}>
                 {accountLoading ? 'Refreshing…' : 'Refresh balance'}
               </button>
+              {canRefetchBillStatus && (
+                <button type="button" onClick={handleRefetchBillStatus} className="btn-primary" disabled={refetchBillStatusLoading}>
+                  {refetchBillStatusLoading ? 'Refetching…' : 'Refetch bill status'}
+                </button>
+              )}
               {canReplayFulfillment && (
                 <button type="button" onClick={() => setShowReplayConfirm(true)} className="btn-primary">
                   Replay loan fulfillment
