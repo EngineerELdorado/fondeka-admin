@@ -194,6 +194,8 @@ export default function TransactionsPage() {
   const [replayError, setReplayError] = useState(null);
   const [refetchBillStatusLoading, setRefetchBillStatusLoading] = useState(false);
   const webhookEvents = Array.isArray(selected?.webhookEvents) ? selected.webhookEvents : [];
+  const normalizedStatus = selected?.status?.toUpperCase?.() || '';
+  const showErrorMessage = ['FAILED', 'CANCELED', 'CANCELLED'].includes(normalizedStatus);
 
   const formatDateTime = (value) => {
     if (!value) return '—';
@@ -1050,7 +1052,8 @@ export default function TransactionsPage() {
                 { label: 'Refunded at', value: formatDateTime(selected?.refundedAt) },
                 { label: 'Needs manual refund', value: selected?.needsManualRefund ? 'Yes' : 'No' },
                 { label: 'Refund ref', value: selected?.refundReference || '—' },
-                { label: 'Refund txn ID', value: selected?.refundTransactionId || '—' }
+                { label: 'Refund txn ID', value: selected?.refundTransactionId || '—' },
+                ...(showErrorMessage ? [{ label: 'Error message', value: selected?.errorMessage || '—' }] : [])
               ]}
             />
 
