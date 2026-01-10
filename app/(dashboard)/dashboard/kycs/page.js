@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
@@ -58,7 +59,8 @@ const emptyUpdateDraft = {
   level: '',
   issuedAt: '',
   expiresAt: '',
-  externalReference: ''
+  externalReference: '',
+  lastJobReference: ''
 };
 
 const Modal = ({ title, onClose, children }) => (
@@ -158,10 +160,7 @@ export default function KycsPage() {
   const [decision, setDecision] = useState(null); // { row, decision: 'APPROVE' | 'REJECT', comments }
   const [updateDraft, setUpdateDraft] = useState(emptyUpdateDraft);
   const [levelOptions, setLevelOptions] = useState([]);
-  const [smileResult, setSmileResult] = useState(null);
-  const [smileResultFor, setSmileResultFor] = useState(null);
-  const [showSmileResult, setShowSmileResult] = useState(false);
-  const [smileLoadingId, setSmileLoadingId] = useState(null);
+  const router = useRouter();
 
   const formatDate = (value) => {
     if (!value) return '—';
@@ -175,20 +174,6 @@ export default function KycsPage() {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
     return date.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
-  };
-
-  const normalizeSmileValue = (value) => {
-    if (value === null || value === undefined) return null;
-    if (typeof value === 'string' && (value.trim() === '' || value.trim().toLowerCase() === 'not available')) return null;
-    return value;
-  };
-
-  const pickSmileValue = (...values) => {
-    for (const value of values) {
-      const normalized = normalizeSmileValue(value);
-      if (normalized !== null) return normalized;
-    }
-    return null;
   };
 
   const fetchRows = async () => {
@@ -325,8 +310,8 @@ export default function KycsPage() {
           <button type="button" onClick={() => openDetail(row)} className="btn-neutral">
             View
           </button>
-          <button type="button" onClick={() => handleSmileRefresh(row)} className="btn-neutral" disabled={smileLoadingId === row.id}>
-            {smileLoadingId === row.id ? 'Fetching…' : 'SmileID'}
+          <button type="button" onClick={() => handleSmileOpen(row)} className="btn-neutral">
+            SmileID
           </button>
           <button
             type="button"
@@ -352,7 +337,8 @@ export default function KycsPage() {
                 level: row?.level ?? '',
                 issuedAt: row?.issuedAt || '',
                 expiresAt: row?.expiresAt || '',
-                externalReference: row?.externalReference || ''
+                externalReference: row?.externalReference || '',
+                lastJobReference: row?.lastJobReference || ''
               });
             }}
             className="btn-primary"
@@ -372,23 +358,9 @@ export default function KycsPage() {
     setError(null);
   };
 
-  const handleSmileRefresh = async (row) => {
+  const handleSmileOpen = (row) => {
     if (!row?.id) return;
-    setError(null);
-    setInfo(null);
-    setSmileLoadingId(row.id);
-    try {
-      const res = await api.kycs.refreshSmileIdResult(row.id);
-      setSmileResult(res);
-      setSmileResultFor(row.id);
-      setShowSmileResult(true);
-      setInfo(`SmileID result loaded for KYC ${row.id}.`);
-      fetchRows();
-    } catch (err) {
-      setError(err.message || 'Failed to refresh SmileID result.');
-    } finally {
-      setSmileLoadingId(null);
-    }
+    router.push(`/dashboard/kycs/${row.id}/smileid`);
   };
 
   const handleDecision = async () => {
@@ -427,6 +399,7 @@ export default function KycsPage() {
       if (issuedIso) addIf('issuedAt', issuedIso);
       if (expiresIso) addIf('expiresAt', expiresIso);
       addIf('externalReference', updateDraft.externalReference);
+      addIf('lastJobReference', updateDraft.lastJobReference);
 
       await api.kycs.update(decision.row.id, payload);
       setInfo(`KYC ${decision.row.id} → ${updateDraft.kycDecision}`);
@@ -584,8 +557,8 @@ export default function KycsPage() {
       {showDetail && (
         <Modal title={`KYC ${selected?.id}`} onClose={() => setShowDetail(false)}>
           <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
-            <button type="button" onClick={() => handleSmileRefresh(selected)} className="btn-neutral" disabled={smileLoadingId === selected?.id}>
-              {smileLoadingId === selected?.id ? 'Fetching…' : 'SmileID'}
+            <button type="button" onClick={() => handleSmileOpen(selected)} className="btn-neutral">
+              SmileID
             </button>
           </div>
           <DetailGrid
@@ -598,6 +571,7 @@ export default function KycsPage() {
               { label: 'User', value: selected?.fullName || [selected?.firstName, selected?.otherNames, selected?.lastName].filter(Boolean).join(' ') || selected?.username || selected?.email },
               { label: 'Internal ref', value: selected?.internalRef },
               { label: 'External ref', value: selected?.externalRef },
+              { label: 'Last job reference', value: selected?.lastJobReference },
               { label: 'ID number', value: selected?.idNumber },
               { label: 'DOB', value: formatDate(selected?.dob) },
               { label: 'Issued at', value: formatDateTime(selected?.issuedAt) },
@@ -689,6 +663,15 @@ export default function KycsPage() {
               <input id="decisionExternalRef" value={updateDraft.externalReference} onChange={(e) => setUpdateDraft((p) => ({ ...p, externalReference: e.target.value }))} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="decisionLastJobRef">Last job reference</label>
+              <input
+                id="decisionLastJobRef"
+                value={updateDraft.lastJobReference}
+                onChange={(e) => setUpdateDraft((p) => ({ ...p, lastJobReference: e.target.value }))}
+                placeholder="SmileID job id"
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="decisionAddress">Address</label>
               <input id="decisionAddress" value={updateDraft.address} onChange={(e) => setUpdateDraft((p) => ({ ...p, address: e.target.value }))} />
             </div>
@@ -730,68 +713,6 @@ export default function KycsPage() {
         </Modal>
       )}
 
-      {showSmileResult && (
-        <Modal
-          title={`SmileID result${smileResultFor ? ` for KYC ${smileResultFor}` : ''}`}
-          onClose={() => {
-            setShowSmileResult(false);
-            setSmileResult(null);
-            setSmileResultFor(null);
-          }}
-        >
-          {!smileResult ? (
-            <div style={{ color: 'var(--muted)' }}>No SmileID result available.</div>
-          ) : (
-            <>
-              <DetailGrid
-                rows={[
-                  { label: 'Result', value: pickSmileValue(smileResult.ResultText, smileResult.ResultCode) },
-                  {
-                    label: 'Full name',
-                    value: pickSmileValue(
-                      smileResult.FullName,
-                      [smileResult.FirstName, smileResult.OtherName || smileResult.OtherNames, smileResult.LastName].filter(Boolean).join(' ').trim()
-                    )
-                  },
-                  { label: 'Document type', value: pickSmileValue(smileResult.IDType, smileResult.IdType, smileResult.DocumentType) },
-                  { label: 'Document number', value: pickSmileValue(smileResult.IDNumber, smileResult.IdNumber, smileResult.DocumentNumber) },
-                  { label: 'DOB', value: pickSmileValue(formatDate(smileResult.DOB), formatDate(smileResult.DateOfBirth)) },
-                  { label: 'Expires', value: pickSmileValue(formatDate(smileResult.ExpirationDate), formatDate(smileResult.ExpiryDate)) },
-                  { label: 'Country', value: pickSmileValue(smileResult.Country) }
-                ]}
-              />
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.6rem', marginTop: '0.9rem' }}>
-                {[
-                  { label: 'Selfie', url: pickSmileValue(smileResult.ImageLinks?.selfie_image, smileResult.imageLinks?.selfie_image) },
-                  { label: 'Document front', url: pickSmileValue(smileResult.ImageLinks?.id_card_image, smileResult.imageLinks?.id_card_image) },
-                  { label: 'Document back', url: pickSmileValue(smileResult.ImageLinks?.id_card_back, smileResult.imageLinks?.id_card_back) }
-                ].map((img) => (
-                  <div
-                    key={img.label}
-                    style={{
-                      border: '1px solid var(--border)',
-                      borderRadius: '10px',
-                      padding: '0.5rem',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '0.4rem',
-                      minHeight: '140px'
-                    }}
-                  >
-                    <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{img.label}</div>
-                    {img.url ? (
-                      <img src={img.url} alt={`${img.label} image`} style={{ width: '100%', height: '110px', objectFit: 'cover', borderRadius: '8px' }} />
-                    ) : (
-                      <div style={{ color: 'var(--muted)', fontSize: '13px' }}>No image.</div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </Modal>
-      )}
     </div>
   );
 }
