@@ -158,6 +158,10 @@ export default function KycsPage() {
   const [decision, setDecision] = useState(null); // { row, decision: 'APPROVE' | 'REJECT', comments }
   const [updateDraft, setUpdateDraft] = useState(emptyUpdateDraft);
   const [levelOptions, setLevelOptions] = useState([]);
+  const [smileResult, setSmileResult] = useState(null);
+  const [smileResultFor, setSmileResultFor] = useState(null);
+  const [showSmileResult, setShowSmileResult] = useState(false);
+  const [smileLoadingId, setSmileLoadingId] = useState(null);
 
   const formatDate = (value) => {
     if (!value) return '—';
@@ -171,6 +175,20 @@ export default function KycsPage() {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
     return date.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+  };
+
+  const normalizeSmileValue = (value) => {
+    if (value === null || value === undefined) return null;
+    if (typeof value === 'string' && (value.trim() === '' || value.trim().toLowerCase() === 'not available')) return null;
+    return value;
+  };
+
+  const pickSmileValue = (...values) => {
+    for (const value of values) {
+      const normalized = normalizeSmileValue(value);
+      if (normalized !== null) return normalized;
+    }
+    return null;
   };
 
   const fetchRows = async () => {
@@ -275,83 +293,102 @@ export default function KycsPage() {
     return chips;
   }, [appliedFilters]);
 
-  const columns = useMemo(
-    () => [
-      { key: 'id', label: 'ID' },
-      {
-        key: 'status',
-        label: 'Status',
-        render: (row) => <StatusBadge value={row.status} />
-      },
-      { key: 'level', label: 'Level' },
-      { key: 'country', label: 'Country' },
-      {
-        key: 'accountRef',
-        label: 'Account ref',
-        render: (row) => row.accountRef || row.accountReference || '—'
-      },
-      {
-        key: 'emailOrUsername',
-        label: 'User',
-        render: (row) => row.emailOrUsername || '—'
-      },
-      {
-        key: 'updatedAt',
-        label: 'Updated',
-        render: (row) => formatDateTime(row.updatedAt)
-      },
-      {
-        key: 'actions',
-        label: 'Actions',
-        render: (row) => (
-          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-            <button type="button" onClick={() => openDetail(row)} className="btn-neutral">
-              View
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setDecision({ row, decision: 'APPROVE' });
-                setUpdateDraft({
-                  ...emptyUpdateDraft,
-                  kycDecision: 'APPROVE',
-                  comments: row?.comments || '',
-                  idNumber: row?.idNumber || '',
-                  countryCode: row?.country || row?.countryCode || '',
-                  docType: row?.docType || '',
-                  firstName: row?.firstName || '',
-                  lastName: row?.lastName || '',
-                  otherNames: row?.otherNames || '',
-                  fullName: row?.fullName || '',
-                  dob: row?.dob || '',
-                  address: row?.address || '',
-                  city: row?.city || '',
-                  postalCode: row?.postalCode || '',
-                  houseNo: row?.houseNo || '',
-                  gender: row?.gender || '',
-                  level: row?.level ?? '',
-                  issuedAt: row?.issuedAt || '',
-                  expiresAt: row?.expiresAt || '',
-                  externalReference: row?.externalReference || ''
-                });
-              }}
-              className="btn-primary"
-              style={{ background: 'linear-gradient(90deg, #10B981, #047857)', border: 'none' }}
-            >
-              Update
-            </button>
-          </div>
-        )
-      }
-    ],
-    []
-  );
+  const columns = [
+    { key: 'id', label: 'ID' },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (row) => <StatusBadge value={row.status} />
+    },
+    { key: 'level', label: 'Level' },
+    { key: 'country', label: 'Country' },
+    {
+      key: 'accountRef',
+      label: 'Account ref',
+      render: (row) => row.accountRef || row.accountReference || '—'
+    },
+    {
+      key: 'emailOrUsername',
+      label: 'User',
+      render: (row) => row.emailOrUsername || '—'
+    },
+    {
+      key: 'updatedAt',
+      label: 'Updated',
+      render: (row) => formatDateTime(row.updatedAt)
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      render: (row) => (
+        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+          <button type="button" onClick={() => openDetail(row)} className="btn-neutral">
+            View
+          </button>
+          <button type="button" onClick={() => handleSmileRefresh(row)} className="btn-neutral" disabled={smileLoadingId === row.id}>
+            {smileLoadingId === row.id ? 'Fetching…' : 'SmileID'}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setDecision({ row, decision: 'APPROVE' });
+              setUpdateDraft({
+                ...emptyUpdateDraft,
+                kycDecision: 'APPROVE',
+                comments: row?.comments || '',
+                idNumber: row?.idNumber || '',
+                countryCode: row?.country || row?.countryCode || '',
+                docType: row?.docType || '',
+                firstName: row?.firstName || '',
+                lastName: row?.lastName || '',
+                otherNames: row?.otherNames || '',
+                fullName: row?.fullName || '',
+                dob: row?.dob || '',
+                address: row?.address || '',
+                city: row?.city || '',
+                postalCode: row?.postalCode || '',
+                houseNo: row?.houseNo || '',
+                gender: row?.gender || '',
+                level: row?.level ?? '',
+                issuedAt: row?.issuedAt || '',
+                expiresAt: row?.expiresAt || '',
+                externalReference: row?.externalReference || ''
+              });
+            }}
+            className="btn-primary"
+            style={{ background: 'linear-gradient(90deg, #10B981, #047857)', border: 'none' }}
+          >
+            Update
+          </button>
+        </div>
+      )
+    }
+  ];
 
   const openDetail = (row) => {
     setSelected(row);
     setShowDetail(true);
     setInfo(null);
     setError(null);
+  };
+
+  const handleSmileRefresh = async (row) => {
+    if (!row?.id) return;
+    setError(null);
+    setInfo(null);
+    setSmileLoadingId(row.id);
+    try {
+      const res = await api.kycs.refreshSmileIdResult(row.id);
+      setSmileResult(res);
+      setSmileResultFor(row.id);
+      setShowSmileResult(true);
+      setInfo(`SmileID result loaded for KYC ${row.id}.`);
+      fetchRows();
+    } catch (err) {
+      setError(err.message || 'Failed to refresh SmileID result.');
+    } finally {
+      setSmileLoadingId(null);
+    }
   };
 
   const handleDecision = async () => {
@@ -546,6 +583,11 @@ export default function KycsPage() {
 
       {showDetail && (
         <Modal title={`KYC ${selected?.id}`} onClose={() => setShowDetail(false)}>
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+            <button type="button" onClick={() => handleSmileRefresh(selected)} className="btn-neutral" disabled={smileLoadingId === selected?.id}>
+              {smileLoadingId === selected?.id ? 'Fetching…' : 'SmileID'}
+            </button>
+          </div>
           <DetailGrid
             rows={[
               { label: 'ID', value: selected?.id },
@@ -685,6 +727,69 @@ export default function KycsPage() {
               Submit
             </button>
           </div>
+        </Modal>
+      )}
+
+      {showSmileResult && (
+        <Modal
+          title={`SmileID result${smileResultFor ? ` for KYC ${smileResultFor}` : ''}`}
+          onClose={() => {
+            setShowSmileResult(false);
+            setSmileResult(null);
+            setSmileResultFor(null);
+          }}
+        >
+          {!smileResult ? (
+            <div style={{ color: 'var(--muted)' }}>No SmileID result available.</div>
+          ) : (
+            <>
+              <DetailGrid
+                rows={[
+                  { label: 'Result', value: pickSmileValue(smileResult.ResultText, smileResult.ResultCode) },
+                  {
+                    label: 'Full name',
+                    value: pickSmileValue(
+                      smileResult.FullName,
+                      [smileResult.FirstName, smileResult.OtherName || smileResult.OtherNames, smileResult.LastName].filter(Boolean).join(' ').trim()
+                    )
+                  },
+                  { label: 'Document type', value: pickSmileValue(smileResult.IDType, smileResult.IdType, smileResult.DocumentType) },
+                  { label: 'Document number', value: pickSmileValue(smileResult.IDNumber, smileResult.IdNumber, smileResult.DocumentNumber) },
+                  { label: 'DOB', value: pickSmileValue(formatDate(smileResult.DOB), formatDate(smileResult.DateOfBirth)) },
+                  { label: 'Expires', value: pickSmileValue(formatDate(smileResult.ExpirationDate), formatDate(smileResult.ExpiryDate)) },
+                  { label: 'Country', value: pickSmileValue(smileResult.Country) }
+                ]}
+              />
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.6rem', marginTop: '0.9rem' }}>
+                {[
+                  { label: 'Selfie', url: pickSmileValue(smileResult.ImageLinks?.selfie_image, smileResult.imageLinks?.selfie_image) },
+                  { label: 'Document front', url: pickSmileValue(smileResult.ImageLinks?.id_card_image, smileResult.imageLinks?.id_card_image) },
+                  { label: 'Document back', url: pickSmileValue(smileResult.ImageLinks?.id_card_back, smileResult.imageLinks?.id_card_back) }
+                ].map((img) => (
+                  <div
+                    key={img.label}
+                    style={{
+                      border: '1px solid var(--border)',
+                      borderRadius: '10px',
+                      padding: '0.5rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.4rem',
+                      minHeight: '140px'
+                    }}
+                  >
+                    <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{img.label}</div>
+                    {img.url ? (
+                      <img src={img.url} alt={`${img.label} image`} style={{ width: '100%', height: '110px', objectFit: 'cover', borderRadius: '8px' }} />
+                    ) : (
+                      <div style={{ color: 'var(--muted)', fontSize: '13px' }}>No image.</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </Modal>
       )}
     </div>

@@ -94,6 +94,7 @@ Notes:
 - Safe to call multiple times; notifications only fire if the status changes.
 - Response is the provider's raw job status payload; some fields can be null/Not Available.
 - `ImageLinks` may include `id_card_back` in addition to front/selfie.
+- UI idea: show a compact results popup with a few key fields and images (e.g., Full Name, ID Type, ID Number, DOB, Expiration Date, Result Text, and thumbnails for selfie + document front/back). Keep it focused; avoid dumping the full payload.
 
 Example response (200):
 ```json
