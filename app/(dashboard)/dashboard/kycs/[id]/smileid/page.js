@@ -63,7 +63,10 @@ const ImageTile = ({ label, url }) => {
           style={{ width: '100%', height: '180px', objectFit: 'cover', borderRadius: '10px' }}
         />
       ) : (
-        <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{url ? 'Image failed to load.' : 'No image.'}</div>
+        <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+          {url ? 'Image failed to load.' : 'No image.'}
+          {url ? <div style={{ fontSize: '11px', wordBreak: 'break-all', marginTop: '0.35rem' }}>{url}</div> : null}
+        </div>
       )}
     </div>
   );
@@ -101,42 +104,44 @@ export default function SmileIdResultPage() {
     fetchResult();
   }, [kycId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const payload = useMemo(() => result?.KycResult || result?.kycResult || result?.data || result, [result]);
+
   const summaryRows = useMemo(() => {
-    if (!result) return [];
+    if (!payload) return [];
     return [
-      { label: 'Result', value: pickSmileValue(result.ResultText, result.ResultCode) },
+      { label: 'Result', value: pickSmileValue(payload.ResultText, payload.ResultCode) },
       {
         label: 'Full name',
         value: pickSmileValue(
-          result.FullName,
-          [result.FirstName, result.OtherName || result.OtherNames, result.LastName].filter(Boolean).join(' ').trim()
+          payload.FullName,
+          [payload.FirstName, payload.OtherName || payload.OtherNames, payload.LastName].filter(Boolean).join(' ').trim()
         )
       },
-      { label: 'Document type', value: pickSmileValue(result.IDType, result.IdType, result.DocumentType) },
-      { label: 'Document number', value: pickSmileValue(result.IDNumber, result.IdNumber, result.DocumentNumber) },
-      { label: 'DOB', value: pickSmileValue(formatDate(result.DOB), formatDate(result.DateOfBirth)) },
-      { label: 'Gender', value: pickSmileValue(result.Gender) },
-      { label: 'Issuance date', value: pickSmileValue(formatDate(result.IssuanceDate)) },
-      { label: 'Expiration date', value: pickSmileValue(formatDate(result.ExpirationDate), formatDate(result.ExpiryDate)) },
-      { label: 'Country', value: pickSmileValue(result.Country) },
-      { label: 'Address', value: pickSmileValue(result.Address) },
-      { label: 'Phone', value: pickSmileValue(result.PhoneNumber, result.PhoneNumber2) },
-      { label: 'Smile Job ID', value: pickSmileValue(result.SmileJobID) },
-      { label: 'Job reference', value: pickSmileValue(result.PartnerParams?.job_id) },
-      { label: 'User reference', value: pickSmileValue(result.PartnerParams?.user_id) },
-      { label: 'Timestamp', value: pickSmileValue(result.timestamp) }
+      { label: 'Document type', value: pickSmileValue(payload.IDType, payload.IdType, payload.DocumentType) },
+      { label: 'Document number', value: pickSmileValue(payload.IDNumber, payload.IdNumber, payload.DocumentNumber) },
+      { label: 'DOB', value: pickSmileValue(formatDate(payload.DOB), formatDate(payload.DateOfBirth)) },
+      { label: 'Gender', value: pickSmileValue(payload.Gender) },
+      { label: 'Issuance date', value: pickSmileValue(formatDate(payload.IssuanceDate)) },
+      { label: 'Expiration date', value: pickSmileValue(formatDate(payload.ExpirationDate), formatDate(payload.ExpiryDate)) },
+      { label: 'Country', value: pickSmileValue(payload.Country) },
+      { label: 'Address', value: pickSmileValue(payload.Address) },
+      { label: 'Phone', value: pickSmileValue(payload.PhoneNumber, payload.PhoneNumber2) },
+      { label: 'Smile Job ID', value: pickSmileValue(payload.SmileJobID) },
+      { label: 'Job reference', value: pickSmileValue(payload.PartnerParams?.job_id) },
+      { label: 'User reference', value: pickSmileValue(payload.PartnerParams?.user_id) },
+      { label: 'Timestamp', value: pickSmileValue(payload.timestamp) }
     ];
-  }, [result]);
+  }, [payload]);
 
   const actionRows = useMemo(() => {
-    const entries = Object.entries(result?.Actions || {});
+    const entries = Object.entries(payload?.Actions || {});
     return entries.slice(0, 8).map(([label, value]) => ({
       label: label.replace(/_/g, ' '),
       value
     }));
-  }, [result]);
+  }, [payload]);
 
-  const imageLinks = result?.ImageLinks || result?.imageLinks || {};
+  const imageLinks = payload?.ImageLinks || payload?.imageLinks || payload?.image_links || payload?.Image_Links || {};
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -167,7 +172,7 @@ export default function SmileIdResultPage() {
         </div>
       )}
 
-      {result && (
+      {payload && (
         <>
           <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
             <div style={{ fontWeight: 700 }}>Key details</div>
@@ -187,9 +192,38 @@ export default function SmileIdResultPage() {
           <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
             <div style={{ fontWeight: 700 }}>Images</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.8rem' }}>
-              <ImageTile label="Selfie" url={pickSmileValue(imageLinks.selfie_image)} />
-              <ImageTile label="Document front" url={pickSmileValue(imageLinks.id_card_image)} />
-              <ImageTile label="Document back" url={pickSmileValue(imageLinks.id_card_back)} />
+              <ImageTile
+                label="Selfie"
+                url={pickSmileValue(
+                  imageLinks.selfie_image,
+                  imageLinks.selfieImage,
+                  imageLinks.selfie,
+                  payload.SelfieImageLink,
+                  payload.SelfieImage
+                )}
+              />
+              <ImageTile
+                label="Document front"
+                url={pickSmileValue(
+                  imageLinks.id_card_image,
+                  imageLinks.idCardImage,
+                  imageLinks.id_front,
+                  imageLinks.document_front,
+                  payload.IdCardImage,
+                  payload.DocumentFrontImage
+                )}
+              />
+              <ImageTile
+                label="Document back"
+                url={pickSmileValue(
+                  imageLinks.id_card_back,
+                  imageLinks.idCardBack,
+                  imageLinks.id_back,
+                  imageLinks.document_back,
+                  payload.IdCardBack,
+                  payload.DocumentBackImage
+                )}
+              />
             </div>
           </div>
         </>
