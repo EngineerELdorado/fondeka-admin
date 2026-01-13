@@ -8,6 +8,7 @@ import { DataTable } from '@/components/DataTable';
 const statusOptions = ['TRUSTED', 'PENDING_REPLACEMENT', 'REVOKED', 'REJECTED'];
 const platformOptions = ['ios', 'android'];
 const sortByOptions = ['createdAt', 'lastSeenAt', 'status', 'deviceId', 'platform'];
+const languageOptions = ['en', 'fr'];
 
 const emptyFilters = {
   accountId: '',
@@ -42,11 +43,12 @@ const Modal = ({ title, onClose, children }) => (
 
 const StatusBadge = ({ value }) => {
   if (!value) return '—';
-  const val = String(value).toUpperCase();
+  const raw = String(value).toUpperCase();
+  const val = raw === 'PENDING_REPLACEMENT' ? 'PENDING' : raw;
   const tone =
     val === 'TRUSTED'
       ? { bg: '#ECFDF3', fg: '#15803D' }
-      : val === 'PENDING_REPLACEMENT'
+      : val === 'PENDING'
         ? { bg: '#EFF6FF', fg: '#1D4ED8' }
         : val === 'REVOKED'
           ? { bg: '#FEF2F2', fg: '#B91C1C' }
@@ -89,6 +91,7 @@ export default function TrustedDevicesPage() {
   const [info, setInfo] = useState(null);
   const [confirmRevoke, setConfirmRevoke] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [confirmLanguage, setConfirmLanguage] = useState(null);
   const [detailsRow, setDetailsRow] = useState(null);
   const [actionLoading, setActionLoading] = useState('');
   const [pageMeta, setPageMeta] = useState({ totalElements: null, totalPages: null });
@@ -217,6 +220,35 @@ export default function TrustedDevicesPage() {
     }
   };
 
+  const handleLanguageSelect = (row, nextLanguage) => {
+    if (!row?.deviceId) return;
+    const normalized = String(nextLanguage || '').toLowerCase();
+    if (!languageOptions.includes(normalized)) {
+      setError('Language must be en or fr.');
+      return;
+    }
+    if (String(row.preferredLanguage || '').toLowerCase() === normalized) return;
+    setConfirmLanguage({ row, nextLanguage: normalized });
+  };
+
+  const handleConfirmLanguageUpdate = async () => {
+    if (!confirmLanguage?.row?.deviceId || !confirmLanguage?.nextLanguage) return;
+    const { row, nextLanguage } = confirmLanguage;
+    setError(null);
+    setInfo(null);
+    setActionLoading(`lang-${row.deviceId}`);
+    try {
+      await api.devices.updateLanguage(row.deviceId, { preferredLanguage: nextLanguage });
+      setInfo(`Updated device ${row.deviceId} language to ${nextLanguage}.`);
+      setConfirmLanguage(null);
+      fetchRows();
+    } catch (err) {
+      setError(err.message || 'Failed to update device language.');
+    } finally {
+      setActionLoading('');
+    }
+  };
+
   const toggleSelection = (deviceId) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -264,7 +296,6 @@ export default function TrustedDevicesPage() {
         render: (row) => (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
             <div style={{ fontWeight: 700 }}>{row.deviceName || 'Unnamed device'}</div>
-            <div style={{ fontSize: '13px', color: 'var(--muted)' }}>{row.deviceId}</div>
           </div>
         )
       },
@@ -273,12 +304,8 @@ export default function TrustedDevicesPage() {
         label: 'Owner',
         render: (row) => (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-            <div style={{ fontWeight: 700 }}>
-              {row.userFirstName || row.userLastName ? `${row.userFirstName || ''} ${row.userLastName || ''}`.trim() : `User ${row.userId ?? '—'}`}
-            </div>
-            <div style={{ fontSize: '13px', color: 'var(--muted)' }}>
-              {row.accountReference ? row.accountReference : row.accountId !== undefined && row.accountId !== null ? `Account #${row.accountId}` : '—'}
-              {row.userReference ? ` · ${row.userReference}` : ''}
+            <div>
+              {row.userFullName || `${row.userFirstName || ''} ${row.userLastName || ''}`.trim() || '—'}
             </div>
           </div>
         )
@@ -299,6 +326,28 @@ export default function TrustedDevicesPage() {
         render: (row) => formatDateTime(row.lastSeenAt)
       },
       {
+        key: 'preferredLanguage',
+        label: 'Language',
+        render: (row) => {
+          const current = String(row.preferredLanguage || '').toLowerCase();
+          return (
+            <select
+              aria-label={`Preferred language for device ${row.deviceId}`}
+              value={languageOptions.includes(current) ? current : ''}
+              onChange={(e) => handleLanguageSelect(row, e.target.value)}
+              disabled={actionLoading === `lang-${row.deviceId}`}
+            >
+              <option value="">—</option>
+              {languageOptions.map((lang) => (
+                <option key={lang} value={lang}>
+                  {lang.toUpperCase()}
+                </option>
+              ))}
+            </select>
+          );
+        }
+      },
+      {
         key: 'actions',
         label: 'Actions',
         render: (row) => (
@@ -308,7 +357,7 @@ export default function TrustedDevicesPage() {
                 Details
               </button>
               <button type="button" onClick={() => setConfirmRevoke(row)} className="btn-danger btn-sm" disabled={actionLoading === `revoke-${row.deviceId}`}>
-                {actionLoading === `revoke-${row.deviceId}` ? 'Revoking…' : 'Revoke device'}
+                {actionLoading === `revoke-${row.deviceId}` ? 'Revoking…' : 'Revoke'}
               </button>
               <button
                 type="button"
@@ -316,7 +365,7 @@ export default function TrustedDevicesPage() {
                 className="btn-danger btn-sm"
                 disabled={actionLoading === `delete-${row.deviceId}`}
               >
-                {actionLoading === `delete-${row.deviceId}` ? 'Deleting…' : 'Delete device'}
+                {actionLoading === `delete-${row.deviceId}` ? 'Deleting…' : 'Delete'}
               </button>
             </div>
           </div>
@@ -505,6 +554,21 @@ export default function TrustedDevicesPage() {
             <DetailCard label="Last seen IP">{detailsRow.lastSeenIp || '—'}</DetailCard>
             <DetailCard label="Last seen country">{detailsRow.lastSeenCountry ? String(detailsRow.lastSeenCountry).toUpperCase() : '—'}</DetailCard>
             <DetailCard label="Country (client)">{detailsRow.lastSeenCountryClient ? String(detailsRow.lastSeenCountryClient).toUpperCase() : '—'}</DetailCard>
+            <DetailCard label="Preferred language">
+              <select
+                aria-label={`Preferred language for device ${detailsRow.deviceId}`}
+                value={languageOptions.includes(String(detailsRow.preferredLanguage || '').toLowerCase()) ? String(detailsRow.preferredLanguage || '').toLowerCase() : ''}
+                onChange={(e) => handleLanguageSelect(detailsRow, e.target.value)}
+                disabled={actionLoading === `lang-${detailsRow.deviceId}`}
+              >
+                <option value="">—</option>
+                {languageOptions.map((lang) => (
+                  <option key={lang} value={lang}>
+                    {lang.toUpperCase()}
+                  </option>
+                ))}
+              </select>
+            </DetailCard>
             <DetailCard label="Push token">
               {detailsRow.pushToken ? (
                 <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace', wordBreak: 'break-all' }}>
@@ -577,6 +641,27 @@ export default function TrustedDevicesPage() {
               disabled={actionLoading.startsWith('delete-')}
             >
               {actionLoading.startsWith('delete-') ? 'Deleting…' : 'Delete'}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {confirmLanguage && (
+        <Modal title="Update device language" onClose={() => setConfirmLanguage(null)}>
+          <div style={{ color: 'var(--muted)', marginBottom: '0.75rem' }}>
+            Update language for device {confirmLanguage.row.deviceName || confirmLanguage.row.deviceId} to {confirmLanguage.nextLanguage.toUpperCase()}?
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+            <button type="button" onClick={() => setConfirmLanguage(null)} className="btn-neutral">
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmLanguageUpdate}
+              className="btn-primary"
+              disabled={actionLoading === `lang-${confirmLanguage.row.deviceId}`}
+            >
+              {actionLoading === `lang-${confirmLanguage.row.deviceId}` ? 'Updating…' : 'Confirm'}
             </button>
           </div>
         </Modal>

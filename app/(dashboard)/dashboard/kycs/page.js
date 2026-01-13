@@ -7,24 +7,6 @@ import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
 const statusOptions = ['PENDING', 'APPROVED', 'REJECTED', 'FAILED', 'PROVISIONALLY_APPROVED', 'ADDITIONAL_VERIFICATION_NEEDED', 'EXPIRED'];
-const docTypeOptions = [
-  'DRIVERS_LICENSE',
-  'PASSPORT',
-  'TRAVEL_DOC',
-  'VOTER_ID',
-  'HEALTH_CARD',
-  'IDENTITY_CARD',
-  'REGISTRATION_CERTIFICATE',
-  'RESIDENT_ID',
-  'SEAMANS_ID',
-  'UNIFORMED_SERVICES_CARD',
-  'TAX_ID',
-  'SOCIAL_ID',
-  'WORK_PERMIT',
-  'OCCUPATION_CARD',
-  'ALIEN_CARD',
-  'CITIZEN_ID'
-];
 
 const emptyFilters = {
   status: '',
@@ -40,27 +22,13 @@ const emptyFilters = {
   endDate: ''
 };
 
-const emptyUpdateDraft = {
-  kycDecision: '',
-  comments: '',
-  idNumber: '',
-  countryCode: '',
-  docType: '',
-  firstName: '',
-  lastName: '',
-  otherNames: '',
-  fullName: '',
-  dob: '',
-  address: '',
-  city: '',
-  postalCode: '',
-  houseNo: '',
-  gender: '',
-  level: '',
-  issuedAt: '',
-  expiresAt: '',
-  externalReference: '',
-  lastJobReference: ''
+const emptyStatusDraft = {
+  status: '',
+  comments: ''
+};
+
+const emptyLevelDraft = {
+  level: ''
 };
 
 const Modal = ({ title, onClose, children }) => (
@@ -157,8 +125,10 @@ export default function KycsPage() {
   const [info, setInfo] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
   const [selected, setSelected] = useState(null);
-  const [decision, setDecision] = useState(null); // { row, decision: 'APPROVE' | 'REJECT', comments }
-  const [updateDraft, setUpdateDraft] = useState(emptyUpdateDraft);
+  const [statusEditRow, setStatusEditRow] = useState(null);
+  const [levelEditRow, setLevelEditRow] = useState(null);
+  const [statusDraft, setStatusDraft] = useState(emptyStatusDraft);
+  const [levelDraft, setLevelDraft] = useState(emptyLevelDraft);
   const [levelOptions, setLevelOptions] = useState([]);
   const router = useRouter();
 
@@ -316,35 +286,30 @@ export default function KycsPage() {
           <button
             type="button"
             onClick={() => {
-              setDecision({ row, decision: 'APPROVE' });
-              setUpdateDraft({
-                ...emptyUpdateDraft,
-                kycDecision: 'APPROVE',
-                comments: row?.comments || '',
-                idNumber: row?.idNumber || '',
-                countryCode: row?.country || row?.countryCode || '',
-                docType: row?.docType || '',
-                firstName: row?.firstName || '',
-                lastName: row?.lastName || '',
-                otherNames: row?.otherNames || '',
-                fullName: row?.fullName || '',
-                dob: row?.dob || '',
-                address: row?.address || '',
-                city: row?.city || '',
-                postalCode: row?.postalCode || '',
-                houseNo: row?.houseNo || '',
-                gender: row?.gender || '',
-                level: row?.level ?? '',
-                issuedAt: row?.issuedAt || '',
-                expiresAt: row?.expiresAt || '',
-                externalReference: row?.externalReference || '',
-                lastJobReference: row?.lastJobReference || ''
+              setStatusEditRow(row);
+              setStatusDraft({
+                ...emptyStatusDraft,
+                status: row?.status || '',
+                comments: row?.comments || ''
               });
             }}
             className="btn-primary"
             style={{ background: 'linear-gradient(90deg, #10B981, #047857)', border: 'none' }}
           >
-            Update
+            Update status
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setLevelEditRow(row);
+              setLevelDraft({
+                ...emptyLevelDraft,
+                level: row?.level ?? ''
+              });
+            }}
+            className="btn-neutral"
+          >
+            Change level
           </button>
         </div>
       )
@@ -363,48 +328,32 @@ export default function KycsPage() {
     router.push(`/dashboard/kycs/${row.id}/smileid`);
   };
 
-  const handleDecision = async () => {
-    if (!decision?.row?.id || !updateDraft.kycDecision) return;
+  const handleStatusUpdate = async () => {
+    if (!statusEditRow?.id || !statusDraft.status) return;
     setError(null);
     setInfo(null);
     try {
-      const payload = {};
-      const addIf = (key, val) => {
-        if (val !== '' && val !== null && val !== undefined) payload[key] = val;
-      };
-      addIf('kycDecision', updateDraft.kycDecision);
-      addIf('comments', updateDraft.comments);
-      addIf('idNumber', updateDraft.idNumber);
-      addIf('countryCode', updateDraft.countryCode);
-      addIf('docType', updateDraft.docType);
-      addIf('firstName', updateDraft.firstName);
-      addIf('lastName', updateDraft.lastName);
-      addIf('otherNames', updateDraft.otherNames);
-      addIf('fullName', updateDraft.fullName);
-      addIf('address', updateDraft.address);
-      addIf('city', updateDraft.city);
-      addIf('postalCode', updateDraft.postalCode);
-      addIf('houseNo', updateDraft.houseNo);
-      addIf('gender', updateDraft.gender);
-      if (updateDraft.level !== '') addIf('level', Number(updateDraft.level));
-      const toIso = (val) => {
-        if (!val) return null;
-        const d = new Date(val);
-        return Number.isNaN(d.getTime()) ? null : d.toISOString();
-      };
-      const dobIso = toIso(updateDraft.dob);
-      const issuedIso = toIso(updateDraft.issuedAt);
-      const expiresIso = toIso(updateDraft.expiresAt);
-      if (dobIso) addIf('dob', dobIso);
-      if (issuedIso) addIf('issuedAt', issuedIso);
-      if (expiresIso) addIf('expiresAt', expiresIso);
-      addIf('externalReference', updateDraft.externalReference);
-      addIf('lastJobReference', updateDraft.lastJobReference);
+      const statusPayload = { status: statusDraft.status };
+      if (statusDraft.comments) statusPayload.comments = statusDraft.comments;
+      await api.kycs.updateStatus(statusEditRow.id, statusPayload);
+      setInfo(`KYC ${statusEditRow.id} status → ${statusDraft.status}`);
+      setStatusEditRow(null);
+      setStatusDraft(emptyStatusDraft);
+      fetchRows();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
 
-      await api.kycs.update(decision.row.id, payload);
-      setInfo(`KYC ${decision.row.id} → ${updateDraft.kycDecision}`);
-      setDecision(null);
-      setUpdateDraft(emptyUpdateDraft);
+  const handleLevelUpdate = async () => {
+    if (!levelEditRow?.id || levelDraft.level === '') return;
+    setError(null);
+    setInfo(null);
+    try {
+      await api.kycs.updateLevel(levelEditRow.id, { level: Number(levelDraft.level) });
+      setInfo(`KYC ${levelEditRow.id} level → ${levelDraft.level}`);
+      setLevelEditRow(null);
+      setLevelDraft(emptyLevelDraft);
       fetchRows();
     } catch (err) {
       setError(err.message);
@@ -581,28 +530,58 @@ export default function KycsPage() {
         </Modal>
       )}
 
-      {decision && (
-        <Modal title={`${decision.decision === 'APPROVE' ? 'Approve' : 'Reject'} KYC`} onClose={() => setDecision(null)}>
+      {statusEditRow && (
+        <Modal title={`Update KYC status ${statusEditRow.id}`} onClose={() => setStatusEditRow(null)}>
           <div style={{ color: 'var(--muted)', marginBottom: '0.75rem' }}>
-            {decision.decision === 'APPROVE' ? 'Approve' : 'Reject'} KYC <strong>{decision.row.id}</strong>?
+            Update the KYC status (and optional comments).
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.65rem', marginBottom: '0.75rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <label htmlFor="decisionSelect">Decision</label>
+              <label htmlFor="decisionSelect">Status</label>
               <select
                 id="decisionSelect"
-                value={updateDraft.kycDecision}
-                onChange={(e) => setUpdateDraft((p) => ({ ...p, kycDecision: e.target.value }))}
+                value={statusDraft.status}
+                onChange={(e) => setStatusDraft((p) => ({ ...p, status: e.target.value }))}
               >
                 <option value="">Select</option>
-                <option value="APPROVE">APPROVE</option>
-                <option value="REJECT">REJECT</option>
-                <option value="EXPIRE">EXPIRED</option>
+                {statusOptions.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
               </select>
             </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.75rem' }}>
+            <label htmlFor="decisionComments">Comments (optional)</label>
+            <textarea
+              id="decisionComments"
+              rows={3}
+              value={statusDraft.comments}
+              onChange={(e) => setStatusDraft((p) => ({ ...p, comments: e.target.value }))}
+              placeholder="Add a brief note about the status change"
+            />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+            <button type="button" onClick={() => setStatusEditRow(null)} className="btn-neutral">
+              Cancel
+            </button>
+            <button type="button" onClick={handleStatusUpdate} className="btn-primary">
+              Submit
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {levelEditRow && (
+        <Modal title={`Change KYC level ${levelEditRow.id}`} onClose={() => setLevelEditRow(null)}>
+          <div style={{ color: 'var(--muted)', marginBottom: '0.75rem' }}>
+            Update the KYC level only.
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.65rem', marginBottom: '0.75rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="decisionLevel">Level</label>
-              <select id="decisionLevel" value={updateDraft.level} onChange={(e) => setUpdateDraft((p) => ({ ...p, level: e.target.value }))}>
+              <select id="decisionLevel" value={levelDraft.level} onChange={(e) => setLevelDraft((p) => ({ ...p, level: e.target.value }))}>
                 <option value="">Select level</option>
                 {(levelOptions.length ? levelOptions : Array.from({ length: 8 }, (_, idx) => ({ level: idx, levelDescription: '' }))).map((opt) => (
                   <option key={opt.level} value={opt.level}>
@@ -611,102 +590,12 @@ export default function KycsPage() {
                 ))}
               </select>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <label htmlFor="decisionCountry">Country</label>
-              <input id="decisionCountry" value={updateDraft.countryCode} onChange={(e) => setUpdateDraft((p) => ({ ...p, countryCode: e.target.value }))} placeholder="ISO alpha2" />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <label htmlFor="decisionDocType">Doc type</label>
-              <select id="decisionDocType" value={updateDraft.docType} onChange={(e) => setUpdateDraft((p) => ({ ...p, docType: e.target.value }))}>
-                <option value="">Select</option>
-                {docTypeOptions.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <label htmlFor="decisionIdNumber">ID number</label>
-              <input id="decisionIdNumber" value={updateDraft.idNumber} onChange={(e) => setUpdateDraft((p) => ({ ...p, idNumber: e.target.value }))} />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <label htmlFor="decisionFirstName">First name</label>
-              <input id="decisionFirstName" value={updateDraft.firstName} onChange={(e) => setUpdateDraft((p) => ({ ...p, firstName: e.target.value }))} />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <label htmlFor="decisionLastName">Last name</label>
-              <input id="decisionLastName" value={updateDraft.lastName} onChange={(e) => setUpdateDraft((p) => ({ ...p, lastName: e.target.value }))} />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <label htmlFor="decisionOtherNames">Other names</label>
-              <input id="decisionOtherNames" value={updateDraft.otherNames} onChange={(e) => setUpdateDraft((p) => ({ ...p, otherNames: e.target.value }))} />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <label htmlFor="decisionFullName">Full name</label>
-              <input id="decisionFullName" value={updateDraft.fullName} onChange={(e) => setUpdateDraft((p) => ({ ...p, fullName: e.target.value }))} />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <label htmlFor="decisionDob">DOB</label>
-              <input id="decisionDob" type="datetime-local" value={updateDraft.dob} onChange={(e) => setUpdateDraft((p) => ({ ...p, dob: e.target.value }))} />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <label htmlFor="decisionIssuedAt">Issued at</label>
-              <input id="decisionIssuedAt" type="datetime-local" value={updateDraft.issuedAt} onChange={(e) => setUpdateDraft((p) => ({ ...p, issuedAt: e.target.value }))} />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <label htmlFor="decisionExpiresAt">Expires at</label>
-              <input id="decisionExpiresAt" type="datetime-local" value={updateDraft.expiresAt} onChange={(e) => setUpdateDraft((p) => ({ ...p, expiresAt: e.target.value }))} />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <label htmlFor="decisionExternalRef">External ref</label>
-              <input id="decisionExternalRef" value={updateDraft.externalReference} onChange={(e) => setUpdateDraft((p) => ({ ...p, externalReference: e.target.value }))} />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <label htmlFor="decisionLastJobRef">Last job reference</label>
-              <input
-                id="decisionLastJobRef"
-                value={updateDraft.lastJobReference}
-                onChange={(e) => setUpdateDraft((p) => ({ ...p, lastJobReference: e.target.value }))}
-                placeholder="SmileID job id"
-              />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <label htmlFor="decisionAddress">Address</label>
-              <input id="decisionAddress" value={updateDraft.address} onChange={(e) => setUpdateDraft((p) => ({ ...p, address: e.target.value }))} />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <label htmlFor="decisionCity">City</label>
-              <input id="decisionCity" value={updateDraft.city} onChange={(e) => setUpdateDraft((p) => ({ ...p, city: e.target.value }))} />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <label htmlFor="decisionPostal">Postal code</label>
-              <input id="decisionPostal" value={updateDraft.postalCode} onChange={(e) => setUpdateDraft((p) => ({ ...p, postalCode: e.target.value }))} />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <label htmlFor="decisionHouse">House no</label>
-              <input id="decisionHouse" value={updateDraft.houseNo} onChange={(e) => setUpdateDraft((p) => ({ ...p, houseNo: e.target.value }))} />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <label htmlFor="decisionGender">Gender</label>
-              <input id="decisionGender" value={updateDraft.gender} onChange={(e) => setUpdateDraft((p) => ({ ...p, gender: e.target.value }))} />
-            </div>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.75rem' }}>
-            <label htmlFor="decisionComments">Comments (optional)</label>
-            <textarea
-              id="decisionComments"
-              rows={3}
-              value={updateDraft.comments}
-              onChange={(e) => setUpdateDraft((p) => ({ ...p, comments: e.target.value }))}
-              placeholder="Add a brief note about your decision"
-            />
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-            <button type="button" onClick={() => setDecision(null)} className="btn-neutral">
+            <button type="button" onClick={() => setLevelEditRow(null)} className="btn-neutral">
               Cancel
             </button>
-            <button type="button" onClick={handleDecision} className={decision.decision === 'APPROVE' ? 'btn-success' : 'btn-danger'}>
+            <button type="button" onClick={handleLevelUpdate} className="btn-primary">
               Submit
             </button>
           </div>
