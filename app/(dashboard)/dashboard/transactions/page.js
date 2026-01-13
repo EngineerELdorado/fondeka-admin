@@ -189,6 +189,11 @@ export default function TransactionsPage() {
   const [refundNote, setRefundNote] = useState('');
   const [refundError, setRefundError] = useState(null);
   const [refundLoading, setRefundLoading] = useState(false);
+  const [refundLookupInternalRef, setRefundLookupInternalRef] = useState('');
+  const [refundLookupTransactionId, setRefundLookupTransactionId] = useState('');
+  const [refundLookupResult, setRefundLookupResult] = useState(null);
+  const [refundLookupError, setRefundLookupError] = useState(null);
+  const [refundLookupLoading, setRefundLookupLoading] = useState(null);
   const [showReplayConfirm, setShowReplayConfirm] = useState(false);
   const [replayLoading, setReplayLoading] = useState(false);
   const [replayError, setReplayError] = useState(null);
@@ -542,6 +547,11 @@ export default function TransactionsPage() {
     setShowRefund(false);
     setRefundNote('');
     setRefundError(null);
+    setRefundLookupResult(null);
+    setRefundLookupError(null);
+    setRefundLookupLoading(null);
+    setRefundLookupInternalRef(row?.internalReference || row?.reference || '');
+    setRefundLookupTransactionId(String(row?.transactionId || row?.id || ''));
     setAccountSummary(null);
     setReceipt(null);
     setReceiptError(null);
@@ -803,6 +813,44 @@ export default function TransactionsPage() {
     }
   };
 
+  const lookupRefundByInternalReference = async () => {
+    const trimmed = refundLookupInternalRef.trim();
+    if (!trimmed) {
+      setRefundLookupError('Enter an internal reference to look up.');
+      return;
+    }
+    setRefundLookupError(null);
+    setRefundLookupResult(null);
+    setRefundLookupLoading('internal');
+    try {
+      const res = await api.transactions.refundLookupByInternalReference(trimmed);
+      setRefundLookupResult(res);
+    } catch (err) {
+      setRefundLookupError(err?.message || 'Refund lookup failed.');
+    } finally {
+      setRefundLookupLoading(null);
+    }
+  };
+
+  const lookupRefundByTransactionId = async () => {
+    const trimmed = String(refundLookupTransactionId || '').trim();
+    if (!trimmed) {
+      setRefundLookupError('Enter a transaction id to look up.');
+      return;
+    }
+    setRefundLookupError(null);
+    setRefundLookupResult(null);
+    setRefundLookupLoading('transaction');
+    try {
+      const res = await api.transactions.refundLookupByTransactionId(trimmed);
+      setRefundLookupResult(res);
+    } catch (err) {
+      setRefundLookupError(err?.message || 'Refund lookup failed.');
+    } finally {
+      setRefundLookupLoading(null);
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
@@ -1056,6 +1104,65 @@ export default function TransactionsPage() {
                 ...(showErrorMessage ? [{ label: 'Error message', value: selected?.errorMessage || '—' }] : [])
               ]}
             />
+
+            <div className="card" style={{ padding: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                  <div style={{ fontWeight: 800 }}>Refund lookup</div>
+                  <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Verify whether a refund transaction exists.</div>
+                </div>
+              </div>
+
+              <div style={{ marginTop: '0.75rem', display: 'grid', gap: '0.75rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem', alignItems: 'end' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <label htmlFor="refundLookupInternal">Internal reference</label>
+                    <input
+                      id="refundLookupInternal"
+                      value={refundLookupInternalRef}
+                      onChange={(e) => setRefundLookupInternalRef(e.target.value)}
+                      placeholder="TX915714962162"
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button type="button" className="btn-neutral btn-sm" onClick={lookupRefundByInternalReference} disabled={refundLookupLoading === 'internal'}>
+                      {refundLookupLoading === 'internal' ? 'Looking up...' : 'Lookup by reference'}
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem', alignItems: 'end' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <label htmlFor="refundLookupTransaction">Transaction id</label>
+                    <input
+                      id="refundLookupTransaction"
+                      value={refundLookupTransactionId}
+                      onChange={(e) => setRefundLookupTransactionId(e.target.value)}
+                      placeholder="12345"
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button type="button" className="btn-neutral btn-sm" onClick={lookupRefundByTransactionId} disabled={refundLookupLoading === 'transaction'}>
+                      {refundLookupLoading === 'transaction' ? 'Looking up...' : 'Lookup by transaction'}
+                    </button>
+                  </div>
+                </div>
+
+                {refundLookupError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{refundLookupError}</div>}
+                {!refundLookupError && refundLookupResult && (
+                  <DetailGrid
+                    rows={[
+                      { label: 'Refund exists', value: refundLookupResult.refundExists ? 'Yes' : 'No' },
+                      { label: 'Internal ref', value: refundLookupResult.internalReference || '-' },
+                      { label: 'Original txn ID', value: refundLookupResult.originalTransactionId || '-' },
+                      { label: 'Refund txn ID', value: refundLookupResult.refundTransactionId || '-' },
+                      { label: 'Refund ref', value: refundLookupResult.refundReference || '-' },
+                      { label: 'Refunded at', value: formatDateTime(refundLookupResult.refundedAt) }
+                    ]}
+                  />
+                )}
+              </div>
+            </div>
 
             <div className="card" style={{ padding: '1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
