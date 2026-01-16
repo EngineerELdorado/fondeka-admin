@@ -25,6 +25,7 @@ const navItems = [
   { href: '/dashboard/kycs', label: 'KYCs' },
   { href: '/dashboard/kyc-caps', label: 'KycCaps' },
   { href: '/dashboard/feature-flags', label: 'Feature Flags' },
+  { href: '/dashboard/app-version', label: 'App Version' },
   { href: '/dashboard/notification-providers', label: 'Notification Providers' },
   { href: '/dashboard/notification-default-channels', label: 'Notification Defaults' },
   { href: '/dashboard/redis-caches', label: 'Redis Caches' },

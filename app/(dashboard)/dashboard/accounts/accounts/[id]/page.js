@@ -67,10 +67,14 @@ const { pushToast } = useToast();
 const accountId = params?.id;
 
 const [account, setAccount] = useState(null);
-const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [trustedDeviceOverride, setTrustedDeviceOverride] = useState(false);
   const [trustedDeviceSaving, setTrustedDeviceSaving] = useState(false);
+  const [appVersionOverride, setAppVersionOverride] = useState('');
+  const [appVersionSaving, setAppVersionSaving] = useState(false);
+  const [appVersionError, setAppVersionError] = useState(null);
+  const [appVersionInfo, setAppVersionInfo] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [customPricing, setCustomPricing] = useState(null);
   const [customPricingLoading, setCustomPricingLoading] = useState(false);
@@ -349,6 +353,10 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
     setTrustedDeviceOverride(Boolean(account.enforceTrustedDevice));
   }, [account?.enforceTrustedDevice]);
 
+  useEffect(() => {
+    setAppVersionOverride(account?.customAppVersion ?? '');
+  }, [account?.customAppVersion]);
+
   const openCredit = () => {
     setCreditAmount('');
     setCreditNote('');
@@ -386,6 +394,34 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
       pushToast({ tone: 'error', message });
     } finally {
       setTrustedDeviceSaving(false);
+    }
+  };
+
+  const saveAppVersionOverride = async (nextValue) => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) {
+      pushToast({ tone: 'error', message: 'No account loaded' });
+      return;
+    }
+    const rawValue = typeof nextValue === 'string' ? nextValue : appVersionOverride;
+    const trimmed = rawValue.trim();
+    setAppVersionSaving(true);
+    setAppVersionError(null);
+    setAppVersionInfo(null);
+    try {
+      await api.accounts.setAppVersionOverride(resolvedAccountId, { appVersion: trimmed ? trimmed : null });
+      const refreshed = await api.accounts.get(resolvedAccountId);
+      setAccount(refreshed || null);
+      setAppVersionInfo(trimmed ? `Override set to ${trimmed}.` : 'Override cleared; using global version.');
+      pushToast({
+        tone: 'success',
+        message: trimmed ? `App version override set to ${trimmed}` : 'App version override cleared'
+      });
+    } catch (err) {
+      const message = err.message || 'Failed to update app version override';
+      setAppVersionError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setAppVersionSaving(false);
     }
   };
 
@@ -1075,6 +1111,61 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
           }
         ]}
       />
+
+      <div className="card" style={{ padding: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+            <div style={{ fontWeight: 800 }}>App Version</div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Effective version: <span style={{ fontWeight: 700 }}>{accountView?.appVersion ?? '—'}</span>
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              {accountView?.customAppVersion ? `Override: ${accountView.customAppVersion}` : 'Using global version'}
+            </div>
+          </div>
+          <button type="button" className="btn-neutral btn-sm" onClick={loadAccount} disabled={loading}>
+            {loading ? 'Refreshing...' : 'Refresh'}
+          </button>
+        </div>
+
+        {(appVersionError || appVersionInfo) && (
+          <div style={{ marginTop: '0.5rem', color: appVersionError ? '#b91c1c' : '#15803d', fontWeight: 700 }}>
+            {appVersionError || appVersionInfo}
+          </div>
+        )}
+
+        <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'end' }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minWidth: '220px', flex: 1 }}>
+            <span>Override version</span>
+            <input
+              value={appVersionOverride}
+              onChange={(e) => setAppVersionOverride(e.target.value)}
+              placeholder="Leave empty to use global version"
+            />
+          </label>
+          <button
+            type="button"
+            className="btn-primary btn-sm"
+            onClick={() => saveAppVersionOverride()}
+            disabled={appVersionSaving || resolvedAccountId === null || resolvedAccountId === undefined}
+          >
+            {appVersionSaving ? 'Saving...' : 'Save override'}
+          </button>
+          <button
+            type="button"
+            className="btn-neutral btn-sm"
+            onClick={() => saveAppVersionOverride('')}
+            disabled={
+              appVersionSaving ||
+              resolvedAccountId === null ||
+              resolvedAccountId === undefined ||
+              !accountView?.customAppVersion
+            }
+          >
+            Clear override
+          </button>
+        </div>
+      </div>
 
       <div className="card" style={{ padding: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
