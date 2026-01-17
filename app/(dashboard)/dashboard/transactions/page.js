@@ -9,27 +9,36 @@ import { api } from '@/lib/api';
 
 const serviceOptions = ['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'PAYMENT_REQUEST', 'E_SIM', 'AIRTIME_AND_DATA', 'OTHER'];
 const actionOptions = [
+  'FUND_WALLET',
+  'WITHDRAW_FROM_WALLET',
+  'REFUND_TO_WALLET',
+  'BONUS',
+  'PAY_INTERNET_BILL',
+  'PAY_TV_SUBSCRIPTION',
+  'PAY_ELECTRICITY_BILL',
+  'PAY_WATER_BILL',
+  'LOAN_REQUEST',
+  'LOAN_DISBURSEMENT',
+  'REPAY_LOAN',
+  'FUND_CARD',
+  'WITHDRAW_FROM_CARD',
   'BUY_CARD',
+  'CARD_ONLINE_PAYMENT',
   'BUY_CRYPTO',
-  'BUY_GIFT_CARD',
+  'SELL_CRYPTO',
+  'RECEIVE_CRYPTO',
+  'SEND_CRYPTO',
+  'SWAP_CRYPTO',
+  'REQUEST_PAYMENT',
+  'PAY_REQUEST',
   'E_SIM_PURCHASE',
   'E_SIM_TOPUP',
-  'FUND_CARD',
-  'FUND_WALLET',
-  'INTER_TRANSFER',
-  'LOAN_DISBURSEMENT',
-  'PAY_ELECTRICITY_BILL',
-  'PAY_INTERNET_BILL',
-  'PAY_REQUEST',
-  'PAY_TV_SUBSCRIPTION',
-  'PAY_WATER_BILL',
-  'RECEIVE_CRYPTO',
-  'REPAY_LOAN',
-  'SELL_CRYPTO',
   'SEND_AIRTIME',
-  'SEND_CRYPTO',
-  'WITHDRAW_FROM_CARD',
-  'WITHDRAW_FROM_WALLET'
+  'SEND_DATA_BUNDLES',
+  'BUY_GIFT_CARD',
+  'PAY_NETFLIX',
+  'INTER_TRANSFER',
+  'OTHER'
 ].sort();
 const balanceEffectOptions = ['CREDIT', 'DEBIT', 'NONE'];
 const statusOptions = ['COMPLETED', 'PROCESSING', 'FAILED', 'PENDING', 'CANCELLED', 'REFUNDED', 'REVERSED', 'FUNDED', 'SUBMITTED', 'UNKNOWN'];
@@ -65,6 +74,51 @@ const receiptPayloadTemplates = {
   ESIM: { providerReference: '', qr: '', pin: '', puk: '', instructions: '' },
   PAYMENT_REQUEST: { payer: '', requestReference: '', providerReference: '', note: '' },
   GENERIC: { reference: '', note: '' }
+};
+
+const serviceLabels = {
+  WALLET: 'Wallet',
+  BILL_PAYMENTS: 'Bill payments',
+  LENDING: 'Lending',
+  CARD: 'Card',
+  CRYPTO: 'Crypto',
+  PAYMENT_REQUEST: 'Payment request',
+  E_SIM: 'eSIM',
+  AIRTIME_AND_DATA: 'Airtime & data',
+  OTHER: 'Other'
+};
+
+const actionLabels = {
+  FUND_WALLET: 'Fund wallet',
+  WITHDRAW_FROM_WALLET: 'Withdraw from wallet',
+  REFUND_TO_WALLET: 'Refund to wallet',
+  BONUS: 'Bonus',
+  PAY_INTERNET_BILL: 'Pay internet bill',
+  PAY_TV_SUBSCRIPTION: 'TV subscription',
+  PAY_ELECTRICITY_BILL: 'Electricity payment',
+  PAY_WATER_BILL: 'Pay water bill',
+  LOAN_REQUEST: 'Loan request',
+  LOAN_DISBURSEMENT: 'Loan disbursement',
+  REPAY_LOAN: 'Repay loan',
+  FUND_CARD: 'Fund card',
+  WITHDRAW_FROM_CARD: 'Withdraw from card',
+  BUY_CARD: 'Buy card',
+  CARD_ONLINE_PAYMENT: 'Card online payment',
+  BUY_CRYPTO: 'Buy crypto',
+  SELL_CRYPTO: 'Sell crypto',
+  RECEIVE_CRYPTO: 'Receive crypto',
+  SEND_CRYPTO: 'Send crypto',
+  SWAP_CRYPTO: 'Swap crypto',
+  REQUEST_PAYMENT: 'Request payment',
+  PAY_REQUEST: 'Pay request',
+  E_SIM_PURCHASE: 'eSIM purchase',
+  E_SIM_TOPUP: 'eSIM top up',
+  SEND_AIRTIME: 'Send airtime',
+  SEND_DATA_BUNDLES: 'Send data bundles',
+  BUY_GIFT_CARD: 'Buy gift card',
+  PAY_NETFLIX: 'Pay Netflix',
+  INTER_TRANSFER: 'Inter transfer',
+  OTHER: 'Other'
 };
 
 const initialFilters = {
@@ -135,6 +189,26 @@ const FilterChip = ({ label, onClear }) => (
     </button>
   </span>
 );
+
+const normalizeEnumKey = (value) => String(value || '').trim().replace(/\s+/g, '_').toUpperCase();
+
+const formatEnumLabel = (value, overrides = {}) => {
+  const normalized = normalizeEnumKey(value);
+  if (!normalized) return '—';
+  if (overrides[normalized]) return overrides[normalized];
+  const words = normalized
+    .split('_')
+    .map((word, index) => {
+      const lower = word.toLowerCase();
+      if (lower === 'id') return 'ID';
+      if (!lower) return '';
+      if (index === 0) return lower.charAt(0).toUpperCase() + lower.slice(1);
+      return lower;
+    })
+    .filter(Boolean)
+    .join(' ');
+  return words || '—';
+};
 
 const formatWebhookPayload = (payload) => {
   if (payload === null || payload === undefined) return '';
@@ -424,10 +498,10 @@ export default function TransactionsPage() {
           add(`Operator ref: ${value}`, key);
           break;
         case 'action':
-          add(`Action: ${value}`, key);
+          add(`Action: ${formatEnumLabel(value, actionLabels)}`, key);
           break;
         case 'service':
-          add(`Service: ${value}`, key);
+          add(`Service: ${formatEnumLabel(value, serviceLabels)}`, key);
           break;
         case 'balanceEffect':
           add(`Effect: ${value}`, key);
@@ -482,32 +556,12 @@ export default function TransactionsPage() {
       {
         key: 'action',
         label: 'Action',
-        render: (row) => row.action || '—'
-      },
-      {
-        key: 'service',
-        label: 'Service',
-        render: (row) => row.service || '—'
-      },
-      {
-        key: 'internalReference',
-        label: 'Internal ref',
-        render: (row) => row.internalReference || '—'
-      },
-      {
-        key: 'balanceEffect',
-        label: 'Effect',
-        render: (row) => row.balanceEffect || '—'
+        render: (row) => formatEnumLabel(row.action, actionLabels)
       },
       {
         key: 'status',
         label: 'Status',
         render: (row) => renderStatusBadge(row.status)
-      },
-      {
-        key: 'needsManualRefund',
-        label: 'Manual refund',
-        render: (row) => (row.needsManualRefund ? 'Yes' : 'No')
       },
       {
         key: 'amount',
@@ -905,7 +959,7 @@ export default function TransactionsPage() {
               <option value="">All</option>
               {serviceOptions.map((svc) => (
                 <option key={svc} value={svc}>
-                  {svc}
+                  {formatEnumLabel(svc, serviceLabels)}
                 </option>
               ))}
             </select>
@@ -916,7 +970,7 @@ export default function TransactionsPage() {
               <option value="">All</option>
               {actionOptions.map((act) => (
                 <option key={act} value={act}>
-                  {act}
+                  {formatEnumLabel(act, actionLabels)}
                 </option>
               ))}
             </select>
@@ -1080,8 +1134,8 @@ export default function TransactionsPage() {
                 { label: 'External ref', value: selected?.externalReference },
                 { label: 'Operator ref', value: selected?.operatorReference },
                 { label: 'Internal ref', value: selected?.internalReference || '—' },
-                { label: 'Service', value: selected?.service },
-                { label: 'Action', value: selected?.action },
+                { label: 'Service', value: formatEnumLabel(selected?.service, serviceLabels) },
+                { label: 'Action', value: formatEnumLabel(selected?.action, actionLabels) },
                 { label: 'Effect', value: selected?.balanceEffect },
                 { label: 'Status', value: selected?.status },
                 { label: 'Amount', value: `${selected?.amount ?? '—'} ${selected?.currency || ''}`.trim() },
@@ -1444,7 +1498,7 @@ export default function TransactionsPage() {
               rows={[
                 { label: 'Transaction ID', value: selected?.transactionId || selected?.id },
                 { label: 'Reference', value: selected?.reference },
-                { label: 'Action', value: selected?.action },
+                { label: 'Action', value: formatEnumLabel(selected?.action, actionLabels) },
                 { label: 'Status', value: selected?.status }
               ]}
             />
