@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
@@ -41,6 +41,8 @@ export default function PaymentMethodCryptoNetworksPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(25);
+  const [methods, setMethods] = useState([]);
+  const [networks, setNetworks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
@@ -72,11 +74,73 @@ export default function PaymentMethodCryptoNetworksPage() {
     fetchRows();
   }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    const fetchOptions = async () => {
+      try {
+        const [pmRes, netRes] = await Promise.all([
+          api.paymentMethods.list(new URLSearchParams({ page: '0', size: '100' })),
+          api.cryptoNetworks.list(new URLSearchParams({ page: '0', size: '100' }))
+        ]);
+        const pmList = Array.isArray(pmRes) ? pmRes : pmRes?.content || [];
+        const netList = Array.isArray(netRes) ? netRes : netRes?.content || [];
+        setMethods(pmList);
+        setNetworks(netList);
+      } catch {
+        // ignore silently
+      }
+    };
+    fetchOptions();
+  }, []);
+
+  const methodNameById = useMemo(() => {
+    const map = new Map();
+    methods.forEach((method) => {
+      if (method?.id === undefined || method?.id === null) return;
+      map.set(String(method.id), method.name || method.displayName || String(method.id));
+    });
+    return map;
+  }, [methods]);
+
+  const networkNameById = useMemo(() => {
+    const map = new Map();
+    networks.forEach((network) => {
+      if (network?.id === undefined || network?.id === null) return;
+      map.set(String(network.id), network.name || network.displayName || String(network.id));
+    });
+    return map;
+  }, [networks]);
+
+  const getMethodLabel = useCallback(
+    (row) => {
+      if (row?.paymentMethodName) return row.paymentMethodName;
+      const key = row?.paymentMethodId !== undefined && row?.paymentMethodId !== null ? String(row.paymentMethodId) : '';
+      return methodNameById.get(key) || row?.paymentMethodId || '—';
+    },
+    [methodNameById]
+  );
+
+  const getNetworkLabel = useCallback(
+    (row) => {
+      if (row?.cryptoNetworkName) return row.cryptoNetworkName;
+      const key = row?.cryptoNetworkId !== undefined && row?.cryptoNetworkId !== null ? String(row.cryptoNetworkId) : '';
+      return networkNameById.get(key) || row?.cryptoNetworkId || '—';
+    },
+    [networkNameById]
+  );
+
   const columns = useMemo(
     () => [
       { key: 'id', label: 'ID' },
-      { key: 'paymentMethodId', label: 'Payment method ID' },
-      { key: 'cryptoNetworkId', label: 'Crypto network ID' },
+      {
+        key: 'paymentMethodName',
+        label: 'Payment method',
+        render: (row) => getMethodLabel(row)
+      },
+      {
+        key: 'cryptoNetworkName',
+        label: 'Crypto network',
+        render: (row) => getNetworkLabel(row)
+      },
       { key: 'rank', label: 'Rank' },
       { key: 'active', label: 'Active' },
       {
@@ -97,7 +161,7 @@ export default function PaymentMethodCryptoNetworksPage() {
         )
       }
     ],
-    []
+    [getMethodLabel, getNetworkLabel]
   );
 
   const openCreate = () => {
@@ -265,8 +329,8 @@ export default function PaymentMethodCryptoNetworksPage() {
           <DetailGrid
             rows={[
               { label: 'ID', value: selected?.id },
-              { label: 'Payment method ID', value: selected?.paymentMethodId },
-              { label: 'Crypto network ID', value: selected?.cryptoNetworkId },
+              { label: 'Payment method', value: getMethodLabel(selected) },
+              { label: 'Crypto network', value: getNetworkLabel(selected) },
               { label: 'Rank', value: selected?.rank },
               { label: 'Active', value: String(selected?.active) }
             ]}

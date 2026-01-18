@@ -28,6 +28,7 @@ const navItems = [
   { href: '/dashboard/app-version', label: 'App Version' },
   { href: '/dashboard/notification-providers', label: 'Notification Providers' },
   { href: '/dashboard/notification-default-channels', label: 'Notification Defaults' },
+  { href: '/dashboard/notification-email-test', label: 'Email Tests' },
   { href: '/dashboard/redis-caches', label: 'Redis Caches' },
   { href: '/dashboard/admins', label: 'Admins' },
   { href: '/dashboard/fees/fee-configs', label: 'Fee Configs' },
