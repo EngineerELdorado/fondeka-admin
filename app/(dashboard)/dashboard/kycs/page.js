@@ -6,7 +6,14 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
-const statusOptions = ['PENDING', 'APPROVED', 'REJECTED', 'FAILED', 'PROVISIONALLY_APPROVED', 'ADDITIONAL_VERIFICATION_NEEDED', 'EXPIRED'];
+const statusFilterOptions = ['PENDING', 'APPROVED', 'REJECTED', 'FAILED', 'PROVISIONALLY_APPROVED', 'ADDITIONAL_VERIFICATION_NEEDED', 'EXPIRED'];
+const statusDecisionOptions = ['APPROVE', 'REJECT', 'EXPIRE'];
+const statusToDecision = {
+  APPROVED: 'APPROVE',
+  REJECTED: 'REJECT',
+  FAILED: 'REJECT',
+  EXPIRED: 'EXPIRE'
+};
 
 const emptyFilters = {
   status: '',
@@ -287,9 +294,10 @@ export default function KycsPage() {
             type="button"
             onClick={() => {
               setStatusEditRow(row);
+              const mappedDecision = statusToDecision[row?.status] || '';
               setStatusDraft({
                 ...emptyStatusDraft,
-                status: row?.status || '',
+                status: mappedDecision,
                 comments: row?.comments || ''
               });
             }}
@@ -378,7 +386,7 @@ export default function KycsPage() {
             <label htmlFor="status">Status</label>
             <select id="status" value={filters.status} onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value }))}>
               <option value="">All</option>
-              {statusOptions.map((st) => (
+              {statusFilterOptions.map((st) => (
                 <option key={st} value={st}>
                   {st}
                 </option>
@@ -544,7 +552,7 @@ export default function KycsPage() {
                 onChange={(e) => setStatusDraft((p) => ({ ...p, status: e.target.value }))}
               >
                 <option value="">Select</option>
-                {statusOptions.map((status) => (
+                {statusDecisionOptions.map((status) => (
                   <option key={status} value={status}>
                     {status}
                   </option>
