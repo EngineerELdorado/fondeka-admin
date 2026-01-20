@@ -289,9 +289,6 @@ export default function KycsPage() {
           <button type="button" onClick={() => openDetail(row)} className="btn-neutral">
             View
           </button>
-          <button type="button" onClick={() => handleSmileOpen(row)} className="btn-neutral">
-            SmileID
-          </button>
           <button
             type="button"
             onClick={() => {
