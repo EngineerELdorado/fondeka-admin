@@ -60,6 +60,31 @@ const fadeInStyle = (ready) => ({
   transition: 'opacity 0.35s ease, transform 0.35s ease'
 });
 
+const createEmptyCardholderForm = () => ({
+  firstName: '',
+  lastName: '',
+  phone: '',
+  emailAddress: '',
+  address: {
+    address: '',
+    city: '',
+    state: '',
+    country: '',
+    postalCode: '',
+    houseNo: ''
+  },
+  identity: {
+    idType: '',
+    bvn: '',
+    idNumber: '',
+    selfieImage: '',
+    idImage: '',
+    backIdImage: '',
+    gender: '',
+    countryIso2: ''
+  }
+});
+
 export default function AccountDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -153,6 +178,11 @@ const [cryptoLimitSaving, setCryptoLimitSaving] = useState(false);
 const [confirmPrompt, setConfirmPrompt] = useState(null);
 const [confirmLoading, setConfirmLoading] = useState(false);
 const [confirmError, setConfirmError] = useState('');
+const [showCardholderSync, setShowCardholderSync] = useState(false);
+const [cardholderForm, setCardholderForm] = useState(() => createEmptyCardholderForm());
+const [cardholderError, setCardholderError] = useState(null);
+const [cardholderSaving, setCardholderSaving] = useState(false);
+const [cardholderResult, setCardholderResult] = useState(null);
 const [showCredit, setShowCredit] = useState(false);
 const [creditAmount, setCreditAmount] = useState('');
 const [creditNote, setCreditNote] = useState('');
@@ -357,6 +387,31 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
     setAppVersionOverride(account?.customAppVersion ?? '');
   }, [account?.customAppVersion]);
 
+  const updateCardholderField = (field, value) => {
+    setCardholderForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const updateCardholderAddress = (field, value) => {
+    setCardholderForm((prev) => ({
+      ...prev,
+      address: { ...prev.address, [field]: value }
+    }));
+  };
+
+  const updateCardholderIdentity = (field, value) => {
+    setCardholderForm((prev) => ({
+      ...prev,
+      identity: { ...prev.identity, [field]: value }
+    }));
+  };
+
+  const openCardholderSync = () => {
+    setCardholderForm(createEmptyCardholderForm());
+    setCardholderError(null);
+    setCardholderResult(null);
+    setShowCardholderSync(true);
+  };
+
   const openCredit = () => {
     setCreditAmount('');
     setCreditNote('');
@@ -371,6 +426,114 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
     setNotificationError(null);
     setNotificationResult(null);
     setShowNotification(true);
+  };
+
+  const submitCardholderSync = async () => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) {
+      setCardholderError('No account loaded');
+      return;
+    }
+
+    const firstName = cardholderForm.firstName.trim();
+    const lastName = cardholderForm.lastName.trim();
+    const phone = cardholderForm.phone.trim();
+    const emailAddress = cardholderForm.emailAddress.trim();
+    const address = {
+      address: cardholderForm.address.address.trim(),
+      city: cardholderForm.address.city.trim(),
+      state: cardholderForm.address.state.trim(),
+      country: cardholderForm.address.country.trim(),
+      postalCode: cardholderForm.address.postalCode.trim(),
+      houseNo: cardholderForm.address.houseNo.trim()
+    };
+    const identity = {
+      idType: cardholderForm.identity.idType.trim(),
+      bvn: cardholderForm.identity.bvn.trim(),
+      idNumber: cardholderForm.identity.idNumber.trim(),
+      selfieImage: cardholderForm.identity.selfieImage.trim(),
+      idImage: cardholderForm.identity.idImage.trim(),
+      backIdImage: cardholderForm.identity.backIdImage.trim(),
+      gender: cardholderForm.identity.gender.trim(),
+      countryIso2: cardholderForm.identity.countryIso2.trim()
+    };
+
+    if (!firstName) {
+      setCardholderError('First name is required');
+      return;
+    }
+    if (!lastName) {
+      setCardholderError('Last name is required');
+      return;
+    }
+    if (!phone) {
+      setCardholderError('Phone is required');
+      return;
+    }
+    if (!emailAddress) {
+      setCardholderError('Email is required');
+      return;
+    }
+    if (!address.address || !address.city || !address.state || !address.country) {
+      setCardholderError('Address, city, state, and country are required');
+      return;
+    }
+    if (!identity.idType) {
+      setCardholderError('ID type is required');
+      return;
+    }
+    if (!identity.selfieImage) {
+      setCardholderError('Selfie image URL is required');
+      return;
+    }
+    if (!identity.idNumber && !identity.bvn) {
+      setCardholderError('Provide either an ID number or BVN');
+      return;
+    }
+
+    setCardholderSaving(true);
+    setCardholderError(null);
+    setCardholderResult(null);
+    try {
+      const payload = {
+        accountId: resolvedAccountId,
+        firstName,
+        lastName,
+        phone,
+        emailAddress,
+        address: {
+          address: address.address,
+          city: address.city,
+          state: address.state,
+          country: address.country,
+          ...(address.postalCode ? { postalCode: address.postalCode } : {}),
+          ...(address.houseNo ? { houseNo: address.houseNo } : {})
+        },
+        identity: {
+          idType: identity.idType,
+          ...(identity.bvn ? { bvn: identity.bvn } : {}),
+          ...(identity.idNumber ? { idNumber: identity.idNumber } : {}),
+          ...(identity.gender ? { gender: identity.gender } : {}),
+          ...(identity.countryIso2 ? { countryIso2: identity.countryIso2 } : {}),
+          selfieImage: identity.selfieImage,
+          ...(identity.idImage ? { idImage: identity.idImage } : {}),
+          ...(identity.backIdImage ? { backIdImage: identity.backIdImage } : {})
+        }
+      };
+      const res = await api.cardHolders.registerSync(payload);
+      setCardholderResult(res || null);
+      pushToast({
+        tone: 'success',
+        message: res?.externalReference ? `Cardholder created (ref ${res.externalReference})` : 'Cardholder created'
+      });
+    } catch (err) {
+      const message = err?.name === 'AbortError'
+        ? 'Request timed out. This call can take up to 45 seconds.'
+        : err.message || 'Failed to create cardholder';
+      setCardholderError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setCardholderSaving(false);
+    }
   };
 
   const saveTrustedDeviceOverride = async () => {
@@ -1111,6 +1274,28 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
           }
         ]}
       />
+
+      <div className="card" style={{ padding: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+            <div style={{ fontWeight: 800 }}>Manual cardholder creation</div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Use this when async cardholder creation fails. Requires admin-supplied KYC data and images.
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Sync call can take up to 45 seconds. Provider rate-limits retries to once per minute.
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn-primary btn-sm"
+            onClick={openCardholderSync}
+            disabled={resolvedAccountId === null || resolvedAccountId === undefined}
+          >
+            Create cardholder (sync)
+          </button>
+        </div>
+      </div>
 
       <div className="card" style={{ padding: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
@@ -1909,6 +2094,215 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
               </button>
               <button type="button" className="btn-danger" onClick={handleConfirm} disabled={confirmLoading}>
                 {confirmLoading ? 'Working…' : 'Confirm'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showCardholderSync && (
+        <Modal title="Create cardholder (sync)" onClose={() => (!cardholderSaving ? setShowCardholderSync(false) : null)}>
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Account ID: <span style={{ fontWeight: 700 }}>{resolvedAccountId ?? '—'}</span>
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Provide required fields. Sync call can take up to 45 seconds.
+            </div>
+
+            <div style={{ fontWeight: 700 }}>Identity</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.65rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="cardholder-idType">ID type *</label>
+                <input
+                  id="cardholder-idType"
+                  value={cardholderForm.identity.idType}
+                  onChange={(e) => updateCardholderIdentity('idType', e.target.value)}
+                  placeholder="NIGERIAN_BVN_VERIFICATION"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="cardholder-idNumber">ID number</label>
+                <input
+                  id="cardholder-idNumber"
+                  value={cardholderForm.identity.idNumber}
+                  onChange={(e) => updateCardholderIdentity('idNumber', e.target.value)}
+                  placeholder="OP0739797"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="cardholder-bvn">BVN</label>
+                <input
+                  id="cardholder-bvn"
+                  value={cardholderForm.identity.bvn}
+                  onChange={(e) => updateCardholderIdentity('bvn', e.target.value)}
+                  placeholder="22222222222222"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="cardholder-gender">Gender</label>
+                <input
+                  id="cardholder-gender"
+                  value={cardholderForm.identity.gender}
+                  onChange={(e) => updateCardholderIdentity('gender', e.target.value)}
+                  placeholder="M"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="cardholder-countryIso2">Country ISO2</label>
+                <input
+                  id="cardholder-countryIso2"
+                  value={cardholderForm.identity.countryIso2}
+                  onChange={(e) => updateCardholderIdentity('countryIso2', e.target.value)}
+                  placeholder="NG"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="cardholder-selfieImage">Selfie image URL *</label>
+                <input
+                  id="cardholder-selfieImage"
+                  value={cardholderForm.identity.selfieImage}
+                  onChange={(e) => updateCardholderIdentity('selfieImage', e.target.value)}
+                  placeholder="https://image.com/selfie.jpg"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="cardholder-idImage">ID front image URL</label>
+                <input
+                  id="cardholder-idImage"
+                  value={cardholderForm.identity.idImage}
+                  onChange={(e) => updateCardholderIdentity('idImage', e.target.value)}
+                  placeholder="https://image.com/id-front.jpg"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="cardholder-backIdImage">ID back image URL</label>
+                <input
+                  id="cardholder-backIdImage"
+                  value={cardholderForm.identity.backIdImage}
+                  onChange={(e) => updateCardholderIdentity('backIdImage', e.target.value)}
+                  placeholder="https://image.com/id-back.jpg"
+                />
+              </div>
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Provide either BVN or ID number.</div>
+
+            <div style={{ fontWeight: 700 }}>Personal details</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.65rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="cardholder-firstName">First name *</label>
+                <input
+                  id="cardholder-firstName"
+                  value={cardholderForm.firstName}
+                  onChange={(e) => updateCardholderField('firstName', e.target.value)}
+                  placeholder="John"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="cardholder-lastName">Last name *</label>
+                <input
+                  id="cardholder-lastName"
+                  value={cardholderForm.lastName}
+                  onChange={(e) => updateCardholderField('lastName', e.target.value)}
+                  placeholder="Doe"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="cardholder-phone">Phone *</label>
+                <input
+                  id="cardholder-phone"
+                  value={cardholderForm.phone}
+                  onChange={(e) => updateCardholderField('phone', e.target.value)}
+                  placeholder="+2348122277789"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="cardholder-email">Email *</label>
+                <input
+                  id="cardholder-email"
+                  type="email"
+                  value={cardholderForm.emailAddress}
+                  onChange={(e) => updateCardholderField('emailAddress', e.target.value)}
+                  placeholder="testingboy@gmail.com"
+                />
+              </div>
+            </div>
+
+            <div style={{ fontWeight: 700 }}>Address</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.65rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="cardholder-address">Address *</label>
+                <input
+                  id="cardholder-address"
+                  value={cardholderForm.address.address}
+                  onChange={(e) => updateCardholderAddress('address', e.target.value)}
+                  placeholder="9 Jibowu Street"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="cardholder-city">City *</label>
+                <input
+                  id="cardholder-city"
+                  value={cardholderForm.address.city}
+                  onChange={(e) => updateCardholderAddress('city', e.target.value)}
+                  placeholder="Aba North"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="cardholder-state">State *</label>
+                <input
+                  id="cardholder-state"
+                  value={cardholderForm.address.state}
+                  onChange={(e) => updateCardholderAddress('state', e.target.value)}
+                  placeholder="Abia"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="cardholder-country">Country *</label>
+                <input
+                  id="cardholder-country"
+                  value={cardholderForm.address.country}
+                  onChange={(e) => updateCardholderAddress('country', e.target.value)}
+                  placeholder="Nigeria"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="cardholder-postalCode">Postal code</label>
+                <input
+                  id="cardholder-postalCode"
+                  value={cardholderForm.address.postalCode}
+                  onChange={(e) => updateCardholderAddress('postalCode', e.target.value)}
+                  placeholder="1000242"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="cardholder-houseNo">House no</label>
+                <input
+                  id="cardholder-houseNo"
+                  value={cardholderForm.address.houseNo}
+                  onChange={(e) => updateCardholderAddress('houseNo', e.target.value)}
+                  placeholder="13"
+                />
+              </div>
+            </div>
+
+            {cardholderError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{cardholderError}</div>}
+            {cardholderResult && (
+              <div style={{ border: `1px solid var(--border)`, borderRadius: '12px', padding: '0.65rem' }}>
+                <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Result</div>
+                <div style={{ display: 'grid', gap: '0.3rem', fontSize: '12px', color: 'var(--muted)' }}>
+                  <div>External reference: {cardholderResult?.externalReference ?? '—'}</div>
+                  <div>Internal reference: {cardholderResult?.internalReference ?? cardholderResult?.id ?? '—'}</div>
+                </div>
+              </div>
+            )}
+
+            <div className="modal-actions">
+              <button type="button" className="btn-neutral" onClick={() => setShowCardholderSync(false)} disabled={cardholderSaving}>
+                Cancel
+              </button>
+              <button type="button" className="btn-primary" onClick={submitCardholderSync} disabled={cardholderSaving}>
+                {cardholderSaving ? 'Creating…' : 'Create cardholder'}
               </button>
             </div>
           </div>

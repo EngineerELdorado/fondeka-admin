@@ -30,9 +30,41 @@ const DetailGrid = ({ rows }) => (
   </div>
 );
 
+const copyTextToClipboard = async (value) => {
+  if (!value) return false;
+  if (navigator?.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return true;
+  }
+  const textarea = document.createElement('textarea');
+  textarea.value = value;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'absolute';
+  textarea.style.left = '-9999px';
+  document.body.appendChild(textarea);
+  textarea.select();
+  const success = document.execCommand('copy');
+  document.body.removeChild(textarea);
+  return success;
+};
+
 const ImageTile = ({ label, url, onZoom }) => {
   const [failed, setFailed] = useState(false);
+  const [copied, setCopied] = useState(false);
   const hasImage = Boolean(url) && !failed;
+  const canCopy = Boolean(url);
+
+  const handleCopy = async () => {
+    try {
+      const success = await copyTextToClipboard(url);
+      if (success) {
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1600);
+      }
+    } catch (err) {
+      setCopied(false);
+    }
+  };
 
   return (
     <div
@@ -66,9 +98,24 @@ const ImageTile = ({ label, url, onZoom }) => {
       ) : (
         <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
           {url ? 'Image failed to load.' : 'No image.'}
-          {url ? <div style={{ fontSize: '11px', wordBreak: 'break-all', marginTop: '0.35rem' }}>{url}</div> : null}
         </div>
       )}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.4rem' }}>
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="btn-neutral btn-sm"
+          disabled={!canCopy}
+          style={{ alignSelf: 'flex-start' }}
+        >
+          {copied ? 'Copied' : 'Copy link'}
+        </button>
+        {url ? (
+          <div style={{ fontSize: '11px', color: 'var(--muted)', wordBreak: 'break-all', textAlign: 'right' }}>
+            {url}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 };
