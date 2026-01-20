@@ -7,7 +7,7 @@ import { DataTable } from '@/components/DataTable';
 import { useToast } from '@/contexts/ToastContext';
 
 const PROVIDER_OPTIONS = ['AVADAPAY', 'RELOADLY_AIRTIME', 'UNIPAYMENT', 'BTCPAYSERVER', 'ESIMGO', 'AIRALO', 'SMILEID', 'ARAKAPAY', 'BRIDGECARD'];
-const RETRY_SUPPORTED_PROVIDERS = new Set(['AVADAPAY', 'RELOADLY_AIRTIME', 'UNIPAYMENT', 'BTCPAYSERVER', 'ESIMGO', 'AIRALO', 'SMILEID']);
+const RETRY_SUPPORTED_PROVIDERS = new Set(['AVADAPAY', 'RELOADLY_AIRTIME', 'UNIPAYMENT', 'BTCPAYSERVER', 'ESIMGO', 'AIRALO', 'SMILEID', 'BRIDGECARD']);
 
 const Modal = ({ title, onClose, children }) => (
   <div className="modal-backdrop">
@@ -200,10 +200,11 @@ export default function WebhookEventsPage() {
         key: 'actions',
         label: 'Actions',
         render: (row) => {
+          const hasId = row.id !== null && row.id !== undefined;
           const isProcessed = Boolean(row.processedAt);
           const provider = row.provider ? String(row.provider).toUpperCase() : '';
           const isSupported = RETRY_SUPPORTED_PROVIDERS.has(provider);
-          const retryDisabledReason = isProcessed ? 'Webhook already processed' : !isSupported ? 'Unsupported provider' : '';
+          const retryDisabledReason = !hasId ? 'Missing webhook ID' : isProcessed ? 'Webhook already processed' : !isSupported ? 'Unsupported provider' : '';
           return (
             <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
               <button
@@ -250,7 +251,10 @@ export default function WebhookEventsPage() {
   }, [selected]);
 
   const onRetry = async () => {
-    if (!retryTarget?.id) return;
+    if (retryTarget?.id === null || retryTarget?.id === undefined) {
+      pushToast({ message: 'Missing webhook ID; cannot retry.', tone: 'error' });
+      return;
+    }
     setRetryLoading(true);
     try {
       await api.webhookEvents.retry(retryTarget.id);
@@ -261,7 +265,11 @@ export default function WebhookEventsPage() {
         fetchDetail(retryTarget.id);
       }
     } catch (err) {
-      pushToast({ message: err.message || 'Retry failed.', tone: 'error' });
+      const message =
+        err?.status === 404
+          ? 'Retry endpoint is unavailable for this webhook event.'
+          : err?.message || 'Retry failed.';
+      pushToast({ message, tone: 'error' });
     } finally {
       setRetryLoading(false);
     }
@@ -451,7 +459,7 @@ export default function WebhookEventsPage() {
           )}
         </div>
         <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-          Retry supported providers: AVADAPAY, RELOADLY_AIRTIME, UNIPAYMENT, BTCPAYSERVER, ESIMGO, AIRALO, SMILEID.
+          Retry supported providers: AVADAPAY, RELOADLY_AIRTIME, UNIPAYMENT, BTCPAYSERVER, ESIMGO, AIRALO, SMILEID, BRIDGECARD.
         </div>
       </div>
 

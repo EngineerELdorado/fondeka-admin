@@ -30,7 +30,7 @@ const DetailGrid = ({ rows }) => (
   </div>
 );
 
-const ImageTile = ({ label, url }) => {
+const ImageTile = ({ label, url, onZoom }) => {
   const [failed, setFailed] = useState(false);
   const hasImage = Boolean(url) && !failed;
 
@@ -60,7 +60,8 @@ const ImageTile = ({ label, url }) => {
           alt={`${label} image`}
           onError={() => setFailed(true)}
           referrerPolicy="no-referrer"
-          style={{ width: '100%', height: '180px', objectFit: 'cover', borderRadius: '10px' }}
+          style={{ width: '100%', height: '180px', objectFit: 'cover', borderRadius: '10px', cursor: 'zoom-in' }}
+          onClick={() => onZoom?.({ label, url })}
         />
       ) : (
         <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
@@ -78,6 +79,8 @@ export default function SmileIdResultPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
+  const [zoomed, setZoomed] = useState(null);
+  const [zoomScale, setZoomScale] = useState(1);
 
   const formatDate = (value) => {
     if (!value) return null;
@@ -142,6 +145,9 @@ export default function SmileIdResultPage() {
   }, [payload]);
 
   const imageLinks = payload?.ImageLinks || payload?.imageLinks || payload?.image_links || payload?.Image_Links || {};
+  const zoomIn = () => setZoomScale((prev) => Math.min(prev + 0.5, 3));
+  const zoomOut = () => setZoomScale((prev) => Math.max(prev - 0.5, 1));
+  const resetZoom = () => setZoomScale(1);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -191,9 +197,14 @@ export default function SmileIdResultPage() {
 
           <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
             <div style={{ fontWeight: 700 }}>Images</div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Click an image to zoom.</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.8rem' }}>
               <ImageTile
                 label="Selfie"
+                onZoom={(data) => {
+                  setZoomed(data);
+                  setZoomScale(1);
+                }}
                 url={pickSmileValue(
                   imageLinks.selfie_image,
                   imageLinks.selfieImage,
@@ -204,6 +215,10 @@ export default function SmileIdResultPage() {
               />
               <ImageTile
                 label="Document front"
+                onZoom={(data) => {
+                  setZoomed(data);
+                  setZoomScale(1);
+                }}
                 url={pickSmileValue(
                   imageLinks.id_card_image,
                   imageLinks.idCardImage,
@@ -215,6 +230,10 @@ export default function SmileIdResultPage() {
               />
               <ImageTile
                 label="Document back"
+                onZoom={(data) => {
+                  setZoomed(data);
+                  setZoomScale(1);
+                }}
                 url={pickSmileValue(
                   imageLinks.id_card_back,
                   imageLinks.idCardBack,
@@ -227,6 +246,61 @@ export default function SmileIdResultPage() {
             </div>
           </div>
         </>
+      )}
+
+      {zoomed && (
+        <div
+          className="modal-backdrop"
+          onClick={() => setZoomed(null)}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+        >
+          <div
+            className="modal-surface"
+            onClick={(event) => event.stopPropagation()}
+            style={{ width: 'min(960px, 92vw)', maxHeight: '92vh', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ fontWeight: 800 }}>{zoomed.label}</div>
+              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                <button type="button" className="btn-neutral btn-sm" onClick={zoomOut} disabled={zoomScale <= 1}>
+                  Zoom -
+                </button>
+                <button type="button" className="btn-neutral btn-sm" onClick={resetZoom} disabled={zoomScale === 1}>
+                  Reset
+                </button>
+                <button type="button" className="btn-neutral btn-sm" onClick={zoomIn} disabled={zoomScale >= 3}>
+                  Zoom +
+                </button>
+                <button type="button" className="btn-neutral btn-sm" onClick={() => setZoomed(null)}>
+                  Close
+                </button>
+              </div>
+            </div>
+            <div
+              style={{
+                overflow: 'auto',
+                border: '1px solid var(--border)',
+                borderRadius: '12px',
+                background: 'var(--surface)',
+                padding: '0.75rem',
+                display: 'flex',
+                justifyContent: 'center'
+              }}
+            >
+              <img
+                src={zoomed.url}
+                alt={`${zoomed.label} full-size`}
+                referrerPolicy="no-referrer"
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: '80vh',
+                  transform: `scale(${zoomScale})`,
+                  transformOrigin: 'center center'
+                }}
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
