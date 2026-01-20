@@ -137,6 +137,8 @@ export default function KycsPage() {
   const [statusDraft, setStatusDraft] = useState(emptyStatusDraft);
   const [levelDraft, setLevelDraft] = useState(emptyLevelDraft);
   const [levelOptions, setLevelOptions] = useState([]);
+  const [smileAction, setSmileAction] = useState(null);
+  const [confirmSmileDelete, setConfirmSmileDelete] = useState(null);
   const router = useRouter();
 
   const formatDate = (value) => {
@@ -368,6 +370,37 @@ export default function KycsPage() {
     }
   };
 
+  const handleSmileReenroll = async (row) => {
+    if (!row?.id) return;
+    setError(null);
+    setInfo(null);
+    setSmileAction('reenroll');
+    try {
+      const res = await api.kycs.smileIdReenroll(row.id);
+      setInfo(res?.message || `SmileID user ${res?.user_id || ''} re-enrollment enabled.`);
+    } catch (err) {
+      setError(err.message || 'Failed to allow SmileID re-enrollment.');
+    } finally {
+      setSmileAction(null);
+    }
+  };
+
+  const handleSmileDelete = async () => {
+    if (!confirmSmileDelete?.id) return;
+    setError(null);
+    setInfo(null);
+    setSmileAction('delete');
+    try {
+      const res = await api.kycs.smileIdDelete(confirmSmileDelete.id);
+      setInfo(res?.message || `SmileID user ${res?.user_id || ''} deleted.`);
+      setConfirmSmileDelete(null);
+    } catch (err) {
+      setError(err.message || 'Failed to delete SmileID user.');
+    } finally {
+      setSmileAction(null);
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
@@ -517,6 +550,23 @@ export default function KycsPage() {
             <button type="button" onClick={() => handleSmileOpen(selected)} className="btn-neutral">
               SmileID
             </button>
+            <button
+              type="button"
+              onClick={() => handleSmileReenroll(selected)}
+              className="btn-neutral"
+              disabled={smileAction !== null}
+            >
+              {smileAction === 'reenroll' ? 'Allowing…' : 'Allow re-enrollment'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmSmileDelete(selected)}
+              className="btn-primary"
+              disabled={smileAction !== null}
+              style={{ background: 'linear-gradient(90deg, #F97316, #DC2626)', border: 'none' }}
+            >
+              Delete SmileID user
+            </button>
           </div>
           <DetailGrid
             rows={[
@@ -535,6 +585,28 @@ export default function KycsPage() {
               { label: 'Expires at', value: formatDateTime(selected?.expiresAt) }
             ]}
           />
+        </Modal>
+      )}
+
+      {confirmSmileDelete && (
+        <Modal title="Delete SmileID user" onClose={() => setConfirmSmileDelete(null)}>
+          <div style={{ color: 'var(--muted)', marginBottom: '0.75rem' }}>
+            This permanently deletes the SmileID user and cannot be undone. Continue?
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+            <button type="button" onClick={() => setConfirmSmileDelete(null)} className="btn-neutral" disabled={smileAction === 'delete'}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSmileDelete}
+              className="btn-primary"
+              disabled={smileAction === 'delete'}
+              style={{ background: 'linear-gradient(90deg, #F97316, #DC2626)', border: 'none' }}
+            >
+              {smileAction === 'delete' ? 'Deleting…' : 'Delete user'}
+            </button>
+          </div>
         </Modal>
       )}
 
