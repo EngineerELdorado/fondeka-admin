@@ -53,6 +53,12 @@ const ImageTile = ({ label, url, onZoom }) => {
   const [copied, setCopied] = useState(false);
   const hasImage = Boolean(url) && !failed;
   const canCopy = Boolean(url);
+  const displayUrl = (() => {
+    if (!url) return '';
+    const text = String(url);
+    if (text.length <= 48) return text;
+    return `${text.slice(0, 28)}…${text.slice(-12)}`;
+  })();
 
   const handleCopy = async () => {
     try {
@@ -111,8 +117,8 @@ const ImageTile = ({ label, url, onZoom }) => {
           {copied ? 'Copied' : 'Copy link'}
         </button>
         {url ? (
-          <div style={{ fontSize: '11px', color: 'var(--muted)', wordBreak: 'break-all', textAlign: 'right' }}>
-            {url}
+          <div style={{ fontSize: '11px', color: 'var(--muted)', wordBreak: 'break-all', textAlign: 'right' }} title={String(url)}>
+            {displayUrl}
           </div>
         ) : null}
       </div>

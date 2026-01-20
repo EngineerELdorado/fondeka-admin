@@ -17,7 +17,7 @@ const formatCurrency = (val) => {
   if (val === null || val === undefined) return '—';
   const num = Number(val);
   if (Number.isNaN(num)) return val;
-  return num.toLocaleString(DISPLAY_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return num.toLocaleString(DISPLAY_LOCALE, { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
 const formatDateTime = (value) => {
