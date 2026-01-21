@@ -70,6 +70,16 @@ const formatJsonPreview = (value, maxLen = 120) => {
   return `${text.slice(0, Math.max(0, maxLen - 3))}...`;
 };
 
+const formatJsonFull = (value) => {
+  if (value === null || value === undefined) return '—';
+  if (typeof value === 'string') return value;
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch (err) {
+    return String(value);
+  }
+};
+
 const fadeInStyle = (ready) => ({
   opacity: ready ? 1 : 0,
   transform: ready ? 'translateY(0px)' : 'translateY(6px)',
@@ -118,11 +128,13 @@ const [account, setAccount] = useState(null);
   const [appVersionInfo, setAppVersionInfo] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [notifications, setNotifications] = useState([]);
-  const [notificationsLoading, setNotificationsLoading] = useState(false);
-  const [notificationsError, setNotificationsError] = useState(null);
-  const [notificationsPage, setNotificationsPage] = useState(0);
-  const [notificationsSize, setNotificationsSize] = useState(5);
-  const [notificationsMeta, setNotificationsMeta] = useState({ totalElements: null, totalPages: null, size: null, number: null });
+const [notificationsLoading, setNotificationsLoading] = useState(false);
+const [notificationsError, setNotificationsError] = useState(null);
+const [notificationsPage, setNotificationsPage] = useState(0);
+const [notificationsSize, setNotificationsSize] = useState(5);
+const [notificationsMeta, setNotificationsMeta] = useState({ totalElements: null, totalPages: null, size: null, number: null });
+const [notificationBodyModal, setNotificationBodyModal] = useState(null);
+const [notificationDataModal, setNotificationDataModal] = useState(null);
   const [customPricing, setCustomPricing] = useState(null);
   const [customPricingLoading, setCustomPricingLoading] = useState(false);
   const [customPricingMissing, setCustomPricingMissing] = useState(false);
@@ -2100,11 +2112,35 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
                     <td style={{ padding: '0.5rem' }}>{formatDateTime(note.createdAt)}</td>
                     <td style={{ padding: '0.5rem' }}>{note.category || '—'}</td>
                     <td style={{ padding: '0.5rem' }}>{note.subject || '—'}</td>
-                    <td style={{ padding: '0.5rem', maxWidth: '240px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {note.body || '—'}
+                    <td style={{ padding: '0.5rem', maxWidth: '240px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{note.body || '—'}</span>
+                        {note.body && (
+                          <button
+                            type="button"
+                            onClick={() => setNotificationBodyModal({ subject: note.subject, body: note.body, createdAt: note.createdAt })}
+                            style={{ border: 'none', padding: 0, background: 'transparent', color: '#2563eb', textAlign: 'left', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
+                          >
+                            See more
+                          </button>
+                        )}
+                      </div>
                     </td>
-                    <td style={{ padding: '0.5rem', maxWidth: '220px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {formatJsonPreview(note.data, 120)}
+                    <td style={{ padding: '0.5rem', maxWidth: '220px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {formatJsonPreview(note.data, 120)}
+                        </span>
+                        {note.data !== null && note.data !== undefined && (
+                          <button
+                            type="button"
+                            onClick={() => setNotificationDataModal({ subject: note.subject, data: note.data, createdAt: note.createdAt })}
+                            style={{ border: 'none', padding: 0, background: 'transparent', color: '#2563eb', textAlign: 'left', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
+                          >
+                            See more
+                          </button>
+                        )}
+                      </div>
                     </td>
                     <td style={{ padding: '0.5rem' }}>{note.readAt ? formatDateTime(note.readAt) : 'Unread'}</td>
                     <td style={{ padding: '0.5rem' }}>{note.archivedAt ? formatDateTime(note.archivedAt) : '—'}</td>
@@ -2171,6 +2207,32 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
             </table>
           </div>
         </div>
+      )}
+
+      {notificationBodyModal && (
+        <Modal title={notificationBodyModal.subject ? `Notification: ${notificationBodyModal.subject}` : 'Notification body'} onClose={() => setNotificationBodyModal(null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {notificationBodyModal.createdAt && (
+              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{formatDateTime(notificationBodyModal.createdAt)}</div>
+            )}
+            <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '14px' }}>
+              {notificationBodyModal.body || '—'}
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {notificationDataModal && (
+        <Modal title={notificationDataModal.subject ? `Notification data: ${notificationDataModal.subject}` : 'Notification data'} onClose={() => setNotificationDataModal(null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {notificationDataModal.createdAt && (
+              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{formatDateTime(notificationDataModal.createdAt)}</div>
+            )}
+            <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '13px' }}>
+              {formatJsonFull(notificationDataModal.data)}
+            </pre>
+          </div>
+        </Modal>
       )}
 
       {showPricingForm && (
