@@ -54,6 +54,22 @@ const formatDateTime = (value) => {
   return date.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
 };
 
+const formatJsonPreview = (value, maxLen = 120) => {
+  if (value === null || value === undefined) return '—';
+  let text = '';
+  if (typeof value === 'string') {
+    text = value;
+  } else {
+    try {
+      text = JSON.stringify(value);
+    } catch (err) {
+      text = String(value);
+    }
+  }
+  if (text.length <= maxLen) return text;
+  return `${text.slice(0, Math.max(0, maxLen - 3))}...`;
+};
+
 const fadeInStyle = (ready) => ({
   opacity: ready ? 1 : 0,
   transform: ready ? 'translateY(0px)' : 'translateY(6px)',
@@ -101,6 +117,12 @@ const [account, setAccount] = useState(null);
   const [appVersionError, setAppVersionError] = useState(null);
   const [appVersionInfo, setAppVersionInfo] = useState(null);
   const [transactions, setTransactions] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsError, setNotificationsError] = useState(null);
+  const [notificationsPage, setNotificationsPage] = useState(0);
+  const [notificationsSize, setNotificationsSize] = useState(5);
+  const [notificationsMeta, setNotificationsMeta] = useState({ totalElements: null, totalPages: null, size: null, number: null });
   const [customPricing, setCustomPricing] = useState(null);
   const [customPricingLoading, setCustomPricingLoading] = useState(false);
   const [customPricingMissing, setCustomPricingMissing] = useState(false);
@@ -373,9 +395,40 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
     }
   };
 
+  const loadNotifications = async (id) => {
+    if (!id && id !== 0) return;
+    const targetPage = Number.isFinite(Number(notificationsPage)) ? Number(notificationsPage) : 0;
+    const rawSize = Number(notificationsSize);
+    const targetSize = Number.isFinite(rawSize) ? Math.min(50, Math.max(1, rawSize)) : 5;
+    setNotificationsLoading(true);
+    setNotificationsError(null);
+    try {
+      const params = new URLSearchParams({ page: String(targetPage), size: String(targetSize) });
+      const res = await api.accounts.notifications.list(id, params);
+      const list = Array.isArray(res) ? res : res?.content || [];
+      setNotifications(list || []);
+      setNotificationsMeta({
+        totalElements: res?.totalElements ?? null,
+        totalPages: res?.totalPages ?? null,
+        size: res?.size ?? targetSize,
+        number: res?.number ?? targetPage
+      });
+    } catch (err) {
+      setNotifications([]);
+      setNotificationsMeta({ totalElements: null, totalPages: null, size: targetSize, number: targetPage });
+      setNotificationsError(err.message || 'Failed to load notifications');
+    } finally {
+      setNotificationsLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadAccount();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId]);
+
+  useEffect(() => {
+    setNotificationsPage(0);
   }, [accountId]);
 
   useEffect(() => {
@@ -1196,6 +1249,12 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
     return Number.isFinite(num) ? num : null;
   }, [account, accountId]);
 
+  useEffect(() => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) return;
+    loadNotifications(resolvedAccountId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedAccountId, notificationsPage, notificationsSize]);
+
   const openConfirm = ({ title, message, onConfirm }) => {
     setConfirmPrompt({ title, message, onConfirm });
     setConfirmError('');
@@ -1217,6 +1276,10 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
       setConfirmLoading(false);
     }
   };
+
+  const notificationRows = notifications || [];
+  const notificationsCanPrev = notificationsPage > 0;
+  const notificationsCanNext = notificationsMeta.totalPages === null ? true : notificationsPage + 1 < notificationsMeta.totalPages;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -1945,6 +2008,113 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
           </div>
         </div>
       )}
+
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', ...fadeInStyle(!notificationsLoading) }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+            <div style={{ fontWeight: 700 }}>Notification history</div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Latest notifications sent to this account.</div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn-neutral btn-sm"
+              onClick={() => loadNotifications(resolvedAccountId)}
+              disabled={notificationsLoading || resolvedAccountId === null || resolvedAccountId === undefined}
+            >
+              {notificationsLoading ? 'Loading…' : 'Refresh'}
+            </button>
+            <button
+              type="button"
+              className="btn-neutral btn-sm"
+              onClick={() => setNotificationsPage((prev) => Math.max(0, prev - 1))}
+              disabled={notificationsLoading || !notificationsCanPrev}
+            >
+              ← Prev
+            </button>
+            <button
+              type="button"
+              className="btn-neutral btn-sm"
+              onClick={() => setNotificationsPage((prev) => prev + 1)}
+              disabled={notificationsLoading || !notificationsCanNext}
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'end' }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: '140px' }}>
+            <span>Page</span>
+            <input
+              type="number"
+              min={0}
+              value={notificationsPage}
+              onChange={(e) => setNotificationsPage(Math.max(0, Number(e.target.value)))}
+            />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: '140px' }}>
+            <span>Size</span>
+            <input
+              type="number"
+              min={1}
+              max={50}
+              value={notificationsSize}
+              onChange={(e) => {
+                const next = Math.min(50, Math.max(1, Number(e.target.value)));
+                setNotificationsSize(next);
+                setNotificationsPage(0);
+              }}
+            />
+          </label>
+          {notificationsMeta.totalElements !== null && (
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              {notificationsMeta.totalElements} notifications total
+              {notificationsMeta.totalPages !== null && notificationsMeta.totalPages > 0 ? ` · page ${notificationsPage + 1}/${notificationsMeta.totalPages}` : ''}
+            </div>
+          )}
+        </div>
+
+        {notificationsError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{notificationsError}</div>}
+        {resolvedAccountId === null || resolvedAccountId === undefined ? (
+          <div style={{ color: 'var(--muted)' }}>No account loaded.</div>
+        ) : notificationsLoading ? (
+          <div style={{ color: 'var(--muted)' }}>Loading notifications…</div>
+        ) : notificationRows.length === 0 ? (
+          <div style={{ color: 'var(--muted)' }}>No notifications yet.</div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '760px' }}>
+              <thead>
+                <tr>
+                  {['Created', 'Category', 'Subject', 'Body', 'Data', 'Read', 'Archived'].map((label) => (
+                    <th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid #e5e7eb', color: '#6b7280' }}>
+                      {label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {notificationRows.map((note) => (
+                  <tr key={note.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <td style={{ padding: '0.5rem' }}>{formatDateTime(note.createdAt)}</td>
+                    <td style={{ padding: '0.5rem' }}>{note.category || '—'}</td>
+                    <td style={{ padding: '0.5rem' }}>{note.subject || '—'}</td>
+                    <td style={{ padding: '0.5rem', maxWidth: '240px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {note.body || '—'}
+                    </td>
+                    <td style={{ padding: '0.5rem', maxWidth: '220px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {formatJsonPreview(note.data, 120)}
+                    </td>
+                    <td style={{ padding: '0.5rem' }}>{note.readAt ? formatDateTime(note.readAt) : 'Unread'}</td>
+                    <td style={{ padding: '0.5rem' }}>{note.archivedAt ? formatDateTime(note.archivedAt) : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {cryptoWallets.length > 0 && (
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', ...fadeInStyle(!loading) }}>
