@@ -124,7 +124,7 @@ const Pill = ({ children, tone = 'var(--accent)', soft }) => (
 );
 
 const Table = ({ columns, rows, emptyLabel = 'No data' }) => (
-  <div style={{ overflowX: 'auto' }}>
+  <div className="table-scroll" style={{ overflowX: 'auto' }}>
     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
       <thead>
         <tr style={{ color: 'var(--muted)' }}>
@@ -533,7 +533,7 @@ export default function DashboardPage() {
 
           {showFilters && (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '0.5rem', marginTop: '0.75rem', alignItems: 'end' }}>
+              <div className="dashboard-filters-grid" style={{ marginTop: '0.75rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: '0' }}>
                   <label htmlFor="startDate" style={{ color: 'var(--muted)', fontSize: '12px' }}>Start</label>
                   <input
@@ -577,7 +577,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem', marginTop: '0.75rem' }}>
+              <div className="dashboard-filters-wide-grid" style={{ marginTop: '0.75rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   <label htmlFor="service" style={{ color: 'var(--muted)', fontSize: '12px' }}>Service</label>
                   <select id="service" value={filters.service} onChange={(e) => setFilters((p) => ({ ...p, service: e.target.value }))}>
@@ -710,7 +710,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.75rem' }}>
+      <div className="dashboard-kpi-grid">
         {kpiCards.map((kpi) => (
           <div
             key={kpi.label}
@@ -728,7 +728,7 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem', alignItems: 'start' }}>
+      <div className="dashboard-split-grid">
         <div style={{ display: 'grid', gap: '1rem' }}>
           <div className="card" style={{ display: 'grid', gap: '0.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -738,7 +738,7 @@ export default function DashboardPage() {
             {chartData.length === 0 ? (
               <div style={{ color: 'var(--muted)', minHeight: '200px', display: 'flex', alignItems: 'center' }}>No data in this window</div>
             ) : (
-              <div style={{ width: '100%', height: 220 }}>
+              <div className="dashboard-chart">
                 <ResponsiveContainer>
                   <LineChart data={chartData} margin={{ top: 10, right: 20, bottom: 5, left: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -791,7 +791,7 @@ export default function DashboardPage() {
         </div>
         <div className="card" style={{ display: 'grid', gap: '0.5rem' }}>
           <div style={{ fontWeight: 800 }}>Key metrics</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.5rem' }}>
+          <div className="dashboard-metrics-grid">
             {metricCards.map((m) => (
               <div key={m.key} style={{ padding: '0.75rem', border: `1px solid var(--border)`, borderRadius: '12px', display: 'grid', gap: '0.15rem', background: 'color-mix(in srgb, var(--surface) 90%, var(--accent-soft) 10%)' }}>
                 <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{m.label}</div>
@@ -885,7 +885,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem', alignItems: 'start' }}>
+      <div className="dashboard-split-grid">
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
             <div style={{ fontWeight: 800 }}>Top accounts</div>

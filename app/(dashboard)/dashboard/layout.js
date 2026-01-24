@@ -40,6 +40,7 @@ export default function DashboardLayout({ children }) {
   const router = useRouter();
   const pathname = usePathname();
   const [theme, setTheme] = useState('light');
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     const stored = typeof window !== 'undefined' ? localStorage.getItem('fondeka-theme') : null;
@@ -57,6 +58,10 @@ export default function DashboardLayout({ children }) {
   useEffect(() => {
     refreshSession();
   }, [refreshSession]);
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     if (loading || !initialized) return;
@@ -84,7 +89,8 @@ export default function DashboardLayout({ children }) {
   return (
     <div className="dashboard-shell" style={{ minHeight: '100vh', display: 'flex', background: 'var(--bg)', color: 'var(--text)' }}>
       <aside
-        className="dashboard-nav"
+        className={`dashboard-nav${menuOpen ? ' is-open' : ''}`}
+        id="dashboard-nav"
         style={{
           width: '260px',
           minWidth: '240px',
@@ -105,6 +111,7 @@ export default function DashboardLayout({ children }) {
             <Link
               key={item.href}
               href={item.href}
+              onClick={() => setMenuOpen(false)}
               style={{
                 padding: '0.65rem 0.85rem',
                 borderRadius: '10px',
@@ -146,6 +153,7 @@ export default function DashboardLayout({ children }) {
           </button>
         </div>
       </aside>
+      {menuOpen && <div className="dashboard-menu-backdrop" onClick={() => setMenuOpen(false)} aria-hidden="true" />}
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <header
@@ -163,8 +171,22 @@ export default function DashboardLayout({ children }) {
             zIndex: 10
           }}
         >
-          <div style={{ fontWeight: 700 }}>Dashboard</div>
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <div className="dashboard-header-left" style={{ fontWeight: 700 }}>
+            <button
+              type="button"
+              className="dashboard-menu-toggle"
+              onClick={() => setMenuOpen((prev) => !prev)}
+              aria-expanded={menuOpen}
+              aria-controls="dashboard-nav"
+            >
+              <span className="sr-only">Toggle menu</span>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </button>
+            Dashboard
+          </div>
+          <div className="dashboard-header-right" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             <input placeholder="Search…" style={{ minWidth: '220px' }} />
             <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--accent-soft)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', fontWeight: 800 }}>
               FA
