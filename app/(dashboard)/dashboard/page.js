@@ -124,12 +124,13 @@ const Pill = ({ children, tone = 'var(--accent)', soft }) => (
 );
 
 const Table = ({ columns, rows, emptyLabel = 'No data' }) => (
-  <div className="table-scroll" style={{ overflowX: 'auto' }}>
-    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+  <div className="table-scroll">
+    <div className="table-scroll__hint">Swipe to see more</div>
+    <table className="data-table">
       <thead>
         <tr style={{ color: 'var(--muted)' }}>
           {columns.map((col) => (
-            <th key={col.key} style={{ textAlign: 'left', padding: '0.5rem' }}>
+            <th key={col.key} className="data-table__cell" style={{ textAlign: 'left', padding: '0.5rem' }}>
               {col.label}
             </th>
           ))}
@@ -146,7 +147,7 @@ const Table = ({ columns, rows, emptyLabel = 'No data' }) => (
         {rows?.map((row, idx) => (
           <tr key={idx} style={{ borderTop: '1px solid var(--border)' }}>
             {columns.map((col) => (
-              <td key={col.key} style={{ padding: '0.5rem', fontWeight: col.bold ? 700 : 500 }}>
+              <td key={col.key} className="data-table__cell" style={{ padding: '0.5rem', fontWeight: col.bold ? 700 : 500 }}>
                 {col.render ? col.render(row) : row[col.key]}
               </td>
             ))}

@@ -149,22 +149,8 @@ label {
   vertical-align: top;
 }
 
-@media (max-width: 720px) {
-  .data-table__cell[data-priority='low'] {
-    display: none;
-  }
-
-  .table-scroll[data-show-all='true'] .data-table__cell[data-priority='low'] {
-    display: table-cell;
-  }
-}
-
 @media (min-width: 721px) {
   .table-scroll__hint {
-    display: none;
-  }
-
-  .table-scroll__controls {
     display: none;
   }
 }

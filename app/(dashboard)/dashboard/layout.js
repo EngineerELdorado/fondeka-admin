@@ -188,7 +188,6 @@ export default function DashboardLayout({ children }) {
             Dashboard
           </div>
           <div className="dashboard-header-right" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-            <input placeholder="Search…" style={{ minWidth: '220px' }} />
             <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--accent-soft)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', fontWeight: 800 }}>
               FA
             </div>
