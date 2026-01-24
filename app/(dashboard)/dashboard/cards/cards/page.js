@@ -103,6 +103,7 @@ export default function CardsPage() {
   const [size, setSize] = useState(25);
   const [filters, setFilters] = useState(emptyFilters);
   const [appliedFilters, setAppliedFilters] = useState(emptyFilters);
+  const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
@@ -337,92 +338,102 @@ export default function CardsPage() {
       </div>
 
       <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="statusFilter">Status</label>
-            <select
-              id="statusFilter"
-              value={filters.status}
-              onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value }))}
-            >
-              <option value="">All</option>
-              {statusOptions.map((st) => (
-                <option key={st} value={st}>
-                  {st}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="issuedFilter">Issued</label>
-            <select
-              id="issuedFilter"
-              value={filters.issued}
-              onChange={(e) => setFilters((p) => ({ ...p, issued: e.target.value }))}
-            >
-              <option value="">All</option>
-              <option value="true">Yes</option>
-              <option value="false">No</option>
-            </select>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="internalReference">Internal reference</label>
-            <input id="internalReference" value={filters.internalReference} onChange={(e) => setFilters((p) => ({ ...p, internalReference: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="externalReference">External reference</label>
-            <input id="externalReference" value={filters.externalReference} onChange={(e) => setFilters((p) => ({ ...p, externalReference: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="nameFilter">Name</label>
-            <input id="nameFilter" value={filters.name} onChange={(e) => setFilters((p) => ({ ...p, name: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="accountId">Account ID</label>
-            <input id="accountId" type="number" value={filters.accountId} onChange={(e) => setFilters((p) => ({ ...p, accountId: e.target.value }))} />
-          </div>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.5rem' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="page">Page</label>
-            <input id="page" type="number" min={0} value={page} onChange={(e) => setPage(Number(e.target.value))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="size">Size</label>
-            <input id="size" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          <button
-            type="button"
-            onClick={() => {
-              setPage(0);
-              setAppliedFilters(filters);
-            }}
-            disabled={loading}
-            className="btn-primary"
-          >
-            {loading ? 'Applying…' : 'Apply filters'}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setFilters(emptyFilters);
-              setAppliedFilters(emptyFilters);
-              setPage(0);
-            }}
-            disabled={loading}
-            className="btn-neutral"
-          >
-            Reset
-          </button>
-          <button type="button" onClick={fetchRows} disabled={loading} className="btn-neutral">
-            {loading ? 'Refreshing…' : 'Refresh'}
-          </button>
-          <button type="button" onClick={openCreate} className="btn-success">
-            Add card
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div style={{ fontWeight: 700 }}>Filters</div>
+          <button type="button" className="btn-neutral btn-sm" onClick={() => setShowFilters((prev) => !prev)}>
+            {showFilters ? 'Hide filters' : 'Show filters'}
           </button>
         </div>
+        {showFilters && (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="statusFilter">Status</label>
+                <select
+                  id="statusFilter"
+                  value={filters.status}
+                  onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value }))}
+                >
+                  <option value="">All</option>
+                  {statusOptions.map((st) => (
+                    <option key={st} value={st}>
+                      {st}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="issuedFilter">Issued</label>
+                <select
+                  id="issuedFilter"
+                  value={filters.issued}
+                  onChange={(e) => setFilters((p) => ({ ...p, issued: e.target.value }))}
+                >
+                  <option value="">All</option>
+                  <option value="true">Yes</option>
+                  <option value="false">No</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="internalReference">Internal reference</label>
+                <input id="internalReference" value={filters.internalReference} onChange={(e) => setFilters((p) => ({ ...p, internalReference: e.target.value }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="externalReference">External reference</label>
+                <input id="externalReference" value={filters.externalReference} onChange={(e) => setFilters((p) => ({ ...p, externalReference: e.target.value }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="nameFilter">Name</label>
+                <input id="nameFilter" value={filters.name} onChange={(e) => setFilters((p) => ({ ...p, name: e.target.value }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="accountId">Account ID</label>
+                <input id="accountId" type="number" value={filters.accountId} onChange={(e) => setFilters((p) => ({ ...p, accountId: e.target.value }))} />
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="page">Page</label>
+                <input id="page" type="number" min={0} value={page} onChange={(e) => setPage(Number(e.target.value))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="size">Size</label>
+                <input id="size" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setPage(0);
+                  setAppliedFilters(filters);
+                }}
+                disabled={loading}
+                className="btn-primary"
+              >
+                {loading ? 'Applying…' : 'Apply filters'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFilters(emptyFilters);
+                  setAppliedFilters(emptyFilters);
+                  setPage(0);
+                }}
+                disabled={loading}
+                className="btn-neutral"
+              >
+                Reset
+              </button>
+              <button type="button" onClick={fetchRows} disabled={loading} className="btn-neutral">
+                {loading ? 'Refreshing…' : 'Refresh'}
+              </button>
+              <button type="button" onClick={openCreate} className="btn-success">
+                Add card
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}

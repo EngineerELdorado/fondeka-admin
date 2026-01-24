@@ -88,6 +88,7 @@ export default function WebhookEventsPage() {
   const [size, setSize] = useState(20);
   const [filters, setFilters] = useState(emptyFilters);
   const [debouncedFilters, setDebouncedFilters] = useState(emptyFilters);
+  const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [pageMeta, setPageMeta] = useState({ totalElements: null, totalPages: null });
@@ -300,8 +301,14 @@ export default function WebhookEventsPage() {
       )}
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        <div style={{ fontWeight: 700 }}>Filters</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div style={{ fontWeight: 700 }}>Filters</div>
+          <button type="button" className="btn-neutral btn-sm" onClick={() => setShowFilters((prev) => !prev)}>
+            {showFilters ? 'Hide filters' : 'Show filters'}
+          </button>
+        </div>
+        {showFilters && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="provider">Provider</label>
             <input
@@ -458,6 +465,7 @@ export default function WebhookEventsPage() {
             </span>
           )}
         </div>
+        )}
         <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
           Retry supported providers: AVADAPAY, RELOADLY_AIRTIME, UNIPAYMENT, BTCPAYSERVER, ESIMGO, AIRALO, SMILEID, BRIDGECARD.
         </div>

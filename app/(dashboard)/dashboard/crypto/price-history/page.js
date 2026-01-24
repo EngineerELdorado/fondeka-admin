@@ -11,6 +11,7 @@ export default function CryptoPriceHistoryPage() {
   const [rows, setRows] = useState([]);
   const [filters, setFilters] = useState(emptyFilters);
   const [appliedFilters, setAppliedFilters] = useState(emptyFilters);
+  const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [currencies, setCurrencies] = useState([]);
@@ -81,7 +82,15 @@ export default function CryptoPriceHistoryPage() {
       </div>
 
       <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div style={{ fontWeight: 700 }}>Filters</div>
+          <button type="button" className="btn-neutral btn-sm" onClick={() => setShowFilters((prev) => !prev)}>
+            {showFilters ? 'Hide filters' : 'Show filters'}
+          </button>
+        </div>
+        {showFilters && (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="currency">Currency</label>
             <select
@@ -124,7 +133,8 @@ export default function CryptoPriceHistoryPage() {
             <input id="size" type="number" min={1} value={filters.size} onChange={(e) => setFilters((p) => ({ ...p, size: Number(e.target.value) }))} />
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            </div>
+            <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
           <button
             type="button"
             onClick={() => setAppliedFilters(filters)}
@@ -147,7 +157,9 @@ export default function CryptoPriceHistoryPage() {
           <button type="button" onClick={fetchRows} disabled={loading} className="btn-neutral">
             {loading ? 'Refreshing…' : 'Refresh'}
           </button>
-        </div>
+            </div>
+          </>
+        )}
       </div>
 
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}

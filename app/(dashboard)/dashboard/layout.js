@@ -172,7 +172,7 @@ export default function DashboardLayout({ children }) {
             zIndex: 10
           }}
         >
-          <div className="dashboard-header-left" style={{ fontWeight: 700 }}>
+          <div className="dashboard-header-left" style={{ fontWeight: 700, gap: '0.6rem' }}>
             <button
               type="button"
               className="dashboard-menu-toggle"
@@ -185,12 +185,8 @@ export default function DashboardLayout({ children }) {
                 <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
               </svg>
             </button>
-            Dashboard
-          </div>
-          <div className="dashboard-header-right" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-            <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--accent-soft)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', fontWeight: 800 }}>
-              FA
-            </div>
+            <img src="/icon.svg" alt="Fondeka" width={26} height={26} style={{ borderRadius: '8px' }} />
+            <span>Fondeka Admin Dashboard</span>
           </div>
         </header>
         <main className="dashboard-main" style={{ padding: '1.25rem 1.5rem', flex: 1 }}>

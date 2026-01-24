@@ -87,6 +87,7 @@ export default function KycCapsPage() {
   const [size, setSize] = useState(50);
   const [filters, setFilters] = useState(emptyFilters);
   const [appliedFilters, setAppliedFilters] = useState(emptyFilters);
+  const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
@@ -341,74 +342,82 @@ export default function KycCapsPage() {
       </div>
 
       <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="filterLevel">Level</label>
-            <input id="filterLevel" type="number" min={0} max={5} value={filters.level} onChange={(e) => setFilters((p) => ({ ...p, level: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="minCap">Min cap</label>
-            <input id="minCap" type="number" min={0} value={filters.minCap} onChange={(e) => setFilters((p) => ({ ...p, minCap: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="maxCap">Max cap</label>
-            <input id="maxCap" type="number" min={0} value={filters.maxCap} onChange={(e) => setFilters((p) => ({ ...p, maxCap: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="minLoan">Min loan</label>
-            <input id="minLoan" type="number" min={0} value={filters.minLoan} onChange={(e) => setFilters((p) => ({ ...p, minLoan: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="maxLoan">Max loan</label>
-            <input id="maxLoan" type="number" min={0} value={filters.maxLoan} onChange={(e) => setFilters((p) => ({ ...p, maxLoan: e.target.value }))} />
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="minCollection">Min collection</label>
-            <input id="minCollection" type="number" min={0} value={filters.minCollection} onChange={(e) => setFilters((p) => ({ ...p, minCollection: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="maxCollection">Max collection</label>
-            <input id="maxCollection" type="number" min={0} value={filters.maxCollection} onChange={(e) => setFilters((p) => ({ ...p, maxCollection: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="minPayout">Min payout</label>
-            <input id="minPayout" type="number" min={0} value={filters.minPayout} onChange={(e) => setFilters((p) => ({ ...p, minPayout: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="maxPayout">Max payout</label>
-            <input id="maxPayout" type="number" min={0} value={filters.maxPayout} onChange={(e) => setFilters((p) => ({ ...p, maxPayout: e.target.value }))} />
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          <button
-            type="button"
-            onClick={() => {
-              setPage(0);
-              setAppliedFilters(filters);
-            }}
-            disabled={loading}
-            className="btn-primary"
-          >
-            {loading ? 'Applying…' : 'Apply filters'}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div style={{ fontWeight: 700 }}>Filters</div>
+          <button type="button" className="btn-neutral btn-sm" onClick={() => setShowFilters((prev) => !prev)}>
+            {showFilters ? 'Hide filters' : 'Show filters'}
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              setFilters(emptyFilters);
-              setAppliedFilters(emptyFilters);
-              setPage(0);
-            }}
-            disabled={loading}
-            className="btn-neutral"
-          >
-            Reset
-          </button>
-          <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Only applied filters are sent to the API.</span>
         </div>
+        {showFilters && (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="filterLevel">Level</label>
+                <input id="filterLevel" type="number" min={0} max={5} value={filters.level} onChange={(e) => setFilters((p) => ({ ...p, level: e.target.value }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="minCap">Min cap</label>
+                <input id="minCap" type="number" min={0} value={filters.minCap} onChange={(e) => setFilters((p) => ({ ...p, minCap: e.target.value }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="maxCap">Max cap</label>
+                <input id="maxCap" type="number" min={0} value={filters.maxCap} onChange={(e) => setFilters((p) => ({ ...p, maxCap: e.target.value }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="minLoan">Min loan</label>
+                <input id="minLoan" type="number" min={0} value={filters.minLoan} onChange={(e) => setFilters((p) => ({ ...p, minLoan: e.target.value }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="maxLoan">Max loan</label>
+                <input id="maxLoan" type="number" min={0} value={filters.maxLoan} onChange={(e) => setFilters((p) => ({ ...p, maxLoan: e.target.value }))} />
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="minCollection">Min collection</label>
+                <input id="minCollection" type="number" min={0} value={filters.minCollection} onChange={(e) => setFilters((p) => ({ ...p, minCollection: e.target.value }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="maxCollection">Max collection</label>
+                <input id="maxCollection" type="number" min={0} value={filters.maxCollection} onChange={(e) => setFilters((p) => ({ ...p, maxCollection: e.target.value }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="minPayout">Min payout</label>
+                <input id="minPayout" type="number" min={0} value={filters.minPayout} onChange={(e) => setFilters((p) => ({ ...p, minPayout: e.target.value }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="maxPayout">Max payout</label>
+                <input id="maxPayout" type="number" min={0} value={filters.maxPayout} onChange={(e) => setFilters((p) => ({ ...p, maxPayout: e.target.value }))} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setPage(0);
+                  setAppliedFilters(filters);
+                }}
+                disabled={loading}
+                className="btn-primary"
+              >
+                {loading ? 'Applying…' : 'Apply filters'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFilters(emptyFilters);
+                  setAppliedFilters(emptyFilters);
+                  setPage(0);
+                }}
+                disabled={loading}
+                className="btn-neutral"
+              >
+                Reset
+              </button>
+              <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Only applied filters are sent to the API.</span>
+            </div>
+          </>
+        )}
 
         {activeFilterChips.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>

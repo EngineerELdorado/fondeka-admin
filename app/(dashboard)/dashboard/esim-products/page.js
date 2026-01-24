@@ -189,6 +189,7 @@ export default function EsimProductsPage() {
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(25);
   const [filters, setFilters] = useState(emptyFilters);
+  const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
@@ -556,128 +557,138 @@ export default function EsimProductsPage() {
       </div>
 
       <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div>
-            <label htmlFor="page">Page</label>
-            <input id="page" type="number" min={0} value={page} onChange={(e) => setPage(Number(e.target.value))} />
-          </div>
-          <div>
-            <label htmlFor="size">Size</label>
-            <input id="size" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
-          </div>
-          <button type="button" onClick={fetchRows} disabled={loading} className="btn-primary">
-            {loading ? 'Loading…' : 'Apply filters'}
-          </button>
-          <button type="button" onClick={openCreate} className="btn-success">
-            Add product
-          </button>
-          <button type="button" onClick={() => setFilters(emptyFilters)} className="btn-neutral">
-            Clear filters
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div style={{ fontWeight: 700 }}>Filters</div>
+          <button type="button" className="btn-neutral btn-sm" onClick={() => setShowFilters((prev) => !prev)}>
+            {showFilters ? 'Hide filters' : 'Show filters'}
           </button>
         </div>
+        {showFilters && (
+          <>
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div>
+                <label htmlFor="page">Page</label>
+                <input id="page" type="number" min={0} value={page} onChange={(e) => setPage(Number(e.target.value))} />
+              </div>
+              <div>
+                <label htmlFor="size">Size</label>
+                <input id="size" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
+              </div>
+              <button type="button" onClick={fetchRows} disabled={loading} className="btn-primary">
+                {loading ? 'Loading…' : 'Apply filters'}
+              </button>
+              <button type="button" onClick={openCreate} className="btn-success">
+                Add product
+              </button>
+              <button type="button" onClick={() => setFilters(emptyFilters)} className="btn-neutral">
+                Clear filters
+              </button>
+            </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.6rem' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="filterOperator">Operator</label>
-            <input id="filterOperator" value={filters.operator} onChange={(e) => setFilters((p) => ({ ...p, operator: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="filterCountry">Country ISO2</label>
-            <input id="filterCountry" value={filters.country} onChange={(e) => setFilters((p) => ({ ...p, country: e.target.value.toUpperCase() }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="filterRegion">Region</label>
-            <input id="filterRegion" value={filters.region} onChange={(e) => setFilters((p) => ({ ...p, region: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="filterSpeed">Speed</label>
-            <input id="filterSpeed" value={filters.speed} onChange={(e) => setFilters((p) => ({ ...p, speed: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="filterProvider">Provider name</label>
-            <input id="filterProvider" value={filters.providerName} onChange={(e) => setFilters((p) => ({ ...p, providerName: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="filterScope">Scope</label>
-            <input id="filterScope" value={filters.scope} onChange={(e) => setFilters((p) => ({ ...p, scope: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="filterType">Type</label>
-            <input id="filterType" value={filters.type} onChange={(e) => setFilters((p) => ({ ...p, type: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="filterActive">Active</label>
-            <select id="filterActive" value={filters.active} onChange={(e) => setFilters((p) => ({ ...p, active: e.target.value }))}>
-              <option value="">Any</option>
-              <option value="true">Active</option>
-              <option value="false">Inactive</option>
-            </select>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="filterRoaming">Roaming</label>
-            <select id="filterRoaming" value={filters.roaming} onChange={(e) => setFilters((p) => ({ ...p, roaming: e.target.value }))}>
-              <option value="">Any</option>
-              <option value="true">Yes</option>
-              <option value="false">No</option>
-            </select>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="filterRechargeable">Rechargeable</label>
-            <select id="filterRechargeable" value={filters.rechargeable} onChange={(e) => setFilters((p) => ({ ...p, rechargeable: e.target.value }))}>
-              <option value="">Any</option>
-              <option value="true">Yes</option>
-              <option value="false">No</option>
-            </select>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="filterUnlimited">Unlimited</label>
-            <select id="filterUnlimited" value={filters.unlimited} onChange={(e) => setFilters((p) => ({ ...p, unlimited: e.target.value }))}>
-              <option value="">Any</option>
-              <option value="true">Yes</option>
-              <option value="false">No</option>
-            </select>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="filterRequireKyc">Require KYC</label>
-            <select id="filterRequireKyc" value={filters.requireKyc} onChange={(e) => setFilters((p) => ({ ...p, requireKyc: e.target.value }))}>
-              <option value="">Any</option>
-              <option value="true">Yes</option>
-              <option value="false">No</option>
-            </select>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="filterMinDuration">Min duration days</label>
-            <input id="filterMinDuration" type="number" value={filters.minDurationDays} onChange={(e) => setFilters((p) => ({ ...p, minDurationDays: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="filterMaxDuration">Max duration days</label>
-            <input id="filterMaxDuration" type="number" value={filters.maxDurationDays} onChange={(e) => setFilters((p) => ({ ...p, maxDurationDays: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="filterMinData">Min data MB</label>
-            <input id="filterMinData" type="number" value={filters.minDataMb} onChange={(e) => setFilters((p) => ({ ...p, minDataMb: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="filterMaxData">Max data MB</label>
-            <input id="filterMaxData" type="number" value={filters.maxDataMb} onChange={(e) => setFilters((p) => ({ ...p, maxDataMb: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="filterSort">Sort</label>
-            <select id="filterSort" value={filters.sort} onChange={(e) => setFilters((p) => ({ ...p, sort: e.target.value }))}>
-              <option value="">Default (cost desc)</option>
-              <option value="cost.asc">Cost asc</option>
-              <option value="cost.desc">Cost desc</option>
-              <option value="price.asc">Price asc</option>
-              <option value="price.desc">Price desc</option>
-              <option value="data.asc">Data asc</option>
-              <option value="data.desc">Data desc</option>
-              <option value="days.asc">Days asc</option>
-              <option value="days.desc">Days desc</option>
-              <option value="speedAtThrottle.asc">Speed at throttle asc</option>
-              <option value="speedAtThrottle.desc">Speed at throttle desc</option>
-            </select>
-          </div>
-        </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.6rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="filterOperator">Operator</label>
+                <input id="filterOperator" value={filters.operator} onChange={(e) => setFilters((p) => ({ ...p, operator: e.target.value }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="filterCountry">Country ISO2</label>
+                <input id="filterCountry" value={filters.country} onChange={(e) => setFilters((p) => ({ ...p, country: e.target.value.toUpperCase() }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="filterRegion">Region</label>
+                <input id="filterRegion" value={filters.region} onChange={(e) => setFilters((p) => ({ ...p, region: e.target.value }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="filterSpeed">Speed</label>
+                <input id="filterSpeed" value={filters.speed} onChange={(e) => setFilters((p) => ({ ...p, speed: e.target.value }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="filterProvider">Provider name</label>
+                <input id="filterProvider" value={filters.providerName} onChange={(e) => setFilters((p) => ({ ...p, providerName: e.target.value }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="filterScope">Scope</label>
+                <input id="filterScope" value={filters.scope} onChange={(e) => setFilters((p) => ({ ...p, scope: e.target.value }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="filterType">Type</label>
+                <input id="filterType" value={filters.type} onChange={(e) => setFilters((p) => ({ ...p, type: e.target.value }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="filterActive">Active</label>
+                <select id="filterActive" value={filters.active} onChange={(e) => setFilters((p) => ({ ...p, active: e.target.value }))}>
+                  <option value="">Any</option>
+                  <option value="true">Active</option>
+                  <option value="false">Inactive</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="filterRoaming">Roaming</label>
+                <select id="filterRoaming" value={filters.roaming} onChange={(e) => setFilters((p) => ({ ...p, roaming: e.target.value }))}>
+                  <option value="">Any</option>
+                  <option value="true">Yes</option>
+                  <option value="false">No</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="filterRechargeable">Rechargeable</label>
+                <select id="filterRechargeable" value={filters.rechargeable} onChange={(e) => setFilters((p) => ({ ...p, rechargeable: e.target.value }))}>
+                  <option value="">Any</option>
+                  <option value="true">Yes</option>
+                  <option value="false">No</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="filterUnlimited">Unlimited</label>
+                <select id="filterUnlimited" value={filters.unlimited} onChange={(e) => setFilters((p) => ({ ...p, unlimited: e.target.value }))}>
+                  <option value="">Any</option>
+                  <option value="true">Yes</option>
+                  <option value="false">No</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="filterRequireKyc">Require KYC</label>
+                <select id="filterRequireKyc" value={filters.requireKyc} onChange={(e) => setFilters((p) => ({ ...p, requireKyc: e.target.value }))}>
+                  <option value="">Any</option>
+                  <option value="true">Yes</option>
+                  <option value="false">No</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="filterMinDuration">Min duration days</label>
+                <input id="filterMinDuration" type="number" value={filters.minDurationDays} onChange={(e) => setFilters((p) => ({ ...p, minDurationDays: e.target.value }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="filterMaxDuration">Max duration days</label>
+                <input id="filterMaxDuration" type="number" value={filters.maxDurationDays} onChange={(e) => setFilters((p) => ({ ...p, maxDurationDays: e.target.value }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="filterMinData">Min data MB</label>
+                <input id="filterMinData" type="number" value={filters.minDataMb} onChange={(e) => setFilters((p) => ({ ...p, minDataMb: e.target.value }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="filterMaxData">Max data MB</label>
+                <input id="filterMaxData" type="number" value={filters.maxDataMb} onChange={(e) => setFilters((p) => ({ ...p, maxDataMb: e.target.value }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="filterSort">Sort</label>
+                <select id="filterSort" value={filters.sort} onChange={(e) => setFilters((p) => ({ ...p, sort: e.target.value }))}>
+                  <option value="">Default (cost desc)</option>
+                  <option value="cost.asc">Cost asc</option>
+                  <option value="cost.desc">Cost desc</option>
+                  <option value="price.asc">Price asc</option>
+                  <option value="price.desc">Price desc</option>
+                  <option value="data.asc">Data asc</option>
+                  <option value="data.desc">Data desc</option>
+                  <option value="days.asc">Days asc</option>
+                  <option value="days.desc">Days desc</option>
+                  <option value="speedAtThrottle.asc">Speed at throttle asc</option>
+                  <option value="speedAtThrottle.desc">Speed at throttle desc</option>
+                </select>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}

@@ -390,6 +390,11 @@ export default function DashboardPage() {
     return fee + commission;
   }, [totals]);
 
+  const providerFeesTotal = useMemo(() => {
+    const list = Array.isArray(timeseries) ? timeseries : [];
+    return list.reduce((sum, item) => sum + (Number(item?.providerFees) || 0), 0);
+  }, [timeseries]);
+
   const kpiCards = [
     { label: 'Fiat balance', value: formatCurrency(holdings.fiatBalanceTotal), sub: 'Across fiat accounts', tone: '#2563eb' },
     {
@@ -403,6 +408,12 @@ export default function DashboardPage() {
     { label: 'Completed', value: formatNumber(totals.completedCount), sub: `Volume ${formatCurrency(totals.completedVolume)}`, tone: '#16a34a' },
     { label: 'Failed', value: formatNumber(totals.failedCount), sub: `Volume ${formatCurrency(totals.failedVolume)}`, tone: '#b91c1c' },
     { label: 'Processing', value: formatNumber(totals.processingCount), sub: `Volume ${formatCurrency(totals.processingVolume)}`, tone: '#1d4ed8' },
+    {
+      label: 'Provider fees',
+      value: formatCurrency(providerFeesTotal),
+      sub: 'Total provider fees',
+      tone: '#f97316'
+    },
     {
       label: 'Revenue',
       value: formatCurrency(totalRevenue),
@@ -774,21 +785,6 @@ export default function DashboardPage() {
             )}
           </div>
 
-          <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontWeight: 800 }}>Service mix</div>
-              <Pill tone="#2563eb">Volume {formatCurrency(totals.totalVolume)}</Pill>
-            </div>
-            <Table
-              columns={[
-                { key: 'service', label: 'Service' },
-                { key: 'count', label: 'Count', render: (row) => formatNumber(row.count), bold: true },
-                { key: 'volume', label: 'Volume', render: (row) => formatCurrency(row.volume) },
-                { key: 'fee', label: 'Our fees', render: (row) => formatCurrency(row.fee) }
-              ]}
-              rows={data?.services}
-            />
-          </div>
         </div>
         <div className="card" style={{ display: 'grid', gap: '0.5rem' }}>
           <div style={{ fontWeight: 800 }}>Key metrics</div>
@@ -803,26 +799,40 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {holdings.cryptoHoldings && holdings.cryptoHoldings.length > 0 && (
-        <div className="card" style={{ display: 'grid', gap: '0.6rem' }}>
+      <div className="dashboard-tables-grid">
+        <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontWeight: 800 }}>Crypto holdings</div>
-            <Pill tone="#0ea5e9">Breakdown</Pill>
+            <div style={{ fontWeight: 800 }}>Service mix</div>
+            <Pill tone="#2563eb">Volume {formatCurrency(totals.totalVolume)}</Pill>
           </div>
           <Table
             columns={[
-              { key: 'asset', label: 'Asset / Network', render: (row) => row.asset || '—' },
-              { key: 'symbol', label: 'Symbol' },
-              { key: 'balance', label: 'Balance', render: (row) => formatNumber(row.balance) },
-              { key: 'balanceFiat', label: 'USD', render: (row) => formatCurrency(row.balanceFiat) }
+              { key: 'service', label: 'Service' },
+              { key: 'count', label: 'Count', render: (row) => formatNumber(row.count), bold: true },
+              { key: 'volume', label: 'Volume', render: (row) => formatCurrency(row.volume) },
+              { key: 'fee', label: 'Our fees', render: (row) => formatCurrency(row.fee) }
             ]}
-            rows={formatCryptoHoldings(holdings.cryptoHoldings)}
-            emptyLabel="No crypto holdings"
+            rows={data?.services}
           />
         </div>
-      )}
-
-      <div className="dashboard-tables-grid">
+        {holdings.cryptoHoldings && holdings.cryptoHoldings.length > 0 && (
+          <div className="card" style={{ display: 'grid', gap: '0.6rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontWeight: 800 }}>Crypto holdings</div>
+              <Pill tone="#0ea5e9">Breakdown</Pill>
+            </div>
+            <Table
+              columns={[
+                { key: 'asset', label: 'Asset / Network', render: (row) => row.asset || '—' },
+                { key: 'symbol', label: 'Symbol' },
+                { key: 'balance', label: 'Balance', render: (row) => formatNumber(row.balance) },
+                { key: 'balanceFiat', label: 'USD', render: (row) => formatCurrency(row.balanceFiat) }
+              ]}
+              rows={formatCryptoHoldings(holdings.cryptoHoldings)}
+              emptyLabel="No crypto holdings"
+            />
+          </div>
+        )}
         <div className="card" style={{ display: 'grid', gap: '0.5rem' }}>
           <div style={{ fontWeight: 800 }}>Actions</div>
           <Table
@@ -884,9 +894,6 @@ export default function DashboardPage() {
             rows={data?.countries}
           />
         </div>
-      </div>
-
-      <div className="dashboard-split-grid">
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
             <div style={{ fontWeight: 800 }}>Top accounts</div>
@@ -895,7 +902,7 @@ export default function DashboardPage() {
           <Table
             columns={[
               { key: 'accountReference', label: 'Account', render: (row) => row.accountReference || row.accountId },
-              { key: 'username', label: 'Username', render: (row) => row.username || '—' },
+              { key: 'username', label: 'User', render: (row) => row.userFullName || row.username || '—' },
               { key: 'count', label: 'Transactions', render: (row) => formatNumber(row.count), bold: true },
               { key: 'volume', label: 'Volume', render: (row) => formatCurrency(row.volume) }
             ]}

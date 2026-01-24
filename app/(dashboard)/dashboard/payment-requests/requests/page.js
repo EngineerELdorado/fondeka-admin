@@ -160,6 +160,7 @@ export default function PaymentRequestsPage() {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [filters, setFilters] = useState(initialFilters);
   const [appliedFilters, setAppliedFilters] = useState(initialFilters);
+  const [showFilters, setShowFilters] = useState(false);
 
   const fetchRows = async () => {
     setLoading(true);
@@ -447,8 +448,15 @@ export default function PaymentRequestsPage() {
       </div>
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        <div style={{ fontWeight: 700 }}>Search & Filters</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div style={{ fontWeight: 700 }}>Search & Filters</div>
+          <button type="button" className="btn-neutral btn-sm" onClick={() => setShowFilters((prev) => !prev)}>
+            {showFilters ? 'Hide filters' : 'Show filters'}
+          </button>
+        </div>
+        {showFilters && (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="f-id">ID</label>
             <input id="f-id" type="number" value={filters.id} onChange={(e) => setFilters((p) => ({ ...p, id: e.target.value }))} />
@@ -576,6 +584,8 @@ export default function PaymentRequestsPage() {
             Refresh
           </button>
         </div>
+          </>
+        )}
 
         {Object.entries(appliedFilters)
           .filter(([, value]) => value !== '' && value !== null && value !== undefined)

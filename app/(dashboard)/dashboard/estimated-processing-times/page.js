@@ -168,6 +168,7 @@ export default function EstimatedProcessingTimesPage() {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [filters, setFilters] = useState(initialFilters);
   const [appliedFilters, setAppliedFilters] = useState(initialFilters);
+  const [showFilters, setShowFilters] = useState(false);
 
   const sortedPaymentMethodTypeOptions = useMemo(() => [...paymentMethodTypeOptions].sort(), []);
   const sortedPaymentProviderNameOptions = useMemo(() => [...paymentProviderNameOptions].sort(), []);
@@ -479,7 +480,15 @@ export default function EstimatedProcessingTimesPage() {
       </div>
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        <div className="dashboard-filters-wide-grid">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div style={{ fontWeight: 700 }}>Filters</div>
+          <button type="button" className="btn-neutral btn-sm" onClick={() => setShowFilters((prev) => !prev)}>
+            {showFilters ? 'Hide filters' : 'Show filters'}
+          </button>
+        </div>
+        {showFilters && (
+          <>
+            <div className="dashboard-filters-wide-grid">
           <div>
             <label htmlFor="filter-action">Action</label>
             <select
@@ -553,14 +562,16 @@ export default function EstimatedProcessingTimesPage() {
             <input id="size" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button type="button" onClick={applyFilters} className="btn-primary">Apply filters</button>
           <button type="button" onClick={clearFilters} className="btn-neutral">Clear</button>
           <button type="button" onClick={fetchRows} disabled={loading} className="btn-ghost">
             {loading ? 'Loading…' : 'Refresh'}
           </button>
           <button type="button" onClick={openCreate} className="btn-success">Add config</button>
-        </div>
+            </div>
+          </>
+        )}
         {activeFilterChips.length > 0 && (
           <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
             {activeFilterChips.map((chip) => (

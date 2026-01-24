@@ -144,6 +144,7 @@ export default function LoanApplicationsPage() {
   const [size, setSize] = useState(50);
   const [filters, setFilters] = useState(emptyFilters);
   const [appliedFilters, setAppliedFilters] = useState(emptyFilters);
+  const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
@@ -447,126 +448,133 @@ export default function LoanApplicationsPage() {
       </div>
 
       <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="loanType">Loan type</label>
-            <input id="loanType" value={filters.loanType} onChange={(e) => setFilters((p) => ({ ...p, loanType: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="applicationStatus">Status</label>
-            <select id="applicationStatus" value={filters.applicationStatus} onChange={(e) => setFilters((p) => ({ ...p, applicationStatus: e.target.value }))}>
-              <option value="">All</option>
-              {statusOptions.map((st) => (
-                <option key={st} value={st}>
-                  {st}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="repaymentStatus">Repayment status</label>
-            <select id="repaymentStatus" value={filters.repaymentStatus} onChange={(e) => setFilters((p) => ({ ...p, repaymentStatus: e.target.value }))}>
-              <option value="">All</option>
-              {repaymentStatusOptions.map((st) => (
-                <option key={st} value={st}>
-                  {st}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="loanReference">Loan reference</label>
-            <input id="loanReference" value={filters.loanReference} onChange={(e) => setFilters((p) => ({ ...p, loanReference: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="transactionReference">Transaction ref</label>
-            <input id="transactionReference" value={filters.transactionReference} onChange={(e) => setFilters((p) => ({ ...p, transactionReference: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="externalTransactionReference">External tx ref</label>
-            <input
-              id="externalTransactionReference"
-              value={filters.externalTransactionReference}
-              onChange={(e) => setFilters((p) => ({ ...p, externalTransactionReference: e.target.value }))}
-            />
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="accountReference">Account ref</label>
-            <input id="accountReference" value={filters.accountReference} onChange={(e) => setFilters((p) => ({ ...p, accountReference: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="userEmailOrUsername">Email/Username</label>
-            <input id="userEmailOrUsername" value={filters.userEmailOrUsername} onChange={(e) => setFilters((p) => ({ ...p, userEmailOrUsername: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="userPhoneNumber">Phone</label>
-            <input id="userPhoneNumber" value={filters.userPhoneNumber} onChange={(e) => setFilters((p) => ({ ...p, userPhoneNumber: e.target.value }))} />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.5rem' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <label htmlFor="minAmount">Min amount</label>
-              <input id="minAmount" type="number" value={filters.minAmount} onChange={(e) => setFilters((p) => ({ ...p, minAmount: e.target.value }))} />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <label htmlFor="maxAmount">Max amount</label>
-              <input id="maxAmount" type="number" value={filters.maxAmount} onChange={(e) => setFilters((p) => ({ ...p, maxAmount: e.target.value }))} />
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="fromDate">Created from</label>
-            <input id="fromDate" type="datetime-local" value={filters.fromDate} onChange={(e) => setFilters((p) => ({ ...p, fromDate: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="toDate">Created to</label>
-            <input id="toDate" type="datetime-local" value={filters.toDate} onChange={(e) => setFilters((p) => ({ ...p, toDate: e.target.value }))} />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.5rem' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <label htmlFor="page">Page</label>
-              <input id="page" type="number" min={0} value={page} onChange={(e) => setPage(Number(e.target.value))} />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <label htmlFor="size">Size</label>
-              <input id="size" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          <button
-            type="button"
-            onClick={() => {
-              setPage(0);
-              setAppliedFilters(filters);
-            }}
-            disabled={loading}
-            className="btn-primary"
-          >
-            {loading ? 'Applying…' : 'Apply filters'}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div style={{ fontWeight: 700 }}>Filters</div>
+          <button type="button" className="btn-neutral btn-sm" onClick={() => setShowFilters((prev) => !prev)}>
+            {showFilters ? 'Hide filters' : 'Show filters'}
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              setFilters(emptyFilters);
-              setAppliedFilters(emptyFilters);
-              setPage(0);
-            }}
-            disabled={loading}
-            className="btn-neutral"
-          >
-            Reset
-          </button>
-          <button type="button" onClick={fetchRows} disabled={loading} className="btn-neutral">
-            {loading ? 'Refreshing…' : 'Refresh'}
-          </button>
-          <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Only applied filters are sent to the API.</span>
         </div>
+        {showFilters && (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="loanType">Loan type</label>
+                <input id="loanType" value={filters.loanType} onChange={(e) => setFilters((p) => ({ ...p, loanType: e.target.value }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="applicationStatus">Status</label>
+                <select id="applicationStatus" value={filters.applicationStatus} onChange={(e) => setFilters((p) => ({ ...p, applicationStatus: e.target.value }))}>
+                  <option value="">All</option>
+                  {statusOptions.map((st) => (
+                    <option key={st} value={st}>
+                      {st}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="repaymentStatus">Repayment status</label>
+                <select id="repaymentStatus" value={filters.repaymentStatus} onChange={(e) => setFilters((p) => ({ ...p, repaymentStatus: e.target.value }))}>
+                  <option value="">All</option>
+                  {repaymentStatusOptions.map((st) => (
+                    <option key={st} value={st}>
+                      {st}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="loanReference">Loan reference</label>
+                <input id="loanReference" value={filters.loanReference} onChange={(e) => setFilters((p) => ({ ...p, loanReference: e.target.value }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="transactionReference">Transaction ref</label>
+                <input id="transactionReference" value={filters.transactionReference} onChange={(e) => setFilters((p) => ({ ...p, transactionReference: e.target.value }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="externalTransactionReference">External tx ref</label>
+                <input
+                  id="externalTransactionReference"
+                  value={filters.externalTransactionReference}
+                  onChange={(e) => setFilters((p) => ({ ...p, externalTransactionReference: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="accountReference">Account ref</label>
+                <input id="accountReference" value={filters.accountReference} onChange={(e) => setFilters((p) => ({ ...p, accountReference: e.target.value }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="userEmailOrUsername">Email/Username</label>
+                <input id="userEmailOrUsername" value={filters.userEmailOrUsername} onChange={(e) => setFilters((p) => ({ ...p, userEmailOrUsername: e.target.value }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="userPhoneNumber">Phone</label>
+                <input id="userPhoneNumber" value={filters.userPhoneNumber} onChange={(e) => setFilters((p) => ({ ...p, userPhoneNumber: e.target.value }))} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="minAmount">Min amount</label>
+                  <input id="minAmount" type="number" value={filters.minAmount} onChange={(e) => setFilters((p) => ({ ...p, minAmount: e.target.value }))} />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="maxAmount">Max amount</label>
+                  <input id="maxAmount" type="number" value={filters.maxAmount} onChange={(e) => setFilters((p) => ({ ...p, maxAmount: e.target.value }))} />
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="fromDate">Created from</label>
+                <input id="fromDate" type="datetime-local" value={filters.fromDate} onChange={(e) => setFilters((p) => ({ ...p, fromDate: e.target.value }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="toDate">Created to</label>
+                <input id="toDate" type="datetime-local" value={filters.toDate} onChange={(e) => setFilters((p) => ({ ...p, toDate: e.target.value }))} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="page">Page</label>
+                  <input id="page" type="number" min={0} value={page} onChange={(e) => setPage(Number(e.target.value))} />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="size">Size</label>
+                  <input id="size" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setPage(0);
+                  setAppliedFilters(filters);
+                }}
+                disabled={loading}
+                className="btn-primary"
+              >
+                {loading ? 'Applying…' : 'Apply filters'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFilters(emptyFilters);
+                  setAppliedFilters(emptyFilters);
+                  setPage(0);
+                }}
+                disabled={loading}
+                className="btn-neutral"
+              >
+                Reset
+              </button>
+              <button type="button" onClick={fetchRows} disabled={loading} className="btn-neutral">
+                {loading ? 'Refreshing…' : 'Refresh'}
+              </button>
+              <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Only applied filters are sent to the API.</span>
+            </div>
+          </>
+        )}
 
         {activeFilterChips.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>

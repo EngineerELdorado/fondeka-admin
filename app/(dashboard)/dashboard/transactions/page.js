@@ -229,6 +229,7 @@ export default function TransactionsPage() {
   const [size, setSize] = useState(50);
   const [filters, setFilters] = useState(initialFilters);
   const [appliedFilters, setAppliedFilters] = useState(initialFilters);
+  const [showFilters, setShowFilters] = useState(false);
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [paymentProviders, setPaymentProviders] = useState([]);
   const [pmps, setPmps] = useState([]);
@@ -918,7 +919,15 @@ export default function TransactionsPage() {
       </div>
 
       <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div style={{ fontWeight: 700 }}>Filters</div>
+          <button type="button" className="btn-neutral btn-sm" onClick={() => setShowFilters((prev) => !prev)}>
+            {showFilters ? 'Hide filters' : 'Show filters'}
+          </button>
+        </div>
+        {showFilters && (
+          <>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
           <span style={{ fontSize: '13px', color: 'var(--muted)' }}>View</span>
           <button type="button" onClick={showAllTransactions} className={manualRefundViewActive ? 'btn-neutral btn-sm' : 'btn-primary btn-sm'}>
             All transactions
@@ -1092,6 +1101,8 @@ export default function TransactionsPage() {
           </button>
           <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Set filters then apply to query.</span>
         </div>
+          </>
+        )}
 
         {activeFilterChips.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>

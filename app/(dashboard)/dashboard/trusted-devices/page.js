@@ -86,6 +86,7 @@ export default function TrustedDevicesPage() {
   const [size, setSize] = useState(50);
   const [filters, setFilters] = useState(emptyFilters);
   const [appliedFilters, setAppliedFilters] = useState(emptyFilters);
+  const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
@@ -411,117 +412,126 @@ export default function TrustedDevicesPage() {
       )}
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        <div style={{ fontWeight: 700 }}>Filters</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="accountId">Account ID</label>
-            <input id="accountId" type="number" min={0} value={filters.accountId} onChange={(e) => setFilters((p) => ({ ...p, accountId: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="userId">User ID</label>
-            <input id="userId" type="number" min={0} value={filters.userId} onChange={(e) => setFilters((p) => ({ ...p, userId: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="userRef">User ref</label>
-            <input id="userRef" value={filters.userRef} onChange={(e) => setFilters((p) => ({ ...p, userRef: e.target.value }))} placeholder="internal reference" />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="userEmail">User email</label>
-            <input id="userEmail" value={filters.userEmail} onChange={(e) => setFilters((p) => ({ ...p, userEmail: e.target.value }))} placeholder="email@example.com" />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="userPhone">User phone contains</label>
-            <input id="userPhone" value={filters.userPhone} onChange={(e) => setFilters((p) => ({ ...p, userPhone: e.target.value }))} placeholder="+243" />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="deviceId">Device ID</label>
-            <input id="deviceId" value={filters.deviceId} onChange={(e) => setFilters((p) => ({ ...p, deviceId: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="deviceName">Device name contains</label>
-            <input id="deviceName" value={filters.deviceName} onChange={(e) => setFilters((p) => ({ ...p, deviceName: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="status">Status</label>
-            <select id="status" value={filters.status} onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value }))}>
-              <option value="">Any</option>
-              {statusOptions.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="platform">Platform</label>
-            <select id="platform" value={filters.platform} onChange={(e) => setFilters((p) => ({ ...p, platform: e.target.value }))}>
-              <option value="">Any</option>
-              {platformOptions.map((p) => (
-                <option key={p} value={p}>
-                  {p.toUpperCase()}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="sortBy">Sort by</label>
-            <select id="sortBy" value={filters.sortBy} onChange={(e) => setFilters((p) => ({ ...p, sortBy: e.target.value }))}>
-              {sortByOptions.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="sortDir">Sort direction</label>
-            <select id="sortDir" value={filters.sortDir} onChange={(e) => setFilters((p) => ({ ...p, sortDir: e.target.value }))}>
-              <option value="desc">Desc</option>
-              <option value="asc">Asc</option>
-            </select>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.5rem' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <label htmlFor="page">Page</label>
-              <input id="page" type="number" min={0} value={page} onChange={(e) => setPage(Number(e.target.value))} />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <label htmlFor="size">Size</label>
-              <input id="size" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
-            </div>
-          </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div style={{ fontWeight: 700 }}>Filters</div>
+          <button type="button" className="btn-neutral btn-sm" onClick={() => setShowFilters((prev) => !prev)}>
+            {showFilters ? 'Hide filters' : 'Show filters'}
+          </button>
         </div>
-        <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          <button type="button" onClick={applyFilters} disabled={loading} className="btn-primary">
-            {loading ? 'Applying…' : 'Apply filters'}
-          </button>
-          <button type="button" onClick={resetFilters} disabled={loading} className="btn-neutral">
-            Reset
-          </button>
-          <button type="button" onClick={fetchRows} disabled={loading} className="btn-neutral">
-            {loading ? 'Refreshing…' : 'Refresh'}
-          </button>
-          <button type="button" onClick={selectAllOnPage} disabled={loading || rows.length === 0} className="btn-neutral">
-            Select page
-          </button>
-          <button type="button" onClick={clearSelection} disabled={selectedIds.size === 0} className="btn-neutral">
-            Clear selection
-          </button>
-          <button
-            type="button"
-            onClick={() => setConfirmDelete({ deviceIds: Array.from(selectedIds) })}
-            disabled={selectedIds.size === 0 || actionLoading === 'delete-bulk'}
-            className="btn-danger"
-          >
-            {actionLoading === 'delete-bulk' ? 'Deleting…' : `Delete selected (${selectedIds.size})`}
-          </button>
-          {pageMeta.totalElements !== null && (
-            <span style={{ color: 'var(--muted)', fontSize: '13px' }}>
-              {pageMeta.totalElements} devices total
-              {pageMeta.totalPages !== null && pageMeta.totalPages > 0 ? ` · page ${page + 1}/${pageMeta.totalPages}` : ''}
-            </span>
-          )}
-        </div>
+        {showFilters && (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="accountId">Account ID</label>
+                <input id="accountId" type="number" min={0} value={filters.accountId} onChange={(e) => setFilters((p) => ({ ...p, accountId: e.target.value }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="userId">User ID</label>
+                <input id="userId" type="number" min={0} value={filters.userId} onChange={(e) => setFilters((p) => ({ ...p, userId: e.target.value }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="userRef">User ref</label>
+                <input id="userRef" value={filters.userRef} onChange={(e) => setFilters((p) => ({ ...p, userRef: e.target.value }))} placeholder="internal reference" />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="userEmail">User email</label>
+                <input id="userEmail" value={filters.userEmail} onChange={(e) => setFilters((p) => ({ ...p, userEmail: e.target.value }))} placeholder="email@example.com" />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="userPhone">User phone contains</label>
+                <input id="userPhone" value={filters.userPhone} onChange={(e) => setFilters((p) => ({ ...p, userPhone: e.target.value }))} placeholder="+243" />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="deviceId">Device ID</label>
+                <input id="deviceId" value={filters.deviceId} onChange={(e) => setFilters((p) => ({ ...p, deviceId: e.target.value }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="deviceName">Device name contains</label>
+                <input id="deviceName" value={filters.deviceName} onChange={(e) => setFilters((p) => ({ ...p, deviceName: e.target.value }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="status">Status</label>
+                <select id="status" value={filters.status} onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value }))}>
+                  <option value="">Any</option>
+                  {statusOptions.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="platform">Platform</label>
+                <select id="platform" value={filters.platform} onChange={(e) => setFilters((p) => ({ ...p, platform: e.target.value }))}>
+                  <option value="">Any</option>
+                  {platformOptions.map((p) => (
+                    <option key={p} value={p}>
+                      {p.toUpperCase()}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="sortBy">Sort by</label>
+                <select id="sortBy" value={filters.sortBy} onChange={(e) => setFilters((p) => ({ ...p, sortBy: e.target.value }))}>
+                  {sortByOptions.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="sortDir">Sort direction</label>
+                <select id="sortDir" value={filters.sortDir} onChange={(e) => setFilters((p) => ({ ...p, sortDir: e.target.value }))}>
+                  <option value="desc">Desc</option>
+                  <option value="asc">Asc</option>
+                </select>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="page">Page</label>
+                  <input id="page" type="number" min={0} value={page} onChange={(e) => setPage(Number(e.target.value))} />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="size">Size</label>
+                  <input id="size" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <button type="button" onClick={applyFilters} disabled={loading} className="btn-primary">
+                {loading ? 'Applying…' : 'Apply filters'}
+              </button>
+              <button type="button" onClick={resetFilters} disabled={loading} className="btn-neutral">
+                Reset
+              </button>
+              <button type="button" onClick={fetchRows} disabled={loading} className="btn-neutral">
+                {loading ? 'Refreshing…' : 'Refresh'}
+              </button>
+              <button type="button" onClick={selectAllOnPage} disabled={loading || rows.length === 0} className="btn-neutral">
+                Select page
+              </button>
+              <button type="button" onClick={clearSelection} disabled={selectedIds.size === 0} className="btn-neutral">
+                Clear selection
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmDelete({ deviceIds: Array.from(selectedIds) })}
+                disabled={selectedIds.size === 0 || actionLoading === 'delete-bulk'}
+                className="btn-danger"
+              >
+                {actionLoading === 'delete-bulk' ? 'Deleting…' : `Delete selected (${selectedIds.size})`}
+              </button>
+              {pageMeta.totalElements !== null && (
+                <span style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                  {pageMeta.totalElements} devices total
+                  {pageMeta.totalPages !== null && pageMeta.totalPages > 0 ? ` · page ${page + 1}/${pageMeta.totalPages}` : ''}
+                </span>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       <DataTable columns={columns} rows={rows} emptyLabel="No devices found" />
