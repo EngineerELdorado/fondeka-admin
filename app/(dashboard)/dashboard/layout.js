@@ -21,6 +21,7 @@ const navItems = [
   // Other menus
   { href: '/dashboard/trusted-devices', label: 'Trusted Devices' },
   { href: '/dashboard/transactions', label: 'Transactions' },
+  { href: '/dashboard/estimated-processing-times', label: 'Estimated Processing Times' },
   { href: '/dashboard/webhook-events', label: 'Webhook Events' },
   { href: '/dashboard/kycs', label: 'KYCs' },
   { href: '/dashboard/kyc-caps', label: 'KycCaps' },
