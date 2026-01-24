@@ -91,72 +91,71 @@ export default function CryptoPriceHistoryPage() {
         {showFilters && (
           <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="currency">Currency</label>
-            <select
-              id="currency"
-              value={filters.currency}
-              onChange={(e) => setFilters((p) => ({ ...p, currency: e.target.value }))}
-            >
-              <option value="">All</option>
-              {currencies.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="from">From (ISO)</label>
-            <input
-              id="from"
-              type="datetime-local"
-              value={filters.from}
-              onChange={(e) => setFilters((p) => ({ ...p, from: e.target.value }))}
-            />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="to">To (ISO)</label>
-            <input
-              id="to"
-              type="datetime-local"
-              value={filters.to}
-              onChange={(e) => setFilters((p) => ({ ...p, to: e.target.value }))}
-            />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="page">Page</label>
-            <input id="page" type="number" min={0} value={filters.page} onChange={(e) => setFilters((p) => ({ ...p, page: Number(e.target.value) }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="size">Size</label>
-            <input id="size" type="number" min={1} value={filters.size} onChange={(e) => setFilters((p) => ({ ...p, size: Number(e.target.value) }))} />
-          </div>
-        </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="currency">Currency</label>
+                <select
+                  id="currency"
+                  value={filters.currency}
+                  onChange={(e) => setFilters((p) => ({ ...p, currency: e.target.value }))}
+                >
+                  <option value="">All</option>
+                  {currencies.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="from">From (ISO)</label>
+                <input
+                  id="from"
+                  type="datetime-local"
+                  value={filters.from}
+                  onChange={(e) => setFilters((p) => ({ ...p, from: e.target.value }))}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="to">To (ISO)</label>
+                <input
+                  id="to"
+                  type="datetime-local"
+                  value={filters.to}
+                  onChange={(e) => setFilters((p) => ({ ...p, to: e.target.value }))}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="page">Page</label>
+                <input id="page" type="number" min={0} value={filters.page} onChange={(e) => setFilters((p) => ({ ...p, page: Number(e.target.value) }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="size">Size</label>
+                <input id="size" type="number" min={1} value={filters.size} onChange={(e) => setFilters((p) => ({ ...p, size: Number(e.target.value) }))} />
+              </div>
             </div>
             <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          <button
-            type="button"
-            onClick={() => setAppliedFilters(filters)}
-            disabled={loading}
-            className="btn-primary"
-          >
-            {loading ? 'Loading…' : 'Apply'}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setFilters(emptyFilters);
-              setAppliedFilters(emptyFilters);
-            }}
-            disabled={loading}
-            className="btn-neutral"
-          >
-            Reset
-          </button>
-          <button type="button" onClick={fetchRows} disabled={loading} className="btn-neutral">
-            {loading ? 'Refreshing…' : 'Refresh'}
-          </button>
+              <button
+                type="button"
+                onClick={() => setAppliedFilters(filters)}
+                disabled={loading}
+                className="btn-primary"
+              >
+                {loading ? 'Loading…' : 'Apply'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFilters(emptyFilters);
+                  setAppliedFilters(emptyFilters);
+                }}
+                disabled={loading}
+                className="btn-neutral"
+              >
+                Reset
+              </button>
+              <button type="button" onClick={fetchRows} disabled={loading} className="btn-neutral">
+                {loading ? 'Refreshing…' : 'Refresh'}
+              </button>
             </div>
           </>
         )}
