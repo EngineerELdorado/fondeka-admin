@@ -303,9 +303,14 @@ export default function WebhookEventsPage() {
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
           <div style={{ fontWeight: 700 }}>Filters</div>
-          <button type="button" className="btn-neutral btn-sm" onClick={() => setShowFilters((prev) => !prev)}>
-            {showFilters ? 'Hide filters' : 'Show filters'}
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <button type="button" className="btn-neutral btn-sm" onClick={() => setShowFilters((prev) => !prev)}>
+              {showFilters ? 'Hide filters' : 'Show filters'}
+            </button>
+            <button type="button" onClick={fetchRows} disabled={loading} className="btn-neutral btn-sm">
+              {loading ? 'Refreshing...' : 'Refresh'}
+            </button>
+          </div>
         </div>
         {showFilters && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
@@ -449,9 +454,6 @@ export default function WebhookEventsPage() {
         <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
           <button type="button" onClick={resetFilters} disabled={loading} className="btn-neutral">
             Reset
-          </button>
-          <button type="button" onClick={fetchRows} disabled={loading} className="btn-neutral">
-            {loading ? 'Refreshing...' : 'Refresh'}
           </button>
           <button type="button" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={loading || !canPrev} className="btn-neutral">
             ← Prev

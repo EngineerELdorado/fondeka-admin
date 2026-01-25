@@ -37,11 +37,22 @@ const navItems = [
 ];
 
 export default function DashboardLayout({ children }) {
-  const { isAuthenticated, loading, initialized, logout, refreshSession } = useAuth();
+  const { isAuthenticated, loading, initialized, logout, refreshSession, session } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [theme, setTheme] = useState('light');
   const [menuOpen, setMenuOpen] = useState(false);
+  const userLabel = useMemo(() => {
+    const payload = session?.tokens?.idToken?.payload || session?.tokens?.accessToken?.payload;
+    return (
+      payload?.name ||
+      payload?.preferred_username ||
+      payload?.email ||
+      payload?.['cognito:username'] ||
+      payload?.username ||
+      'Admin'
+    );
+  }, [session]);
 
   useEffect(() => {
     const stored = typeof window !== 'undefined' ? localStorage.getItem('fondeka-theme') : null;
@@ -186,7 +197,20 @@ export default function DashboardLayout({ children }) {
               </svg>
             </button>
             <img src="/icon.svg" alt="Fondeka" width={26} height={26} style={{ borderRadius: '8px' }} />
-            <span>Fondeka Admin Dashboard</span>
+            <span>Fondeka Admin</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ color: 'var(--muted)', display: 'inline-flex' }} aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0Zm-9 12a7 7 0 0 1 10 0"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </span>
+            <span style={{ fontWeight: 600 }}>{userLabel}</span>
           </div>
         </header>
         <main className="dashboard-main" style={{ padding: '1.25rem 1.5rem', flex: 1 }}>
