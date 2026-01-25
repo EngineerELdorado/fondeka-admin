@@ -559,9 +559,14 @@ export default function EsimProductsPage() {
       <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
           <div style={{ fontWeight: 700 }}>Filters</div>
-          <button type="button" className="btn-neutral btn-sm" onClick={() => setShowFilters((prev) => !prev)}>
-            {showFilters ? 'Hide filters' : 'Show filters'}
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <button type="button" className="btn-neutral btn-sm" onClick={() => setShowFilters((prev) => !prev)}>
+              {showFilters ? 'Hide filters' : 'Show filters'}
+            </button>
+            <button type="button" onClick={fetchRows} disabled={loading} className="btn-neutral btn-sm">
+              {loading ? 'Loading…' : 'Refresh'}
+            </button>
+          </div>
         </div>
         {showFilters && (
           <>

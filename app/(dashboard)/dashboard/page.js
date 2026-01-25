@@ -124,8 +124,8 @@ const statusOptions = ['INITIATED', 'PROCESSING', 'COMPLETED', 'FAILED', 'CANCEL
 
 const initialFilters = (() => {
   const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
   return {
     accountId: '',
     accountReference: '',
@@ -239,7 +239,7 @@ export default function DashboardPage() {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [datePreset, setDatePreset] = useState('');
+  const [datePreset, setDatePreset] = useState('today');
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [paymentProviders, setPaymentProviders] = useState([]);
   const [billProducts, setBillProducts] = useState([]);
@@ -247,6 +247,19 @@ export default function DashboardPage() {
   const [countries, setCountries] = useState([]);
   const [showHoldings, setShowHoldings] = useState(false);
   const refreshInFlight = useRef(false);
+
+  useEffect(() => {
+    const stored = typeof window !== 'undefined' ? localStorage.getItem('fondeka-dashboard-filters-open') : null;
+    if (stored !== null) {
+      setShowFilters(stored === 'true');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('fondeka-dashboard-filters-open', String(showFilters));
+    }
+  }, [showFilters]);
 
   const applyFilters = () => {
     setAppliedFilters(filters);
@@ -527,6 +540,10 @@ export default function DashboardPage() {
             <div style={{ color: 'var(--muted)' }}>Clean view across services, rails, geos, and accounts.</div>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            {activeFilterCount > 0 && <Pill tone="#0ea5e9">Applied: {activeFilterCount}</Pill>}
+            <button type="button" className="btn-neutral btn-sm" onClick={() => setShowFilters((p) => !p)}>
+              {showFilters ? 'Hide filters' : 'Show filters'}
+            </button>
             <button type="button" onClick={() => setAutoRefresh((prev) => !prev)} aria-pressed={autoRefresh} className="btn-neutral btn-sm">
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
                 <RefreshIcon size={14} />
@@ -568,20 +585,10 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="card" style={{ border: `1px dashed var(--border)`, background: 'color-mix(in srgb, var(--surface) 95%, var(--bg) 5%)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.6rem' }}>
+        {showFilters && (
+          <div className="card" style={{ border: `1px dashed var(--border)`, background: 'color-mix(in srgb, var(--surface) 95%, var(--bg) 5%)' }}>
             <div style={{ fontWeight: 700 }}>Filters</div>
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-              {activeFilterCount > 0 && <Pill tone="#0ea5e9">Applied: {activeFilterCount}</Pill>}
-              <button type="button" className="btn-neutral btn-sm" onClick={() => setShowFilters((p) => !p)}>
-                {showFilters ? 'Hide filters' : 'Show filters'}
-              </button>
-            </div>
-          </div>
-
-          {showFilters && (
-            <>
-              <div className="dashboard-filters-grid" style={{ marginTop: '0.75rem' }}>
+            <div className="dashboard-filters-grid" style={{ marginTop: '0.75rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: '0' }}>
                   <label htmlFor="startDate" style={{ color: 'var(--muted)', fontSize: '12px' }}>Start</label>
                   <input
@@ -623,9 +630,9 @@ export default function DashboardPage() {
                     Clear
                   </button>
                 </div>
-              </div>
+            </div>
 
-              <div className="dashboard-filters-wide-grid" style={{ marginTop: '0.75rem' }}>
+            <div className="dashboard-filters-wide-grid" style={{ marginTop: '0.75rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   <label htmlFor="service" style={{ color: 'var(--muted)', fontSize: '12px' }}>Service</label>
                   <select id="service" value={filters.service} onChange={(e) => setFilters((p) => ({ ...p, service: e.target.value }))}>
@@ -734,11 +741,8 @@ export default function DashboardPage() {
                   <label htmlFor="userPhone" style={{ color: 'var(--muted)', fontSize: '12px' }}>User phone</label>
                   <input id="userPhone" value={filters.userPhone} onChange={(e) => setFilters((p) => ({ ...p, userPhone: e.target.value }))} placeholder="+243" />
                 </div>
-              </div>
-            </>
-          )}
+            </div>
 
-          {showFilters && (
             <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap', marginTop: '0.6rem' }}>
               <button type="button" className="btn-primary" onClick={applyFilters} disabled={loading}>
                 {loading ? 'Applying…' : 'Apply filters'}
@@ -748,8 +752,8 @@ export default function DashboardPage() {
               </button>
               <span style={{ fontSize: '12px', color: 'var(--muted)' }}>All tiles respect the filters/date window.</span>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {error && (

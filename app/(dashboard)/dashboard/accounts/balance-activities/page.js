@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
 const emptyState = { accountBalanceId: '', transactionId: '', previousBalance: '', newBalance: '', delta: '', activityType: '' };
+const emptyFilters = { transactionReference: '', userEmail: '' };
 
 const toPayload = (state) => ({
   accountBalanceId: Number(state.accountBalanceId) || 0,
@@ -39,6 +40,27 @@ const DetailGrid = ({ rows }) => (
   </div>
 );
 
+const formatDateTime = (value) => {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+};
+
+const formatCurrency = (value) => {
+  if (value === null || value === undefined || value === '') return '—';
+  const num = Number(value);
+  if (Number.isNaN(num)) return value;
+  return num.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
 export default function AccountBalanceActivitiesPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
@@ -46,6 +68,9 @@ export default function AccountBalanceActivitiesPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState(emptyFilters);
+  const [appliedFilters, setAppliedFilters] = useState(emptyFilters);
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
@@ -60,6 +85,8 @@ export default function AccountBalanceActivitiesPage() {
       const params = new URLSearchParams();
       params.set('page', String(page));
       params.set('size', String(size));
+      if (appliedFilters.transactionReference) params.set('transactionReference', appliedFilters.transactionReference);
+      if (appliedFilters.userEmail) params.set('userEmail', appliedFilters.userEmail);
       const res = await api.accountBalanceActivities.list(params);
       const list = Array.isArray(res) ? res : res?.content || [];
       setRows(list || []);
@@ -72,15 +99,17 @@ export default function AccountBalanceActivitiesPage() {
 
   useEffect(() => {
     fetchRows();
-  }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [page, size, appliedFilters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
-    { key: 'accountBalanceId', label: 'Balance ID' },
+    { key: 'userFullName', label: 'User' },
     { key: 'activityType', label: 'Type' },
-    { key: 'delta', label: 'Delta' },
-    { key: 'newBalance', label: 'New balance' },
-    { key: 'transactionId', label: 'Transaction ID' },
+    { key: 'delta', label: 'Delta', render: (row) => formatCurrency(row.delta) },
+    { key: 'previousBalance', label: 'Previous balance', render: (row) => formatCurrency(row.previousBalance) },
+    { key: 'newBalance', label: 'New balance', render: (row) => formatCurrency(row.newBalance) },
+    { key: 'transactionReference', label: 'Transaction ref' },
+    { key: 'createdAt', label: 'Created', render: (row) => formatDateTime(row.createdAt) },
     {
       key: 'actions',
       label: 'Actions',
@@ -165,6 +194,17 @@ export default function AccountBalanceActivitiesPage() {
     }
   };
 
+  const applyFilters = () => {
+    setAppliedFilters(filters);
+    setPage(0);
+  };
+
+  const clearFilters = () => {
+    setFilters(emptyFilters);
+    setAppliedFilters(emptyFilters);
+    setPage(0);
+  };
+
   const renderForm = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -215,12 +255,56 @@ export default function AccountBalanceActivitiesPage() {
           <label htmlFor="size">Size</label>
           <input id="size" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
         </div>
-        <button type="button" onClick={fetchRows} disabled={loading} className="btn-primary">
-          {loading ? 'Loading…' : 'Refresh'}
-        </button>
         <button type="button" onClick={openCreate} className="btn-success">
           Add activity
         </button>
+      </div>
+
+      <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div style={{ fontWeight: 700 }}>Filters</div>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <button type="button" className="btn-neutral btn-sm" onClick={() => setShowFilters((prev) => !prev)}>
+              {showFilters ? 'Hide filters' : 'Show filters'}
+            </button>
+            <button type="button" onClick={fetchRows} disabled={loading} className="btn-neutral btn-sm">
+              {loading ? 'Loading…' : 'Refresh'}
+            </button>
+          </div>
+        </div>
+        {showFilters && (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="filterTransactionRef">Transaction ref</label>
+                <input
+                  id="filterTransactionRef"
+                  value={filters.transactionReference}
+                  onChange={(e) => setFilters((p) => ({ ...p, transactionReference: e.target.value }))}
+                  placeholder="TX123"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="filterUserEmail">User email</label>
+                <input
+                  id="filterUserEmail"
+                  value={filters.userEmail}
+                  onChange={(e) => setFilters((p) => ({ ...p, userEmail: e.target.value }))}
+                  placeholder="user@domain.com"
+                />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <button type="button" onClick={applyFilters} disabled={loading} className="btn-primary">
+                {loading ? 'Applying…' : 'Apply filters'}
+              </button>
+              <button type="button" onClick={clearFilters} disabled={loading} className="btn-neutral">
+                Clear
+              </button>
+              <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Filters apply to transaction reference and user email.</span>
+            </div>
+          </>
+        )}
       </div>
 
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
@@ -255,10 +339,13 @@ export default function AccountBalanceActivitiesPage() {
               { label: 'ID', value: selected?.id },
               { label: 'Balance ID', value: selected?.accountBalanceId },
               { label: 'Activity type', value: selected?.activityType },
-              { label: 'Delta', value: selected?.delta },
-              { label: 'Previous balance', value: selected?.previousBalance },
-              { label: 'New balance', value: selected?.newBalance },
-              { label: 'Transaction ID', value: selected?.transactionId }
+              { label: 'User', value: selected?.userFullName },
+              { label: 'Delta', value: formatCurrency(selected?.delta) },
+              { label: 'Previous balance', value: formatCurrency(selected?.previousBalance) },
+              { label: 'New balance', value: formatCurrency(selected?.newBalance) },
+              { label: 'Transaction ID', value: selected?.transactionId },
+              { label: 'Transaction ref', value: selected?.transactionReference },
+              { label: 'Created', value: formatDateTime(selected?.createdAt) }
             ]}
           />
         </Modal>
