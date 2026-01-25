@@ -29,7 +29,7 @@ const formatPercentage = (val) => {
 };
 
 const RevenueBadge = ({ value }) => {
-  const formatted = formatPercentage(value);
+  const formatted = formatCurrency(value);
   if (formatted === '—') return formatted;
   return (
     <span
@@ -837,8 +837,8 @@ export default function DashboardPage() {
               { key: 'countPercentage', label: '% of count', render: (row) => formatPercentage(row.countPercentage) },
               { key: 'volume', label: 'Volume', render: (row) => formatCurrency(row.volume) },
               { key: 'volumePercentage', label: '% of volume', render: (row) => formatPercentage(row.volumePercentage) },
-              { key: 'revenue', label: 'Revenue', render: (row) => formatCurrency(row.revenue) },
-              { key: 'revenuePercentage', label: '% of revenue', render: (row) => <RevenueBadge value={row.revenuePercentage} /> }
+              { key: 'revenue', label: 'Revenue', render: (row) => <RevenueBadge value={row.revenue} /> },
+              { key: 'revenuePercentage', label: '% of revenue', render: (row) => formatPercentage(row.revenuePercentage) }
             ]}
             rows={data?.services}
           />
@@ -870,7 +870,7 @@ export default function DashboardPage() {
               { key: 'countPercentage', label: '% of count', render: (row) => formatPercentage(row.countPercentage) },
               { key: 'volume', label: 'Volume', render: (row) => formatCurrency(row.volume) },
               { key: 'volumePercentage', label: '% of volume', render: (row) => formatPercentage(row.volumePercentage) },
-              { key: 'revenuePercentage', label: '% of revenue', render: (row) => <RevenueBadge value={row.revenuePercentage} /> }
+              { key: 'revenuePercentage', label: '% of revenue', render: (row) => formatPercentage(row.revenuePercentage) }
             ]}
             rows={data?.actions}
           />
@@ -884,7 +884,7 @@ export default function DashboardPage() {
               { key: 'countPercentage', label: '% of count', render: (row) => formatPercentage(row.countPercentage) },
               { key: 'volume', label: 'Volume', render: (row) => formatCurrency(row.volume) },
               { key: 'volumePercentage', label: '% of volume', render: (row) => formatPercentage(row.volumePercentage) },
-              { key: 'revenuePercentage', label: '% of revenue', render: (row) => <RevenueBadge value={row.revenuePercentage} /> }
+              { key: 'revenuePercentage', label: '% of revenue', render: (row) => formatPercentage(row.revenuePercentage) }
             ]}
             rows={data?.paymentMethods}
           />
@@ -900,8 +900,8 @@ export default function DashboardPage() {
               { key: 'volumePercentage', label: '% of volume', render: (row) => formatPercentage(row.volumePercentage) },
               { key: 'fee', label: 'Our fees', render: (row) => formatCurrency(row.fee) },
               { key: 'commission', label: 'Commission', render: (row) => formatCurrency(row.commission) },
-              { key: 'revenue', label: 'Total revenue', render: (row) => formatCurrency(row.revenue) },
-              { key: 'revenuePercentage', label: '% of revenue', render: (row) => <RevenueBadge value={row.revenuePercentage} /> }
+              { key: 'revenue', label: 'Total revenue', render: (row) => <RevenueBadge value={row.revenue} /> },
+              { key: 'revenuePercentage', label: '% of revenue', render: (row) => formatPercentage(row.revenuePercentage) }
             ]}
             rows={data?.billProducts}
           />
@@ -917,8 +917,8 @@ export default function DashboardPage() {
               { key: 'volumePercentage', label: '% of volume', render: (row) => formatPercentage(row.volumePercentage) },
               { key: 'fee', label: 'Our fees', render: (row) => formatCurrency(row.fee) },
               { key: 'commission', label: 'Commission', render: (row) => formatCurrency(row.commission) },
-              { key: 'revenue', label: 'Total revenue', render: (row) => formatCurrency(row.revenue) },
-              { key: 'revenuePercentage', label: '% of revenue', render: (row) => <RevenueBadge value={row.revenuePercentage} /> }
+              { key: 'revenue', label: 'Total revenue', render: (row) => <RevenueBadge value={row.revenue} /> },
+              { key: 'revenuePercentage', label: '% of revenue', render: (row) => formatPercentage(row.revenuePercentage) }
             ]}
             rows={data?.billProviders}
           />
@@ -932,7 +932,7 @@ export default function DashboardPage() {
               { key: 'countPercentage', label: '% of count', render: (row) => formatPercentage(row.countPercentage) },
               { key: 'volume', label: 'Volume', render: (row) => formatCurrency(row.volume) },
               { key: 'volumePercentage', label: '% of volume', render: (row) => formatPercentage(row.volumePercentage) },
-              { key: 'revenuePercentage', label: '% of revenue', render: (row) => <RevenueBadge value={row.revenuePercentage} /> }
+              { key: 'revenuePercentage', label: '% of revenue', render: (row) => formatPercentage(row.revenuePercentage) }
             ]}
             rows={data?.countries}
           />
@@ -950,7 +950,7 @@ export default function DashboardPage() {
               { key: 'countPercentage', label: '% of count', render: (row) => formatPercentage(row.countPercentage) },
               { key: 'volume', label: 'Volume', render: (row) => formatCurrency(row.volume) },
               { key: 'volumePercentage', label: '% of volume', render: (row) => formatPercentage(row.volumePercentage) },
-              { key: 'revenuePercentage', label: '% of revenue', render: (row) => <RevenueBadge value={row.revenuePercentage} /> }
+              { key: 'revenuePercentage', label: '% of revenue', render: (row) => formatPercentage(row.revenuePercentage) }
             ]}
             rows={data?.topAccounts}
             emptyLabel="No accounts in this window"
@@ -965,7 +965,7 @@ export default function DashboardPage() {
               { key: 'countPercentage', label: '% of count', render: (row) => formatPercentage(row.countPercentage) },
               { key: 'volume', label: 'Volume', render: (row) => formatCurrency(row.volume) },
               { key: 'volumePercentage', label: '% of volume', render: (row) => formatPercentage(row.volumePercentage) },
-              { key: 'revenuePercentage', label: '% of revenue', render: (row) => <RevenueBadge value={row.revenuePercentage} /> }
+              { key: 'revenuePercentage', label: '% of revenue', render: (row) => formatPercentage(row.revenuePercentage) }
             ]}
             rows={data?.statuses}
           />
