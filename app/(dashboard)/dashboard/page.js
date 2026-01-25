@@ -28,6 +28,23 @@ const formatPercentage = (val) => {
   return `${fixed}%`;
 };
 
+const formatEnumLabel = (value) => {
+  if (!value) return '—';
+  const raw = String(value);
+  const special = {
+    E_SIM: 'eSIM',
+    PAYMENT_REQUEST: 'Payment request',
+    BILL_PAYMENTS: 'Bill payments',
+    AIRTIME_AND_DATA: 'Airtime & data'
+  };
+  if (special[raw]) return special[raw];
+  return raw
+    .toLowerCase()
+    .split('_')
+    .map((part) => (part ? part[0].toUpperCase() + part.slice(1) : part))
+    .join(' ');
+};
+
 const InlineStat = ({ value, percentage }) => {
   const main = value ?? '—';
   const percentLabel = formatPercentage(percentage);
@@ -615,7 +632,7 @@ export default function DashboardPage() {
                     <option value="">All</option>
                     {serviceOptions.map((svc) => (
                       <option key={svc} value={svc}>
-                        {svc}
+                        {formatEnumLabel(svc)}
                       </option>
                     ))}
                   </select>
@@ -704,7 +721,7 @@ export default function DashboardPage() {
                     <option value="">Any</option>
                     {actionOptions.map((act) => (
                       <option key={act} value={act}>
-                        {act}
+                        {formatEnumLabel(act)}
                       </option>
                     ))}
                   </select>
@@ -824,7 +841,7 @@ export default function DashboardPage() {
           </div>
           <Table
             columns={[
-              { key: 'service', label: 'Service' },
+              { key: 'service', label: 'Service', render: (row) => formatEnumLabel(row.service) },
               {
                 key: 'count',
                 label: 'Count',
@@ -841,7 +858,7 @@ export default function DashboardPage() {
           <div style={{ fontWeight: 800 }}>Actions</div>
           <Table
             columns={[
-              { key: 'action', label: 'Action' },
+              { key: 'action', label: 'Action', render: (row) => formatEnumLabel(row.action) },
               {
                 key: 'count',
                 label: 'Count',
