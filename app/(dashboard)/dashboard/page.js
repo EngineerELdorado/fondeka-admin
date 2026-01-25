@@ -124,8 +124,8 @@ const statusOptions = ['INITIATED', 'PROCESSING', 'COMPLETED', 'FAILED', 'CANCEL
 
 const initialFilters = (() => {
   const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
   return {
     accountId: '',
     accountReference: '',
@@ -239,7 +239,7 @@ export default function DashboardPage() {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [datePreset, setDatePreset] = useState('today');
+  const [datePreset, setDatePreset] = useState('month');
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [paymentProviders, setPaymentProviders] = useState([]);
   const [billProducts, setBillProducts] = useState([]);
@@ -269,7 +269,7 @@ export default function DashboardPage() {
   const resetFilters = () => {
     setFilters(initialFilters);
     setAppliedFilters(initialFilters);
-    setDatePreset('');
+    setDatePreset('month');
   };
 
   const fetchDashboard = useCallback(
@@ -495,7 +495,8 @@ export default function DashboardPage() {
 
     if (preset === 'month') {
       const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-      setFilters((p) => ({ ...p, startDate: formatInputDate(start), endDate: formatInputDate(end) }));
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      setFilters((p) => ({ ...p, startDate: formatInputDate(start), endDate: formatInputDate(endOfMonth) }));
       setDatePreset(preset);
       return;
     }
