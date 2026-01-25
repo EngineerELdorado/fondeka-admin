@@ -538,7 +538,6 @@ export default function DashboardPage() {
                 {dateLabel}
               </div>
             </div>
-            <div style={{ color: 'var(--muted)' }}>Clean view across services, rails, geos, and accounts.</div>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
             {activeFilterCount > 0 && <Pill tone="#0ea5e9">Applied: {activeFilterCount}</Pill>}
