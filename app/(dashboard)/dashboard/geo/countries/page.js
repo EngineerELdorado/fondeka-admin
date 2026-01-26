@@ -5,13 +5,26 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
-const emptyState = { name: '', alpha2Code: '', alpha3Code: '' };
+const emptyState = { name: '', alpha2Code: '', alpha3Code: '', defaultKycLevel: '' };
 
-const toPayload = (state) => ({
-  name: state.name,
-  alpha2Code: state.alpha2Code,
-  alpha3Code: state.alpha3Code
-});
+const toPayload = (state) => {
+  const payload = {
+    name: state.name,
+    alpha2Code: state.alpha2Code,
+    alpha3Code: state.alpha3Code
+  };
+  if (state.defaultKycLevel !== undefined) {
+    payload.defaultKycLevel = state.defaultKycLevel === '' ? null : state.defaultKycLevel;
+  }
+  return payload;
+};
+
+const parseLevelInput = (value) => {
+  if (value === '' || value === null || value === undefined) return null;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0) return NaN;
+  return parsed;
+};
 
 const Modal = ({ title, onClose, children }) => (
   <div className="modal-backdrop">
@@ -77,6 +90,11 @@ export default function CountriesPage() {
     { key: 'alpha2Code', label: 'Alpha-2' },
     { key: 'alpha3Code', label: 'Alpha-3' },
     {
+      key: 'defaultKycLevel',
+      label: 'Default KYC',
+      render: (row) => (row?.defaultKycLevel === null || row?.defaultKycLevel === undefined ? 'Global' : row.defaultKycLevel)
+    },
+    {
       key: 'actions',
       label: 'Actions',
       render: (row) => (
@@ -101,7 +119,8 @@ export default function CountriesPage() {
     setDraft({
       name: row.name ?? '',
       alpha2Code: row.alpha2Code ?? '',
-      alpha3Code: row.alpha3Code ?? ''
+      alpha3Code: row.alpha3Code ?? '',
+      defaultKycLevel: row.defaultKycLevel ?? ''
     });
     setShowEdit(true);
     setInfo(null);
@@ -119,7 +138,12 @@ export default function CountriesPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.countries.create(toPayload(draft));
+      const level = parseLevelInput(draft.defaultKycLevel);
+      if (Number.isNaN(level)) {
+        setError('Default KYC level must be an integer >= 0.');
+        return;
+      }
+      await api.countries.create(toPayload({ ...draft, defaultKycLevel: level === null ? '' : level }));
       setInfo('Created country.');
       setShowCreate(false);
       fetchRows();
@@ -133,7 +157,12 @@ export default function CountriesPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.countries.update(selected.id, toPayload(draft));
+      const level = parseLevelInput(draft.defaultKycLevel);
+      if (Number.isNaN(level)) {
+        setError('Default KYC level must be an integer >= 0.');
+        return;
+      }
+      await api.countries.update(selected.id, toPayload({ ...draft, defaultKycLevel: level === null ? '' : level }));
       setInfo(`Updated country ${selected.id}.`);
       setShowEdit(false);
       fetchRows();
@@ -170,6 +199,18 @@ export default function CountriesPage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="alpha3Code">Alpha-3 code</label>
         <input id="alpha3Code" value={draft.alpha3Code} onChange={(e) => setDraft((p) => ({ ...p, alpha3Code: e.target.value }))} />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="defaultKycLevel">Default KYC level (optional)</label>
+        <input
+          id="defaultKycLevel"
+          type="number"
+          min={0}
+          step={1}
+          value={draft.defaultKycLevel}
+          onChange={(e) => setDraft((p) => ({ ...p, defaultKycLevel: e.target.value }))}
+          placeholder="Uses global default"
+        />
       </div>
     </div>
   );
@@ -235,7 +276,8 @@ export default function CountriesPage() {
               { label: 'ID', value: selected?.id },
               { label: 'Name', value: selected?.name },
               { label: 'Alpha-2', value: selected?.alpha2Code },
-              { label: 'Alpha-3', value: selected?.alpha3Code }
+              { label: 'Alpha-3', value: selected?.alpha3Code },
+              { label: 'Default KYC', value: selected?.defaultKycLevel ?? 'Global default' }
             ]}
           />
         </Modal>

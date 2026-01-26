@@ -25,6 +25,7 @@ const navItems = [
   { href: '/dashboard/webhook-events', label: 'Webhook Events' },
   { href: '/dashboard/kycs', label: 'KYCs' },
   { href: '/dashboard/kyc-caps', label: 'KycCaps' },
+  { href: '/dashboard/kyc-default-levels', label: 'KYC Defaults' },
   { href: '/dashboard/feature-flags', label: 'Feature Flags' },
   { href: '/dashboard/app-version', label: 'App Version' },
   { href: '/dashboard/notification-providers', label: 'Notification Providers' },
