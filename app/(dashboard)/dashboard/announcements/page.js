@@ -422,7 +422,7 @@ export default function AnnouncementsPage() {
           <div style={{ color: 'var(--muted)' }}>Manage in-app announcements and scheduling windows (UTC).</div>
         </div>
         <Link href="/dashboard" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
-          <- Dashboard
+          {'<- Dashboard'}
         </Link>
       </div>
 
