@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { DataTable } from '@/components/DataTable';
 import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
@@ -221,14 +221,26 @@ const formatWebhookPayload = (payload) => {
 };
 
 export default function TransactionsPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const queryAppliedRef = useRef(false);
   const { pushToast } = useToast();
+  const queryFilters = useMemo(() => {
+    const transactionId = searchParams.get('transactionId');
+    const statusParam = searchParams.get('status');
+    const next = {};
+    if (transactionId) next.transactionId = transactionId;
+    if (statusParam) {
+      const normalized = normalizeEnumKey(statusParam);
+      if (statusOptions.includes(normalized)) next.status = normalized;
+    }
+    return next;
+  }, [searchParams]);
+  const hasQueryFilters = Object.keys(queryFilters).length > 0;
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(50);
-  const [filters, setFilters] = useState(initialFilters);
-  const [appliedFilters, setAppliedFilters] = useState(initialFilters);
+  const [filters, setFilters] = useState(() => ({ ...initialFilters, ...queryFilters }));
+  const [appliedFilters, setAppliedFilters] = useState(() => ({ ...initialFilters, ...queryFilters }));
   const [showFilters, setShowFilters] = useState(false);
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [paymentProviders, setPaymentProviders] = useState([]);
@@ -436,14 +448,11 @@ export default function TransactionsPage() {
   }, [page, size, appliedFilters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (queryAppliedRef.current) return;
-    const transactionId = searchParams.get('transactionId');
-    if (!transactionId) return;
-    queryAppliedRef.current = true;
+    if (!hasQueryFilters) return;
     setPage(0);
-    setFilters((prev) => ({ ...prev, transactionId }));
-    setAppliedFilters((prev) => ({ ...prev, transactionId }));
-  }, [searchParams]);
+    setFilters((prev) => ({ ...prev, ...queryFilters }));
+    setAppliedFilters((prev) => ({ ...prev, ...queryFilters }));
+  }, [hasQueryFilters, queryFilters]);
 
   useEffect(() => {
     const fetchOptions = async () => {
@@ -473,6 +482,11 @@ export default function TransactionsPage() {
     setFilters(initialFilters);
     setAppliedFilters(initialFilters);
     setPage(0);
+  };
+
+  const clearQueryFilters = () => {
+    router.replace('/dashboard/transactions');
+    resetFilters();
   };
 
   const activeFilterChips = useMemo(() => {
@@ -508,7 +522,7 @@ export default function TransactionsPage() {
           add(`Effect: ${value}`, key);
           break;
         case 'status':
-          add(`Status: ${value}`, key);
+          add(`Status: ${formatEnumLabel(value, { CANCELLED: 'Canceled' })}`, key);
           break;
         case 'paymentMethodId':
           add(`Payment method #${value}`, key);
@@ -1101,6 +1115,11 @@ export default function TransactionsPage() {
           <button type="button" onClick={resetFilters} disabled={loading} className="btn-neutral">
             Reset
           </button>
+          {hasQueryFilters && (
+            <button type="button" onClick={clearQueryFilters} disabled={loading} className="btn-neutral">
+              Clear query filters
+            </button>
+          )}
           <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Set filters then apply to query.</span>
         </div>
           </>

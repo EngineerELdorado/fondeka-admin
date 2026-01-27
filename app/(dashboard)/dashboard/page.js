@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend } from 'recharts';
+import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 
 const DISPLAY_LOCALE = 'en-US';
@@ -231,6 +232,7 @@ const formatCryptoHoldings = (list) =>
   }));
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [filters, setFilters] = useState(initialFilters);
   const [appliedFilters, setAppliedFilters] = useState(initialFilters);
   const [data, setData] = useState(null);
@@ -444,6 +446,13 @@ export default function DashboardPage() {
     return list.reduce((sum, item) => sum + (Number(item?.providerFees) || 0), 0);
   }, [timeseries]);
 
+  const goToTransactions = (status) => {
+    const params = new URLSearchParams();
+    if (status) params.set('status', status);
+    const query = params.toString();
+    router.push(`/dashboard/transactions${query ? `?${query}` : ''}`);
+  };
+
   const kpiCards = [
     { label: 'Fiat balance', value: formatCurrency(holdings.fiatBalanceTotal), sub: 'Across fiat accounts', tone: '#2563eb' },
     {
@@ -453,10 +462,33 @@ export default function DashboardPage() {
       tone: '#0ea5e9',
       onClick: () => setShowHoldings(true)
     },
-    { label: 'Transactions', value: formatNumber(totals.totalCount), sub: `Volume ${formatCurrency(totals.totalVolume)}` },
-    { label: 'Completed', value: formatNumber(totals.completedCount), sub: `Volume ${formatCurrency(totals.completedVolume)}`, tone: '#16a34a' },
-    { label: 'Failed', value: formatNumber(totals.failedCount), sub: `Volume ${formatCurrency(totals.failedVolume)}`, tone: '#b91c1c' },
-    { label: 'Processing', value: formatNumber(totals.processingCount), sub: `Volume ${formatCurrency(totals.processingVolume)}`, tone: '#1d4ed8' },
+    {
+      label: 'Transactions',
+      value: formatNumber(totals.totalCount),
+      sub: `Volume ${formatCurrency(totals.totalVolume)}`,
+      onClick: () => goToTransactions()
+    },
+    {
+      label: 'Completed',
+      value: formatNumber(totals.completedCount),
+      sub: `Volume ${formatCurrency(totals.completedVolume)}`,
+      tone: '#16a34a',
+      onClick: () => goToTransactions('COMPLETED')
+    },
+    {
+      label: 'Failed',
+      value: formatNumber(totals.failedCount),
+      sub: `Volume ${formatCurrency(totals.failedVolume)}`,
+      tone: '#b91c1c',
+      onClick: () => goToTransactions('FAILED')
+    },
+    {
+      label: 'Processing',
+      value: formatNumber(totals.processingCount),
+      sub: `Volume ${formatCurrency(totals.processingVolume)}`,
+      tone: '#1d4ed8',
+      onClick: () => goToTransactions('PROCESSING')
+    },
     {
       label: 'Provider fees',
       value: formatCurrency(providerFeesTotal),
