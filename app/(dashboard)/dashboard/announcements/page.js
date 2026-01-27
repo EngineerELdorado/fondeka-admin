@@ -33,6 +33,13 @@ const formatUtcDateTime = (value) => {
   return `${formatted} UTC`;
 };
 
+const formatCount = (value) => {
+  if (value === null || value === undefined) return '-';
+  const num = Number(value);
+  if (Number.isNaN(num)) return String(value);
+  return new Intl.NumberFormat('en-US').format(num);
+};
+
 const toDatetimeLocal = (value) => {
   if (!value) return '';
   const date = new Date(value);
@@ -293,38 +300,9 @@ export default function AnnouncementsPage() {
         render: (row) => <ActiveBadge active={isActiveNow(row)} />
       },
       {
-        key: 'startAt',
-        label: 'Start (UTC)',
-        render: (row) => formatUtcDateTime(row.startAt)
-      },
-      {
-        key: 'endAt',
-        label: 'End (UTC)',
-        render: (row) => formatUtcDateTime(row.endAt)
-      },
-      {
-        key: 'link',
-        label: 'Link',
-        render: (row) =>
-          row.link ? (
-            <a href={row.link} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', textDecoration: 'none' }}>
-              Open
-            </a>
-          ) : (
-            '-'
-          )
-      },
-      {
-        key: 'image',
-        label: 'Image',
-        render: (row) =>
-          row.image ? (
-            <a href={row.image} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', textDecoration: 'none' }}>
-              View
-            </a>
-          ) : (
-            '-'
-          )
+        key: 'viewCount',
+        label: 'Views',
+        render: (row) => formatCount(row.viewCount)
       },
       {
         key: 'createdAt',
