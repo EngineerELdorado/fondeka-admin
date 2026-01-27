@@ -15,7 +15,7 @@ const emptyDraft = {
   image: ''
 };
 
-const severityOptions = ['INFO', 'WARNING', 'CRITICAL', 'SUCCESS'];
+const severityOptions = ['INFO', 'WARNING', 'CRITICAL'];
 
 const formatUtcDateTime = (value) => {
   if (!value) return '-';
@@ -335,18 +335,18 @@ export default function AnnouncementsPage() {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="severity">Severity</label>
-        <input
+        <select
           id="severity"
-          list="severity-options"
           value={draft.severity}
           onChange={(e) => setDraft((p) => ({ ...p, severity: e.target.value }))}
-          placeholder="INFO / WARNING"
-        />
-        <datalist id="severity-options">
+        >
+          <option value="">Select severity</option>
           {severityOptions.map((option) => (
-            <option key={option} value={option} />
+            <option key={option} value={option}>
+              {option}
+            </option>
           ))}
-        </datalist>
+        </select>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="startAt">Start at (UTC)</label>
