@@ -130,6 +130,7 @@ const initialFilters = {
   service: '',
   balanceEffect: '',
   status: '',
+  paymentMethodName: '',
   paymentMethodId: '',
   paymentProviderId: '',
   paymentMethodPaymentProviderId: '',
@@ -285,6 +286,10 @@ export default function TransactionsPage() {
   const [replayLoading, setReplayLoading] = useState(false);
   const [replayError, setReplayError] = useState(null);
   const [refetchBillStatusLoading, setRefetchBillStatusLoading] = useState(false);
+  const [showBankPayoutComplete, setShowBankPayoutComplete] = useState(false);
+  const [bankPayoutMessage, setBankPayoutMessage] = useState('');
+  const [bankPayoutError, setBankPayoutError] = useState(null);
+  const [bankPayoutLoading, setBankPayoutLoading] = useState(false);
   const webhookEvents = Array.isArray(selected?.webhookEvents) ? selected.webhookEvents : [];
   const normalizedStatus = selected?.status?.toUpperCase?.() || '';
   const showErrorMessage = ['FAILED', 'CANCELED', 'CANCELLED'].includes(normalizedStatus);
@@ -335,6 +340,21 @@ export default function TransactionsPage() {
   const fetchRows = async () => fetchRowsFor({ targetPage: page, targetSize: size, targetFilters: appliedFilters });
 
   const manualRefundViewActive = appliedFilters.needsManualRefund === 'true';
+  const equityMethod = useMemo(
+    () =>
+      paymentMethods.find((pm) => {
+        const name = normalizeEnumKey(pm?.name || pm?.displayName);
+        return name === 'EQUITY_DRC';
+      }),
+    [paymentMethods]
+  );
+  const bankPayoutViewActive = useMemo(() => {
+    const status = normalizeEnumKey(appliedFilters.status);
+    const action = normalizeEnumKey(appliedFilters.action);
+    const name = normalizeEnumKey(appliedFilters.paymentMethodName);
+    const idMatch = equityMethod?.id && String(appliedFilters.paymentMethodId) === String(equityMethod.id);
+    return status === 'FUNDED' && action === 'WITHDRAW_FROM_WALLET' && (name === 'EQUITY_DRC' || idMatch);
+  }, [appliedFilters, equityMethod]);
   const showAllTransactions = () => {
     setPage(0);
     setFilters(initialFilters);
@@ -342,6 +362,20 @@ export default function TransactionsPage() {
   };
   const showManualRefunds = () => {
     const next = { ...initialFilters, needsManualRefund: 'true' };
+    setPage(0);
+    setFilters(next);
+    setAppliedFilters(next);
+  };
+  const showBankPayouts = () => {
+    const next = {
+      ...initialFilters,
+      status: 'FUNDED',
+      action: 'WITHDRAW_FROM_WALLET',
+      paymentMethodName: 'EQUITY_DRC'
+    };
+    if (equityMethod?.id) {
+      next.paymentMethodId = String(equityMethod.id);
+    }
     setPage(0);
     setFilters(next);
     setAppliedFilters(next);
@@ -527,6 +561,9 @@ export default function TransactionsPage() {
         case 'paymentMethodId':
           add(`Payment method #${value}`, key);
           break;
+        case 'paymentMethodName':
+          add(`Payment method: ${value}`, key);
+          break;
         case 'paymentProviderId':
           add(`Payment provider #${value}`, key);
           break;
@@ -630,6 +667,9 @@ export default function TransactionsPage() {
     setReceiptTemplateKey('');
     setBillStatusAuditLogs([]);
     setBillStatusAuditError(null);
+    setShowBankPayoutComplete(false);
+    setBankPayoutMessage('');
+    setBankPayoutError(null);
   };
 
   const showRefundTransaction = async ({ refundReference, refundTransactionId }) => {
@@ -713,6 +753,53 @@ export default function TransactionsPage() {
     if (service !== 'BILL_PAYMENTS') return false;
     return status !== 'FAILED' && status !== 'CANCELED' && status !== 'CANCELLED';
   }, [selected]);
+
+  const bankPayoutMeta = useMemo(() => {
+    if (!selected) {
+      return { eligible: false, methodName: '', methodType: '', status: '', action: '' };
+    }
+    const status = normalizeEnumKey(selected?.status);
+    const action = normalizeEnumKey(selected?.action);
+    const selectedMethodName = normalizeEnumKey(selected?.paymentMethodName);
+    const selectedMethodId = selected?.paymentMethodId;
+    const methodMatch = paymentMethods.find((pm) => {
+      if (selectedMethodId && String(pm.id) === String(selectedMethodId)) return true;
+      const name = normalizeEnumKey(pm?.name || pm?.displayName);
+      return name && name === selectedMethodName;
+    });
+    const methodName = normalizeEnumKey(selected?.paymentMethodName || methodMatch?.name || methodMatch?.displayName);
+    const methodType = normalizeEnumKey(selected?.paymentMethodType || methodMatch?.type);
+    const meetsName = methodName === 'EQUITY_DRC';
+    const meetsType = !methodType || methodType === 'BANK';
+    const eligible = status === 'FUNDED' && action === 'WITHDRAW_FROM_WALLET' && meetsName && meetsType;
+    return { eligible, methodName, methodType, status, action };
+  }, [paymentMethods, selected]);
+
+  const handleCompleteBankPayout = async () => {
+    const transactionId = selected?.transactionId || selected?.id;
+    if (!transactionId) {
+      setBankPayoutError('Missing transaction id');
+      return;
+    }
+    setBankPayoutLoading(true);
+    setBankPayoutError(null);
+    try {
+      const payload = bankPayoutMessage?.trim() ? { message: bankPayoutMessage.trim() } : undefined;
+      const res = await api.transactions.completeBankPayout(transactionId, payload);
+      pushToast({ tone: 'success', message: 'Bank payout marked as completed.' });
+      setShowBankPayoutComplete(false);
+      setBankPayoutMessage('');
+      setSelected((prev) => ({ ...(prev || {}), ...(res || {}), status: res?.status || 'COMPLETED' }));
+      await fetchRows();
+      await loadReceipt(transactionId);
+    } catch (err) {
+      const message = err?.message || 'Failed to complete bank payout';
+      setBankPayoutError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setBankPayoutLoading(false);
+    }
+  };
 
   const handleReplayFulfillment = async () => {
     const transactionId = selected?.transactionId || selected?.id;
@@ -947,15 +1034,19 @@ export default function TransactionsPage() {
         {showFilters && (
           <>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          <span style={{ fontSize: '13px', color: 'var(--muted)' }}>View</span>
-          <button type="button" onClick={showAllTransactions} className={manualRefundViewActive ? 'btn-neutral btn-sm' : 'btn-primary btn-sm'}>
-            All transactions
-          </button>
-          <button type="button" onClick={showManualRefunds} className={manualRefundViewActive ? 'btn-primary btn-sm' : 'btn-neutral btn-sm'}>
-            Manual refunds
-          </button>
-          {manualRefundViewActive && <span style={{ fontSize: '12px', color: 'var(--muted)' }}>Showing needsManualRefund=true</span>}
-        </div>
+              <span style={{ fontSize: '13px', color: 'var(--muted)' }}>View</span>
+              <button type="button" onClick={showAllTransactions} className={manualRefundViewActive || bankPayoutViewActive ? 'btn-neutral btn-sm' : 'btn-primary btn-sm'}>
+                All transactions
+              </button>
+              <button type="button" onClick={showManualRefunds} className={manualRefundViewActive ? 'btn-primary btn-sm' : 'btn-neutral btn-sm'}>
+                Manual refunds
+              </button>
+              <button type="button" onClick={showBankPayouts} className={bankPayoutViewActive ? 'btn-primary btn-sm' : 'btn-neutral btn-sm'}>
+                Bank payouts (Equity DRC)
+              </button>
+              {manualRefundViewActive && <span style={{ fontSize: '12px', color: 'var(--muted)' }}>Showing needsManualRefund=true</span>}
+              {bankPayoutViewActive && <span style={{ fontSize: '12px', color: 'var(--muted)' }}>Showing FUNDED + WITHDRAW_FROM_WALLET + EQUITY_DRC</span>}
+            </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -1028,6 +1119,15 @@ export default function TransactionsPage() {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="paymentMethodName">Payment method name</label>
+            <input
+              id="paymentMethodName"
+              value={filters.paymentMethodName}
+              onChange={(e) => setFilters((p) => ({ ...p, paymentMethodName: e.target.value }))}
+              placeholder="EQUITY_DRC"
+            />
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="paymentMethodId">Payment method</label>
             <select id="paymentMethodId" value={filters.paymentMethodId} onChange={(e) => setFilters((p) => ({ ...p, paymentMethodId: e.target.value }))}>
@@ -1181,6 +1281,7 @@ export default function TransactionsPage() {
                 { label: 'Commission amount', value: selected?.commissionAmount },
                 { label: 'Recipient', value: selected?.recipient },
                 { label: 'Payment method', value: selected?.paymentMethodName || selected?.paymentMethodId },
+                ...(selected?.paymentMethodType ? [{ label: 'Payment method type', value: selected?.paymentMethodType }] : []),
                 { label: 'Payment provider', value: selected?.paymentProviderName || selected?.paymentProviderId },
                 { label: 'Refunded', value: selected?.refunded || selected?.refundedAt ? 'Yes' : 'No' },
                 { label: 'Refunded at', value: formatDateTime(selected?.refundedAt) },
@@ -1190,6 +1291,45 @@ export default function TransactionsPage() {
                 ...(showErrorMessage ? [{ label: 'Error message', value: selected?.errorMessage || '—' }] : [])
               ]}
             />
+
+            {normalizeEnumKey(selected?.action) === 'WITHDRAW_FROM_WALLET' && (
+              <div className="card" style={{ padding: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                    <div style={{ fontWeight: 800 }}>Bank payout completion</div>
+                    <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                      Mark FUNDED Equity DRC bank payouts as completed after manual transfer.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-success btn-sm"
+                    onClick={() => {
+                      setBankPayoutError(null);
+                      setShowBankPayoutComplete(true);
+                    }}
+                    disabled={!bankPayoutMeta.eligible}
+                  >
+                    Complete payout
+                  </button>
+                </div>
+                <div style={{ marginTop: '0.75rem', display: 'grid', gap: '0.6rem' }}>
+                  <DetailGrid
+                    rows={[
+                      { label: 'Status', value: selected?.status || '—' },
+                      { label: 'Action', value: formatEnumLabel(selected?.action, actionLabels) },
+                      { label: 'Method name', value: selected?.paymentMethodName || '—' },
+                      { label: 'Method type', value: selected?.paymentMethodType || '—' }
+                    ]}
+                  />
+                  {!bankPayoutMeta.eligible && (
+                    <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                      Requires status FUNDED, action WITHDRAW_FROM_WALLET, and payment method EQUITY_DRC (BANK).
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="card" style={{ padding: '1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
@@ -1540,6 +1680,43 @@ export default function TransactionsPage() {
               </button>
               <button type="button" className="btn-primary" onClick={handleReplayFulfillment} disabled={replayLoading}>
                 {replayLoading ? 'Replaying…' : 'Confirm replay'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showBankPayoutComplete && (
+        <Modal title="Complete bank payout" onClose={() => (!bankPayoutLoading ? setShowBankPayoutComplete(false) : null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ color: 'var(--muted)' }}>
+              Confirm that the manual bank transfer is done. This will mark the payout as completed and notify the user.
+            </div>
+            <DetailGrid
+              rows={[
+                { label: 'Transaction ID', value: selected?.transactionId || selected?.id },
+                { label: 'Reference', value: selected?.reference },
+                { label: 'Status', value: selected?.status },
+                { label: 'Amount', value: `${selected?.amount ?? '—'} ${selected?.currency || ''}`.trim() },
+                { label: 'Method', value: selected?.paymentMethodName || '—' }
+              ]}
+            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="bankPayoutMessage">Message (optional)</label>
+              <input
+                id="bankPayoutMessage"
+                value={bankPayoutMessage}
+                onChange={(e) => setBankPayoutMessage(e.target.value)}
+                placeholder="Transfer completed via Equity Bank DRC"
+              />
+            </div>
+            {bankPayoutError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{bankPayoutError}</div>}
+            <div className="modal-actions">
+              <button type="button" className="btn-neutral" onClick={() => setShowBankPayoutComplete(false)} disabled={bankPayoutLoading}>
+                Cancel
+              </button>
+              <button type="button" className="btn-success" onClick={handleCompleteBankPayout} disabled={bankPayoutLoading}>
+                {bankPayoutLoading ? 'Completing…' : 'Confirm completion'}
               </button>
             </div>
           </div>

@@ -15,7 +15,13 @@ const emptyState = {
   allowingPayout: false,
   rank: '',
   countryId: '',
-  defaultForFees: false
+  defaultForFees: false,
+  bankName: '',
+  bankAccountName: '',
+  bankAccountNumber: '',
+  bankInstructions: '',
+  bankInstructionsEn: '',
+  bankInstructionsFr: ''
 };
 
 const toPayload = (state) => ({
@@ -28,7 +34,13 @@ const toPayload = (state) => ({
   allowingPayout: Boolean(state.allowingPayout),
   rank: state.rank === '' ? null : Number(state.rank),
   countryId: state.countryId === '' ? null : Number(state.countryId),
-  defaultForFees: Boolean(state.defaultForFees)
+  defaultForFees: Boolean(state.defaultForFees),
+  bankName: state.bankName || null,
+  bankAccountName: state.bankAccountName || null,
+  bankAccountNumber: state.bankAccountNumber || null,
+  bankInstructions: state.bankInstructions || null,
+  bankInstructionsEn: state.bankInstructionsEn || null,
+  bankInstructionsFr: state.bankInstructionsFr || null
 });
 
 const toUpdatePayloadFromRow = (row, overrides = {}) => ({
@@ -42,6 +54,12 @@ const toUpdatePayloadFromRow = (row, overrides = {}) => ({
   rank: row.rank === '' ? null : Number(row.rank),
   countryId: row.countryId === '' ? null : Number(row.countryId),
   defaultForFees: false,
+  bankName: row.bankName ?? null,
+  bankAccountName: row.bankAccountName ?? null,
+  bankAccountNumber: row.bankAccountNumber ?? null,
+  bankInstructions: row.bankInstructions ?? null,
+  bankInstructionsEn: row.bankInstructionsEn ?? null,
+  bankInstructionsFr: row.bankInstructionsFr ?? null,
   ...overrides
 });
 
@@ -185,7 +203,13 @@ export default function PaymentMethodsPage() {
       allowingPayout: Boolean(row.allowingPayout),
       rank: row.rank ?? '',
       countryId: row.countryId ?? '',
-      defaultForFees: Boolean(row.defaultForFees)
+      defaultForFees: Boolean(row.defaultForFees),
+      bankName: row.bankName ?? '',
+      bankAccountName: row.bankAccountName ?? '',
+      bankAccountNumber: row.bankAccountNumber ?? '',
+      bankInstructions: row.bankInstructions ?? '',
+      bankInstructionsEn: row.bankInstructionsEn ?? '',
+      bankInstructionsFr: row.bankInstructionsFr ?? ''
     });
     setShowEdit(true);
     setInfo(null);
@@ -284,6 +308,56 @@ export default function PaymentMethodsPage() {
           rows={2}
           value={draft.logoUrl}
           onChange={(e) => setDraft((p) => ({ ...p, logoUrl: e.target.value }))}
+          style={{ resize: 'vertical' }}
+        />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="bankName">Bank name</label>
+        <input id="bankName" value={draft.bankName} onChange={(e) => setDraft((p) => ({ ...p, bankName: e.target.value }))} />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="bankAccountName">Account name</label>
+        <input
+          id="bankAccountName"
+          value={draft.bankAccountName}
+          onChange={(e) => setDraft((p) => ({ ...p, bankAccountName: e.target.value }))}
+        />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="bankAccountNumber">Account number</label>
+        <input
+          id="bankAccountNumber"
+          value={draft.bankAccountNumber}
+          onChange={(e) => setDraft((p) => ({ ...p, bankAccountNumber: e.target.value }))}
+        />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="bankInstructionsEn">Instructions (EN)</label>
+        <textarea
+          id="bankInstructionsEn"
+          rows={3}
+          value={draft.bankInstructionsEn}
+          onChange={(e) => setDraft((p) => ({ ...p, bankInstructionsEn: e.target.value }))}
+          style={{ resize: 'vertical' }}
+        />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="bankInstructionsFr">Instructions (FR)</label>
+        <textarea
+          id="bankInstructionsFr"
+          rows={3}
+          value={draft.bankInstructionsFr}
+          onChange={(e) => setDraft((p) => ({ ...p, bankInstructionsFr: e.target.value }))}
+          style={{ resize: 'vertical' }}
+        />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="bankInstructions">Instructions (generic)</label>
+        <textarea
+          id="bankInstructions"
+          rows={3}
+          value={draft.bankInstructions}
+          onChange={(e) => setDraft((p) => ({ ...p, bankInstructions: e.target.value }))}
           style={{ resize: 'vertical' }}
         />
       </div>
@@ -399,6 +473,12 @@ export default function PaymentMethodsPage() {
               { label: 'Allow payout', value: selected?.allowingPayout ? 'Yes' : 'No' },
               { label: 'Default for fees', value: selected?.defaultForFees ? 'Yes' : 'No' },
               { label: 'Logo URL', value: selected?.logoUrl },
+              { label: 'Bank name', value: selected?.bankName },
+              { label: 'Account name', value: selected?.bankAccountName },
+              { label: 'Account number', value: selected?.bankAccountNumber },
+              { label: 'Instructions (EN)', value: selected?.bankInstructionsEn },
+              { label: 'Instructions (FR)', value: selected?.bankInstructionsFr },
+              { label: 'Instructions (generic)', value: selected?.bankInstructions },
               { label: 'Created', value: selected?.createdAt },
               { label: 'Updated', value: selected?.updatedAt }
             ]}
