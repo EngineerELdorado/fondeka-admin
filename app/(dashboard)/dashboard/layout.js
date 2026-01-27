@@ -28,6 +28,7 @@ const navItems = [
   { href: '/dashboard/kyc-default-levels', label: 'KYC Defaults' },
   { href: '/dashboard/feature-flags', label: 'Feature Flags' },
   { href: '/dashboard/app-version', label: 'App Version' },
+  { href: '/dashboard/announcements', label: 'Announcements' },
   { href: '/dashboard/notification-providers', label: 'Notification Providers' },
   { href: '/dashboard/notification-default-channels', label: 'Notification Defaults' },
   { href: '/dashboard/notification-email-test', label: 'Email Tests' },
