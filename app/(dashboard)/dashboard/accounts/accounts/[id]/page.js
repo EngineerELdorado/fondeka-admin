@@ -223,6 +223,13 @@ const [creditNote, setCreditNote] = useState('');
 const [creditAction, setCreditAction] = useState('MANUAL_ADJUSTMENT');
 const [creditError, setCreditError] = useState(null);
 const [creditLoading, setCreditLoading] = useState(false);
+const [showCryptoCredit, setShowCryptoCredit] = useState(false);
+const [cryptoCreditWallet, setCryptoCreditWallet] = useState(null);
+const [cryptoCreditAmount, setCryptoCreditAmount] = useState('');
+const [cryptoCreditNote, setCryptoCreditNote] = useState('');
+const [cryptoCreditAction, setCryptoCreditAction] = useState('MANUAL_ADJUSTMENT');
+const [cryptoCreditError, setCryptoCreditError] = useState(null);
+const [cryptoCreditLoading, setCryptoCreditLoading] = useState(false);
 const [showNotification, setShowNotification] = useState(false);
 const [notificationSubject, setNotificationSubject] = useState('');
 const [notificationMessage, setNotificationMessage] = useState('');
@@ -485,6 +492,15 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
     setShowCredit(true);
   };
 
+  const openCryptoCredit = (wallet) => {
+    setCryptoCreditWallet(wallet || null);
+    setCryptoCreditAmount('');
+    setCryptoCreditNote('');
+    setCryptoCreditAction('MANUAL_ADJUSTMENT');
+    setCryptoCreditError(null);
+    setShowCryptoCredit(true);
+  };
+
   const openNotification = () => {
     setNotificationSubject('');
     setNotificationMessage('');
@@ -689,6 +705,49 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
       pushToast({ tone: 'error', message });
     } finally {
       setCreditLoading(false);
+    }
+  };
+
+  const submitCryptoCredit = async () => {
+    if (!cryptoCreditWallet?.id) {
+      setCryptoCreditError('No crypto wallet selected');
+      return;
+    }
+    const rawAmount = String(cryptoCreditAmount).trim();
+    const amountNum = Number(rawAmount);
+    if (!rawAmount || !Number.isFinite(amountNum) || amountNum <= 0) {
+      setCryptoCreditError('Amount must be greater than 0');
+      return;
+    }
+    setCryptoCreditLoading(true);
+    setCryptoCreditError(null);
+    try {
+      const payload = {
+        amount: rawAmount,
+        ...(cryptoCreditAction ? { action: cryptoCreditAction } : {}),
+        ...(cryptoCreditNote?.trim() ? { note: cryptoCreditNote.trim() } : {})
+      };
+      const res = await api.cryptoWallets.credit(cryptoCreditWallet.id, payload);
+      const amountLabel = res?.cryptoAmount ?? rawAmount;
+      const currencyLabel = res?.cryptoCurrency || cryptoCreditWallet?.currency || '';
+      const statusLabel = res?.status ? ` • ${res.status}` : '';
+      const refLabel = res?.reference ? ` (ref ${res.reference})` : '';
+      pushToast({
+        tone: 'success',
+        message: `Crypto wallet credited: ${amountLabel} ${currencyLabel}${refLabel}${statusLabel}`
+      });
+      setShowCryptoCredit(false);
+      setCryptoCreditWallet(null);
+      setCryptoCreditAmount('');
+      setCryptoCreditNote('');
+      setCryptoCreditAction('MANUAL_ADJUSTMENT');
+      await loadAccount();
+    } catch (err) {
+      const message = err.message || 'Failed to credit crypto wallet';
+      setCryptoCreditError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setCryptoCreditLoading(false);
     }
   };
 
@@ -2189,7 +2248,7 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  {['ID', 'Product', 'Network', 'Balance'].map((label) => (
+                  {['ID', 'Product', 'Network', 'Balance', 'Actions'].map((label) => (
                     <th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid #e5e7eb', color: '#6b7280' }}>
                       {label}
                     </th>
@@ -2209,6 +2268,11 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
                         <span>{wallet.balance}</span>
                         {wallet.currency && <Badge>{wallet.currency}</Badge>}
                       </div>
+                    </td>
+                    <td style={{ padding: '0.5rem' }}>
+                      <button type="button" className="btn-success btn-sm" onClick={() => openCryptoCredit(wallet)}>
+                        Credit
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -2590,6 +2654,56 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
               </button>
               <button type="button" className="btn-success" onClick={submitCredit} disabled={creditLoading}>
                 {creditLoading ? 'Crediting…' : 'Credit wallet'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showCryptoCredit && (
+        <Modal title={`Credit crypto wallet ${cryptoCreditWallet?.id ?? ''}`} onClose={() => (!cryptoCreditLoading ? setShowCryptoCredit(false) : null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ color: 'var(--muted)' }}>
+              Account ID: <span style={{ fontWeight: 700 }}>{resolvedAccountId ?? '—'}</span>
+              {cryptoCreditWallet?.currency ? ` · ${cryptoCreditWallet.currency}` : ''}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="cryptoCreditAction">Action</label>
+                <select id="cryptoCreditAction" value={cryptoCreditAction} onChange={(e) => setCryptoCreditAction(e.target.value)}>
+                  <option value="MANUAL_ADJUSTMENT">Manual adjustment</option>
+                  <option value="BONUS">Bonus</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="cryptoCreditAmount">Amount</label>
+                <input
+                  id="cryptoCreditAmount"
+                  type="number"
+                  min="0"
+                  step="0.00000001"
+                  value={cryptoCreditAmount}
+                  onChange={(e) => setCryptoCreditAmount(e.target.value)}
+                  placeholder="0.00050000"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="cryptoCreditNote">Note (optional)</label>
+                <input
+                  id="cryptoCreditNote"
+                  value={cryptoCreditNote}
+                  onChange={(e) => setCryptoCreditNote(e.target.value)}
+                  placeholder="Optional note shown on receipt"
+                />
+              </div>
+            </div>
+            {cryptoCreditError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{cryptoCreditError}</div>}
+            <div className="modal-actions">
+              <button type="button" className="btn-neutral" onClick={() => setShowCryptoCredit(false)} disabled={cryptoCreditLoading}>
+                Cancel
+              </button>
+              <button type="button" className="btn-success" onClick={submitCryptoCredit} disabled={cryptoCreditLoading}>
+                {cryptoCreditLoading ? 'Crediting…' : 'Credit wallet'}
               </button>
             </div>
           </div>
