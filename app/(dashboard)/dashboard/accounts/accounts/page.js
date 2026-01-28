@@ -155,6 +155,7 @@ export default function AccountsListPage() {
   const [showCredit, setShowCredit] = useState(false);
   const [creditAmount, setCreditAmount] = useState('');
   const [creditNote, setCreditNote] = useState('');
+  const [creditAction, setCreditAction] = useState('MANUAL_ADJUSTMENT');
   const [creditError, setCreditError] = useState(null);
   const [creditLoading, setCreditLoading] = useState(false);
 
@@ -604,15 +605,21 @@ export default function AccountsListPage() {
 
     setCreditLoading(true);
     try {
-      const payload = { amount: amountNum, ...(creditNote?.trim() ? { note: creditNote.trim() } : {}) };
-      const res = await api.accounts.creditWalletBonus(selected.id, payload);
+      const payload = {
+        amount: amountNum,
+        ...(creditAction ? { action: creditAction } : {}),
+        ...(creditNote?.trim() ? { note: creditNote.trim() } : {})
+      };
+      const res = await api.accounts.creditWallet(selected.id, payload);
+      const actionLabel = creditAction === 'BONUS' ? 'Bonus' : 'Manual adjustment';
       pushToast({
         tone: 'success',
-        message: `Bonus credited: ${res?.amount ?? amountNum} (ref ${res?.reference || '—'})`
+        message: `Wallet credited (${actionLabel}): ${res?.amount ?? amountNum} (ref ${res?.reference || '—'})`
       });
       setShowCredit(false);
       setCreditAmount('');
       setCreditNote('');
+      setCreditAction('MANUAL_ADJUSTMENT');
 
       await loadAccountDetail({ accountId: selected.id, accountReference: selected.accountReference });
       const refreshed = await fetchRows();
@@ -931,7 +938,7 @@ export default function AccountsListPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
               <button type="button" onClick={() => setShowCredit(true)} className="btn-success">
-                Credit wallet (Bonus)
+                Credit wallet
               </button>
               {accountView?.blacklisted ? (
                 <button
@@ -1344,12 +1351,19 @@ export default function AccountsListPage() {
       )}
 
       {showCredit && (
-        <Modal title="Credit wallet (Bonus)" onClose={() => (!creditLoading ? setShowCredit(false) : null)}>
+        <Modal title="Credit wallet" onClose={() => (!creditLoading ? setShowCredit(false) : null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ color: 'var(--muted)' }}>
               Crediting account <span style={{ fontWeight: 800 }}>{accountView?.accountReference || selected?.accountReference || selected?.id}</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="creditAction">Action</label>
+                <select id="creditAction" value={creditAction} onChange={(e) => setCreditAction(e.target.value)}>
+                  <option value="MANUAL_ADJUSTMENT">Manual adjustment</option>
+                  <option value="BONUS">Bonus</option>
+                </select>
+              </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="creditAmount">Amount</label>
                 <input
@@ -1364,7 +1378,7 @@ export default function AccountsListPage() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="creditNote">Note (optional)</label>
-                <input id="creditNote" value={creditNote} onChange={(e) => setCreditNote(e.target.value)} placeholder="Manual bonus for customer" />
+                <input id="creditNote" value={creditNote} onChange={(e) => setCreditNote(e.target.value)} placeholder="Optional note shown on receipt" />
               </div>
             </div>
             {creditError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{creditError}</div>}
@@ -1373,7 +1387,7 @@ export default function AccountsListPage() {
                 Cancel
               </button>
               <button type="button" onClick={submitCredit} className="btn-success" disabled={creditLoading}>
-                {creditLoading ? 'Crediting…' : 'Credit bonus'}
+                {creditLoading ? 'Crediting…' : 'Credit wallet'}
               </button>
             </div>
           </div>

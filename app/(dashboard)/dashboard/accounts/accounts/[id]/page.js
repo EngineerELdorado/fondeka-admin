@@ -220,6 +220,7 @@ const [cardholderResult, setCardholderResult] = useState(null);
 const [showCredit, setShowCredit] = useState(false);
 const [creditAmount, setCreditAmount] = useState('');
 const [creditNote, setCreditNote] = useState('');
+const [creditAction, setCreditAction] = useState('MANUAL_ADJUSTMENT');
 const [creditError, setCreditError] = useState(null);
 const [creditLoading, setCreditLoading] = useState(false);
 const [showNotification, setShowNotification] = useState(false);
@@ -666,13 +667,21 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
     setCreditLoading(true);
     setCreditError(null);
     try {
-      const payload = { amount: amountNum, ...(creditNote?.trim() ? { note: creditNote.trim() } : {}) };
-      const res = await api.accounts.creditWalletBonus(resolvedAccountId, payload);
+      const payload = {
+        amount: amountNum,
+        ...(creditAction ? { action: creditAction } : {}),
+        ...(creditNote?.trim() ? { note: creditNote.trim() } : {})
+      };
+      const res = await api.accounts.creditWallet(resolvedAccountId, payload);
+      const actionLabel = creditAction === 'BONUS' ? 'Bonus' : 'Manual adjustment';
       pushToast({
         tone: 'success',
-        message: `Bonus credited: ${res?.amount ?? amountNum}${res?.reference ? ` (ref ${res.reference})` : ''}`
+        message: `Wallet credited (${actionLabel}): ${res?.amount ?? amountNum}${res?.reference ? ` (ref ${res.reference})` : ''}`
       });
       setShowCredit(false);
+      setCreditAmount('');
+      setCreditNote('');
+      setCreditAction('MANUAL_ADJUSTMENT');
       await loadAccount();
     } catch (err) {
       const message = err.message || 'Failed to credit account';
@@ -2542,9 +2551,16 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
       )}
 
       {showCredit && (
-        <Modal title="Credit wallet (Bonus)" onClose={() => (!creditLoading ? setShowCredit(false) : null)}>
+        <Modal title="Credit wallet" onClose={() => (!creditLoading ? setShowCredit(false) : null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="creditAction">Action</label>
+                <select id="creditAction" value={creditAction} onChange={(e) => setCreditAction(e.target.value)}>
+                  <option value="MANUAL_ADJUSTMENT">Manual adjustment</option>
+                  <option value="BONUS">Bonus</option>
+                </select>
+              </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="creditAmount">Amount</label>
                 <input
@@ -2563,7 +2579,7 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
                   id="creditNote"
                   value={creditNote}
                   onChange={(e) => setCreditNote(e.target.value)}
-                  placeholder="Manual bonus for customer"
+                  placeholder="Optional note shown on receipt"
                 />
               </div>
             </div>
@@ -2573,7 +2589,7 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
                 Cancel
               </button>
               <button type="button" className="btn-success" onClick={submitCredit} disabled={creditLoading}>
-                {creditLoading ? 'Crediting…' : 'Credit bonus'}
+                {creditLoading ? 'Crediting…' : 'Credit wallet'}
               </button>
             </div>
           </div>
