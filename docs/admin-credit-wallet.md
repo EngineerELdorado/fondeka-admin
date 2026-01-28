@@ -4,7 +4,7 @@ This guide describes how to create wallet credit transactions for an account via
 
 ## Endpoint
 - Method: `POST`
-- Path: `/admin-api/accounts/{accountId}/credit`
+- Path: `/admin-api/accounts/{accountId}/wallet/credit`
 
 ## Request Body
 ```json

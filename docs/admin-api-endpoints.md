@@ -19,7 +19,7 @@ Base URL: `${app.api.baseUrls.admin-api}` (default `/admin-api`). All endpoints 
 - **Balances**: CRUD `/account-balances` body `{ accountId, balance }`.
 - **Balance activities**: CRUD `/account-balance-activities` body `{ accountBalanceId, transactionId, previousBalance, newBalance, delta, activityType }`.
 - **Transfers**: CRUD `/account-transfers` body `{ transactionId, senderAccountId, receiverAccountId }`.
-- **Credits**: `POST /accounts/{accountId}/credit` body `{ amount, action: BONUS|MANUAL_ADJUSTMENT, note? }`.
+- **Credits**: `POST /accounts/{accountId}/wallet/credit` body `{ amount, action: BONUS|MANUAL_ADJUSTMENT, note? }`.
 
 ## Profile
 - **Users**: CRUD `/users` body `{ internalReference, oauthId, firstName, middleName, lastName, username, dob }`.
