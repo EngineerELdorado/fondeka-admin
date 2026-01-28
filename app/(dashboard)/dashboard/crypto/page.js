@@ -6,6 +6,7 @@ const sections = [
   { href: '/dashboard/crypto/networks', title: 'Crypto Networks', blurb: 'Manage supported blockchains and status.' },
   { href: '/dashboard/crypto/products', title: 'Crypto Products', blurb: 'Currencies, display names and rates.' },
   { href: '/dashboard/crypto/product-networks', title: 'Product ↔ Network', blurb: 'Map products to networks with rank.' },
+  { href: '/dashboard/crypto/quotes', title: 'Crypto Quotes', blurb: 'Get live quotes for crypto transfers.' },
   { href: '/dashboard/crypto/wallets', title: 'Crypto Wallets', blurb: 'Wallets by account and product/network.' },
   { href: '/dashboard/crypto/invoices', title: 'Crypto Invoices', blurb: 'Invoice addresses, expected amounts and status.' },
   { href: '/dashboard/crypto/payment-method-networks', title: 'Payment Method ↔ Crypto Network', blurb: 'Map payment methods to crypto networks.' },

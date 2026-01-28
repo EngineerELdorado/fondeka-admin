@@ -58,6 +58,21 @@ export default function CryptoWalletsPage() {
   const [creditAction, setCreditAction] = useState('MANUAL_ADJUSTMENT');
   const [creditError, setCreditError] = useState(null);
   const [creditLoading, setCreditLoading] = useState(false);
+  const [quoteFrom, setQuoteFrom] = useState('USDT');
+  const [quoteTo, setQuoteTo] = useState('');
+  const [quoteAmount, setQuoteAmount] = useState('');
+  const [quoteResult, setQuoteResult] = useState(null);
+  const [quoteError, setQuoteError] = useState(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [openGroups, setOpenGroups] = useState(() => new Set());
+
+  const formatBalance = (value) => {
+    if (value === null || value === undefined || value === '') return '—';
+    const num = Number(value);
+    if (!Number.isFinite(num)) return String(value);
+    const abs = Math.abs(num);
+    return abs >= 1 ? num.toFixed(2) : num.toFixed(6);
+  };
 
   const fetchRows = async () => {
     setLoading(true);
@@ -86,9 +101,11 @@ export default function CryptoWalletsPage() {
 
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
-    { key: 'accountId', label: 'Account ID' },
-    { key: 'productNetworkId', label: 'Product/Network ID' },
-    { key: 'balance', label: 'Balance' },
+    { key: 'accountReference', label: 'Account Ref' },
+    { key: 'name', label: 'Name' },
+    { key: 'email', label: 'Email' },
+    { key: 'productNetworkCode', label: 'Product.Network' },
+    { key: 'balance', label: 'Balance', render: (row) => formatBalance(row?.balance) },
     {
       key: 'actions',
       label: 'Actions',
@@ -102,6 +119,33 @@ export default function CryptoWalletsPage() {
       )
     }
   ], []);
+
+  const groupedRows = useMemo(() => {
+    const groups = new Map();
+    rows.forEach((row) => {
+      const key = row?.accountReference ? String(row.accountReference) : 'No account reference';
+      if (!groups.has(key)) {
+        groups.set(key, { key, rows: [], name: row?.name || null, email: row?.email || null });
+      }
+      const group = groups.get(key);
+      group.rows.push(row);
+      if (!group.name && row?.name) group.name = row.name;
+      if (!group.email && row?.email) group.email = row.email;
+    });
+    return Array.from(groups.values()).sort((a, b) => a.key.localeCompare(b.key));
+  }, [rows]);
+
+  const toggleGroup = (key) => {
+    setOpenGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
 
   const openCreate = () => {
     setDraft(emptyState);
@@ -135,6 +179,12 @@ export default function CryptoWalletsPage() {
     setCreditNote('');
     setCreditAction('MANUAL_ADJUSTMENT');
     setCreditError(null);
+    setQuoteFrom('USDT');
+    setQuoteTo(row?.currency || '');
+    setQuoteAmount('');
+    setQuoteResult(null);
+    setQuoteError(null);
+    setQuoteLoading(false);
     setShowCredit(true);
     setInfo(null);
     setError(null);
@@ -219,6 +269,31 @@ export default function CryptoWalletsPage() {
       setCreditError(err.message || 'Failed to credit wallet');
     } finally {
       setCreditLoading(false);
+    }
+  };
+
+  const submitQuote = async () => {
+    const from = quoteFrom.trim();
+    const to = quoteTo.trim();
+    const rawAmount = String(quoteAmount).trim();
+    if (!from || !to || !rawAmount) {
+      setQuoteError('Enter from/to currency and amount');
+      return;
+    }
+    const amountNum = Number(rawAmount);
+    if (!Number.isFinite(amountNum) || amountNum <= 0) {
+      setQuoteError('Amount must be greater than 0');
+      return;
+    }
+    setQuoteLoading(true);
+    setQuoteError(null);
+    try {
+      const res = await api.cryptoQuotes.quote({ fromCurrency: from, toCurrency: to, amount: rawAmount });
+      setQuoteResult(res || null);
+    } catch (err) {
+      setQuoteError(err.message || 'Failed to fetch quote');
+    } finally {
+      setQuoteLoading(false);
     }
   };
 
@@ -307,7 +382,47 @@ export default function CryptoWalletsPage() {
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
-      <DataTable columns={columns} rows={rows} emptyLabel="No crypto wallets found" />
+      {groupedRows.length === 0 ? (
+        <DataTable columns={columns} rows={[]} emptyLabel="No crypto wallets found" />
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          {groupedRows.map((group) => {
+            const isOpen = openGroups.has(group.key);
+            return (
+              <div key={group.key} className="card" style={{ padding: 0, overflow: 'hidden' }}>
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group.key)}
+                  className="btn-neutral"
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0.85rem 1rem',
+                    border: 'none',
+                    borderBottom: isOpen ? '1px solid var(--border)' : 'none',
+                    borderRadius: 0
+                  }}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', textAlign: 'left' }}>
+                    <div style={{ fontWeight: 800 }}>{group.key}</div>
+                    <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                      {group.name || '—'} {group.email ? `· ${group.email}` : ''} · {group.rows.length} wallet{group.rows.length === 1 ? '' : 's'}
+                    </div>
+                  </div>
+                  <div style={{ fontWeight: 700 }}>{isOpen ? '−' : '+'}</div>
+                </button>
+                {isOpen && (
+                  <div style={{ padding: '0.75rem 1rem' }}>
+                    <DataTable columns={columns} rows={group.rows} emptyLabel="No crypto wallets found" />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {showCreate && (
         <Modal title="Add crypto wallet" onClose={() => setShowCreate(false)}>
@@ -334,6 +449,53 @@ export default function CryptoWalletsPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ color: 'var(--muted)' }}>
               Account {creditWallet?.accountId ?? '—'} · {creditWallet?.currency || 'Crypto'}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.6rem', border: '1px dashed var(--border)', borderRadius: '10px' }}>
+              <div style={{ fontWeight: 700 }}>Get quote</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="quoteFrom">From currency</label>
+                  <input id="quoteFrom" value={quoteFrom} onChange={(e) => setQuoteFrom(e.target.value)} placeholder="USDT" />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="quoteTo">To currency</label>
+                  <input id="quoteTo" value={quoteTo} onChange={(e) => setQuoteTo(e.target.value)} placeholder={creditWallet?.currency || 'BTC'} />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="quoteAmount">Amount (from currency)</label>
+                  <input
+                    id="quoteAmount"
+                    type="number"
+                    min="0"
+                    step="0.00000001"
+                    value={quoteAmount}
+                    onChange={(e) => setQuoteAmount(e.target.value)}
+                    placeholder="100.00"
+                  />
+                </div>
+                <button type="button" onClick={submitQuote} className="btn-neutral" disabled={quoteLoading}>
+                  {quoteLoading ? 'Quoting…' : 'Get quote'}
+                </button>
+              </div>
+              {quoteError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{quoteError}</div>}
+              {quoteResult && (
+                <DetailGrid
+                  rows={[
+                    { label: 'Requested amount', value: quoteResult?.requestedAmount },
+                    { label: 'Net amount (send)', value: quoteResult?.netAmount },
+                    { label: 'Exchange rate', value: quoteResult?.exchangeRate },
+                    { label: 'Valid until', value: quoteResult?.validUntil },
+                    { label: 'Quote ID', value: quoteResult?.quoteId }
+                  ]}
+                />
+              )}
+              {quoteResult?.netAmount && (
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button type="button" className="btn-primary" onClick={() => setCreditAmount(String(quoteResult.netAmount))}>
+                    Use net amount
+                  </button>
+                </div>
+              )}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -382,7 +544,14 @@ export default function CryptoWalletsPage() {
             rows={[
               { label: 'ID', value: selected?.id },
               { label: 'Account ID', value: selected?.accountId },
+              { label: 'Account Ref', value: selected?.accountReference },
+              { label: 'Name', value: selected?.name },
+              { label: 'Email', value: selected?.email },
+              { label: 'Phone', value: selected?.phone },
               { label: 'Product/Network ID', value: selected?.productNetworkId },
+              { label: 'Product', value: selected?.productName },
+              { label: 'Network', value: selected?.networkName },
+              { label: 'Product.Network', value: selected?.productNetworkCode },
               { label: 'Balance', value: selected?.balance }
             ]}
           />
