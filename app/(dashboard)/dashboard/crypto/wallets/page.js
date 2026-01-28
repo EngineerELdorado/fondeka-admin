@@ -65,6 +65,10 @@ export default function CryptoWalletsPage() {
   const [quoteError, setQuoteError] = useState(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [openGroups, setOpenGroups] = useState(() => new Set());
+  const [accounts, setAccounts] = useState([]);
+  const [productNetworks, setProductNetworks] = useState([]);
+  const [lookupsError, setLookupsError] = useState(null);
+  const [accountFilter, setAccountFilter] = useState('');
 
   const formatBalance = (value) => {
     if (value === null || value === undefined || value === '') return '—';
@@ -98,6 +102,25 @@ export default function CryptoWalletsPage() {
   useEffect(() => {
     fetchRows();
   }, [page, size, accountReference, email]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const loadLookups = async () => {
+      try {
+        setLookupsError(null);
+        const params = new URLSearchParams({ page: '0', size: '200' });
+        const [accountsRes, networksRes] = await Promise.all([
+          api.accounts.list(params),
+          api.cryptoProductCryptoNetworks.list(params)
+        ]);
+        const toList = (res) => (Array.isArray(res) ? res : res?.content || []);
+        setAccounts(toList(accountsRes));
+        setProductNetworks(toList(networksRes));
+      } catch (err) {
+        setLookupsError(err.message || 'Failed to load lookup options');
+      }
+    };
+    loadLookups();
+  }, []);
 
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
@@ -157,8 +180,8 @@ export default function CryptoWalletsPage() {
   const openEdit = (row) => {
     setSelected(row);
     setDraft({
-      accountId: row.accountId ?? '',
-      productNetworkId: row.productNetworkId ?? '',
+      accountId: row.accountId !== null && row.accountId !== undefined ? String(row.accountId) : '',
+      productNetworkId: row.productNetworkId !== null && row.productNetworkId !== undefined ? String(row.productNetworkId) : '',
       balance: row.balance ?? ''
     });
     setShowEdit(true);
@@ -300,17 +323,75 @@ export default function CryptoWalletsPage() {
   const renderForm = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="accountId">Account ID</label>
-        <input id="accountId" type="number" value={draft.accountId} onChange={(e) => setDraft((p) => ({ ...p, accountId: e.target.value }))} />
+        <label htmlFor="accountFilter">Account filter</label>
+        <input
+          id="accountFilter"
+          value={accountFilter}
+          onChange={(e) => setAccountFilter(e.target.value)}
+          placeholder="Search by reference, email, name, ID"
+        />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="accountId">Account</label>
+        <select id="accountId" value={draft.accountId} onChange={(e) => setDraft((p) => ({ ...p, accountId: e.target.value }))}>
+          <option value="">Select account</option>
+          {accounts.filter((account) => {
+            const term = accountFilter.trim().toLowerCase();
+            if (!term) return true;
+            const id = account?.accountId ?? account?.id ?? '';
+            const reference = account?.accountReference ?? account?.accountNumber ?? account?.accountId ?? account?.id;
+            const name = [account?.userFirstName, account?.userMiddleName, account?.userLastName].filter(Boolean).join(' ') || account?.username || account?.name;
+            const emailLabel = account?.email;
+            const searchBlob = [id, reference, name, emailLabel, account?.username].filter(Boolean).join(' ').toLowerCase();
+            return searchBlob.includes(term);
+          }).map((account) => {
+            const id = account?.accountId ?? account?.id ?? '';
+            const reference = account?.accountReference ?? account?.accountNumber ?? account?.accountId ?? account?.id;
+            const name = [account?.userFirstName, account?.userMiddleName, account?.userLastName].filter(Boolean).join(' ') || account?.username || account?.name;
+            const emailLabel = account?.email;
+            const label = [reference, name, emailLabel].filter(Boolean).join(' · ') || `Account ${id}`;
+            return (
+              <option key={id} value={String(id)}>
+                {label}
+              </option>
+            );
+          })}
+          {draft.accountId && !accounts.some((account) => String(account?.accountId ?? account?.id ?? '') === String(draft.accountId)) && (
+            <option value={draft.accountId}>Account {draft.accountId}</option>
+          )}
+        </select>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="productNetworkId">Product/Network ID</label>
-        <input id="productNetworkId" type="number" value={draft.productNetworkId} onChange={(e) => setDraft((p) => ({ ...p, productNetworkId: e.target.value }))} />
+        <select id="productNetworkId" value={draft.productNetworkId} onChange={(e) => setDraft((p) => ({ ...p, productNetworkId: e.target.value }))}>
+          <option value="">Select product/network</option>
+          {productNetworks.map((item) => {
+            const id = item?.id ?? '';
+            const productName = item?.cryptoProductName || item?.productName || item?.cryptoProductCode;
+            const networkName = item?.cryptoNetworkName || item?.networkName || item?.cryptoNetworkCode;
+            const code = item?.productNetworkCode || item?.code;
+            const baseLabel = [productName, networkName].filter(Boolean).join(' / ') || code || `Product/Network ${id}`;
+            const label = code && baseLabel !== code ? `${baseLabel} · ${code}` : baseLabel;
+            return (
+              <option key={id} value={String(id)}>
+                {label}
+              </option>
+            );
+          })}
+          {draft.productNetworkId && !productNetworks.some((item) => String(item?.id ?? '') === String(draft.productNetworkId)) && (
+            <option value={draft.productNetworkId}>Product/Network {draft.productNetworkId}</option>
+          )}
+        </select>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="balance">Balance</label>
         <input id="balance" type="number" value={draft.balance} onChange={(e) => setDraft((p) => ({ ...p, balance: e.target.value }))} />
       </div>
+      {lookupsError && (
+        <div style={{ gridColumn: '1 / -1', color: '#b91c1c', fontWeight: 600 }}>
+          {lookupsError}
+        </div>
+      )}
     </div>
   );
 

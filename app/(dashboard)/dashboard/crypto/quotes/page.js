@@ -15,17 +15,22 @@ const DetailGrid = ({ rows }) => (
   </div>
 );
 
+const FROM_CURRENCY_OPTIONS = ['USD', 'USDC', 'BNB', 'SOL', 'BTC', 'ETH', 'USDT', 'EURC'];
+const TO_CURRENCY_OPTIONS = ['USDC', 'BNB', 'SOL', 'BTC', 'ETH', 'USDT', 'EURC'];
+
 export default function CryptoQuotesPage() {
-  const [fromCurrency, setFromCurrency] = useState('USDT');
-  const [toCurrency, setToCurrency] = useState('BTC');
+  const [fromPreset, setFromPreset] = useState('USD');
+  const [fromCustom, setFromCustom] = useState('');
+  const [toPreset, setToPreset] = useState('USDT');
+  const [toCustom, setToCustom] = useState('');
   const [amount, setAmount] = useState('100.00');
   const [quote, setQuote] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const fetchQuote = async () => {
-    const from = fromCurrency.trim();
-    const to = toCurrency.trim();
+    const from = (fromPreset === 'OTHER' ? fromCustom : fromPreset).trim();
+    const to = (toPreset === 'OTHER' ? toCustom : toPreset).trim();
     const rawAmount = amount.trim();
 
     if (!from || !to || !rawAmount) {
@@ -60,11 +65,37 @@ export default function CryptoQuotesPage() {
       <div className="card" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', alignItems: 'end' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="fromCurrency">From currency</label>
-          <input id="fromCurrency" value={fromCurrency} onChange={(e) => setFromCurrency(e.target.value)} placeholder="USDT" />
+          <select id="fromCurrency" value={fromPreset} onChange={(e) => setFromPreset(e.target.value)}>
+            {FROM_CURRENCY_OPTIONS.map((code) => (
+              <option key={code} value={code}>{code}</option>
+            ))}
+            <option value="OTHER">Other…</option>
+          </select>
+          {fromPreset === 'OTHER' && (
+            <input
+              aria-label="From currency (custom)"
+              value={fromCustom}
+              onChange={(e) => setFromCustom(e.target.value)}
+              placeholder="Enter currency"
+            />
+          )}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="toCurrency">To currency</label>
-          <input id="toCurrency" value={toCurrency} onChange={(e) => setToCurrency(e.target.value)} placeholder="BTC" />
+          <select id="toCurrency" value={toPreset} onChange={(e) => setToPreset(e.target.value)}>
+            {TO_CURRENCY_OPTIONS.map((code) => (
+              <option key={code} value={code}>{code}</option>
+            ))}
+            <option value="OTHER">Other…</option>
+          </select>
+          {toPreset === 'OTHER' && (
+            <input
+              aria-label="To currency (custom)"
+              value={toCustom}
+              onChange={(e) => setToCustom(e.target.value)}
+              placeholder="Enter currency"
+            />
+          )}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="amount">Amount (from currency)</label>

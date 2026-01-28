@@ -158,6 +158,12 @@ export default function AccountsListPage() {
   const [creditAction, setCreditAction] = useState('MANUAL_ADJUSTMENT');
   const [creditError, setCreditError] = useState(null);
   const [creditLoading, setCreditLoading] = useState(false);
+  const [showDebit, setShowDebit] = useState(false);
+  const [debitAmount, setDebitAmount] = useState('');
+  const [debitNote, setDebitNote] = useState('');
+  const [debitAction, setDebitAction] = useState('MANUAL_ADJUSTMENT');
+  const [debitError, setDebitError] = useState(null);
+  const [debitLoading, setDebitLoading] = useState(false);
 
   const [showPricingForm, setShowPricingForm] = useState(false);
   const [pricingExtraLoan, setPricingExtraLoan] = useState('');
@@ -633,6 +639,69 @@ export default function AccountsListPage() {
     }
   };
 
+  const submitDebit = async () => {
+    setDebitError(null);
+    const amountNum = Number(debitAmount);
+    if (!Number.isFinite(amountNum) || amountNum < 0.01) {
+      setDebitError('Amount must be at least 0.01');
+      return;
+    }
+    if (!selected?.id) {
+      setDebitError('No account selected');
+      return;
+    }
+    const confirmed = window.confirm("This will debit the user's wallet. This action is irreversible.");
+    if (!confirmed) return;
+
+    setDebitLoading(true);
+    try {
+      const payload = {
+        amount: amountNum,
+        ...(debitAction ? { action: debitAction } : {}),
+        ...(debitNote?.trim() ? { note: debitNote.trim() } : {})
+      };
+      const res = await api.accounts.debitWallet(selected.id, payload);
+      const actionLabel = debitAction === 'WITHDRAW_FROM_WALLET' ? 'Withdraw from wallet' : 'Manual adjustment';
+      const referenceLabel = res?.reference ? ` (ref ${res.reference})` : '';
+      setInfo(
+        <span>
+          Wallet debited ({actionLabel}): {res?.amount ?? amountNum}
+          {referenceLabel}
+          {res?.transactionId ? (
+            <>
+              {' '}
+              <Link href={`/dashboard/transactions?transactionId=${res.transactionId}`} className="btn-neutral" style={{ marginLeft: '0.4rem' }}>
+                View transaction
+              </Link>
+            </>
+          ) : null}
+        </span>
+      );
+      pushToast({
+        tone: 'success',
+        message: `Wallet debited (${actionLabel}): ${res?.amount ?? amountNum}${referenceLabel}`
+      });
+      setShowDebit(false);
+      setDebitAmount('');
+      setDebitNote('');
+      setDebitAction('MANUAL_ADJUSTMENT');
+
+      await loadAccountDetail({ accountId: selected.id, accountReference: selected.accountReference });
+      const refreshed = await fetchRows();
+      const updated = refreshed?.find?.((r) => r.id === selected.id);
+      if (updated) setSelected(updated);
+    } catch (err) {
+      let message = err.message || 'Failed to debit account';
+      if (err.status === 401 || err.status === 403) {
+        message = 'Not authorized';
+      }
+      setDebitError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setDebitLoading(false);
+    }
+  };
+
   const openFeeForm = (fee) => {
     setFeeConfigsError(null);
     setFeeFormId(fee?.id || null);
@@ -939,6 +1008,19 @@ export default function AccountsListPage() {
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
               <button type="button" onClick={() => setShowCredit(true)} className="btn-success">
                 Credit wallet
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setDebitError(null);
+                  setDebitAmount('');
+                  setDebitNote('');
+                  setDebitAction('MANUAL_ADJUSTMENT');
+                  setShowDebit(true);
+                }}
+                className="btn-danger"
+              >
+                Debit wallet
               </button>
               {accountView?.blacklisted ? (
                 <button
@@ -1388,6 +1470,50 @@ export default function AccountsListPage() {
               </button>
               <button type="button" onClick={submitCredit} className="btn-success" disabled={creditLoading}>
                 {creditLoading ? 'Crediting…' : 'Credit wallet'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showDebit && (
+        <Modal title="Debit wallet" onClose={() => (!debitLoading ? setShowDebit(false) : null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ color: 'var(--muted)' }}>
+              Debiting account <span style={{ fontWeight: 800 }}>{accountView?.accountReference || selected?.accountReference || selected?.id}</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="debitAction">Action</label>
+                <select id="debitAction" value={debitAction} onChange={(e) => setDebitAction(e.target.value)}>
+                  <option value="MANUAL_ADJUSTMENT">Manual adjustment</option>
+                  <option value="WITHDRAW_FROM_WALLET">Withdraw from wallet</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="debitAmount">Amount</label>
+                <input
+                  id="debitAmount"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={debitAmount}
+                  onChange={(e) => setDebitAmount(e.target.value)}
+                  placeholder="25.50"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="debitNote">Note (optional)</label>
+                <input id="debitNote" value={debitNote} onChange={(e) => setDebitNote(e.target.value)} placeholder="Optional note shown to user" />
+              </div>
+            </div>
+            {debitError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{debitError}</div>}
+            <div className="modal-actions">
+              <button type="button" onClick={() => setShowDebit(false)} className="btn-neutral" disabled={debitLoading}>
+                Cancel
+              </button>
+              <button type="button" onClick={submitDebit} className="btn-danger" disabled={debitLoading}>
+                {debitLoading ? 'Debiting…' : 'Debit wallet'}
               </button>
             </div>
           </div>

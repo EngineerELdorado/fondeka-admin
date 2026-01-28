@@ -14,7 +14,10 @@ const emptyState = {
   amount: '',
   currency: '',
   bankName: '',
-  note: ''
+  note: '',
+  creditTarget: 'WALLET',
+  cryptoProductId: '',
+  cryptoNetworkId: ''
 };
 
 const normalizeEnumKey = (value) => String(value || '').trim().replace(/\s+/g, '_').toUpperCase();
@@ -25,6 +28,9 @@ const toPayload = (state) => ({
   bankRef: state.bankRef.trim(),
   amount: Number(state.amount),
   currency: state.currency.trim(),
+  ...(state.creditTarget ? { creditTarget: state.creditTarget } : {}),
+  ...(state.creditTarget === 'CRYPTO' && state.cryptoProductId ? { cryptoProductId: Number(state.cryptoProductId) } : {}),
+  ...(state.creditTarget === 'CRYPTO' && state.cryptoNetworkId ? { cryptoNetworkId: Number(state.cryptoNetworkId) } : {}),
   ...(state.bankName.trim() ? { bankName: state.bankName.trim() } : {}),
   ...(state.note.trim() ? { note: state.note.trim() } : {})
 });
@@ -72,6 +78,10 @@ export default function BankDepositProofsPage() {
   const [receiptFile, setReceiptFile] = useState(null);
   const [selected, setSelected] = useState(null);
   const [paymentMethods, setPaymentMethods] = useState([]);
+  const [cryptoProducts, setCryptoProducts] = useState([]);
+  const [cryptoNetworks, setCryptoNetworks] = useState([]);
+  const [cryptoProductNetworks, setCryptoProductNetworks] = useState([]);
+  const [cryptoLookupError, setCryptoLookupError] = useState(null);
 
   const bankMethods = useMemo(
     () => paymentMethods.filter((pm) => normalizeEnumKey(pm.type).includes('BANK')),
@@ -112,12 +122,33 @@ export default function BankDepositProofsPage() {
     }
   };
 
+  const fetchCryptoLookups = async () => {
+    try {
+      setCryptoLookupError(null);
+      const params = new URLSearchParams({ page: '0', size: '200' });
+      const [productsRes, networksRes, productNetworksRes] = await Promise.all([
+        api.cryptoProducts.list(params),
+        api.cryptoNetworks.list(params),
+        api.cryptoProductCryptoNetworks.list(params)
+      ]);
+      const toList = (res) => (Array.isArray(res) ? res : res?.content || []);
+      setCryptoProducts(toList(productsRes));
+      setCryptoNetworks(toList(networksRes));
+      setCryptoProductNetworks(toList(productNetworksRes));
+    } catch (err) {
+      setCryptoLookupError(err.message || 'Failed to load crypto lookups');
+    }
+  };
+
   useEffect(() => {
     fetchRows();
   }, [page, size, statusFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     fetchPaymentMethods();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    fetchCryptoLookups();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const columns = useMemo(() => [
@@ -221,6 +252,18 @@ export default function BankDepositProofsPage() {
     const amount = Number(draft.amount);
     if (!Number.isFinite(amount) || amount <= 0) return 'Amount must be greater than zero.';
     if (!draft.currency.trim()) return 'Currency is required.';
+    if (draft.creditTarget === 'CRYPTO') {
+      if (!draft.cryptoProductId) return 'Crypto product is required.';
+      if (!draft.cryptoNetworkId) return 'Crypto network is required.';
+      const currency = draft.currency.trim().toUpperCase();
+      if (currency !== 'USD') return 'Crypto credit requires USD currency.';
+      const pairActive = cryptoProductNetworks.some(
+        (item) => String(item?.cryptoProductId ?? item?.productId ?? '') === String(draft.cryptoProductId)
+          && String(item?.cryptoNetworkId ?? item?.networkId ?? '') === String(draft.cryptoNetworkId)
+          && (item?.active === undefined || item?.active === null || item?.active === true)
+      );
+      if (!pairActive) return 'Selected crypto product/network is not active.';
+    }
     return null;
   };
 
@@ -299,7 +342,17 @@ export default function BankDepositProofsPage() {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="currency">Currency</label>
-        <input id="currency" value={draft.currency} onChange={(e) => setDraft((p) => ({ ...p, currency: e.target.value }))} placeholder="USD" />
+        <input
+          id="currency"
+          value={draft.currency}
+          onChange={(e) => setDraft((p) => ({ ...p, currency: e.target.value }))}
+          placeholder="USD"
+        />
+        {draft.creditTarget === 'CRYPTO' && (
+          <span style={{ color: 'var(--muted)', fontSize: '12px' }}>
+            Crypto credit requires USD.
+          </span>
+        )}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="bankName">Bank name</label>
@@ -321,6 +374,94 @@ export default function BankDepositProofsPage() {
         <label htmlFor="note">Note from sender</label>
         <input id="note" value={draft.note} onChange={(e) => setDraft((p) => ({ ...p, note: e.target.value }))} placeholder="Confirmed by bank statement" />
       </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="creditTarget">Credit target</label>
+        <select
+          id="creditTarget"
+          value={draft.creditTarget}
+          onChange={(e) => {
+            const next = e.target.value;
+            setDraft((p) => ({
+              ...p,
+              creditTarget: next,
+              ...(next === 'CRYPTO' && !p.currency ? { currency: 'USD' } : {})
+            }));
+          }}
+        >
+          <option value="WALLET">Wallet</option>
+          <option value="CRYPTO">Crypto</option>
+        </select>
+      </div>
+      {draft.creditTarget === 'CRYPTO' && (
+        <>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="cryptoProductId">Crypto product</label>
+            <select
+              id="cryptoProductId"
+              value={draft.cryptoProductId}
+              onChange={(e) => {
+                const nextProductId = e.target.value;
+                const eligibleNetworks = cryptoNetworks.filter((network) => {
+                  if (!nextProductId) return true;
+                  return cryptoProductNetworks.some(
+                    (item) => String(item?.cryptoProductId ?? item?.productId ?? '') === String(nextProductId)
+                      && String(item?.cryptoNetworkId ?? item?.networkId ?? '') === String(network?.id ?? '')
+                      && (item?.active === undefined || item?.active === null || item?.active === true)
+                  );
+                });
+                setDraft((p) => ({
+                  ...p,
+                  cryptoProductId: nextProductId,
+                  cryptoNetworkId: eligibleNetworks.length === 1 && eligibleNetworks[0]?.id ? String(eligibleNetworks[0].id) : ''
+                }));
+              }}
+            >
+              <option value="">Select product</option>
+              {cryptoProducts.map((product) => (
+                <option key={product.id} value={product.id}>
+                  {product.displayName || product.name || product.code || product.symbol || product.id}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="cryptoNetworkId">Crypto network</label>
+            <select id="cryptoNetworkId" value={draft.cryptoNetworkId} onChange={(e) => setDraft((p) => ({ ...p, cryptoNetworkId: e.target.value }))}>
+              <option value="">Select network</option>
+              {cryptoNetworks
+                .filter((network) => {
+                  if (!draft.cryptoProductId) return true;
+                  return cryptoProductNetworks.some(
+                    (item) => String(item?.cryptoProductId ?? item?.productId ?? '') === String(draft.cryptoProductId)
+                      && String(item?.cryptoNetworkId ?? item?.networkId ?? '') === String(network?.id ?? '')
+                      && (item?.active === undefined || item?.active === null || item?.active === true)
+                  );
+                })
+                .map((network) => (
+                  <option key={network.id} value={network.id}>
+                    {network.displayName || network.name || network.code || network.symbol || network.id}
+                  </option>
+                ))}
+            </select>
+            {draft.cryptoProductId && cryptoProductNetworks.length > 0 && cryptoNetworks.filter((network) => {
+              return cryptoProductNetworks.some(
+                (item) => String(item?.cryptoProductId ?? item?.productId ?? '') === String(draft.cryptoProductId)
+                  && String(item?.cryptoNetworkId ?? item?.networkId ?? '') === String(network?.id ?? '')
+                  && (item?.active === undefined || item?.active === null || item?.active === true)
+              );
+            }).length === 0 && (
+              <span style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                No active networks for this product.
+              </span>
+            )}
+          </div>
+          {cryptoLookupError && (
+            <div style={{ gridColumn: '1 / -1', color: '#b91c1c', fontWeight: 600 }}>
+              {cryptoLookupError}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 
@@ -419,7 +560,10 @@ export default function BankDepositProofsPage() {
               { label: 'Status', value: selected?.status },
               { label: 'Created', value: formatDateTime(selected?.createdAt) },
               { label: 'Credited', value: formatDateTime(selected?.creditedAt) },
-              { label: 'Credited by', value: selected?.creditedByAdminId || '—' }
+              { label: 'Credited by', value: selected?.creditedByAdminId || '—' },
+              { label: 'Credit target', value: selected?.creditTarget || 'WALLET' },
+              { label: 'Crypto product', value: selected?.cryptoProductName || selected?.cryptoProductCode || selected?.cryptoProductId || '—' },
+              { label: 'Crypto network', value: selected?.cryptoNetworkName || selected?.cryptoNetworkCode || selected?.cryptoNetworkId || '—' }
             ]}
           />
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.75rem' }}>

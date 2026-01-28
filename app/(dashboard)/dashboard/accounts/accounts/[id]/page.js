@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useToast } from '@/contexts/ToastContext';
@@ -223,6 +224,13 @@ const [creditNote, setCreditNote] = useState('');
 const [creditAction, setCreditAction] = useState('MANUAL_ADJUSTMENT');
 const [creditError, setCreditError] = useState(null);
 const [creditLoading, setCreditLoading] = useState(false);
+const [showDebit, setShowDebit] = useState(false);
+const [debitAmount, setDebitAmount] = useState('');
+const [debitNote, setDebitNote] = useState('');
+const [debitAction, setDebitAction] = useState('MANUAL_ADJUSTMENT');
+const [debitError, setDebitError] = useState(null);
+const [debitLoading, setDebitLoading] = useState(false);
+const [debitResult, setDebitResult] = useState(null);
 const [showCryptoCredit, setShowCryptoCredit] = useState(false);
 const [cryptoCreditWallet, setCryptoCreditWallet] = useState(null);
 const [cryptoCreditAmount, setCryptoCreditAmount] = useState('');
@@ -492,6 +500,15 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
     setShowCredit(true);
   };
 
+  const openDebit = () => {
+    setDebitAmount('');
+    setDebitNote('');
+    setDebitAction('MANUAL_ADJUSTMENT');
+    setDebitError(null);
+    setDebitResult(null);
+    setShowDebit(true);
+  };
+
   const openCryptoCredit = (wallet) => {
     setCryptoCreditWallet(wallet || null);
     setCryptoCreditAmount('');
@@ -705,6 +722,47 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
       pushToast({ tone: 'error', message });
     } finally {
       setCreditLoading(false);
+    }
+  };
+
+  const submitDebit = async () => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) {
+      setDebitError('No account loaded');
+      return;
+    }
+    const amountNum = Number(debitAmount);
+    if (!Number.isFinite(amountNum) || amountNum < 0.01) {
+      setDebitError('Amount must be at least 0.01');
+      return;
+    }
+    const confirmed = window.confirm("This will debit the user's wallet. This action is irreversible.");
+    if (!confirmed) return;
+
+    setDebitLoading(true);
+    setDebitError(null);
+    try {
+      const payload = {
+        amount: amountNum,
+        ...(debitAction ? { action: debitAction } : {}),
+        ...(debitNote?.trim() ? { note: debitNote.trim() } : {})
+      };
+      const res = await api.accounts.debitWallet(resolvedAccountId, payload);
+      const actionLabel = debitAction === 'WITHDRAW_FROM_WALLET' ? 'Withdraw from wallet' : 'Manual adjustment';
+      setDebitResult(res || null);
+      pushToast({
+        tone: 'success',
+        message: `Wallet debited (${actionLabel}): ${res?.amount ?? amountNum}${res?.reference ? ` (ref ${res.reference})` : ''}`
+      });
+      await loadAccount();
+    } catch (err) {
+      let message = err.message || 'Failed to debit account';
+      if (err.status === 401 || err.status === 403) {
+        message = 'Not authorized';
+      }
+      setDebitError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setDebitLoading(false);
     }
   };
 
@@ -1394,6 +1452,9 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
           </button>
           <button type="button" className="btn-success" onClick={openCredit}>
             Credit wallet
+          </button>
+          <button type="button" className="btn-danger" onClick={openDebit}>
+            Debit wallet
           </button>
         </div>
       </div>
@@ -2654,6 +2715,68 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
               </button>
               <button type="button" className="btn-success" onClick={submitCredit} disabled={creditLoading}>
                 {creditLoading ? 'Crediting…' : 'Credit wallet'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showDebit && (
+        <Modal title="Debit wallet" onClose={() => (!debitLoading ? setShowDebit(false) : null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="debitAction">Action</label>
+                <select id="debitAction" value={debitAction} onChange={(e) => setDebitAction(e.target.value)}>
+                  <option value="MANUAL_ADJUSTMENT">Manual adjustment</option>
+                  <option value="WITHDRAW_FROM_WALLET">Withdraw from wallet</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="debitAmount">Amount</label>
+                <input
+                  id="debitAmount"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={debitAmount}
+                  onChange={(e) => setDebitAmount(e.target.value)}
+                  placeholder="25.00"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="debitNote">Note (optional)</label>
+                <input
+                  id="debitNote"
+                  value={debitNote}
+                  onChange={(e) => setDebitNote(e.target.value)}
+                  placeholder="Optional note shown to user"
+                />
+              </div>
+            </div>
+            {debitError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{debitError}</div>}
+            {debitResult && (
+              <div style={{ border: `1px solid var(--border)`, borderRadius: '12px', padding: '0.65rem' }}>
+                <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Debit created</div>
+                <div style={{ display: 'grid', gap: '0.3rem', fontSize: '12px', color: 'var(--muted)' }}>
+                  <div>Transaction ID: {debitResult?.transactionId ?? '—'}</div>
+                  <div>Reference: {debitResult?.reference ?? '—'}</div>
+                </div>
+                {debitResult?.transactionId && (
+                  <div style={{ marginTop: '0.5rem' }}>
+                    <Link href={`/dashboard/transactions?transactionId=${debitResult.transactionId}`} className="btn-neutral">
+                      View transaction
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="modal-actions">
+              <button type="button" className="btn-neutral" onClick={() => setShowDebit(false)} disabled={debitLoading}>
+                Close
+              </button>
+              <button type="button" className="btn-danger" onClick={submitDebit} disabled={debitLoading}>
+                {debitLoading ? 'Debiting…' : 'Debit wallet'}
               </button>
             </div>
           </div>
