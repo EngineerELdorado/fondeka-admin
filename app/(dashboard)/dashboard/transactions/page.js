@@ -293,6 +293,10 @@ export default function TransactionsPage() {
   const webhookEvents = Array.isArray(selected?.webhookEvents) ? selected.webhookEvents : [];
   const normalizedStatus = selected?.status?.toUpperCase?.() || '';
   const showErrorMessage = ['FAILED', 'CANCELED', 'CANCELLED'].includes(normalizedStatus);
+  const receiptPayloadData = receipt?.payload && typeof receipt.payload === 'object' ? receipt.payload : null;
+  const bankRefValue = receiptPayloadData?.bankRef || selected?.externalReference || null;
+  const noteFromSender =
+    receiptPayloadData?.adminNote || receiptPayloadData?.noteFromSender || receiptPayloadData?.note || null;
 
   const formatDateTime = (value) => {
     if (!value) return '—';
@@ -1264,6 +1268,7 @@ export default function TransactionsPage() {
                 { label: 'Created', value: formatDateTime(selected?.createdAt) },
                 { label: 'Reference', value: selected?.reference },
                 { label: 'External ref', value: selected?.externalReference },
+                { label: 'Bank ref', value: bankRefValue || '—' },
                 { label: 'Operator ref', value: selected?.operatorReference },
                 { label: 'Internal ref', value: selected?.internalReference || '—' },
                 { label: 'Service', value: formatEnumLabel(selected?.service, serviceLabels) },
@@ -1288,6 +1293,7 @@ export default function TransactionsPage() {
                 { label: 'Needs manual refund', value: selected?.needsManualRefund ? 'Yes' : 'No' },
                 { label: 'Refund ref', value: selected?.refundReference || '—' },
                 { label: 'Refund txn ID', value: selected?.refundTransactionId || '—' },
+                ...(noteFromSender ? [{ label: 'Note from sender', value: noteFromSender }] : []),
                 ...(showErrorMessage ? [{ label: 'Error message', value: selected?.errorMessage || '—' }] : [])
               ]}
             />
