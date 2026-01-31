@@ -98,11 +98,10 @@ export default function PaymentRequestSettlementOptionsPage() {
 
       <div className="card" style={{ display: 'grid', gap: '0.6rem' }}>
         <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-          Auto-approve on create only applies to DONATION. Even when auto-approve is off, the backend still auto-approves if the account KYC is APPROVED or PROVISIONALLY_APPROVED and KYC level &gt; 0.
+          Auto-approve on create applies per payment request type. Even when auto-approve is off, the backend still auto-approves if the account KYC is APPROVED or PROVISIONALLY_APPROVED and KYC level &gt; 0.
         </div>
         {orderedRows.map((row) => {
           const isSaving = savingType === row.type;
-          const isDonation = row.type === 'DONATION';
           return (
             <div
               key={row.type}
@@ -134,15 +133,15 @@ export default function PaymentRequestSettlementOptionsPage() {
                     {isSaving ? 'Saving…' : row.allowCustomSettlement ? 'Custom allowed' : 'Custom blocked'}
                   </span>
                 </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: isDonation ? 1 : 0.5 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <input
                     type="checkbox"
                     checked={row.allowAutoApproveOnCreate}
                     onChange={(e) => saveSettings(row.type, { allowAutoApproveOnCreate: e.target.checked })}
-                    disabled={isSaving || !isDonation}
+                    disabled={isSaving}
                   />
                   <span style={{ fontSize: '12px', color: 'var(--muted)' }}>
-                    {isDonation ? (row.allowAutoApproveOnCreate ? 'Auto-approve on create' : 'Manual approval required') : 'Auto-approve (DONATION only)'}
+                    {row.allowAutoApproveOnCreate ? 'Auto-approve on create' : 'Manual approval required'}
                   </span>
                 </label>
               </div>

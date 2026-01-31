@@ -201,6 +201,14 @@ export default function KycsPage() {
     return date.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
   };
 
+  const toDateInputValue = (value) => {
+    if (!value) return '';
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) return value.slice(0, 10);
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toISOString().slice(0, 10);
+  };
+
   const fetchRows = async () => {
     setLoading(true);
     setError(null);
@@ -375,7 +383,7 @@ export default function KycsPage() {
       lastName: source.lastName ?? '',
       otherNames: source.otherNames ?? '',
       fullName: source.fullName ?? '',
-      dob: source.dob ?? '',
+      dob: toDateInputValue(source.dob),
       countryCode: source.countryCode ?? '',
       city: source.city ?? '',
       address: source.address ?? '',
@@ -387,8 +395,8 @@ export default function KycsPage() {
       providerComments: source.providerComments ?? '',
       status: source.status ?? '',
       level: source.level ?? '',
-      issuedAt: source.issuedAt ?? '',
-      expiresAt: source.expiresAt ?? '',
+      issuedAt: toDateInputValue(source.issuedAt),
+      expiresAt: toDateInputValue(source.expiresAt),
       docFront: source.docFront ?? '',
       docBack: source.docBack ?? '',
       selfie: source.selfie ?? ''
@@ -889,8 +897,8 @@ export default function KycsPage() {
               <input id="editFullName" value={editDraft.fullName} onChange={(e) => setEditDraft((p) => ({ ...p, fullName: e.target.value }))} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <label htmlFor="editDob">DOB (ISO-8601)</label>
-              <input id="editDob" value={editDraft.dob} onChange={(e) => setEditDraft((p) => ({ ...p, dob: e.target.value }))} placeholder="1990-01-01T00:00:00Z" />
+              <label htmlFor="editDob">DOB</label>
+              <input id="editDob" type="date" value={editDraft.dob} onChange={(e) => setEditDraft((p) => ({ ...p, dob: e.target.value }))} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="editCountryCode">Country code</label>
@@ -937,12 +945,12 @@ export default function KycsPage() {
               <input id="editLevel" type="number" value={editDraft.level} onChange={(e) => setEditDraft((p) => ({ ...p, level: e.target.value }))} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <label htmlFor="editIssuedAt">Issued at (ISO-8601)</label>
-              <input id="editIssuedAt" value={editDraft.issuedAt} onChange={(e) => setEditDraft((p) => ({ ...p, issuedAt: e.target.value }))} placeholder="2026-01-31T00:00:00Z" />
+              <label htmlFor="editIssuedAt">Issued at</label>
+              <input id="editIssuedAt" type="date" value={editDraft.issuedAt} onChange={(e) => setEditDraft((p) => ({ ...p, issuedAt: e.target.value }))} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <label htmlFor="editExpiresAt">Expires at (ISO-8601)</label>
-              <input id="editExpiresAt" value={editDraft.expiresAt} onChange={(e) => setEditDraft((p) => ({ ...p, expiresAt: e.target.value }))} placeholder="2026-01-31T00:00:00Z" />
+              <label htmlFor="editExpiresAt">Expires at</label>
+              <input id="editExpiresAt" type="date" value={editDraft.expiresAt} onChange={(e) => setEditDraft((p) => ({ ...p, expiresAt: e.target.value }))} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="editDocFront">Doc front URL</label>
