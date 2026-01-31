@@ -285,6 +285,12 @@ export default function TransactionsPage() {
   const [showReplayConfirm, setShowReplayConfirm] = useState(false);
   const [replayLoading, setReplayLoading] = useState(false);
   const [replayError, setReplayError] = useState(null);
+  const [showPostWebhookRetry, setShowPostWebhookRetry] = useState(false);
+  const [postWebhookLoading, setPostWebhookLoading] = useState(false);
+  const [postWebhookError, setPostWebhookError] = useState(null);
+  const [postWebhookRailLabel, setPostWebhookRailLabel] = useState('');
+  const [postWebhookExternalReference, setPostWebhookExternalReference] = useState('');
+  const [postWebhookForce, setPostWebhookForce] = useState(false);
   const [refetchBillStatusLoading, setRefetchBillStatusLoading] = useState(false);
   const [showBankPayoutComplete, setShowBankPayoutComplete] = useState(false);
   const [bankPayoutMessage, setBankPayoutMessage] = useState('');
@@ -665,6 +671,11 @@ export default function TransactionsPage() {
     setAccountSummary(null);
     setReceipt(null);
     setReceiptError(null);
+    setShowPostWebhookRetry(false);
+    setPostWebhookError(null);
+    setPostWebhookRailLabel('');
+    setPostWebhookExternalReference(row?.externalReference || '');
+    setPostWebhookForce(false);
     setShowReceiptForm(false);
     setReceiptPayload('{}');
     setShowReceiptDelete(false);
@@ -758,6 +769,12 @@ export default function TransactionsPage() {
     return status !== 'FAILED' && status !== 'CANCELED' && status !== 'CANCELLED';
   }, [selected]);
 
+  const canRetryPostWebhook = useMemo(() => {
+    if (!selected) return false;
+    const status = String(selected.status || '').toUpperCase();
+    return status === 'FUNDED' || status === 'PROCESSING';
+  }, [selected]);
+
   const bankPayoutMeta = useMemo(() => {
     if (!selected) {
       return { eligible: false, methodName: '', methodType: '', status: '', action: '' };
@@ -825,6 +842,44 @@ export default function TransactionsPage() {
       pushToast({ tone: 'error', message });
     } finally {
       setReplayLoading(false);
+    }
+  };
+
+  const openPostWebhookRetry = () => {
+    setPostWebhookError(null);
+    setPostWebhookRailLabel('');
+    setPostWebhookExternalReference(selected?.externalReference || '');
+    setPostWebhookForce(false);
+    setShowPostWebhookRetry(true);
+  };
+
+  const handlePostWebhookRetry = async () => {
+    const transactionId = selected?.transactionId || selected?.id;
+    if (!transactionId) {
+      setPostWebhookError('Missing transaction id');
+      return;
+    }
+    setPostWebhookLoading(true);
+    setPostWebhookError(null);
+    try {
+      const payload = {};
+      const railLabel = postWebhookRailLabel?.trim();
+      const externalReference = postWebhookExternalReference?.trim();
+      if (railLabel) payload.railLabel = railLabel;
+      if (externalReference) payload.externalReference = externalReference;
+      if (postWebhookForce) payload.force = true;
+      const res = await api.transactions.retryPostWebhook(transactionId, Object.keys(payload).length ? payload : undefined);
+      pushToast({ tone: 'success', message: res?.message || 'Retry accepted.' });
+      setShowPostWebhookRetry(false);
+      setSelected((prev) => ({ ...(prev || {}), ...(res || {}) }));
+      await fetchRows();
+      await loadReceipt(transactionId);
+    } catch (err) {
+      const message = err?.message || 'Failed to retry post-webhook fulfillment';
+      setPostWebhookError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setPostWebhookLoading(false);
     }
   };
 
@@ -1650,6 +1705,11 @@ export default function TransactionsPage() {
                   {refetchBillStatusLoading ? 'Refetching…' : 'Refetch bill status'}
                 </button>
               )}
+              {canRetryPostWebhook && (
+                <button type="button" onClick={openPostWebhookRetry} className="btn-primary">
+                  Retry post-webhook
+                </button>
+              )}
               {canReplayFulfillment && (
                 <button type="button" onClick={() => setShowReplayConfirm(true)} className="btn-primary">
                   Replay loan fulfillment
@@ -1686,6 +1746,67 @@ export default function TransactionsPage() {
               </button>
               <button type="button" className="btn-primary" onClick={handleReplayFulfillment} disabled={replayLoading}>
                 {replayLoading ? 'Replaying…' : 'Confirm replay'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showPostWebhookRetry && (
+        <Modal title="Retry post-webhook fulfillment" onClose={() => (!postWebhookLoading ? setShowPostWebhookRetry(false) : null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ color: 'var(--muted)' }}>
+              Replays post-webhook fulfillment to resubmit the order to the provider. Allowed for FUNDED or PROCESSING transactions.
+            </div>
+            {!selected?.needsManualRefund && (
+              <div style={{ color: '#b45309', fontWeight: 700 }}>
+                This transaction is not flagged for manual refund. Enable force to retry anyway.
+              </div>
+            )}
+            {postWebhookError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{postWebhookError}</div>}
+            <DetailGrid
+              rows={[
+                { label: 'Transaction ID', value: selected?.transactionId || selected?.id },
+                { label: 'Reference', value: selected?.reference },
+                { label: 'Status', value: selected?.status },
+                { label: 'Needs manual refund', value: selected?.needsManualRefund ? 'Yes' : 'No' }
+              ]}
+            />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="postWebhookRailLabel">Rail label (optional)</label>
+                <input
+                  id="postWebhookRailLabel"
+                  value={postWebhookRailLabel}
+                  onChange={(e) => setPostWebhookRailLabel(e.target.value)}
+                  placeholder="Admin replay"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="postWebhookExternalReference">External reference (optional)</label>
+                <input
+                  id="postWebhookExternalReference"
+                  value={postWebhookExternalReference}
+                  onChange={(e) => setPostWebhookExternalReference(e.target.value)}
+                  placeholder="PROVIDER_REF_123"
+                />
+              </div>
+            </div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <input type="checkbox" checked={postWebhookForce} onChange={(e) => setPostWebhookForce(e.target.checked)} />
+              Force retry even when needsManualRefund is false
+            </label>
+            <div className="modal-actions">
+              <button type="button" className="btn-neutral" onClick={() => setShowPostWebhookRetry(false)} disabled={postWebhookLoading}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handlePostWebhookRetry}
+                disabled={postWebhookLoading || (!selected?.needsManualRefund && !postWebhookForce)}
+              >
+                {postWebhookLoading ? 'Retrying…' : 'Confirm retry'}
               </button>
             </div>
           </div>

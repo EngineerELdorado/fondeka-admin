@@ -6,7 +6,7 @@ Base URL: `${app.api.baseUrls.admin-api}` (default `/admin-api`). All endpoints 
 - **Accounts**: `GET /accounts` (filters `accountNumber/startDate/endDate`), `GET /accounts/{id}`, AML check at `/accounts/check-aml/{id}`, custom pricing `GET/PATCH/DELETE /accounts/{id}/custom-pricing` body `{ maxLoanAmount }`.
 - **Admin users**: CRUD at `/admins`; change password `/admins/change-my-password`; reset `/admins/{id}/reset-password`.
 - **KYC**: list `/kycs?status=&startDate=&endDate=`, detail `/kycs/{id}`, update `/kycs/{id}` with `KycUpdateResource`.
-- **Transactions**: `GET /transactions` filters `service/balanceEffect/status/startDate/endDate/reference`, approve/reject `/transactions/{id}/approve|reject` body `FinalizeTransactionDto`.
+- **Transactions**: `GET /transactions` filters `service/balanceEffect/status/startDate/endDate/reference`, post-webhook retry `POST /transactions/{transactionId}/post-webhook/retry` (optional body: `railLabel`, `externalReference`, `force`).
 - **Reports**: `GET /report?startDate&endDate` → aggregated counts.
 
 ## Loans
