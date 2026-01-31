@@ -248,7 +248,9 @@ export default function DashboardPage() {
   const [billProviders, setBillProviders] = useState([]);
   const [countries, setCountries] = useState([]);
   const [showHoldings, setShowHoldings] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const refreshInFlight = useRef(false);
+  const refreshTimerRef = useRef(null);
 
   useEffect(() => {
     const stored = typeof window !== 'undefined' ? localStorage.getItem('fondeka-dashboard-filters-open') : null;
@@ -262,6 +264,14 @@ export default function DashboardPage() {
       localStorage.setItem('fondeka-dashboard-filters-open', String(showFilters));
     }
   }, [showFilters]);
+
+  useEffect(() => {
+    return () => {
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current);
+      }
+    };
+  }, []);
 
   const applyFilters = () => {
     setAppliedFilters(filters);
@@ -278,6 +288,10 @@ export default function DashboardPage() {
     async ({ silent = false } = {}) => {
       if (refreshInFlight.current) return;
       refreshInFlight.current = true;
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current);
+      }
+      setRefreshing(true);
       if (!silent) {
         setLoading(true);
       }
@@ -303,6 +317,9 @@ export default function DashboardPage() {
         setError(err.message);
       } finally {
         refreshInFlight.current = false;
+        refreshTimerRef.current = setTimeout(() => {
+          setRefreshing(false);
+        }, 450);
         if (!silent) {
           setLoading(false);
         }
@@ -596,15 +613,25 @@ export default function DashboardPage() {
                   }}
                 >
                   <span
+                    className={`refresh-thumb${refreshing ? ' is-refreshing' : ''}`}
                     style={{
                       width: '12px',
                       height: '12px',
                       borderRadius: '999px',
                       background: autoRefresh ? 'var(--accent)' : 'var(--muted)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '2px',
+                      color: '#fff',
                       transform: autoRefresh ? 'translateX(14px)' : 'translateX(0)',
                       transition: 'all 0.2s ease'
                     }}
-                  />
+                  >
+                    <span className="refresh-dot" />
+                    <span className="refresh-dot" />
+                    <span className="refresh-dot" />
+                  </span>
                 </span>
               </span>
             </button>

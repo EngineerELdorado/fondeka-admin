@@ -38,6 +38,32 @@ const emptyLevelDraft = {
   level: ''
 };
 
+const emptyEditDraft = {
+  externalReference: '',
+  idNumber: '',
+  firstName: '',
+  lastName: '',
+  otherNames: '',
+  fullName: '',
+  dob: '',
+  countryCode: '',
+  city: '',
+  address: '',
+  postalCode: '',
+  houseNo: '',
+  gender: '',
+  lastJobReference: '',
+  docType: '',
+  providerComments: '',
+  status: '',
+  level: '',
+  issuedAt: '',
+  expiresAt: '',
+  docFront: '',
+  docBack: '',
+  selfie: ''
+};
+
 const Modal = ({ title, onClose, children }) => (
   <div className="modal-backdrop">
     <div className="modal-surface">
@@ -121,6 +147,20 @@ const StatusBadge = ({ value }) => {
   );
 };
 
+const normalizeKyc = (item) => {
+  if (!item) return item;
+  const names = [item.firstName, item.otherNames, item.lastName].filter(Boolean).join(' ').trim();
+  const userDisplay = item.fullName || names || item.username || item.email;
+  return {
+    ...item,
+    country: item.countryName || item.country || item.countryCode,
+    accountRef: item.accountRef || item.accountReference,
+    emailOrUsername: item.emailOrUsername || userDisplay,
+    internalRef: item.internalRef || item.internalReference,
+    externalRef: item.externalRef || item.externalReference
+  };
+};
+
 export default function KycsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
@@ -140,6 +180,11 @@ export default function KycsPage() {
   const [levelOptions, setLevelOptions] = useState([]);
   const [smileAction, setSmileAction] = useState(null);
   const [confirmSmileDelete, setConfirmSmileDelete] = useState(null);
+  const [showEdit, setShowEdit] = useState(false);
+  const [editDraft, setEditDraft] = useState(emptyEditDraft);
+  const [editLoading, setEditLoading] = useState(false);
+  const [uploadFiles, setUploadFiles] = useState({ docFront: null, docBack: null, selfie: null });
+  const [uploadLoading, setUploadLoading] = useState(false);
   const router = useRouter();
 
   const formatDate = (value) => {
@@ -175,18 +220,7 @@ export default function KycsPage() {
       });
       const res = await api.kycs.list(params);
       const list = Array.isArray(res) ? res : res?.content || [];
-      const normalized = (list || []).map((item) => {
-        const names = [item.firstName, item.otherNames, item.lastName].filter(Boolean).join(' ').trim();
-        const userDisplay = item.fullName || names || item.username || item.email;
-        return {
-          ...item,
-          country: item.countryName || item.country || item.countryCode,
-          accountRef: item.accountRef || item.accountReference,
-          emailOrUsername: userDisplay,
-          internalRef: item.internalRef || item.internalReference,
-          externalRef: item.externalRef || item.externalReference
-        };
-      });
+      const normalized = (list || []).map((item) => normalizeKyc(item));
       setRows(normalized);
     } catch (err) {
       setError(err.message);
@@ -325,8 +359,41 @@ export default function KycsPage() {
   ];
 
   const openDetail = (row) => {
-    setSelected(row);
+    setSelected(normalizeKyc(row));
     setShowDetail(true);
+    setInfo(null);
+    setError(null);
+  };
+
+  const openEdit = (row) => {
+    const source = normalizeKyc(row || {});
+    setSelected(source);
+    setEditDraft({
+      externalReference: source.externalReference ?? source.externalRef ?? '',
+      idNumber: source.idNumber ?? '',
+      firstName: source.firstName ?? '',
+      lastName: source.lastName ?? '',
+      otherNames: source.otherNames ?? '',
+      fullName: source.fullName ?? '',
+      dob: source.dob ?? '',
+      countryCode: source.countryCode ?? '',
+      city: source.city ?? '',
+      address: source.address ?? '',
+      postalCode: source.postalCode ?? '',
+      houseNo: source.houseNo ?? '',
+      gender: source.gender ?? '',
+      lastJobReference: source.lastJobReference ?? '',
+      docType: source.docType ?? '',
+      providerComments: source.providerComments ?? '',
+      status: source.status ?? '',
+      level: source.level ?? '',
+      issuedAt: source.issuedAt ?? '',
+      expiresAt: source.expiresAt ?? '',
+      docFront: source.docFront ?? '',
+      docBack: source.docBack ?? '',
+      selfie: source.selfie ?? ''
+    });
+    setShowEdit(true);
     setInfo(null);
     setError(null);
   };
@@ -396,6 +463,59 @@ export default function KycsPage() {
       setError(err.message || 'Failed to delete SmileID user.');
     } finally {
       setSmileAction(null);
+    }
+  };
+
+  const handleEditSubmit = async () => {
+    if (!selected?.id) return;
+    setError(null);
+    setInfo(null);
+    setEditLoading(true);
+    try {
+      const payload = {};
+      Object.entries(editDraft).forEach(([key, value]) => {
+        if (value === '' || value === null || value === undefined) return;
+        if (key === 'level') {
+          const num = Number(value);
+          if (!Number.isNaN(num)) payload.level = num;
+          return;
+        }
+        payload[key] = value;
+      });
+      const res = await api.kycs.update(selected.id, payload);
+      const normalized = normalizeKyc(res || {});
+      setSelected(normalized || null);
+      setRows((prev) => prev.map((row) => (row.id === selected.id ? normalized : row)));
+      setInfo(`Updated KYC ${selected.id}.`);
+      setShowEdit(false);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const handleUploadBackup = async () => {
+    if (!selected?.id) return;
+    const hasFiles = uploadFiles.docFront || uploadFiles.docBack || uploadFiles.selfie;
+    if (!hasFiles) {
+      setError('Select at least one file to upload.');
+      return;
+    }
+    setError(null);
+    setInfo(null);
+    setUploadLoading(true);
+    try {
+      const res = await api.kycs.uploadBackupDocuments(selected.id, uploadFiles);
+      const normalized = normalizeKyc(res || {});
+      setSelected(normalized || null);
+      setRows((prev) => prev.map((row) => (row.id === selected.id ? normalized : row)));
+      setInfo(`Uploaded backup documents for KYC ${selected.id}.`);
+      setUploadFiles({ docFront: null, docBack: null, selfie: null });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploadLoading(false);
     }
   };
 
@@ -560,6 +680,9 @@ export default function KycsPage() {
             <button type="button" onClick={() => handleSmileOpen(selected)} className="btn-neutral">
               SmileID
             </button>
+            <button type="button" onClick={() => openEdit(selected)} className="btn-primary">
+              Edit KYC
+            </button>
             <button
               type="button"
               onClick={() => handleSmileReenroll(selected)}
@@ -586,8 +709,8 @@ export default function KycsPage() {
               { label: 'Country', value: selected?.country },
               { label: 'Account ref', value: selected?.accountRef || selected?.accountReference },
               { label: 'User', value: selected?.fullName || [selected?.firstName, selected?.otherNames, selected?.lastName].filter(Boolean).join(' ') || selected?.username || selected?.email },
-              { label: 'Internal ref', value: selected?.internalRef },
-              { label: 'External ref', value: selected?.externalRef },
+              { label: 'Internal ref', value: selected?.internalRef || selected?.internalReference },
+              { label: 'External ref', value: selected?.externalRef || selected?.externalReference },
               { label: 'Last job reference', value: selected?.lastJobReference },
               { label: 'ID number', value: selected?.idNumber },
               { label: 'DOB', value: formatDate(selected?.dob) },
@@ -595,6 +718,52 @@ export default function KycsPage() {
               { label: 'Expires at', value: formatDateTime(selected?.expiresAt) }
             ]}
           />
+          <div style={{ marginTop: '0.75rem' }}>
+            <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Documents</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.6rem' }}>
+              {[
+                { key: 'docFront', label: 'Doc front', value: selected?.docFront },
+                { key: 'docBack', label: 'Doc back', value: selected?.docBack },
+                { key: 'userSelfie', label: 'Selfie', value: selected?.userSelfie || selected?.selfie }
+              ].map((item) => (
+                <div key={item.key} style={{ border: `1px solid var(--border)`, borderRadius: '10px', padding: '0.5rem', display: 'grid', gap: '0.35rem' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{item.label}</div>
+                  {item.value ? (
+                    <>
+                      <img src={item.value} alt={item.label} style={{ width: '100%', height: '160px', objectFit: 'cover', borderRadius: '8px' }} />
+                      <a href={item.value} target="_blank" rel="noreferrer" style={{ fontSize: '12px', color: 'var(--accent)' }}>
+                        Open full size
+                      </a>
+                    </>
+                  ) : (
+                    <div style={{ color: 'var(--muted)', fontSize: '12px' }}>No image</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{ marginTop: '0.75rem', borderTop: '1px dashed var(--border)', paddingTop: '0.75rem' }}>
+            <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Upload backup documents</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="docFront">Doc front</label>
+                <input id="docFront" type="file" accept="image/*" onChange={(e) => setUploadFiles((p) => ({ ...p, docFront: e.target.files?.[0] || null }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="docBack">Doc back</label>
+                <input id="docBack" type="file" accept="image/*" onChange={(e) => setUploadFiles((p) => ({ ...p, docBack: e.target.files?.[0] || null }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="selfie">Selfie</label>
+                <input id="selfie" type="file" accept="image/*" onChange={(e) => setUploadFiles((p) => ({ ...p, selfie: e.target.files?.[0] || null }))} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.6rem' }}>
+              <button type="button" onClick={handleUploadBackup} className="btn-primary" disabled={uploadLoading}>
+                {uploadLoading ? 'Uploading…' : 'Upload documents'}
+              </button>
+            </div>
+          </div>
         </Modal>
       )}
 
@@ -687,6 +856,113 @@ export default function KycsPage() {
             </button>
             <button type="button" onClick={handleLevelUpdate} className="btn-primary">
               Submit
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {showEdit && (
+        <Modal title={`Edit KYC ${selected?.id}`} onClose={() => setShowEdit(false)}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="editExternalReference">External reference</label>
+              <input id="editExternalReference" value={editDraft.externalReference} onChange={(e) => setEditDraft((p) => ({ ...p, externalReference: e.target.value }))} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="editIdNumber">ID number</label>
+              <input id="editIdNumber" value={editDraft.idNumber} onChange={(e) => setEditDraft((p) => ({ ...p, idNumber: e.target.value }))} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="editFirstName">First name</label>
+              <input id="editFirstName" value={editDraft.firstName} onChange={(e) => setEditDraft((p) => ({ ...p, firstName: e.target.value }))} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="editLastName">Last name</label>
+              <input id="editLastName" value={editDraft.lastName} onChange={(e) => setEditDraft((p) => ({ ...p, lastName: e.target.value }))} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="editOtherNames">Other names</label>
+              <input id="editOtherNames" value={editDraft.otherNames} onChange={(e) => setEditDraft((p) => ({ ...p, otherNames: e.target.value }))} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="editFullName">Full name</label>
+              <input id="editFullName" value={editDraft.fullName} onChange={(e) => setEditDraft((p) => ({ ...p, fullName: e.target.value }))} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="editDob">DOB (ISO-8601)</label>
+              <input id="editDob" value={editDraft.dob} onChange={(e) => setEditDraft((p) => ({ ...p, dob: e.target.value }))} placeholder="1990-01-01T00:00:00Z" />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="editCountryCode">Country code</label>
+              <input id="editCountryCode" value={editDraft.countryCode} onChange={(e) => setEditDraft((p) => ({ ...p, countryCode: e.target.value }))} placeholder="UG" />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="editCity">City</label>
+              <input id="editCity" value={editDraft.city} onChange={(e) => setEditDraft((p) => ({ ...p, city: e.target.value }))} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="editAddress">Address</label>
+              <input id="editAddress" value={editDraft.address} onChange={(e) => setEditDraft((p) => ({ ...p, address: e.target.value }))} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="editPostalCode">Postal code</label>
+              <input id="editPostalCode" value={editDraft.postalCode} onChange={(e) => setEditDraft((p) => ({ ...p, postalCode: e.target.value }))} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="editHouseNo">House no</label>
+              <input id="editHouseNo" value={editDraft.houseNo} onChange={(e) => setEditDraft((p) => ({ ...p, houseNo: e.target.value }))} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="editGender">Gender</label>
+              <input id="editGender" value={editDraft.gender} onChange={(e) => setEditDraft((p) => ({ ...p, gender: e.target.value }))} placeholder="M/F" />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="editLastJobReference">Last job reference</label>
+              <input id="editLastJobReference" value={editDraft.lastJobReference} onChange={(e) => setEditDraft((p) => ({ ...p, lastJobReference: e.target.value }))} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="editDocType">Doc type</label>
+              <input id="editDocType" value={editDraft.docType} onChange={(e) => setEditDraft((p) => ({ ...p, docType: e.target.value }))} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="editProviderComments">Provider comments</label>
+              <input id="editProviderComments" value={editDraft.providerComments} onChange={(e) => setEditDraft((p) => ({ ...p, providerComments: e.target.value }))} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="editStatus">Status</label>
+              <input id="editStatus" value={editDraft.status} onChange={(e) => setEditDraft((p) => ({ ...p, status: e.target.value }))} placeholder="APPROVED" />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="editLevel">Level</label>
+              <input id="editLevel" type="number" value={editDraft.level} onChange={(e) => setEditDraft((p) => ({ ...p, level: e.target.value }))} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="editIssuedAt">Issued at (ISO-8601)</label>
+              <input id="editIssuedAt" value={editDraft.issuedAt} onChange={(e) => setEditDraft((p) => ({ ...p, issuedAt: e.target.value }))} placeholder="2026-01-31T00:00:00Z" />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="editExpiresAt">Expires at (ISO-8601)</label>
+              <input id="editExpiresAt" value={editDraft.expiresAt} onChange={(e) => setEditDraft((p) => ({ ...p, expiresAt: e.target.value }))} placeholder="2026-01-31T00:00:00Z" />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="editDocFront">Doc front URL</label>
+              <input id="editDocFront" value={editDraft.docFront} onChange={(e) => setEditDraft((p) => ({ ...p, docFront: e.target.value }))} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="editDocBack">Doc back URL</label>
+              <input id="editDocBack" value={editDraft.docBack} onChange={(e) => setEditDraft((p) => ({ ...p, docBack: e.target.value }))} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="editSelfie">Selfie URL</label>
+              <input id="editSelfie" value={editDraft.selfie} onChange={(e) => setEditDraft((p) => ({ ...p, selfie: e.target.value }))} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.75rem' }}>
+            <button type="button" onClick={() => setShowEdit(false)} className="btn-neutral" disabled={editLoading}>
+              Cancel
+            </button>
+            <button type="button" onClick={handleEditSubmit} className="btn-primary" disabled={editLoading}>
+              {editLoading ? 'Saving…' : 'Save changes'}
             </button>
           </div>
         </Modal>

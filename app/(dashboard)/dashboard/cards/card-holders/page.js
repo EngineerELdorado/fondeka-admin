@@ -4,8 +4,10 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
+import { useAuth } from '@/contexts/AuthContext';
 
 const emptyState = { internalReference: '', externalReference: '', accountId: '', verified: false, metaData: '' };
+const emptyFilters = { accountReference: '', email: '', phoneNumber: '' };
 
 const toPayload = (state) => ({
   internalReference: state.internalReference,
@@ -39,9 +41,11 @@ const DetailGrid = ({ rows }) => (
 );
 
 export default function CardHoldersPage() {
+  const { session } = useAuth();
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(25);
+  const [filters, setFilters] = useState(emptyFilters);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
@@ -51,6 +55,22 @@ export default function CardHoldersPage() {
   const [draft, setDraft] = useState(emptyState);
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [confirmReset, setConfirmReset] = useState(null);
+  const [resetLoading, setResetLoading] = useState(false);
+
+  const isSuperAdmin = useMemo(() => {
+    const payload = session?.tokens?.idToken?.payload || session?.tokens?.accessToken?.payload;
+    const role = payload?.role || payload?.['custom:role'];
+    if (role && String(role).toUpperCase() === 'SUPER_ADMIN') return true;
+    const groups = payload?.['cognito:groups'] || payload?.groups;
+    if (Array.isArray(groups)) {
+      return groups.some((group) => String(group).toUpperCase() === 'SUPER_ADMIN');
+    }
+    if (typeof groups === 'string') {
+      return groups.split(',').some((group) => String(group).trim().toUpperCase() === 'SUPER_ADMIN');
+    }
+    return false;
+  }, [session]);
 
   const fetchRows = async () => {
     setLoading(true);
@@ -59,6 +79,10 @@ export default function CardHoldersPage() {
       const params = new URLSearchParams();
       params.set('page', String(page));
       params.set('size', String(size));
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value === '' || value === null || value === undefined) return;
+        params.set(key, String(value));
+      });
       const res = await api.cardHolders.list(params);
       const list = Array.isArray(res) ? res : res?.content || [];
       setRows(list || []);
@@ -71,11 +95,13 @@ export default function CardHoldersPage() {
 
   useEffect(() => {
     fetchRows();
-  }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [page, size, filters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
     { key: 'internalReference', label: 'Internal ref' },
+    { key: 'userName', label: 'User name' },
+    { key: 'userEmail', label: 'User email' },
     { key: 'accountId', label: 'Account ID' },
     { key: 'verified', label: 'Verified' },
     {
@@ -161,6 +187,25 @@ export default function CardHoldersPage() {
     }
   };
 
+  const handleReset = async () => {
+    if (!confirmReset?.id) return;
+    const id = confirmReset.id;
+    setError(null);
+    setInfo(null);
+    setResetLoading(true);
+    try {
+      const res = await api.cardHolders.reset(id);
+      setSelected(res || null);
+      setRows((prev) => prev.map((row) => (row.id === id ? res : row)));
+      setInfo(`Reset card holder ${id}.`);
+      setConfirmReset(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   const renderForm = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -207,8 +252,46 @@ export default function CardHoldersPage() {
           <label htmlFor="size">Size</label>
           <input id="size" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
         </div>
+        <div>
+          <label htmlFor="accountReference">Account reference</label>
+          <input
+            id="accountReference"
+            value={filters.accountReference}
+            onChange={(e) => setFilters((p) => ({ ...p, accountReference: e.target.value }))}
+            placeholder="ACC-123"
+          />
+        </div>
+        <div>
+          <label htmlFor="email">Email</label>
+          <input
+            id="email"
+            value={filters.email}
+            onChange={(e) => setFilters((p) => ({ ...p, email: e.target.value }))}
+            placeholder="john@example.com"
+          />
+        </div>
+        <div>
+          <label htmlFor="phoneNumber">Phone number</label>
+          <input
+            id="phoneNumber"
+            value={filters.phoneNumber}
+            onChange={(e) => setFilters((p) => ({ ...p, phoneNumber: e.target.value }))}
+            placeholder="+243"
+          />
+        </div>
         <button type="button" onClick={fetchRows} disabled={loading} className="btn-primary">
           {loading ? 'Loading…' : 'Refresh'}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setFilters(emptyFilters);
+            setPage(0);
+          }}
+          disabled={loading}
+          className="btn-neutral"
+        >
+          Clear filters
         </button>
         <button type="button" onClick={openCreate} className="btn-success">
           Add card holder
@@ -248,10 +331,35 @@ export default function CardHoldersPage() {
               { label: 'Internal ref', value: selected?.internalReference },
               { label: 'External ref', value: selected?.externalReference },
               { label: 'Account ID', value: selected?.accountId },
+              { label: 'User name', value: selected?.userName },
+              { label: 'User email', value: selected?.userEmail },
               { label: 'Verified', value: String(selected?.verified) },
               { label: 'Metadata', value: selected?.metaData }
             ]}
           />
+          {isSuperAdmin && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.75rem' }}>
+              <button type="button" onClick={() => setConfirmReset(selected)} className="btn-danger">
+                Reset card holder
+              </button>
+            </div>
+          )}
+        </Modal>
+      )}
+
+      {confirmReset && (
+        <Modal title="Reset card holder" onClose={() => setConfirmReset(null)}>
+          <div style={{ color: 'var(--muted)' }}>
+            This will unset verification and external reference. Continue?
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+            <button type="button" onClick={() => setConfirmReset(null)} className="btn-neutral" disabled={resetLoading}>
+              Cancel
+            </button>
+            <button type="button" onClick={handleReset} className="btn-danger" disabled={resetLoading}>
+              {resetLoading ? 'Resetting…' : 'Reset card holder'}
+            </button>
+          </div>
         </Modal>
       )}
 

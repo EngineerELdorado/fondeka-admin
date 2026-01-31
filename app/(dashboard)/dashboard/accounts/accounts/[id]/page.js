@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useToast } from '@/contexts/ToastContext';
+import COUNTRIES from '@/data/countries';
 
 const Modal = ({ title, onClose, children }) => (
   <div className="modal-backdrop">
@@ -147,6 +148,10 @@ const [notificationDataModal, setNotificationDataModal] = useState(null);
   const [feeConfigsError, setFeeConfigsError] = useState(null);
   const [pmps, setPmps] = useState([]);
   const [countries, setCountries] = useState([]);
+  const [countryCodeDraft, setCountryCodeDraft] = useState('');
+  const [countrySaving, setCountrySaving] = useState(false);
+  const [countryError, setCountryError] = useState(null);
+  const [countryInfo, setCountryInfo] = useState(null);
 
   const [showPricingForm, setShowPricingForm] = useState(false);
   const [pricingExtraLoan, setPricingExtraLoan] = useState('');
@@ -218,6 +223,11 @@ const [cardholderForm, setCardholderForm] = useState(() => createEmptyCardholder
 const [cardholderError, setCardholderError] = useState(null);
 const [cardholderSaving, setCardholderSaving] = useState(false);
 const [cardholderResult, setCardholderResult] = useState(null);
+
+  useEffect(() => {
+    const nextCode = account?.country?.alpha2Code || account?.countryCode || '';
+    setCountryCodeDraft(nextCode || '');
+  }, [account?.country?.alpha2Code, account?.countryCode]);
 const [showCredit, setShowCredit] = useState(false);
 const [creditAmount, setCreditAmount] = useState('');
 const [creditNote, setCreditNote] = useState('');
@@ -299,6 +309,30 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
       pushToast({ tone: 'error', message: err.message || 'Failed to load account' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const saveAccountCountry = async () => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) return;
+    const trimmed = String(countryCodeDraft || '').trim().toUpperCase();
+    if (!trimmed) {
+      setCountryError('Country code is required.');
+      return;
+    }
+    setCountryError(null);
+    setCountryInfo(null);
+    setCountrySaving(true);
+    try {
+      const res = await api.accounts.updateCountry(resolvedAccountId, { countryCode: trimmed });
+      setAccount(res || null);
+      setCountryInfo(`Country updated to ${trimmed}.`);
+      pushToast({ tone: 'success', message: `Account country updated to ${trimmed}.` });
+    } catch (err) {
+      const message = err.message || 'Failed to update account country';
+      setCountryError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setCountrySaving(false);
     }
   };
 
@@ -1437,7 +1471,9 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
               {accountView?.kycLevel !== undefined && accountView?.kycLevel !== null && (
                 <Badge>KYC Level: {accountView.kycLevel}</Badge>
               )}
-              {accountView?.countryCode && <Badge>Country: {accountView.countryCode}</Badge>}
+              {(accountView?.country?.alpha2Code || accountView?.countryCode) && (
+                <Badge>Country: {accountView?.country?.alpha2Code || accountView.countryCode}</Badge>
+              )}
             </div>
           </div>
         <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -1478,6 +1514,48 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
           }
         ]}
       />
+
+      <div className="card" style={{ padding: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+            <div style={{ fontWeight: 800 }}>Account country</div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Current: {accountView?.country?.name || accountView?.country?.alpha2Code || accountView?.countryCode || '—'}
+            </div>
+          </div>
+          <button type="button" className="btn-neutral btn-sm" onClick={loadAccount} disabled={loading}>
+            {loading ? 'Refreshing…' : 'Refresh'}
+          </button>
+        </div>
+
+        {(countryError || countryInfo) && (
+          <div style={{ marginTop: '0.5rem', color: countryError ? '#b91c1c' : '#15803d', fontWeight: 700 }}>
+            {countryError || countryInfo}
+          </div>
+        )}
+
+        <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'end' }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minWidth: '240px', flex: 1 }}>
+            <span>Country (ISO alpha-2)</span>
+            <select value={countryCodeDraft} onChange={(e) => setCountryCodeDraft(e.target.value)}>
+              <option value="">Select country</option>
+              {COUNTRIES.map((country) => (
+                <option key={country.cca2} value={country.cca2}>
+                  {country.flag} {country.name} ({country.cca2})
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            className="btn-primary btn-sm"
+            onClick={saveAccountCountry}
+            disabled={countrySaving || resolvedAccountId === null || resolvedAccountId === undefined}
+          >
+            {countrySaving ? 'Saving…' : 'Update country'}
+          </button>
+        </div>
+      </div>
 
       <div className="card" style={{ padding: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
