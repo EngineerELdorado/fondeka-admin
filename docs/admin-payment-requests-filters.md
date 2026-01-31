@@ -12,7 +12,7 @@ This guide shows how the Admin Dashboard should query payment requests with rich
 - Identifiers: `id`, `accountId`, `linkCode`
 - Payer lookup: `email` (exact, case-insensitive), `phoneNumber` (exact)
 - Text search (case-insensitive contains): `titleContains`, `descriptionContains`
-- Enums: `type` (`QUICK_CHARGE`, `DONATION`, `INVOICE`), `approvalStatus` (`PaymentRequestApprovalStatus`), `lifecycle` (`PaymentRequestLifecycle`)
+- Enums: `type` (`QUICK_CHARGE`, `DONATION`, `INVOICE`), `approvalStatus` (`PENDING`, `APPROVED`, `REJECTED`), `lifecycle` (`DRAFT`, `NEW`, `ACTIVE`, `SUSPENDED`, `CANCELLED`, `EXPIRED`, `COMPLETED`)
 - Currency: `currency` (ISO code, case-insensitive)
 - Amount filters (inclusive): `amountGte`, `amountLte`, `minAmountGte`, `minAmountLte`, `maxAmountGte`, `maxAmountLte`
 - Date filters (epoch millis, inclusive): `activationAfter`, `activationBefore`, `expiresAfter`, `expiresBefore`

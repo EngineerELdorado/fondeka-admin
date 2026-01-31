@@ -58,6 +58,7 @@ Base URL: `${app.api.baseUrls.admin-api}` (default `/admin-api`). All endpoints 
 - **Requests**: `/payment-requests` `{ accountId, type:PaymentRequestType, title?, description?, image1?, image2?, image3?, image4?, amount?, minAmount?, maxAmount?, goalAmount?, currency, allowPartial?, feeInclusion?, approvalStatus?, lifecycle?, linkCode?, checkoutSecretHash?, activationAt?, expiresAt?, metadata?, items? }` where `items` use `{ name, description?, quantity?, unitPrice, lineTotal?, paymentRequestId? }`.
 - **Items**: `/payment-request-items` CRUD on individual items, body same as item above (with `paymentRequestId`).
 - **Payments**: `/payment-request-payments` `{ paymentRequestId, paymentMethodId, status:PaymentAttemptStatus, providerTxnId?, amount, currency, payerReference?, payerDisplayName?, payerAnonymous?, failureCode?, failureReason?, idempotencyKey, quoteBreakdown?, transactionId? }`.
+- **Request type settings**: `GET /payment-request-type-settings` → `{ type, allowCustomSettlement, allowAutoApproveOnCreate }`, `PUT /payment-request-type-settings/{type}` body `{ allowCustomSettlement, allowAutoApproveOnCreate }` for type in `QUICK_CHARGE | INVOICE | DONATION`.
 
 ## Geography
 - **Countries**: `/countries` `{ alpha2Code, alpha3Code, name }`.

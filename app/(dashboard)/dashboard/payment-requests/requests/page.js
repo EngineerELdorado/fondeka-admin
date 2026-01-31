@@ -25,7 +25,7 @@ const emptyState = {
 
 const typeOptions = ['QUICK_CHARGE', 'DONATION', 'INVOICE'];
 const approvalStatusOptions = ['PENDING', 'APPROVED', 'REJECTED'];
-const lifecycleOptions = ['DRAFT', 'ACTIVE', 'EXPIRED', 'ARCHIVED'];
+const lifecycleOptions = ['DRAFT', 'NEW', 'ACTIVE', 'SUSPENDED', 'CANCELLED', 'EXPIRED', 'COMPLETED'];
 const feeInclusionOptions = ['ON_TOP', 'ABSORBED'];
 
 const initialFilters = {
@@ -161,6 +161,7 @@ export default function PaymentRequestsPage() {
   const [filters, setFilters] = useState(initialFilters);
   const [appliedFilters, setAppliedFilters] = useState(initialFilters);
   const [showFilters, setShowFilters] = useState(false);
+  const [savingApprovalId, setSavingApprovalId] = useState(null);
 
   const fetchRows = async () => {
     setLoading(true);
@@ -222,6 +223,27 @@ export default function PaymentRequestsPage() {
     return date.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
   };
 
+  const handleApprove = async (row) => {
+    if (!row?.id) return;
+    setError(null);
+    setInfo(null);
+    setSavingApprovalId(row.id);
+    try {
+      await api.paymentRequests.update(row.id, {
+        accountId: row.accountId,
+        type: row.type,
+        currency: row.currency,
+        approvalStatus: 'APPROVED'
+      });
+      setInfo(`Approved donation request ${row.id}.`);
+      fetchRows();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSavingApprovalId(null);
+    }
+  };
+
   const columns = useMemo(() => [
     { key: 'accountId', label: 'Account ID' },
     { key: 'type', label: 'Type' },
@@ -254,13 +276,23 @@ export default function PaymentRequestsPage() {
       label: 'Actions',
       render: (row) => (
         <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+          {row.approvalStatus === 'PENDING' && row.type === 'DONATION' && (
+            <button
+              type="button"
+              onClick={() => handleApprove(row)}
+              className="btn-success"
+              disabled={savingApprovalId === row.id}
+            >
+              {savingApprovalId === row.id ? 'Approving…' : 'Approve'}
+            </button>
+          )}
           <button type="button" onClick={() => openDetail(row)} className="btn-neutral">View</button>
           <button type="button" onClick={() => openEdit(row)} className="btn-neutral">Edit</button>
           <button type="button" onClick={() => setConfirmDelete(row)} className="btn-danger">Delete</button>
         </div>
       )
     }
-  ], []);
+  ], [savingApprovalId, handleApprove]);
 
   const openCreate = () => {
     setDraft(emptyState);
@@ -451,6 +483,18 @@ export default function PaymentRequestsPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
           <div style={{ fontWeight: 700 }}>Search & Filters</div>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn-neutral btn-sm"
+              onClick={() => {
+                const next = { ...initialFilters, type: 'DONATION', approvalStatus: 'PENDING' };
+                setFilters(next);
+                setAppliedFilters(next);
+                setPage(0);
+              }}
+            >
+              Pending donations
+            </button>
             <button type="button" className="btn-neutral btn-sm" onClick={() => setShowFilters((prev) => !prev)}>
               {showFilters ? 'Hide filters' : 'Show filters'}
             </button>
