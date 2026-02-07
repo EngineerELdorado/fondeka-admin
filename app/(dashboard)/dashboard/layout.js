@@ -12,6 +12,7 @@ const navItems = [
   // Products cluster
   { href: '/dashboard/loans', label: 'Loans & Products' },
   { href: '/dashboard/bills', label: 'Bills & Products' },
+  { href: '/dashboard/bills/cegaweb-profiles', label: 'CegaWeb Profiles' },
   { href: '/dashboard/cards', label: 'Cards & Products' },
   { href: '/dashboard/crypto', label: 'Cryptos & Products' },
   { href: '/dashboard/esim', label: 'eSIMs & Providers' },

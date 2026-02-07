@@ -5,7 +5,14 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
-const emptyState = { name: '', displayName: '', rank: '', active: true, cegawebProfileKey: '' };
+const emptyState = {
+  profileKey: '',
+  username: '',
+  password: '',
+  distributorNumber: '',
+  codePays: '',
+  active: true
+};
 
 const DetailGrid = ({ rows }) => (
   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
@@ -18,17 +25,9 @@ const DetailGrid = ({ rows }) => (
   </div>
 );
 
-const toPayload = (state) => ({
-  name: state.name,
-  displayName: state.displayName,
-  rank: state.rank === '' ? null : Number(state.rank),
-  active: Boolean(state.active),
-  cegawebProfileKey: state.cegawebProfileKey ? String(state.cegawebProfileKey) : null
-});
-
 const Modal = ({ title, onClose, children }) => (
   <div className="modal-backdrop">
-    <div className="modal-surface">
+    <div className="modal-surface" style={{ gap: '0.75rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ fontWeight: 800 }}>{title}</div>
         <button type="button" onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: '18px', cursor: 'pointer', color: 'var(--text)' }}>×</button>
@@ -38,14 +37,13 @@ const Modal = ({ title, onClose, children }) => (
   </div>
 );
 
-export default function BillProvidersPage() {
+export default function CegawebProfilesPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(25);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
-  const [cegawebProfiles, setCegawebProfiles] = useState([]);
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
@@ -60,7 +58,7 @@ export default function BillProvidersPage() {
       const params = new URLSearchParams();
       params.set('page', String(page));
       params.set('size', String(size));
-      const res = await api.billProviders.list(params);
+      const res = await api.cegawebProfiles.list(params);
       const list = Array.isArray(res) ? res : res?.content || [];
       setRows(list || []);
     } catch (err) {
@@ -74,26 +72,13 @@ export default function BillProvidersPage() {
     fetchRows();
   }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    const loadProfiles = async () => {
-      try {
-        const res = await api.cegawebProfiles.list(new URLSearchParams({ page: '0', size: '200' }));
-        const list = Array.isArray(res) ? res : res?.content || [];
-        setCegawebProfiles(list || []);
-      } catch {
-        setCegawebProfiles([]);
-      }
-    };
-    loadProfiles();
-  }, []);
-
   const columns = useMemo(() => [
-    { key: 'id', label: 'ID' },
-    { key: 'name', label: 'Name' },
-    { key: 'displayName', label: 'Display' },
-    { key: 'cegawebProfileKey', label: 'CegaWeb profile' },
-    { key: 'rank', label: 'Rank' },
-    { key: 'active', label: 'Active' },
+    { key: 'profileKey', label: 'Profile key' },
+    { key: 'username', label: 'Username' },
+    { key: 'distributorNumber', label: 'Distributor #' },
+    { key: 'codePays', label: 'Code pays' },
+    { key: 'active', label: 'Active', render: (row) => (row.active ? 'Yes' : 'No') },
+    { key: 'createdAt', label: 'Created' },
     {
       key: 'actions',
       label: 'Actions',
@@ -101,6 +86,7 @@ export default function BillProvidersPage() {
         <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
           <button type="button" onClick={() => openDetail(row)} className="btn-neutral">View</button>
           <button type="button" onClick={() => openEdit(row)} className="btn-neutral">Edit</button>
+          <button type="button" onClick={() => toggleActive(row)} className="btn-neutral">{row.active ? 'Disable' : 'Enable'}</button>
           <button type="button" onClick={() => setConfirmDelete(row)} className="btn-danger">Delete</button>
         </div>
       )
@@ -117,11 +103,12 @@ export default function BillProvidersPage() {
   const openEdit = (row) => {
     setSelected(row);
     setDraft({
-      name: row.name ?? '',
-      displayName: row.displayName ?? '',
-      rank: row.rank ?? '',
-      active: Boolean(row.active),
-      cegawebProfileKey: row.cegawebProfileKey ?? ''
+      profileKey: row.profileKey ?? '',
+      username: row.username ?? '',
+      password: '',
+      distributorNumber: row.distributorNumber ?? '',
+      codePays: row.codePays ?? '',
+      active: Boolean(row.active)
     });
     setShowEdit(true);
     setInfo(null);
@@ -135,12 +122,46 @@ export default function BillProvidersPage() {
     setError(null);
   };
 
+  const validateDraft = ({ isEdit }) => {
+    if (!draft.profileKey.trim()) return 'Profile key is required.';
+    if (!draft.username.trim()) return 'Username is required.';
+    if (!isEdit && !draft.password.trim()) return 'Password is required for new profiles.';
+    if (!draft.distributorNumber.toString().trim()) return 'Distributor number is required.';
+    if (!draft.codePays.toString().trim()) return 'Code pays is required.';
+
+    const existingKey = rows.find((row) => row.profileKey === draft.profileKey.trim());
+    if (existingKey && (!isEdit || existingKey.id !== selected?.id)) {
+      return 'Profile key must be unique.';
+    }
+
+    return null;
+  };
+
+  const buildPayload = ({ includePassword }) => {
+    const payload = {
+      profileKey: draft.profileKey.trim(),
+      username: draft.username.trim(),
+      distributorNumber: draft.distributorNumber,
+      codePays: draft.codePays,
+      active: Boolean(draft.active)
+    };
+    if (includePassword) {
+      payload.password = draft.password;
+    }
+    return payload;
+  };
+
   const handleCreate = async () => {
+    const message = validateDraft({ isEdit: false });
+    if (message) {
+      setError(message);
+      return;
+    }
     setError(null);
     setInfo(null);
     try {
-      await api.billProviders.create(toPayload(draft));
-      setInfo('Created bill provider.');
+      await api.cegawebProfiles.create(buildPayload({ includePassword: true }));
+      setInfo('Created CegaWeb profile.');
       setShowCreate(false);
       fetchRows();
     } catch (err) {
@@ -150,11 +171,17 @@ export default function BillProvidersPage() {
 
   const handleUpdate = async () => {
     if (!selected?.id) return;
+    const message = validateDraft({ isEdit: true });
+    if (message) {
+      setError(message);
+      return;
+    }
     setError(null);
     setInfo(null);
     try {
-      await api.billProviders.update(selected.id, toPayload(draft));
-      setInfo(`Updated bill provider ${selected.id}.`);
+      const includePassword = Boolean(draft.password && draft.password.trim());
+      await api.cegawebProfiles.update(selected.id, buildPayload({ includePassword }));
+      setInfo(`Updated CegaWeb profile ${selected.id}.`);
       setShowEdit(false);
       fetchRows();
     } catch (err) {
@@ -168,8 +195,8 @@ export default function BillProvidersPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.billProviders.remove(id);
-      setInfo(`Deleted bill provider ${id}.`);
+      await api.cegawebProfiles.remove(id);
+      setInfo(`Deleted CegaWeb profile ${id}.`);
       setConfirmDelete(null);
       fetchRows();
     } catch (err) {
@@ -177,37 +204,77 @@ export default function BillProvidersPage() {
     }
   };
 
-  const renderForm = () => (
+  const toggleActive = async (row) => {
+    if (!row?.id) return;
+    setError(null);
+    setInfo(null);
+    try {
+      await api.cegawebProfiles.update(row.id, {
+        profileKey: row.profileKey,
+        username: row.username,
+        distributorNumber: row.distributorNumber,
+        codePays: row.codePays,
+        active: !row.active
+      });
+      setInfo(`${row.active ? 'Disabled' : 'Enabled'} ${row.profileKey}.`);
+      fetchRows();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const renderForm = ({ isEdit }) => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="name">Name</label>
-        <input id="name" value={draft.name} onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))} />
+        <label htmlFor="profileKey">Profile key</label>
+        <input
+          id="profileKey"
+          value={draft.profileKey}
+          onChange={(e) => setDraft((p) => ({ ...p, profileKey: e.target.value }))}
+          placeholder="CGA_RW"
+        />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="displayName">Display name</label>
-        <input id="displayName" value={draft.displayName} onChange={(e) => setDraft((p) => ({ ...p, displayName: e.target.value }))} />
+        <label htmlFor="username">Username</label>
+        <input
+          id="username"
+          value={draft.username}
+          onChange={(e) => setDraft((p) => ({ ...p, username: e.target.value }))}
+        />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="cegawebProfileKey">CegaWeb profile</label>
-        <select
-          id="cegawebProfileKey"
-          value={draft.cegawebProfileKey}
-          onChange={(e) => setDraft((p) => ({ ...p, cegawebProfileKey: e.target.value }))}
-        >
-          <option value="">No profile</option>
-          {cegawebProfiles.map((profile) => (
-            <option key={profile.id ?? profile.profileKey} value={profile.profileKey}>
-              {profile.profileKey}
-            </option>
-          ))}
-        </select>
+        <label htmlFor="password">Password{isEdit ? ' (leave blank to keep)' : ''}</label>
+        <input
+          id="password"
+          type="password"
+          value={draft.password}
+          onChange={(e) => setDraft((p) => ({ ...p, password: e.target.value }))}
+          placeholder={isEdit ? '••••••' : ''}
+        />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="rank">Rank</label>
-        <input id="rank" type="number" value={draft.rank} onChange={(e) => setDraft((p) => ({ ...p, rank: e.target.value }))} />
+        <label htmlFor="distributorNumber">Distributor number</label>
+        <input
+          id="distributorNumber"
+          value={draft.distributorNumber}
+          onChange={(e) => setDraft((p) => ({ ...p, distributorNumber: e.target.value }))}
+        />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="codePays">Code pays</label>
+        <input
+          id="codePays"
+          value={draft.codePays}
+          onChange={(e) => setDraft((p) => ({ ...p, codePays: e.target.value }))}
+        />
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-        <input id="active" type="checkbox" checked={draft.active} onChange={(e) => setDraft((p) => ({ ...p, active: e.target.checked }))} />
+        <input
+          id="active"
+          type="checkbox"
+          checked={draft.active}
+          onChange={(e) => setDraft((p) => ({ ...p, active: e.target.checked }))}
+        />
         <label htmlFor="active">Active</label>
       </div>
     </div>
@@ -217,8 +284,8 @@ export default function BillProvidersPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <div style={{ fontWeight: 800, fontSize: '20px' }}>Bill Providers</div>
-          <div style={{ color: 'var(--muted)' }}>Manage bill providers and ranking.</div>
+          <div style={{ fontWeight: 800, fontSize: '20px' }}>CegaWeb Profiles</div>
+          <div style={{ color: 'var(--muted)' }}>Manage Canal+ credentials per country.</div>
         </div>
         <Link href="/dashboard/bills" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
           ← Bills hub
@@ -234,31 +301,22 @@ export default function BillProvidersPage() {
           <label htmlFor="size">Size</label>
           <input id="size" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
         </div>
-        <button
-          type="button"
-          onClick={fetchRows}
-          disabled={loading}
-          style={{ padding: '0.65rem 0.95rem', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--accent)', color: '#fff' }}
-        >
+        <button type="button" onClick={fetchRows} disabled={loading} className="btn-primary">
           {loading ? 'Loading…' : 'Refresh'}
         </button>
-        <button
-          type="button"
-          onClick={openCreate}
-          style={{ padding: '0.65rem 0.95rem', borderRadius: '10px', border: '1px solid var(--border)', background: '#22c55e', color: '#fff' }}
-        >
-          Add provider
+        <button type="button" onClick={openCreate} className="btn-success">
+          Add profile
         </button>
       </div>
 
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
-      <DataTable columns={columns} rows={rows} emptyLabel="No bill providers found" />
+      <DataTable columns={columns} rows={rows} emptyLabel="No CegaWeb profiles found" />
 
       {showCreate && (
-        <Modal title="Add bill provider" onClose={() => setShowCreate(false)}>
-          {renderForm()}
+        <Modal title="Add CegaWeb profile" onClose={() => setShowCreate(false)}>
+          {renderForm({ isEdit: false })}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" onClick={() => setShowCreate(false)} style={{ padding: '0.65rem 0.95rem', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}>
               Cancel
@@ -271,8 +329,8 @@ export default function BillProvidersPage() {
       )}
 
       {showEdit && (
-        <Modal title={`Edit bill provider ${selected?.id}`} onClose={() => setShowEdit(false)}>
-          {renderForm()}
+        <Modal title={`Edit CegaWeb profile ${selected?.id}`} onClose={() => setShowEdit(false)}>
+          {renderForm({ isEdit: true })}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" onClick={() => setShowEdit(false)} style={{ padding: '0.65rem 0.95rem', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}>
               Cancel
@@ -289,10 +347,10 @@ export default function BillProvidersPage() {
           <DetailGrid
             rows={[
               { label: 'ID', value: selected?.id },
-              { label: 'Name', value: selected?.name },
-              { label: 'Display', value: selected?.displayName },
-              { label: 'CegaWeb profile', value: selected?.cegawebProfileKey || '—' },
-              { label: 'Rank', value: selected?.rank },
+              { label: 'Profile key', value: selected?.profileKey },
+              { label: 'Username', value: selected?.username },
+              { label: 'Distributor #', value: selected?.distributorNumber },
+              { label: 'Code pays', value: selected?.codePays },
               { label: 'Active', value: selected?.active ? 'Yes' : 'No' },
               { label: 'Created', value: selected?.createdAt },
               { label: 'Updated', value: selected?.updatedAt }
@@ -304,7 +362,7 @@ export default function BillProvidersPage() {
       {confirmDelete && (
         <Modal title="Confirm delete" onClose={() => setConfirmDelete(null)}>
           <div style={{ color: 'var(--muted)' }}>
-            Delete bill provider <strong>{confirmDelete.displayName || confirmDelete.name || confirmDelete.id}</strong>? This cannot be undone.
+            Delete CegaWeb profile <strong>{confirmDelete.profileKey || confirmDelete.id}</strong>? This cannot be undone.
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" onClick={() => setConfirmDelete(null)} style={{ padding: '0.65rem 0.95rem', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}>

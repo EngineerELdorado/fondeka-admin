@@ -5,14 +5,15 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
-const emptyState = { billProductId: '', billProviderId: '', rank: '', active: true, commissionPercentage: '' };
+const emptyState = { billProductId: '', billProviderId: '', rank: '', active: true, commissionPercentage: '', cegawebProfileKey: '' };
 
 const toPayload = (state) => ({
   billProductId: Number(state.billProductId) || 0,
   billProviderId: Number(state.billProviderId) || 0,
   rank: state.rank === '' ? null : Number(state.rank),
   commissionPercentage: state.commissionPercentage === '' ? null : Number(state.commissionPercentage),
-  active: Boolean(state.active)
+  active: Boolean(state.active),
+  cegawebProfileKey: state.cegawebProfileKey ? String(state.cegawebProfileKey) : null
 });
 
 const DetailGrid = ({ rows }) => (
@@ -32,6 +33,7 @@ export default function BillProductProvidersPage() {
   const [size, setSize] = useState(25);
   const [products, setProducts] = useState([]);
   const [providers, setProviders] = useState([]);
+  const [cegawebProfiles, setCegawebProfiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
@@ -67,14 +69,17 @@ export default function BillProductProvidersPage() {
   useEffect(() => {
     const loadOptions = async () => {
       try {
-        const [prodRes, provRes] = await Promise.all([
+        const [prodRes, provRes, profilesRes] = await Promise.all([
           api.billProducts.list(new URLSearchParams({ page: '0', size: '200' })),
-          api.billProviders.list(new URLSearchParams({ page: '0', size: '200' }))
+          api.billProviders.list(new URLSearchParams({ page: '0', size: '200' })),
+          api.cegawebProfiles.list(new URLSearchParams({ page: '0', size: '200' }))
         ]);
         const prodList = Array.isArray(prodRes) ? prodRes : prodRes?.content || [];
         const provList = Array.isArray(provRes) ? provRes : provRes?.content || [];
+        const profileList = Array.isArray(profilesRes) ? profilesRes : profilesRes?.content || [];
         setProducts(prodList);
         setProviders(provList);
+        setCegawebProfiles(profileList);
       } catch {
         // silent fail for option loading
       }
@@ -86,6 +91,7 @@ export default function BillProductProvidersPage() {
     { key: 'id', label: 'ID' },
     { key: 'billProductName', label: 'Product' },
     { key: 'billProviderName', label: 'Provider' },
+    { key: 'cegawebProfileKey', label: 'CegaWeb profile' },
     { key: 'rank', label: 'Rank' },
     {
       key: 'commissionPercentage',
@@ -120,7 +126,8 @@ export default function BillProductProvidersPage() {
       billProviderId: row.billProviderId ?? '',
       rank: row.rank ?? '',
       commissionPercentage: row.commissionPercentage ?? '',
-      active: Boolean(row.active)
+      active: Boolean(row.active),
+      cegawebProfileKey: row.cegawebProfileKey ?? ''
     });
     setShowEdit(true);
     setInfo(null);
@@ -204,6 +211,21 @@ export default function BillProductProvidersPage() {
           {providers.map((prov) => (
             <option key={prov.id} value={prov.id}>
               {prov.name || prov.displayName || prov.id}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="cegawebProfileKey">CegaWeb profile</label>
+        <select
+          id="cegawebProfileKey"
+          value={draft.cegawebProfileKey}
+          onChange={(e) => setDraft((prev) => ({ ...prev, cegawebProfileKey: e.target.value }))}
+        >
+          <option value="">Inherit provider</option>
+          {cegawebProfiles.map((profile) => (
+            <option key={profile.id ?? profile.profileKey} value={profile.profileKey}>
+              {profile.profileKey}
             </option>
           ))}
         </select>
@@ -328,6 +350,7 @@ export default function BillProductProvidersPage() {
                 { label: 'ID', value: selected?.id },
                 { label: 'Product', value: selected?.billProductName || selected?.billProductId },
                 { label: 'Provider', value: selected?.billProviderName || selected?.billProviderId },
+                { label: 'CegaWeb profile', value: selected?.cegawebProfileKey || '—' },
                 { label: 'Rank', value: selected?.rank },
                 { label: 'Commission (%)', value: selected?.commissionPercentage ?? '—' },
                 { label: 'Active', value: selected?.active ? 'Yes' : 'No' },
