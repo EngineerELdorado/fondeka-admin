@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
@@ -38,12 +38,16 @@ const initialFilters = {
   service: '',
   countryId: '',
   paymentMethodPaymentProviderId: '',
+  billProductBillProviderId: '',
+  billProductId: '',
+  billProviderId: '',
   paymentMethodId: '',
   paymentProviderId: ''
 };
 
 const emptyState = {
   paymentMethodPaymentProviderId: '',
+  billProductBillProviderId: '',
   countryId: '',
   service: '',
   action: '',
@@ -55,9 +59,16 @@ const emptyState = {
 };
 
 const resolveAction = (state) => (state.action === '__custom' ? state.customAction : state.action);
+const normalizeOptionalIdForForm = (value) => {
+  if (value === null || value === undefined || value === '') return '';
+  const num = Number(value);
+  if (Number.isNaN(num) || num <= 0) return '';
+  return String(num);
+};
 
 const toPayload = (state) => ({
   paymentMethodPaymentProviderId: state.paymentMethodPaymentProviderId === '' ? null : Number(state.paymentMethodPaymentProviderId),
+  billProductBillProviderId: state.billProductBillProviderId === '' ? null : Number(state.billProductBillProviderId),
   countryId: state.countryId === '' ? null : Number(state.countryId),
   service: state.service || null,
   action: resolveAction(state),
@@ -130,6 +141,9 @@ export default function FeeConfigsPage() {
   const [size, setSize] = useState(100);
   const [countries, setCountries] = useState([]);
   const [pmps, setPmps] = useState([]);
+  const [bpbps, setBpbps] = useState([]);
+  const [billProducts, setBillProducts] = useState([]);
+  const [billProviders, setBillProviders] = useState([]);
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [paymentProviders, setPaymentProviders] = useState([]);
   const [arrangeBy, setArrangeBy] = useState('action');
@@ -164,6 +178,15 @@ export default function FeeConfigsPage() {
         case 'paymentMethodPaymentProviderId':
           add(`PMPP: ${value}`, key);
           break;
+        case 'billProductBillProviderId':
+          add(`BPBP: ${value}`, key);
+          break;
+        case 'billProductId':
+          add(`Bill Product: ${value}`, key);
+          break;
+        case 'billProviderId':
+          add(`Bill Provider: ${value}`, key);
+          break;
         case 'paymentMethodId':
           add(`Method: ${value}`, key);
           break;
@@ -189,6 +212,9 @@ export default function FeeConfigsPage() {
         const numericKeys = [
           'countryId',
           'paymentMethodPaymentProviderId',
+          'billProductBillProviderId',
+          'billProductId',
+          'billProviderId',
           'paymentMethodId',
           'paymentProviderId'
         ];
@@ -216,17 +242,23 @@ export default function FeeConfigsPage() {
   useEffect(() => {
     const fetchOptions = async () => {
       try {
-        const [pmpRes, countryRes, pmRes, provRes] = await Promise.all([
+        const [pmpRes, countryRes, pmRes, provRes, bpbpRes, billProductRes, billProviderRes] = await Promise.all([
           api.paymentMethodPaymentProviders.list(new URLSearchParams({ page: '0', size: '200' })),
           api.countries.list(new URLSearchParams({ page: '0', size: '200' })),
           api.paymentMethods.list(new URLSearchParams({ page: '0', size: '200' })),
-          api.paymentProviders.list(new URLSearchParams({ page: '0', size: '200' }))
+          api.paymentProviders.list(new URLSearchParams({ page: '0', size: '200' })),
+          api.billProductBillProviders.list(new URLSearchParams({ page: '0', size: '200' })),
+          api.billProducts.list(new URLSearchParams({ page: '0', size: '200' })),
+          api.billProviders.list(new URLSearchParams({ page: '0', size: '200' }))
         ]);
         const toList = (res) => (Array.isArray(res) ? res : res?.content || []);
         setPmps(toList(pmpRes));
         setCountries(toList(countryRes));
         setPaymentMethods(toList(pmRes));
         setPaymentProviders(toList(provRes));
+        setBpbps(toList(bpbpRes));
+        setBillProducts(toList(billProductRes));
+        setBillProviders(toList(billProviderRes));
       } catch {
         // soft fail for options
       }
@@ -234,9 +266,9 @@ export default function FeeConfigsPage() {
     fetchOptions();
   }, []);
 
-  const getCountryLabel = (row) => row.countryName || row.country || row.countryCode || 'GLOBAL';
+  const getCountryLabel = useCallback((row) => row.countryName || row.country || row.countryCode || 'GLOBAL', []);
 
-  const getPmpLabel = (row) => {
+  const getPmpLabel = useCallback((row) => {
     if (!row?.paymentMethodPaymentProviderId) return 'GLOBAL';
     const match = pmps.find((p) => Number(p.id) === Number(row.paymentMethodPaymentProviderId));
     if (match) {
@@ -246,7 +278,17 @@ export default function FeeConfigsPage() {
     }
     const fallbackLabel = [row.paymentMethodName, row.paymentProviderName].filter(Boolean).join(' → ');
     return fallbackLabel ? `${fallbackLabel} (#${row.paymentMethodPaymentProviderId})` : `PMPP #${row.paymentMethodPaymentProviderId}`;
-  };
+  }, [pmps]);
+
+  const getBpbpLabel = useCallback((row) => {
+    if (!row?.billProductBillProviderId) return 'GLOBAL';
+    const match = bpbps.find((item) => Number(item.id) === Number(row.billProductBillProviderId));
+    if (match) {
+      return `${match.billProductName || 'Bill Product'} — ${match.billProviderName || 'Bill Provider'}`;
+    }
+    const fallbackLabel = [row.billProductName, row.billProviderName].filter(Boolean).join(' — ');
+    return fallbackLabel ? `${fallbackLabel} (#${row.billProductBillProviderId})` : `BPBP #${row.billProductBillProviderId}`;
+  }, [bpbps]);
 
   const sortedRows = useMemo(() => {
     const arr = [...rows];
@@ -263,9 +305,11 @@ export default function FeeConfigsPage() {
       arr.sort((a, b) => compare(getCountryLabel(a), getCountryLabel(b)));
     } else if (arrangeBy === 'pmp') {
       arr.sort((a, b) => compare(getPmpLabel(a), getPmpLabel(b)));
+    } else if (arrangeBy === 'bpbp') {
+      arr.sort((a, b) => compare(getBpbpLabel(a), getBpbpLabel(b)));
     }
     return arr;
-  }, [arrangeBy, rows, pmps]);
+  }, [arrangeBy, rows, getCountryLabel, getPmpLabel, getBpbpLabel]);
 
   const columns = useMemo(
     () => [
@@ -294,6 +338,19 @@ export default function FeeConfigsPage() {
           </div>
         )
       },
+      {
+        key: 'billProductBillProviderId',
+        label: 'BPBP scope',
+        render: (row) => (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+            <div>{getBpbpLabel(row)}</div>
+            <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', fontSize: '12px', color: 'var(--muted)' }}>
+              {row.billProductName && <span>Product: {row.billProductName}</span>}
+              {row.billProviderName && <span>Provider: {row.billProviderName}</span>}
+            </div>
+          </div>
+        )
+      },
       { key: 'providerFeePercentage', label: 'Provider %' },
       { key: 'providerFlatFee', label: 'Provider flat' },
       { key: 'ourFeePercentage', label: 'Our %' },
@@ -316,7 +373,7 @@ export default function FeeConfigsPage() {
         )
       }
     ],
-    [pmps]
+    [getCountryLabel, getPmpLabel, getBpbpLabel]
   );
 
   const openCreate = () => {
@@ -330,7 +387,8 @@ export default function FeeConfigsPage() {
     const actionChoice = actionOptions.includes(row.action) ? row.action : row.action ? '__custom' : '';
     setSelected(row);
     setDraft({
-      paymentMethodPaymentProviderId: row.paymentMethodPaymentProviderId ?? '',
+      paymentMethodPaymentProviderId: normalizeOptionalIdForForm(row.paymentMethodPaymentProviderId),
+      billProductBillProviderId: normalizeOptionalIdForForm(row.billProductBillProviderId),
       countryId: row.countryId ?? '',
       service: row.service ?? '',
       action: actionChoice,
@@ -356,6 +414,7 @@ export default function FeeConfigsPage() {
     const resolved = resolveAction(state);
     if (!resolved) return 'Action is required.';
     if (state.paymentMethodPaymentProviderId !== '' && Number(state.paymentMethodPaymentProviderId) < 0) return 'PMPP ID must be non-negative.';
+    if (state.billProductBillProviderId !== '' && Number(state.billProductBillProviderId) < 0) return 'BPBP ID must be non-negative.';
     if (state.countryId !== '' && Number(state.countryId) < 0) return 'Country ID must be non-negative.';
     if (state.service === '__custom') return 'Service value is invalid.';
     const numericFields = [
@@ -492,6 +551,22 @@ export default function FeeConfigsPage() {
         </select>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="billProductBillProviderId">Bill Product Bill Provider</label>
+        <select
+          id="billProductBillProviderId"
+          value={draft.billProductBillProviderId}
+          onChange={(e) => setDraft((p) => ({ ...p, billProductBillProviderId: e.target.value }))}
+        >
+          <option value="">Global (no BPBP)</option>
+          {bpbps.map((bpbp) => (
+            <option key={bpbp.id} value={bpbp.id}>
+              {(bpbp.billProductName || 'Bill Product')} — {(bpbp.billProviderName || 'Bill Provider')}
+              {bpbp.id ? ` #${bpbp.id}` : ''}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="providerFeePercentage">Provider %</label>
         <input
           id="providerFeePercentage"
@@ -527,7 +602,7 @@ export default function FeeConfigsPage() {
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <div style={{ fontWeight: 800, fontSize: '20px' }}>Fee Configs</div>
-          <div style={{ color: 'var(--muted)' }}>Configure fees per action and method/provider mapping.</div>
+          <div style={{ color: 'var(--muted)' }}>Configure fees per action with PMPP or Bill Product/Provider mapping scope.</div>
         </div>
         <Link href="/dashboard/payments" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
           ← Payments hub
@@ -553,6 +628,7 @@ export default function FeeConfigsPage() {
             <option value="service">Service</option>
             <option value="country">Country</option>
             <option value="pmp">PMPP</option>
+            <option value="bpbp">BPBP</option>
           </select>
         </div>
       </div>
@@ -633,12 +709,34 @@ export default function FeeConfigsPage() {
             </select>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="filterBillProduct">Bill Product</label>
+            <select id="filterBillProduct" value={filters.billProductId} onChange={(e) => setFilters((p) => ({ ...p, billProductId: e.target.value }))}>
+              <option value="">All</option>
+              {billProducts.map((product) => (
+                <option key={product.id} value={product.id}>
+                  {product.displayName || product.name || product.id}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="filterPaymentProvider">Payment Provider</label>
             <select id="filterPaymentProvider" value={filters.paymentProviderId} onChange={(e) => setFilters((p) => ({ ...p, paymentProviderId: e.target.value }))}>
               <option value="">All</option>
               {paymentProviders.map((prov) => (
                 <option key={prov.id} value={prov.id}>
                   {prov.name || prov.displayName || prov.id}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="filterBillProvider">Bill Provider</label>
+            <select id="filterBillProvider" value={filters.billProviderId} onChange={(e) => setFilters((p) => ({ ...p, billProviderId: e.target.value }))}>
+              <option value="">All</option>
+              {billProviders.map((provider) => (
+                <option key={provider.id} value={provider.id}>
+                  {provider.name || provider.displayName || provider.id}
                 </option>
               ))}
             </select>
@@ -654,6 +752,21 @@ export default function FeeConfigsPage() {
               {pmps.map((pmp) => (
                 <option key={pmp.id} value={pmp.id}>
                   {pmp.paymentMethodName || pmp.paymentMethodDisplayName || 'Method'} → {pmp.paymentProviderName || 'Provider'}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="filterBpbp">Bill Product Bill Provider</label>
+            <select
+              id="filterBpbp"
+              value={filters.billProductBillProviderId}
+              onChange={(e) => setFilters((p) => ({ ...p, billProductBillProviderId: e.target.value }))}
+            >
+              <option value="">All</option>
+              {bpbps.map((bpbp) => (
+                <option key={bpbp.id} value={bpbp.id}>
+                  {(bpbp.billProductName || 'Bill Product')} — {(bpbp.billProviderName || 'Bill Provider')}
                 </option>
               ))}
             </select>
@@ -736,6 +849,7 @@ export default function FeeConfigsPage() {
             rows={[
               { label: 'ID', value: selected?.id },
               { label: 'Method/Provider', value: getPmpLabel(selected || {}) },
+              { label: 'Bill Product/Provider', value: getBpbpLabel(selected || {}) },
               { label: 'Country', value: getCountryLabel(selected || {}) },
               { label: 'Service', value: selected?.service || 'ALL' },
               { label: 'Action', value: selected?.action },

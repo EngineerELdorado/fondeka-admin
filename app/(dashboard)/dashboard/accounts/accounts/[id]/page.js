@@ -32,6 +32,44 @@ const DetailGrid = ({ rows }) => (
   </div>
 );
 
+const MultiSelect = ({ label, options, values, onChange, helperText }) => (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+    <div style={{ fontWeight: 600 }}>{label}</div>
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+        gap: '0.35rem',
+        maxHeight: '220px',
+        overflow: 'auto',
+        padding: '0.4rem',
+        border: `1px solid var(--border)`,
+        borderRadius: '10px',
+        background: 'var(--panel, transparent)'
+      }}
+    >
+      {options.map((option) => (
+        <label key={option} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '13px' }}>
+          <input
+            type="checkbox"
+            checked={values.includes(option)}
+            onChange={(e) => {
+              const checked = e.target.checked;
+              if (checked) {
+                onChange([...values, option]);
+              } else {
+                onChange(values.filter((value) => value !== option));
+              }
+            }}
+          />
+          <span>{option}</span>
+        </label>
+      ))}
+    </div>
+    {helperText ? <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{helperText}</div> : null}
+  </div>
+);
+
 const Badge = ({ children }) => (
   <span
     style={{
@@ -113,6 +151,76 @@ const createEmptyCardholderForm = () => ({
   }
 });
 
+const paymentMethodActionRuleOptions = [
+  'FUND_WALLET',
+  'WITHDRAW_FROM_WALLET',
+  'REFUND_TO_WALLET',
+  'BONUS',
+  'MANUAL_ADJUSTMENT',
+  'PAY_INTERNET_BILL',
+  'PAY_TV_SUBSCRIPTION',
+  'PAY_ELECTRICITY_BILL',
+  'PAY_WATER_BILL',
+  'LOAN_REQUEST',
+  'LOAN_DISBURSEMENT',
+  'REPAY_LOAN',
+  'FUND_CARD',
+  'WITHDRAW_FROM_CARD',
+  'BUY_CARD',
+  'CARD_ONLINE_PAYMENT',
+  'CARD_MAINTENANCE',
+  'BUY_CRYPTO',
+  'SELL_CRYPTO',
+  'RECEIVE_CRYPTO',
+  'SEND_CRYPTO',
+  'SWAP_CRYPTO',
+  'REQUEST_PAYMENT',
+  'PAY_REQUEST',
+  'SETTLEMENT',
+  'E_SIM_PURCHASE',
+  'E_SIM_TOPUP',
+  'SEND_AIRTIME',
+  'SEND_DATA_BUNDLES',
+  'BUY_GIFT_CARD',
+  'PAY_NETFLIX',
+  'INTER_TRANSFER',
+  'OTHER'
+].sort();
+
+const paymentMethodTypeRuleOptions = ['MOBILE_MONEY', 'CRYPTO', 'BALANCE', 'CREDIT', 'AIRTIME', 'BANK'];
+
+const paymentMethodNameRuleOptions = [
+  'MPESA_DRC',
+  'AIRTEL_MONEY_DRC',
+  'ORANGE_MONEY_DRC',
+  'AFRIMONEY_DRC',
+  'BTC',
+  'ETH',
+  'USDT',
+  'OTHER_CRYPTOS',
+  'FONDEKA',
+  'BANK',
+  'CARD',
+  'APPLE_PAY_OR_GOOGLE_PAY',
+  'PAYPAL',
+  'EQUITY_DRC',
+  'BTC_LIGHTENING',
+  'VODACOM_DRC',
+  'AIRTEL_DRC',
+  'ORANGE_DRC',
+  'AFRICELL_DRC',
+  'STABLECOINS',
+  'USDC',
+  'BNB',
+  'SOL',
+  'EURC',
+  'INT_EURO_BANK_ACCOUNT',
+  'INT_USD_BANK_ACCOUNT',
+  'FONDEKA_BALANCE',
+  'PAY_LATER',
+  'AIRTIME_TOPUP'
+].sort();
+
 export default function AccountDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -174,6 +282,20 @@ const [notificationDataModal, setNotificationDataModal] = useState(null);
   const [feeOurPct, setFeeOurPct] = useState('');
   const [feeOurFlat, setFeeOurFlat] = useState('');
   const [feeSaving, setFeeSaving] = useState(false);
+  const [paymentMethodActionConfigs, setPaymentMethodActionConfigs] = useState([]);
+  const [paymentMethodActionConfigsLoading, setPaymentMethodActionConfigsLoading] = useState(false);
+  const [paymentMethodActionConfigsError, setPaymentMethodActionConfigsError] = useState(null);
+  const [showPaymentMethodActionForm, setShowPaymentMethodActionForm] = useState(false);
+  const [paymentMethodActionFormId, setPaymentMethodActionFormId] = useState(null);
+  const [paymentMethodAction, setPaymentMethodAction] = useState('');
+  const [paymentMethodCountryCode, setPaymentMethodCountryCode] = useState('');
+  const [paymentMethodIncludeTypes, setPaymentMethodIncludeTypes] = useState([]);
+  const [paymentMethodExcludeTypes, setPaymentMethodExcludeTypes] = useState([]);
+  const [paymentMethodIncludeNames, setPaymentMethodIncludeNames] = useState([]);
+  const [paymentMethodExcludeNames, setPaymentMethodExcludeNames] = useState([]);
+  const [paymentMethodActive, setPaymentMethodActive] = useState(true);
+  const [paymentMethodRank, setPaymentMethodRank] = useState(0);
+  const [paymentMethodActionSaving, setPaymentMethodActionSaving] = useState(false);
   const [cardProductCardProviders, setCardProductCardProviders] = useState([]);
   const [showCardPriceForm, setShowCardPriceForm] = useState(false);
   const [cardPrices, setCardPrices] = useState([]);
@@ -259,6 +381,20 @@ const [loanEligibility, setLoanEligibility] = useState(null);
 const [loanEligibilityLoading, setLoanEligibilityLoading] = useState(false);
 const [loanEligibilityError, setLoanEligibilityError] = useState(null);
 
+  const paymentMethodTypeConflicts = useMemo(
+    () => paymentMethodIncludeTypes.filter((type) => paymentMethodExcludeTypes.includes(type)),
+    [paymentMethodIncludeTypes, paymentMethodExcludeTypes]
+  );
+  const paymentMethodNameConflicts = useMemo(
+    () => paymentMethodIncludeNames.filter((name) => paymentMethodExcludeNames.includes(name)),
+    [paymentMethodIncludeNames, paymentMethodExcludeNames]
+  );
+  const paymentMethodCountryCodeValid = useMemo(
+    () => !paymentMethodCountryCode || /^[A-Z]{2,4}$/.test(paymentMethodCountryCode),
+    [paymentMethodCountryCode]
+  );
+  const canSavePaymentMethodRule = paymentMethodTypeConflicts.length === 0 && paymentMethodNameConflicts.length === 0 && paymentMethodCountryCodeValid;
+
   const actionOptions = [
     'BUY_CARD',
     'BUY_CRYPTO',
@@ -300,6 +436,7 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
       await loadLoanEligibility(targetId);
       await loadKycCap(acc?.kycLevel);
       await loadFeeConfigs(targetId);
+      await loadPaymentMethodActionConfigs(targetId);
       await loadCardPrices(targetId);
       await loadLoanRates(targetId);
       await loadCryptoRates(targetId);
@@ -390,6 +527,23 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
       setFeeConfigsError(err.message || 'Failed to load fee overrides');
     } finally {
       setFeeConfigsLoading(false);
+    }
+  };
+
+  const loadPaymentMethodActionConfigs = async (id) => {
+    if (!id && id !== 0) return;
+    setPaymentMethodActionConfigsLoading(true);
+    setPaymentMethodActionConfigsError(null);
+    try {
+      const params = new URLSearchParams({ accountId: String(id), page: '0', size: '200' });
+      const res = await api.paymentMethodActionConfigs.list(params);
+      const list = Array.isArray(res) ? res : res?.content || [];
+      setPaymentMethodActionConfigs(list || []);
+    } catch (err) {
+      setPaymentMethodActionConfigs([]);
+      setPaymentMethodActionConfigsError(err.message || 'Failed to load payment method rules');
+    } finally {
+      setPaymentMethodActionConfigsLoading(false);
     }
   };
 
@@ -1098,6 +1252,95 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
     });
   };
 
+  const openPaymentMethodActionForm = (rule) => {
+    setPaymentMethodActionConfigsError(null);
+    setPaymentMethodActionFormId(rule?.id || null);
+    setPaymentMethodAction(rule?.action || '');
+    setPaymentMethodCountryCode(rule?.countryCode || '');
+    setPaymentMethodIncludeTypes(Array.isArray(rule?.includeTypes) ? rule.includeTypes : []);
+    setPaymentMethodExcludeTypes(Array.isArray(rule?.excludeTypes) ? rule.excludeTypes : []);
+    setPaymentMethodIncludeNames(Array.isArray(rule?.includeNames) ? rule.includeNames : []);
+    setPaymentMethodExcludeNames(Array.isArray(rule?.excludeNames) ? rule.excludeNames : []);
+    setPaymentMethodActive(Boolean(rule?.active ?? true));
+    setPaymentMethodRank(rule?.rank ?? 0);
+    setShowPaymentMethodActionForm(true);
+  };
+
+  const resetPaymentMethodActionForm = () => {
+    setPaymentMethodActionFormId(null);
+    setPaymentMethodAction('');
+    setPaymentMethodCountryCode('');
+    setPaymentMethodIncludeTypes([]);
+    setPaymentMethodExcludeTypes([]);
+    setPaymentMethodIncludeNames([]);
+    setPaymentMethodExcludeNames([]);
+    setPaymentMethodActive(true);
+    setPaymentMethodRank(0);
+  };
+
+  const submitPaymentMethodActionForm = async () => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) {
+      setPaymentMethodActionConfigsError('No account loaded');
+      return;
+    }
+    if (!canSavePaymentMethodRule) {
+      setPaymentMethodActionConfigsError('Resolve include/exclude conflicts before saving');
+      return;
+    }
+    setPaymentMethodActionSaving(true);
+    setPaymentMethodActionConfigsError(null);
+    const payload = {
+      accountId: resolvedAccountId,
+      action: paymentMethodAction || null,
+      countryCode: paymentMethodCountryCode ? paymentMethodCountryCode.toUpperCase() : null,
+      includeTypes: paymentMethodIncludeTypes.length ? paymentMethodIncludeTypes : null,
+      excludeTypes: paymentMethodExcludeTypes.length ? paymentMethodExcludeTypes : null,
+      includeNames: paymentMethodIncludeNames.length ? paymentMethodIncludeNames : null,
+      excludeNames: paymentMethodExcludeNames.length ? paymentMethodExcludeNames : null,
+      active: Boolean(paymentMethodActive),
+      rank: paymentMethodRank === '' ? 0 : Number(paymentMethodRank)
+    };
+    try {
+      if (paymentMethodActionFormId) {
+        await api.paymentMethodActionConfigs.update(paymentMethodActionFormId, payload);
+        pushToast({ tone: 'success', message: 'Payment method rule updated' });
+      } else {
+        await api.paymentMethodActionConfigs.create(payload);
+        pushToast({ tone: 'success', message: 'Payment method rule added' });
+      }
+      resetPaymentMethodActionForm();
+      setShowPaymentMethodActionForm(false);
+      await loadPaymentMethodActionConfigs(resolvedAccountId);
+    } catch (err) {
+      const message = err.message || 'Failed to save payment method rule';
+      setPaymentMethodActionConfigsError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setPaymentMethodActionSaving(false);
+    }
+  };
+
+  const deletePaymentMethodActionRule = (rule) => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined || !rule?.id) return;
+    openConfirm({
+      title: 'Delete payment method rule',
+      message: `Delete payment method rule ${rule.id}?`,
+      onConfirm: async () => {
+        setPaymentMethodActionConfigsError(null);
+        try {
+          await api.paymentMethodActionConfigs.remove(rule.id);
+          pushToast({ tone: 'success', message: 'Payment method rule deleted' });
+          await loadPaymentMethodActionConfigs(resolvedAccountId);
+        } catch (err) {
+          const message = err.message || 'Failed to delete payment method rule';
+          setPaymentMethodActionConfigsError(message);
+          pushToast({ tone: 'error', message });
+          throw err;
+        }
+      }
+    });
+  };
+
   const openCardPriceForm = (override) => {
     setCardPricesError(null);
     setCardPriceFormId(override?.id || null);
@@ -1464,7 +1707,7 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
                 `Account ${accountId}`}
             </div>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-              <span style={{ color: 'var(--muted)' }}>Detailed view with custom KYC caps and fee overrides.</span>
+              <span style={{ color: 'var(--muted)' }}>Detailed view with custom KYC caps, fee overrides, and payment method rules.</span>
               {accountView?.id !== undefined && (
                 <Badge>Account ID: {accountView.id}</Badge>
               )}
@@ -1896,6 +2139,90 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
                           Edit
                         </button>
                         <button type="button" className="btn-danger btn-sm" onClick={() => deleteFee(fee)}>
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="card" style={{ padding: '1rem', ...fadeInStyle(!paymentMethodActionConfigsLoading) }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+            <div style={{ fontWeight: 800 }}>Custom Payment Method Rules</div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Account-level overrides for payment method filtering. If none exist, global defaults apply.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button type="button" className="btn-neutral btn-sm" onClick={() => loadPaymentMethodActionConfigs(resolvedAccountId)} disabled={paymentMethodActionConfigsLoading}>
+              {paymentMethodActionConfigsLoading ? 'Loading…' : 'Reload'}
+            </button>
+            <button
+              type="button"
+              className="btn-primary btn-sm"
+              onClick={() => {
+                resetPaymentMethodActionForm();
+                setShowPaymentMethodActionForm(true);
+              }}
+            >
+              Add custom rule
+            </button>
+          </div>
+        </div>
+
+        <div style={{ marginTop: '0.75rem', display: 'grid', gap: '0.75rem' }}>
+          <div
+            style={{
+              border: '1px solid var(--border)',
+              borderRadius: '10px',
+              padding: '0.75rem',
+              background: paymentMethodActionConfigs.length ? '#ecfdf3' : '#eff6ff',
+              color: paymentMethodActionConfigs.length ? '#166534' : '#1d4ed8',
+              fontWeight: 700
+            }}
+          >
+            {paymentMethodActionConfigs.length ? 'Custom rules active for this account' : 'Using global defaults'}
+          </div>
+          {paymentMethodActionConfigsError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{paymentMethodActionConfigsError}</div>}
+          {paymentMethodActionConfigsLoading && <div style={{ color: 'var(--muted)' }}>Loading payment method rules…</div>}
+          {!paymentMethodActionConfigsLoading && paymentMethodActionConfigs.length === 0 && (
+            <div style={{ color: 'var(--muted)' }}>No custom payment method rules.</div>
+          )}
+          {!paymentMethodActionConfigsLoading && paymentMethodActionConfigs.length > 0 && (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '980px' }}>
+                <thead>
+                  <tr>
+                    {['Action', 'Country', 'Rank', 'Active', 'Include Types', 'Exclude Types', 'Include Names', 'Exclude Names', 'Updated', ''].map((h) => (
+                      <th key={h} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {paymentMethodActionConfigs.map((rule) => (
+                    <tr key={rule.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '0.45rem' }}>{rule.action || '—'}</td>
+                      <td style={{ padding: '0.45rem' }}>{rule.countryCode || '—'}</td>
+                      <td style={{ padding: '0.45rem' }}>{rule.rank ?? 0}</td>
+                      <td style={{ padding: '0.45rem' }}>{rule.active ? 'Yes' : 'No'}</td>
+                      <td style={{ padding: '0.45rem' }}>{Array.isArray(rule.includeTypes) && rule.includeTypes.length ? rule.includeTypes.join(', ') : '—'}</td>
+                      <td style={{ padding: '0.45rem' }}>{Array.isArray(rule.excludeTypes) && rule.excludeTypes.length ? rule.excludeTypes.join(', ') : '—'}</td>
+                      <td style={{ padding: '0.45rem' }}>{Array.isArray(rule.includeNames) && rule.includeNames.length ? rule.includeNames.join(', ') : '—'}</td>
+                      <td style={{ padding: '0.45rem' }}>{Array.isArray(rule.excludeNames) && rule.excludeNames.length ? rule.excludeNames.join(', ') : '—'}</td>
+                      <td style={{ padding: '0.45rem' }}>{rule.updatedAt ? formatDateTime(rule.updatedAt) : '—'}</td>
+                      <td style={{ padding: '0.45rem', display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                        <button type="button" className="btn-neutral btn-sm" onClick={() => openPaymentMethodActionForm(rule)}>
+                          Edit
+                        </button>
+                        <button type="button" className="btn-danger btn-sm" onClick={() => deletePaymentMethodActionRule(rule)}>
                           Delete
                         </button>
                       </td>
@@ -3057,6 +3384,119 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
               </button>
               <button type="button" className="btn-primary" onClick={submitFeeForm} disabled={feeSaving}>
                 {feeSaving ? 'Saving…' : feeFormId ? 'Update' : 'Add'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showPaymentMethodActionForm && (
+        <Modal title={`${paymentMethodActionFormId ? 'Edit' : 'Add'} payment method rule`} onClose={() => (!paymentMethodActionSaving ? setShowPaymentMethodActionForm(false) : null)}>
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            {paymentMethodActionConfigsError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{paymentMethodActionConfigsError}</div>}
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Saving as account override for account <strong>#{resolvedAccountId ?? '—'}</strong>.
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="paymentMethodRuleAction">Action</label>
+                <select id="paymentMethodRuleAction" value={paymentMethodAction} onChange={(e) => setPaymentMethodAction(e.target.value)}>
+                  <option value="">Global (all actions)</option>
+                  {paymentMethodActionRuleOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="paymentMethodRuleCountry">Country code</label>
+                <input
+                  id="paymentMethodRuleCountry"
+                  value={paymentMethodCountryCode}
+                  onChange={(e) => setPaymentMethodCountryCode(e.target.value.toUpperCase())}
+                  placeholder="CD"
+                />
+                <div style={{ fontSize: '12px', color: paymentMethodCountryCodeValid ? 'var(--muted)' : '#b91c1c' }}>
+                  {paymentMethodCountryCodeValid ? 'Optional. 2-4 uppercase letters.' : 'Invalid country code.'}
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="paymentMethodRuleRank">Rank</label>
+                <input
+                  id="paymentMethodRuleRank"
+                  type="number"
+                  value={paymentMethodRank}
+                  onChange={(e) => setPaymentMethodRank(e.target.value)}
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <input
+                  id="paymentMethodRuleActive"
+                  type="checkbox"
+                  checked={paymentMethodActive}
+                  onChange={(e) => setPaymentMethodActive(e.target.checked)}
+                />
+                <label htmlFor="paymentMethodRuleActive">Active</label>
+              </div>
+            </div>
+
+            <MultiSelect
+              label="Include Types"
+              options={paymentMethodTypeRuleOptions}
+              values={paymentMethodIncludeTypes}
+              onChange={setPaymentMethodIncludeTypes}
+              helperText={paymentMethodIncludeTypes.length ? 'Only these types are allowed.' : 'Leave empty for no type restriction.'}
+            />
+            <MultiSelect
+              label="Exclude Types"
+              options={paymentMethodTypeRuleOptions}
+              values={paymentMethodExcludeTypes}
+              onChange={setPaymentMethodExcludeTypes}
+              helperText="Excluded types are always removed."
+            />
+            {paymentMethodTypeConflicts.length > 0 && (
+              <div style={{ color: '#b91c1c', fontSize: '12px' }}>
+                Include/exclude type conflicts: {paymentMethodTypeConflicts.join(', ')}
+              </div>
+            )}
+
+            <MultiSelect
+              label="Include Names"
+              options={paymentMethodNameRuleOptions}
+              values={paymentMethodIncludeNames}
+              onChange={setPaymentMethodIncludeNames}
+              helperText={paymentMethodIncludeNames.length ? 'Only these names are allowed.' : 'Leave empty for no name restriction.'}
+            />
+            <MultiSelect
+              label="Exclude Names"
+              options={paymentMethodNameRuleOptions}
+              values={paymentMethodExcludeNames}
+              onChange={setPaymentMethodExcludeNames}
+              helperText="Excluded names are always removed."
+            />
+            {paymentMethodNameConflicts.length > 0 && (
+              <div style={{ color: '#b91c1c', fontSize: '12px' }}>
+                Include/exclude name conflicts: {paymentMethodNameConflicts.join(', ')}
+              </div>
+            )}
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn-neutral"
+                onClick={() => {
+                  if (!paymentMethodActionSaving) {
+                    resetPaymentMethodActionForm();
+                    setShowPaymentMethodActionForm(false);
+                  }
+                }}
+                disabled={paymentMethodActionSaving}
+              >
+                Cancel
+              </button>
+              <button type="button" className="btn-primary" onClick={submitPaymentMethodActionForm} disabled={paymentMethodActionSaving || !canSavePaymentMethodRule}>
+                {paymentMethodActionSaving ? 'Saving…' : paymentMethodActionFormId ? 'Update' : 'Add'}
               </button>
             </div>
           </div>

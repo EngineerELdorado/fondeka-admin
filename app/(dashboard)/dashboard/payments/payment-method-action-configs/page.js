@@ -76,6 +76,7 @@ const paymentMethodNameOptions = [
 ].sort();
 
 const emptyState = {
+  accountId: '',
   action: '',
   countryCode: '',
   includeTypes: [],
@@ -89,6 +90,7 @@ const emptyState = {
 const normalizeList = (list) => (Array.isArray(list) && list.length ? list : null);
 
 const toPayload = (state) => ({
+  accountId: state.accountId === '' ? null : Number(state.accountId),
   action: state.action || null,
   countryCode: state.countryCode ? state.countryCode.toUpperCase() : null,
   includeTypes: normalizeList(state.includeTypes),
@@ -100,6 +102,7 @@ const toPayload = (state) => ({
 });
 
 const toDraftFromRow = (row) => ({
+  accountId: row.accountId === null || row.accountId === undefined || Number(row.accountId) <= 0 ? '' : String(row.accountId),
   action: row.action ?? '',
   countryCode: row.countryCode ?? '',
   includeTypes: Array.isArray(row.includeTypes) ? row.includeTypes : [],
@@ -121,6 +124,7 @@ const resolveScope = (row) => {
   if (row.countryCode) return 'Country only';
   return 'Global';
 };
+const resolveOwnerLabel = (row) => (row.accountId ? `Account #${row.accountId}` : 'Global default');
 
 const formatList = (list) => (Array.isArray(list) && list.length ? list.join(', ') : '—');
 
@@ -196,6 +200,9 @@ const MultiSelect = ({ label, options, values, onChange, helperText }) => (
 
 export default function PaymentMethodActionConfigsPage() {
   const [rows, setRows] = useState([]);
+  const [accounts, setAccounts] = useState([]);
+  const [viewMode, setViewMode] = useState('global');
+  const [selectedAccountId, setSelectedAccountId] = useState('');
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(50);
   const [arrangeBy, setArrangeBy] = useState('rank');
@@ -227,19 +234,30 @@ export default function PaymentMethodActionConfigsPage() {
   const canSave = typeConflicts.length === 0 && nameConflicts.length === 0 && countryCodeValid;
 
   const fetchRows = async () => {
+    if (viewMode === 'account' && !selectedAccountId) {
+      setRows([]);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams();
       params.set('page', String(page));
       params.set('size', String(size));
+      if (viewMode === 'account' && selectedAccountId) {
+        params.set('accountId', String(Number(selectedAccountId)));
+      }
       Object.entries(appliedFilters).forEach(([key, value]) => {
         if (value === '' || value === null || value === undefined) return;
         params.set(key, String(value));
       });
       const res = await api.paymentMethodActionConfigs.list(params);
       const list = Array.isArray(res) ? res : res?.content || [];
-      setRows(list || []);
+      if (viewMode === 'global') {
+        setRows((list || []).filter((item) => item?.accountId === null || item?.accountId === undefined));
+      } else {
+        setRows((list || []).filter((item) => Number(item?.accountId) === Number(selectedAccountId)));
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -249,10 +267,24 @@ export default function PaymentMethodActionConfigsPage() {
 
   useEffect(() => {
     fetchRows();
-  }, [page, size, appliedFilters]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [page, size, appliedFilters, viewMode, selectedAccountId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const columns = useMemo(() => [
+  useEffect(() => {
+    const loadAccounts = async () => {
+      try {
+        const res = await api.accounts.list(new URLSearchParams({ page: '0', size: '200' }));
+        const list = Array.isArray(res) ? res : res?.content || [];
+        setAccounts(list || []);
+      } catch {
+        // soft fail for account selector
+      }
+    };
+    loadAccounts();
+  }, []);
+
+  const columns = [
     { key: 'id', label: 'ID' },
+    { key: 'owner', label: 'Owner', render: (row) => resolveOwnerLabel(row) },
     { key: 'scope', label: 'Scope', render: (row) => resolveScope(row) },
     { key: 'action', label: 'Action', render: (row) => row.action || '—' },
     { key: 'countryCode', label: 'Country', render: (row) => row.countryCode || '—' },
@@ -275,7 +307,7 @@ export default function PaymentMethodActionConfigsPage() {
         </div>
       )
     }
-  ], []);
+  ];
 
   const sortedRows = useMemo(() => {
     const arr = [...rows];
@@ -294,7 +326,10 @@ export default function PaymentMethodActionConfigsPage() {
   }, [rows, arrangeBy]);
 
   const openCreate = () => {
-    setDraft(emptyState);
+    setDraft({
+      ...emptyState,
+      accountId: viewMode === 'account' ? selectedAccountId : ''
+    });
     setShowCreate(true);
     setInfo(null);
     setError(null);
@@ -329,11 +364,19 @@ export default function PaymentMethodActionConfigsPage() {
 
   const handleCreate = async () => {
     if (!canSave) return;
+    if (viewMode === 'account' && !selectedAccountId) {
+      setError('Select an account before creating an account override.');
+      return;
+    }
     if (!confirmScope()) return;
     setError(null);
     setInfo(null);
     try {
-      await api.paymentMethodActionConfigs.create(toPayload(draft));
+      const payload = toPayload({
+        ...draft,
+        accountId: viewMode === 'account' ? selectedAccountId : draft.accountId
+      });
+      await api.paymentMethodActionConfigs.create(payload);
       setInfo('Created payment method action config.');
       setShowCreate(false);
       fetchRows();
@@ -344,11 +387,19 @@ export default function PaymentMethodActionConfigsPage() {
 
   const handleUpdate = async () => {
     if (!selected?.id || !canSave) return;
+    if (viewMode === 'account' && !selectedAccountId) {
+      setError('Select an account before updating an account override.');
+      return;
+    }
     if (!confirmScope()) return;
     setError(null);
     setInfo(null);
     try {
-      await api.paymentMethodActionConfigs.update(selected.id, toPayload(draft));
+      const payload = toPayload({
+        ...draft,
+        accountId: viewMode === 'account' ? selectedAccountId : draft.accountId
+      });
+      await api.paymentMethodActionConfigs.update(selected.id, payload);
       setInfo(`Updated action config ${selected.id}.`);
       setShowEdit(false);
       fetchRows();
@@ -388,6 +439,11 @@ export default function PaymentMethodActionConfigsPage() {
 
   const renderForm = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+      <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+        {viewMode === 'account'
+          ? `Rule target: Account #${selectedAccountId || draft.accountId || '—'} (custom override)`
+          : 'Rule target: Global default'}
+      </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="action">Action</label>
@@ -500,6 +556,28 @@ export default function PaymentMethodActionConfigsPage() {
       </div>
 
       <div className="card" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <button
+            type="button"
+            className={viewMode === 'global' ? 'btn-primary' : 'btn-neutral'}
+            onClick={() => {
+              setViewMode('global');
+              setPage(0);
+            }}
+          >
+            Global Rules
+          </button>
+          <button
+            type="button"
+            className={viewMode === 'account' ? 'btn-primary' : 'btn-neutral'}
+            onClick={() => {
+              setViewMode('account');
+              setPage(0);
+            }}
+          >
+            Account Overrides
+          </button>
+        </div>
         <div>
           <label htmlFor="page">Page</label>
           <input id="page" type="number" min={0} value={page} onChange={(e) => setPage(Number(e.target.value))} />
@@ -518,9 +596,69 @@ export default function PaymentMethodActionConfigsPage() {
             <option value="active">Active</option>
           </select>
         </div>
-        <button type="button" className="btn-neutral" onClick={fetchRows} disabled={loading}>Refresh</button>
-        <button type="button" className="btn-primary" onClick={openCreate}>Add rule</button>
+        <button type="button" className="btn-neutral" onClick={fetchRows} disabled={loading || (viewMode === 'account' && !selectedAccountId)}>Refresh</button>
+        <button type="button" className="btn-primary" onClick={openCreate} disabled={viewMode === 'account' && !selectedAccountId}>Add rule</button>
       </div>
+
+      {viewMode === 'account' ? (
+        <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="selectedAccountId">Account</label>
+              <select
+                id="selectedAccountId"
+                value={selectedAccountId}
+                onChange={(e) => {
+                  setSelectedAccountId(e.target.value);
+                  setPage(0);
+                }}
+              >
+                <option value="">Select account</option>
+                {accounts.map((account) => (
+                  <option key={account.id || account.accountId} value={account.id || account.accountId}>
+                    #{account.id || account.accountId}
+                    {account.username ? ` - ${account.username}` : account.fullName ? ` - ${account.fullName}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="selectedAccountIdManual">Or Account ID (manual)</label>
+              <input
+                id="selectedAccountIdManual"
+                type="number"
+                min={1}
+                value={selectedAccountId}
+                onChange={(e) => {
+                  setSelectedAccountId(e.target.value);
+                  setPage(0);
+                }}
+                placeholder="123"
+              />
+            </div>
+          </div>
+          {selectedAccountId ? (
+            <div
+              style={{
+                border: '1px solid var(--border)',
+                borderRadius: '10px',
+                padding: '0.75rem',
+                background: rows.length ? '#ecfdf3' : '#eff6ff',
+                color: rows.length ? '#166534' : '#1d4ed8',
+                fontWeight: 700
+              }}
+            >
+              {rows.length ? 'Custom rules active for this account' : 'Using global defaults'}
+            </div>
+          ) : (
+            <div style={{ color: 'var(--muted)' }}>Select an account to view or manage overrides.</div>
+          )}
+        </div>
+      ) : (
+        <div className="card" style={{ color: 'var(--muted)' }}>
+          Showing global defaults (`accountId = null`).
+        </div>
+      )}
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
@@ -589,7 +727,11 @@ export default function PaymentMethodActionConfigsPage() {
       {error ? <div className="card" style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}>{error}</div> : null}
       {info ? <div className="card" style={{ borderColor: 'var(--success)', color: 'var(--success)' }}>{info}</div> : null}
 
-      <DataTable columns={columns} rows={sortedRows} emptyLabel="No action configs found" />
+      <DataTable
+        columns={columns}
+        rows={sortedRows}
+        emptyLabel={viewMode === 'account' && !selectedAccountId ? 'Select an account to view overrides' : 'No action configs found'}
+      />
 
       {showCreate ? (
         <Modal title="Add action config" onClose={() => setShowCreate(false)}>
@@ -620,6 +762,7 @@ export default function PaymentMethodActionConfigsPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
             <DetailGrid
               rows={[
+                { label: 'Owner', value: resolveOwnerLabel(selected || {}) },
                 { label: 'Scope', value: resolveScope(selected || {}) },
                 { label: 'Action', value: selected?.action || '—' },
                 { label: 'Country', value: selected?.countryCode || '—' },
