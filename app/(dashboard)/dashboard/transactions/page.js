@@ -636,9 +636,9 @@ export default function TransactionsPage() {
         render: (row) => row.paymentMethodName || row.paymentMethodId || '—'
       },
       {
-        key: 'paymentProviderName',
-        label: 'Provider',
-        render: (row) => row.paymentProviderName || row.paymentProviderId || '—'
+        key: 'customer',
+        label: 'Customer',
+        render: (row) => row.customer || '—'
       },
       {
         key: 'actions',
@@ -1339,6 +1339,10 @@ export default function TransactionsPage() {
                 { label: 'Other fees', value: selected?.otherFeesAmount },
                 { label: 'All fees', value: selected?.allFees },
                 { label: 'Commission amount', value: selected?.commissionAmount },
+                { label: 'Customer', value: selected?.customer || '—' },
+                { label: 'Username', value: selected?.username || '—' },
+                { label: 'Customer email', value: selected?.customerEmail || '—' },
+                { label: 'Customer phone', value: selected?.customerPhone || '—' },
                 { label: 'Recipient', value: selected?.recipient },
                 { label: 'Payment method', value: selected?.paymentMethodName || selected?.paymentMethodId },
                 ...(selected?.paymentMethodType ? [{ label: 'Payment method type', value: selected?.paymentMethodType }] : []),
