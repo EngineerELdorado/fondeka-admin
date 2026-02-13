@@ -248,6 +248,7 @@ export default function PaymentRequestsPage() {
     { key: 'accountId', label: 'Account ID' },
     { key: 'type', label: 'Type' },
     { key: 'amount', label: 'Amount' },
+    { key: 'totalCollected', label: 'Collected' },
     { key: 'currency', label: 'Currency' },
     {
       key: 'approvalStatus',
@@ -695,6 +696,7 @@ export default function PaymentRequestsPage() {
               { label: 'Title', value: selected?.title },
               { label: 'Description', value: selected?.description },
               { label: 'Amount', value: selected?.amount },
+              { label: 'Total collected', value: selected?.totalCollected },
               { label: 'Min amount', value: selected?.minAmount },
               { label: 'Max amount', value: selected?.maxAmount },
               { label: 'Goal amount', value: selected?.goalAmount },
