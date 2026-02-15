@@ -42,6 +42,20 @@ const emptyState = {
   profileStatus: ''
 };
 
+const formatDateTime = (value) => {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+};
+
 const toPayload = (state) => {
   const payload = {
     accountId: state.accountId === '' ? null : Number(state.accountId),
@@ -107,6 +121,7 @@ const DetailGrid = ({ rows }) => (
 
 export default function EsimsPage() {
   const [rows, setRows] = useState([]);
+  const [expirySort, setExpirySort] = useState('none');
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(25);
   const [iccid, setIccid] = useState('');
@@ -142,6 +157,18 @@ export default function EsimsPage() {
     fetchRows();
   }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const displayRows = useMemo(() => {
+    if (expirySort === 'none') return rows;
+    const sorted = [...rows];
+    sorted.sort((a, b) => {
+      const aTime = a?.expiresAt ? new Date(a.expiresAt).getTime() : Number.POSITIVE_INFINITY;
+      const bTime = b?.expiresAt ? new Date(b.expiresAt).getTime() : Number.POSITIVE_INFINITY;
+      if (expirySort === 'desc') return bTime - aTime;
+      return aTime - bTime;
+    });
+    return sorted;
+  }, [rows, expirySort]);
+
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
     { key: 'iccid', label: 'ICCID' },
@@ -150,6 +177,11 @@ export default function EsimsPage() {
     { key: 'countryName', label: 'Country' },
     { key: 'dataString', label: 'Data' },
     { key: 'validityDays', label: 'Validity days' },
+    {
+      key: 'expiresAt',
+      label: 'Expires at',
+      render: (row) => formatDateTime(row.expiresAt)
+    },
     {
       key: 'actions',
       label: 'Actions',
@@ -428,6 +460,14 @@ export default function EsimsPage() {
           <label htmlFor="size">Size</label>
           <input id="size" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
         </div>
+        <div>
+          <label htmlFor="expirySort">Expiry sort</label>
+          <select id="expirySort" value={expirySort} onChange={(e) => setExpirySort(e.target.value)}>
+            <option value="none">Server order</option>
+            <option value="asc">Soonest first</option>
+            <option value="desc">Latest first</option>
+          </select>
+        </div>
         <button type="button" onClick={fetchRows} disabled={loading} className="btn-primary">
           {loading ? 'Loading…' : 'Refresh'}
         </button>
@@ -439,7 +479,7 @@ export default function EsimsPage() {
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
-      <DataTable columns={columns} rows={rows} emptyLabel="No eSIMs found" />
+      <DataTable columns={columns} rows={displayRows} emptyLabel="No eSIMs found" />
 
       {showCreate && (
         <Modal title="Add eSIM" onClose={() => setShowCreate(false)}>
@@ -495,8 +535,9 @@ export default function EsimsPage() {
               { label: 'Installation guide', value: selected?.installationGuide },
               { label: 'Offer ID', value: selected?.offerId },
               { label: 'Profile status', value: selected?.profileStatus },
-              { label: 'Created', value: selected?.createdAt },
-              { label: 'Updated', value: selected?.updatedAt }
+              { label: 'Expires at', value: formatDateTime(selected?.expiresAt) },
+              { label: 'Created', value: formatDateTime(selected?.createdAt) },
+              { label: 'Updated', value: formatDateTime(selected?.updatedAt) }
             ]}
           />
         </Modal>

@@ -93,6 +93,7 @@ Base URL: `${app.api.baseUrls.admin-api}` (default `/admin-api`). All endpoints 
 - **Payment providers & methods**: see Payments section.
 - **Airtime providers**: `/airtime-providers` `{ name:AirtimeProviderName, displayName, active?, rank?, defaultProvider? }`.
 - **Esim providers**: `/esim-providers` `{ name:EsimProviderName, displayName, active?, rank?, defaultProvider? }`.
+- **Esims**: `GET /esims`, `GET /esims/{id}` now include `expiresAt` (ISO-8601 timestamp) in `EsimResponse` alongside `createdAt`/`updatedAt`.
 - **Reloadly operator amounts**: see Payments section.
 
 ## Webhooks
