@@ -435,7 +435,19 @@ export default function AnnouncementsPage() {
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
-      <DataTable columns={columns} rows={rows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No announcements found" showIndex={false} />
+      <DataTable
+        columns={columns}
+        rows={rows}
+        page={page}
+        pageSize={size}
+        totalPages={pageMeta.totalPages}
+        totalElements={pageMeta.totalElements}
+        onPageChange={setPage}
+        canPrev={canPrev}
+        canNext={canNext}
+        emptyLabel="No announcements found"
+        showIndex={false}
+      />
 
       {showCreate && (
         <Modal title="New announcement" onClose={() => setShowCreate(false)}>

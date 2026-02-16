@@ -10,6 +10,7 @@ export function DataTable({
   pageSize = 20,
   page: controlledPage,
   totalPages,
+  totalElements,
   onPageChange,
   canPrev,
   canNext
@@ -57,20 +58,27 @@ export function DataTable({
 
   const renderPagination = (position) => (
     <div className={`table-pagination table-pagination--${position}`} role="navigation" aria-label={`Table pagination (${position})`}>
-      <button type="button" className="table-pagination__arrow" onClick={() => goToPage(page - 1)} disabled={prevDisabled}>
-        ←
-      </button>
-      <span className="table-pagination__label">
-        Page {page + 1} of {effectiveTotalPages}
-      </span>
-      <button
-        type="button"
-        className="table-pagination__arrow"
-        onClick={() => goToPage(page + 1)}
-        disabled={nextDisabled}
-      >
-        →
-      </button>
+      <div className="table-pagination__meta">
+        {typeof totalElements === 'number' && totalElements >= 0 ? (
+          <span className="table-pagination__meta-badge">Total {totalElements.toLocaleString()} records</span>
+        ) : null}
+      </div>
+      <div className="table-pagination__actions">
+        <button type="button" className="table-pagination__arrow" onClick={() => goToPage(page - 1)} disabled={prevDisabled}>
+          ←
+        </button>
+        <span className="table-pagination__label">
+          Page {page + 1} of {effectiveTotalPages}
+        </span>
+        <button
+          type="button"
+          className="table-pagination__arrow"
+          onClick={() => goToPage(page + 1)}
+          disabled={nextDisabled}
+        >
+          →
+        </button>
+      </div>
     </div>
   );
 

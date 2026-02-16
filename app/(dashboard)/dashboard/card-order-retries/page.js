@@ -233,7 +233,18 @@ export default function CardOrderRetriesPage() {
         </div>
       </div>
 
-      <DataTable columns={columns} rows={rows} page={page} pageSize={size} onPageChange={setPage} emptyLabel={loading ? 'Loading…' : 'No retries found'} />
+      <DataTable
+        columns={columns}
+        rows={rows}
+        page={page}
+        pageSize={size}
+        totalPages={pageMeta.totalPages}
+        totalElements={pageMeta.totalElements}
+        onPageChange={setPage}
+        canPrev={canPrev}
+        canNext={canNext}
+        emptyLabel={loading ? 'Loading…' : 'No retries found'}
+      />
 
       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'flex-end' }}>
         <button type="button" className="btn-neutral btn-sm" disabled={!canPrev} onClick={() => setPage((p) => Math.max(0, p - 1))}>

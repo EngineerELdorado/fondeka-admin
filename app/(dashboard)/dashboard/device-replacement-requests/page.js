@@ -251,7 +251,18 @@ export default function DeviceReplacementRequestsPage() {
         )}
       </div>
 
-      <DataTable columns={columns} rows={rows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No replacement requests found" />
+      <DataTable
+        columns={columns}
+        rows={rows}
+        page={page}
+        pageSize={size}
+        totalPages={pageMeta.totalPages}
+        totalElements={pageMeta.totalElements}
+        onPageChange={setPage}
+        canPrev={canPrev}
+        canNext={canNext}
+        emptyLabel="No replacement requests found"
+      />
     </div>
   );
 }

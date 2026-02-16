@@ -91,6 +91,7 @@ export default function AccountsListPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
+  const [pageMeta, setPageMeta] = useState({ totalElements: null, totalPages: null });
   const [filters, setFilters] = useState(initialFilters);
   const [appliedFilters, setAppliedFilters] = useState(initialFilters);
   const [showFilters, setShowFilters] = useState(false);
@@ -250,6 +251,10 @@ export default function AccountsListPage() {
       });
       const res = await api.accounts.list(params);
       const list = Array.isArray(res) ? res : res?.content || [];
+      setPageMeta({
+        totalElements: typeof res?.totalElements === 'number' ? res.totalElements : null,
+        totalPages: typeof res?.totalPages === 'number' ? res.totalPages : null
+      });
       const flattened = (list || []).map((item) => ({
         id: item.accountId ?? item.id,
         accountReference: item.accountReference ?? item.accountNumber ?? item.accountId,
@@ -277,6 +282,7 @@ export default function AccountsListPage() {
       return flattened;
     } catch (err) {
       setError(err.message);
+      setPageMeta({ totalElements: null, totalPages: null });
       return null;
     } finally {
       setLoading(false);
@@ -324,7 +330,7 @@ export default function AccountsListPage() {
   };
 
   const canGoPrevious = page > 0;
-  const canGoNext = rows.length === size && rows.length > 0;
+  const canGoNext = pageMeta.totalPages === null ? rows.length === size && rows.length > 0 : page + 1 < pageMeta.totalPages;
 
   const activeFilterChips = useMemo(() => {
     const chips = [];
@@ -1012,7 +1018,18 @@ export default function AccountsListPage() {
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
-      <DataTable columns={columns} rows={rows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No accounts found" />
+      <DataTable
+        columns={columns}
+        rows={rows}
+        page={page}
+        pageSize={size}
+        totalPages={pageMeta.totalPages}
+        totalElements={pageMeta.totalElements}
+        onPageChange={setPage}
+        canPrev={canGoPrevious}
+        canNext={canGoNext}
+        emptyLabel="No accounts found"
+      />
 
       {showDetail && (
         <Modal

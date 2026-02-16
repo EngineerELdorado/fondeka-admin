@@ -1340,6 +1340,7 @@ export default function TransactionsPage() {
         page={page}
         pageSize={size}
         totalPages={pageMeta.totalPages}
+        totalElements={pageMeta.totalElements}
         onPageChange={setPage}
         canPrev={canGoPrevious}
         canNext={canGoNext}

@@ -473,7 +473,19 @@ export default function WebhookEventsPage() {
         </div>
       </div>
 
-      <DataTable columns={columns} rows={rows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No webhook events found" showIndex={false} />
+      <DataTable
+        columns={columns}
+        rows={rows}
+        page={page}
+        pageSize={size}
+        totalPages={pageMeta.totalPages}
+        totalElements={pageMeta.totalElements}
+        onPageChange={setPage}
+        canPrev={canPrev}
+        canNext={canNext}
+        emptyLabel="No webhook events found"
+        showIndex={false}
+      />
 
       {showDetail && (
         <Modal title={`Webhook ${selected?.id ?? ''}`} onClose={() => setShowDetail(false)}>

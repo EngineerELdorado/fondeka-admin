@@ -147,7 +147,7 @@ label {
 .table-pagination {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 0.5rem;
 }
 
@@ -179,6 +179,37 @@ label {
   color: var(--muted);
   font-size: 13px;
   white-space: nowrap;
+}
+
+.table-pagination__meta {
+  color: var(--muted);
+  font-size: 13px;
+  min-height: 18px;
+}
+
+.table-pagination__meta-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.22rem 0.58rem;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #36503c;
+  background: #e8f3e6;
+  border: 1px solid #c7dfc2;
+}
+
+[data-theme='dark'] .table-pagination__meta-badge {
+  color: #cfe6cd;
+  background: rgba(123, 176, 140, 0.2);
+  border-color: rgba(123, 176, 140, 0.35);
+}
+
+.table-pagination__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
 }
 
 .data-table {
