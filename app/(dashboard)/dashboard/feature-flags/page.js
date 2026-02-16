@@ -13,6 +13,46 @@ const WARNINGS = {
   auto_refund: 'Warning: Disabling auto refunds will route failed refunds to manual review.'
 };
 
+const ACTION_LIMIT_PREFIX = 'limit.check.action.';
+const ACTION_LIMIT_WARNING = 'Disabling limit checks may allow transactions above regulatory or internal limits.';
+const ACTION_LIMIT_EXPLANATION = 'If disabled, amount limits (KYC caps or custom limits) are not enforced for this action.';
+
+const ACTION_LABELS = {
+  fund_wallet: 'Wallet Deposit',
+  withdraw_from_wallet: 'Wallet Payout',
+  refund_to_wallet: 'Refund To Wallet',
+  bonus: 'Bonus',
+  manual_adjustment: 'Manual Adjustment',
+  pay_internet_bill: 'Internet',
+  pay_tv_subscription: 'TV Subscription',
+  pay_electricity_bill: 'Electricity',
+  pay_water_bill: 'Water',
+  loan_request: 'Loan Request',
+  loan_disbursement: 'Loan Disbursement',
+  repay_loan: 'Loan Repayment',
+  fund_card: 'Card Funding',
+  withdraw_from_card: 'Card Withdrawal',
+  buy_card: 'Card Purchase',
+  card_online_payment: 'Card Online Payment',
+  card_maintenance: 'Card Maintenance',
+  buy_crypto: 'Crypto Buy',
+  sell_crypto: 'Crypto Sell',
+  receive_crypto: 'Crypto Receive',
+  send_crypto: 'Crypto Send',
+  swap_crypto: 'Crypto Swap',
+  request_payment: 'Request Payment',
+  pay_request: 'Pay Request',
+  settlement: 'Settlement',
+  e_sim_purchase: 'eSIM Purchase',
+  e_sim_topup: 'eSIM Top-up',
+  send_airtime: 'Send Airtime',
+  send_data_bundles: 'Send Data Bundles',
+  buy_gift_card: 'Gift Card Purchase',
+  pay_netflix: 'Netflix',
+  inter_transfer: 'Inter Transfer',
+  other: 'Other'
+};
+
 const SUPPORTED_KEYS = [
   'wallet',
   'bill_payments',
@@ -49,6 +89,17 @@ const formatLabel = (key) => {
     .join(' · ');
 };
 
+const isActionLimitKey = (key) => String(key || '').startsWith(ACTION_LIMIT_PREFIX);
+
+const actionFromLimitKey = (key) => String(key || '').replace(ACTION_LIMIT_PREFIX, '');
+
+const formatActionLabel = (key) => {
+  const action = actionFromLimitKey(key);
+  return ACTION_LABELS[action] || formatKeyPart(action);
+};
+
+const formatDisplayLabel = (key) => (isActionLimitKey(key) ? formatActionLabel(key) : formatLabel(key));
+
 export default function FeatureFlagsPage() {
   const [flags, setFlags] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -60,15 +111,25 @@ export default function FeatureFlagsPage() {
   const [draftEnabled, setDraftEnabled] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
+  const actionLimitFlags = useMemo(
+    () =>
+      flags
+        .filter((flag) => isActionLimitKey(flag.key))
+        .sort((a, b) => actionFromLimitKey(a.key).localeCompare(actionFromLimitKey(b.key))),
+    [flags]
+  );
+
   const groupedFlags = useMemo(() => {
     const groups = new Map();
-    flags.forEach((flag) => {
-      const rawKey = String(flag.key || '');
-      const groupKey = rawKey.includes('.') ? rawKey.split('.')[0] : 'modules';
-      const list = groups.get(groupKey) || [];
-      list.push(flag);
-      groups.set(groupKey, list);
-    });
+    flags
+      .filter((flag) => !isActionLimitKey(flag.key))
+      .forEach((flag) => {
+        const rawKey = String(flag.key || '');
+        const groupKey = rawKey.includes('.') ? rawKey.split('.')[0] : 'modules';
+        const list = groups.get(groupKey) || [];
+        list.push(flag);
+        groups.set(groupKey, list);
+      });
     const sortedGroups = Array.from(groups.entries()).sort(([a], [b]) => {
       if (a === 'modules') return -1;
       if (b === 'modules') return 1;
@@ -121,7 +182,7 @@ export default function FeatureFlagsPage() {
     try {
       const res = await api.featureFlags.update(key, { enabled: nextEnabled });
       setFlags((prev) => prev.map((flag) => (flag.key === key ? { ...flag, enabled: Boolean(res?.enabled) } : flag)));
-      setInfo(`${formatLabel(key)} ${res?.enabled ? 'enabled' : 'disabled'}.`);
+      setInfo(`${formatDisplayLabel(key)} ${res?.enabled ? 'enabled' : 'disabled'}.`);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -143,7 +204,7 @@ export default function FeatureFlagsPage() {
     try {
       const res = await api.featureFlags.update(key, { enabled: false });
       setFlags((prev) => prev.map((flag) => (flag.key === key ? { ...flag, enabled: Boolean(res?.enabled) } : flag)));
-      setInfo(`${formatLabel(key)} disabled.`);
+      setInfo(`${formatDisplayLabel(key)} disabled.`);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -160,8 +221,8 @@ export default function FeatureFlagsPage() {
     setInfo(null);
     try {
       await api.featureFlags.remove(key);
-      setFlags((prev) => prev.filter((flag) => flag.key !== key));
-      setInfo(`${formatLabel(key)} deleted.`);
+      await loadFlags();
+      setInfo(`${formatDisplayLabel(key)} reset to default.`);
     } catch (err) {
       setError(err.message || 'Failed to delete feature flag');
     } finally {
@@ -189,7 +250,7 @@ export default function FeatureFlagsPage() {
         }
         return [{ key, enabled: Boolean(res?.enabled) }, ...prev];
       });
-      setInfo(`${formatLabel(key)} ${res?.enabled ? 'enabled' : 'disabled'}.`);
+      setInfo(`${formatDisplayLabel(key)} ${res?.enabled ? 'enabled' : 'disabled'}.`);
       setDraftKey('');
       setDraftEnabled(true);
     } catch (err) {
@@ -299,6 +360,50 @@ export default function FeatureFlagsPage() {
             </div>
           </div>
         ))}
+
+        {!loading && actionLimitFlags.length > 0 && (
+          <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontWeight: 800 }}>Action Limit Settings</div>
+              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{actionLimitFlags.length} actions</div>
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{ACTION_LIMIT_EXPLANATION}</div>
+            <div style={{ display: 'grid', gap: '0.75rem' }}>
+              {actionLimitFlags.map((flag) => (
+                <div key={flag.key} style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
+                    <div>
+                      <div style={{ fontWeight: 700 }}>{formatActionLabel(flag.key)}</div>
+                      <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{flag.key}</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                        <input type="checkbox" checked={Boolean(flag.enabled)} onChange={() => handleToggle(flag.key)} disabled={loading || savingKey === flag.key} />
+                        {flag.enabled ? 'Enabled' : 'Disabled'}
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteConfirm({ key: flag.key })}
+                        disabled={savingKey === flag.key}
+                        style={{
+                          border: `1px solid var(--border)`,
+                          background: 'var(--surface)',
+                          padding: '0.45rem 0.7rem',
+                          borderRadius: '10px',
+                          cursor: 'pointer',
+                          color: 'var(--text)'
+                        }}
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  </div>
+                  {!flag.enabled && <div style={{ color: '#b45309', fontWeight: 600 }}>{ACTION_LIMIT_WARNING}</div>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {confirm && (
@@ -311,8 +416,9 @@ export default function FeatureFlagsPage() {
               </button>
             </div>
             <div style={{ color: 'var(--muted)' }}>
-              This will disable <strong>{formatLabel(confirm.key)}</strong> and may reduce security or change system behavior.
+              This will disable <strong>{formatDisplayLabel(confirm.key)}</strong> and may reduce security or change system behavior.
             </div>
+            {isActionLimitKey(confirm.key) && <div style={{ color: '#b45309', fontWeight: 600 }}>{ACTION_LIMIT_WARNING}</div>}
             <div className="modal-actions">
               <button
                 type="button"
@@ -343,7 +449,7 @@ export default function FeatureFlagsPage() {
               </button>
             </div>
             <div style={{ color: 'var(--muted)' }}>
-              Deleting <strong>{formatLabel(deleteConfirm.key)}</strong> resets it to the default behavior.
+              Deleting <strong>{formatDisplayLabel(deleteConfirm.key)}</strong> resets it to the default behavior.
             </div>
             <div className="modal-actions">
               <button
