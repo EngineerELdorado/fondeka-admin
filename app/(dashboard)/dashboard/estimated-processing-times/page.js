@@ -156,7 +156,7 @@ const FilterChip = ({ label, onClear }) => (
 export default function EstimatedProcessingTimesPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(50);
+  const [size, setSize] = useState(10);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
@@ -594,7 +594,7 @@ export default function EstimatedProcessingTimesPage() {
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
-      <DataTable columns={columns} rows={rows} emptyLabel={loading ? 'Loading…' : 'No configs found'} />
+      <DataTable columns={columns} rows={rows} page={page} pageSize={size} onPageChange={setPage} emptyLabel={loading ? 'Loading…' : 'No configs found'} />
 
       {showCreate && (
         <Modal title="Add estimated processing time" onClose={() => setShowCreate(false)}>

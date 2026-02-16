@@ -44,7 +44,7 @@ export default function CardHoldersPage() {
   const { session } = useAuth();
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(25);
+  const [size, setSize] = useState(10);
   const [filters, setFilters] = useState(emptyFilters);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -301,7 +301,7 @@ export default function CardHoldersPage() {
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
-      <DataTable columns={columns} rows={rows} emptyLabel="No card holders found" />
+      <DataTable columns={columns} rows={rows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No card holders found" />
 
       {showCreate && (
         <Modal title="Add card holder" onClose={() => setShowCreate(false)}>

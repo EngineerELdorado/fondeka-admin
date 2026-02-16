@@ -187,7 +187,7 @@ const DetailGrid = ({ rows }) => (
 export default function EsimProductsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(25);
+  const [size, setSize] = useState(10);
   const [filters, setFilters] = useState(emptyFilters);
   const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -699,7 +699,7 @@ export default function EsimProductsPage() {
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#0f766e', fontWeight: 700 }}>{info}</div>}
 
-      <DataTable columns={columns} rows={rows} emptyLabel="No products found" />
+      <DataTable columns={columns} rows={rows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No products found" />
 
       {showCreate && (
         <Modal title="Add eSIM product" onClose={() => setShowCreate(false)}>

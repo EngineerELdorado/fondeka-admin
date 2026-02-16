@@ -56,7 +56,7 @@ const formatDateTime = (value) => {
 export default function DeviceReplacementRequestsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(50);
+  const [size, setSize] = useState(10);
   const [filters, setFilters] = useState(emptyFilters);
   const [debouncedFilters, setDebouncedFilters] = useState(emptyFilters);
   const [showFilters, setShowFilters] = useState(false);
@@ -251,7 +251,7 @@ export default function DeviceReplacementRequestsPage() {
         )}
       </div>
 
-      <DataTable columns={columns} rows={rows} emptyLabel="No replacement requests found" />
+      <DataTable columns={columns} rows={rows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No replacement requests found" />
     </div>
   );
 }

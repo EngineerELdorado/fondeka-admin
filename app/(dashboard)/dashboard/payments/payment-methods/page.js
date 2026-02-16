@@ -89,7 +89,7 @@ const DetailGrid = ({ rows }) => (
 export default function PaymentMethodsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(25);
+  const [size, setSize] = useState(10);
   const [countries, setCountries] = useState([]);
   const [arrangeBy, setArrangeBy] = useState('id');
   const [loading, setLoading] = useState(false);
@@ -436,7 +436,7 @@ export default function PaymentMethodsPage() {
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
-      <DataTable columns={columns} rows={sortedRows} emptyLabel="No payment methods found" />
+      <DataTable columns={columns} rows={sortedRows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No payment methods found" />
 
       {showCreate && (
         <Modal title="Add payment method" onClose={() => setShowCreate(false)}>

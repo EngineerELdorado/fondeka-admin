@@ -98,7 +98,7 @@ const DetailGrid = ({ rows }) => (
 export default function MethodProvidersPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(25);
+  const [size, setSize] = useState(10);
   const [methods, setMethods] = useState([]);
   const [providers, setProviders] = useState([]);
   const [arrangeBy, setArrangeBy] = useState('id');
@@ -566,7 +566,7 @@ export default function MethodProvidersPage() {
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
-      <DataTable columns={columns} rows={sortedRows} emptyLabel="No links found" />
+      <DataTable columns={columns} rows={sortedRows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No links found" />
 
       {showCreate && (
         <Modal title="Add method/provider link" onClose={() => setShowCreate(false)}>

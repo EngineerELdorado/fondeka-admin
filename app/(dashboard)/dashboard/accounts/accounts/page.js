@@ -1012,7 +1012,7 @@ export default function AccountsListPage() {
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
-      <DataTable columns={columns} rows={rows} emptyLabel="No accounts found" />
+      <DataTable columns={columns} rows={rows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No accounts found" />
 
       {showDetail && (
         <Modal

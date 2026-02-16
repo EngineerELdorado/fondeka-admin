@@ -51,7 +51,7 @@ const Modal = ({ title, onClose, children }) => (
 export default function BillOffersPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(25);
+  const [size, setSize] = useState(10);
   const [mappings, setMappings] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -264,7 +264,7 @@ export default function BillOffersPage() {
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
-      <DataTable columns={columns} rows={rows} emptyLabel="No offers found" />
+      <DataTable columns={columns} rows={rows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No offers found" />
 
       {showCreate && (
         <Modal title="Add offer" onClose={() => setShowCreate(false)}>

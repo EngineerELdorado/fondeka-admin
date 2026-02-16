@@ -204,7 +204,7 @@ export default function PaymentMethodActionConfigsPage() {
   const [viewMode, setViewMode] = useState('global');
   const [selectedAccountId, setSelectedAccountId] = useState('');
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(50);
+  const [size, setSize] = useState(10);
   const [arrangeBy, setArrangeBy] = useState('rank');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -729,7 +729,7 @@ export default function PaymentMethodActionConfigsPage() {
 
       <DataTable
         columns={columns}
-        rows={sortedRows}
+        rows={sortedRows} page={page} pageSize={size} onPageChange={setPage}
         emptyLabel={viewMode === 'account' && !selectedAccountId ? 'Select an account to view overrides' : 'No action configs found'}
       />
 

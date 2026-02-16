@@ -138,7 +138,7 @@ const FilterChip = ({ label, onClear }) => (
 export default function FeeConfigsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(100);
+  const [size, setSize] = useState(10);
   const [countries, setCountries] = useState([]);
   const [pmps, setPmps] = useState([]);
   const [bpbps, setBpbps] = useState([]);
@@ -813,7 +813,7 @@ export default function FeeConfigsPage() {
         </div>
       )}
 
-      <DataTable columns={columns} rows={sortedRows} emptyLabel="No fee configs found" />
+      <DataTable columns={columns} rows={sortedRows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No fee configs found" />
 
       {showCreate && (
         <Modal title="Add fee config" onClose={() => setShowCreate(false)}>

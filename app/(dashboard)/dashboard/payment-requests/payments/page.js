@@ -63,7 +63,7 @@ const DetailGrid = ({ rows }) => (
 export default function PaymentRequestPaymentsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(25);
+  const [size, setSize] = useState(10);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
@@ -299,7 +299,7 @@ export default function PaymentRequestPaymentsPage() {
         </div>
       )}
 
-      <DataTable columns={columns} rows={rows} emptyLabel="No payment request payments found" />
+      <DataTable columns={columns} rows={rows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No payment request payments found" />
 
       {showCreate && (
         <Modal title="Add payment request payment" onClose={() => setShowCreate(false)}>

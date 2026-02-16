@@ -42,7 +42,7 @@ const DetailGrid = ({ rows }) => (
 export default function PaymentRequestItemsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(25);
+  const [size, setSize] = useState(10);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
@@ -225,7 +225,7 @@ export default function PaymentRequestItemsPage() {
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
-      <DataTable columns={columns} rows={rows} emptyLabel="No payment request items found" />
+      <DataTable columns={columns} rows={rows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No payment request items found" />
 
       {showCreate && (
         <Modal title="Add payment request item" onClose={() => setShowCreate(false)}>

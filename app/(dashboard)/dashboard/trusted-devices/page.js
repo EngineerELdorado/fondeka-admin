@@ -83,7 +83,7 @@ const formatDateTime = (value) => {
 export default function TrustedDevicesPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(50);
+  const [size, setSize] = useState(10);
   const [filters, setFilters] = useState(emptyFilters);
   const [appliedFilters, setAppliedFilters] = useState(emptyFilters);
   const [showFilters, setShowFilters] = useState(false);

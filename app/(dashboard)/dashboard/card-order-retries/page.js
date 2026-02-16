@@ -60,7 +60,7 @@ const Modal = ({ title, onClose, children }) => (
 export default function CardOrderRetriesPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(20);
+  const [size, setSize] = useState(10);
   const [status, setStatus] = useState('PENDING');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -233,7 +233,7 @@ export default function CardOrderRetriesPage() {
         </div>
       </div>
 
-      <DataTable columns={columns} rows={rows} emptyLabel={loading ? 'Loading…' : 'No retries found'} />
+      <DataTable columns={columns} rows={rows} page={page} pageSize={size} onPageChange={setPage} emptyLabel={loading ? 'Loading…' : 'No retries found'} />
 
       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'flex-end' }}>
         <button type="button" className="btn-neutral btn-sm" disabled={!canPrev} onClick={() => setPage((p) => Math.max(0, p - 1))}>

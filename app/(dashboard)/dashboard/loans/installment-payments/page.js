@@ -49,7 +49,7 @@ const DetailGrid = ({ rows }) => (
 export default function LoanInstallmentPaymentsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(25);
+  const [size, setSize] = useState(10);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
@@ -249,7 +249,7 @@ export default function LoanInstallmentPaymentsPage() {
         </div>
       )}
 
-      <DataTable columns={columns} rows={rows} emptyLabel="No installment payments found" />
+      <DataTable columns={columns} rows={rows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No installment payments found" />
 
       {showCreate && (
         <Modal title="Add installment payment" onClose={() => setShowCreate(false)}>

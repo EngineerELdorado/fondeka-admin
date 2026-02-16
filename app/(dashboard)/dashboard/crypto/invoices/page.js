@@ -51,7 +51,7 @@ const DetailGrid = ({ rows }) => (
 export default function CryptoInvoicesPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(25);
+  const [size, setSize] = useState(10);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
@@ -257,7 +257,7 @@ export default function CryptoInvoicesPage() {
         </div>
       )}
 
-      <DataTable columns={columns} rows={rows} emptyLabel="No crypto invoices found" />
+      <DataTable columns={columns} rows={rows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No crypto invoices found" />
 
       {showCreate && (
         <Modal title="Add crypto invoice" onClose={() => setShowCreate(false)}>

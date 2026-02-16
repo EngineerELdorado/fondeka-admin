@@ -240,6 +240,7 @@ export default function TransactionsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
+  const [pageMeta, setPageMeta] = useState({ totalPages: null, totalElements: null });
   const [filters, setFilters] = useState(() => ({ ...initialFilters, ...queryFilters }));
   const [appliedFilters, setAppliedFilters] = useState(() => ({ ...initialFilters, ...queryFilters }));
   const [showFilters, setShowFilters] = useState(false);
@@ -338,9 +339,14 @@ export default function TransactionsPage() {
       const res = await api.transactions.list(params);
       const list = Array.isArray(res) ? res : res?.content || [];
       setRows(list || []);
+      setPageMeta({
+        totalPages: Number.isFinite(res?.totalPages) ? res.totalPages : null,
+        totalElements: Number.isFinite(res?.totalElements) ? res.totalElements : null
+      });
       return list || [];
     } catch (err) {
       setError(err.message);
+      setPageMeta({ totalPages: null, totalElements: null });
       return null;
     } finally {
       setLoading(false);
@@ -534,7 +540,7 @@ export default function TransactionsPage() {
   };
 
   const canGoPrevious = page > 0;
-  const canGoNext = rows.length === size && rows.length > 0;
+  const canGoNext = pageMeta.totalPages === null ? rows.length === size && rows.length > 0 : page + 1 < pageMeta.totalPages;
 
   const activeFilterChips = useMemo(() => {
     const entries = [];
@@ -1327,7 +1333,17 @@ export default function TransactionsPage() {
         </div>
       )}
 
-      <DataTable columns={columns} rows={rows} emptyLabel="No transactions found" />
+      <DataTable
+        columns={columns}
+        rows={rows}
+        emptyLabel="No transactions found"
+        page={page}
+        pageSize={size}
+        totalPages={pageMeta.totalPages}
+        onPageChange={setPage}
+        canPrev={canGoPrevious}
+        canNext={canGoNext}
+      />
 
       {showDetail && (
         <Modal title={`Transaction ${selected?.reference || selected?.id}`} onClose={() => setShowDetail(false)}>

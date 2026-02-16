@@ -144,6 +144,43 @@ label {
   color: var(--muted);
 }
 
+.table-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.table-pagination--top {
+  margin-bottom: 0.65rem;
+}
+
+.table-pagination--bottom {
+  margin-top: 0.65rem;
+}
+
+.table-pagination__arrow {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 8px;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 0.45rem;
+  cursor: pointer;
+}
+
+.table-pagination__arrow:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.table-pagination__label {
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
 .data-table {
   width: 100%;
   border-collapse: collapse;

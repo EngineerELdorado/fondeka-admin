@@ -63,7 +63,7 @@ const DetailGrid = ({ rows }) => (
 export default function BankDepositProofsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(25);
+  const [size, setSize] = useState(10);
   const [statusFilter, setStatusFilter] = useState('');
   const [totalElements, setTotalElements] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -519,7 +519,7 @@ export default function BankDepositProofsPage() {
       )}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
-      <DataTable columns={columns} rows={rows} emptyLabel="No bank deposit proofs found" />
+      <DataTable columns={columns} rows={rows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No bank deposit proofs found" />
 
       {showCreate && (
         <Modal title="Create bank deposit proof" onClose={() => (!createLoading ? setShowCreate(false) : null)}>

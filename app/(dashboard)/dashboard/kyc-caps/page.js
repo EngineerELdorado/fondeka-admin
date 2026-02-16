@@ -84,7 +84,7 @@ const FilterChip = ({ label, onClear }) => (
 export default function KycCapsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(50);
+  const [size, setSize] = useState(10);
   const [filters, setFilters] = useState(emptyFilters);
   const [appliedFilters, setAppliedFilters] = useState(emptyFilters);
   const [showFilters, setShowFilters] = useState(false);
@@ -449,7 +449,7 @@ export default function KycCapsPage() {
         </div>
       )}
 
-      <DataTable columns={columns} rows={rows} emptyLabel="No KYC caps found" />
+      <DataTable columns={columns} rows={rows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No KYC caps found" />
 
       {showCreate && (
         <Modal title="Add KYC cap" onClose={() => setShowCreate(false)}>

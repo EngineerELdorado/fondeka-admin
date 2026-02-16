@@ -42,7 +42,7 @@ const DetailGrid = ({ rows }) => (
 export default function LiquibaseChangelogsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(50);
+  const [size, setSize] = useState(10);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -185,7 +185,7 @@ export default function LiquibaseChangelogsPage() {
         </div>
       </div>
 
-      <DataTable columns={columns} rows={filteredRows} emptyLabel={loading ? 'Loading...' : 'No changelogs found'} showIndex={false} />
+      <DataTable columns={columns} rows={filteredRows} page={page} pageSize={size} onPageChange={setPage} emptyLabel={loading ? 'Loading...' : 'No changelogs found'} showIndex={false} />
 
       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'flex-end' }}>
         <button type="button" className="btn-neutral btn-sm" disabled={!canPrev} onClick={() => setPage((p) => Math.max(0, p - 1))}>

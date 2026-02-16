@@ -40,7 +40,7 @@ const DetailGrid = ({ rows }) => (
 export default function PaymentMethodCryptoNetworksPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(25);
+  const [size, setSize] = useState(10);
   const [methods, setMethods] = useState([]);
   const [networks, setNetworks] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -294,7 +294,7 @@ export default function PaymentMethodCryptoNetworksPage() {
         </div>
       )}
 
-      <DataTable columns={columns} rows={rows} emptyLabel="No mappings found" />
+      <DataTable columns={columns} rows={rows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No mappings found" />
 
       {showCreate && (
         <Modal title="Add payment method/crypto network" onClose={() => setShowCreate(false)}>

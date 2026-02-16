@@ -695,7 +695,7 @@ export default function KycsPage() {
         </div>
       )}
 
-      <DataTable columns={columns} rows={rows} emptyLabel="No KYCs found" />
+      <DataTable columns={columns} rows={rows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No KYCs found" />
 
       {showDetail && (
         <Modal title={`KYC ${selected?.id}`} onClose={() => setShowDetail(false)}>
