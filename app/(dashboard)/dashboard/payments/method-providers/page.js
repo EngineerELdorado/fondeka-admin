@@ -98,7 +98,7 @@ const DetailGrid = ({ rows }) => (
 export default function MethodProvidersPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(10);
+  const [size, setSize] = useState(20);
   const [methods, setMethods] = useState([]);
   const [providers, setProviders] = useState([]);
   const [arrangeBy, setArrangeBy] = useState('id');

@@ -63,7 +63,7 @@ const DetailGrid = ({ rows }) => (
 export default function BankDepositProofsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(10);
+  const [size, setSize] = useState(20);
   const [statusFilter, setStatusFilter] = useState('');
   const [totalElements, setTotalElements] = useState(null);
   const [loading, setLoading] = useState(false);

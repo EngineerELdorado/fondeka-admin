@@ -30,7 +30,7 @@ const DetailGrid = ({ rows }) => (
 export default function BillProductProvidersPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(10);
+  const [size, setSize] = useState(20);
   const [products, setProducts] = useState([]);
   const [providers, setProviders] = useState([]);
   const [cegawebProfiles, setCegawebProfiles] = useState([]);

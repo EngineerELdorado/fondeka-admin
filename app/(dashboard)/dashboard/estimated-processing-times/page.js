@@ -156,7 +156,7 @@ const FilterChip = ({ label, onClear }) => (
 export default function EstimatedProcessingTimesPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(10);
+  const [size, setSize] = useState(20);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);

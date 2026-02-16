@@ -123,7 +123,7 @@ export default function EsimsPage() {
   const [rows, setRows] = useState([]);
   const [expirySort, setExpirySort] = useState('none');
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(10);
+  const [size, setSize] = useState(20);
   const [iccid, setIccid] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);

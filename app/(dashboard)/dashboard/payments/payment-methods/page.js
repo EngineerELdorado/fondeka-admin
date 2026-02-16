@@ -89,7 +89,7 @@ const DetailGrid = ({ rows }) => (
 export default function PaymentMethodsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(10);
+  const [size, setSize] = useState(20);
   const [countries, setCountries] = useState([]);
   const [arrangeBy, setArrangeBy] = useState('id');
   const [loading, setLoading] = useState(false);

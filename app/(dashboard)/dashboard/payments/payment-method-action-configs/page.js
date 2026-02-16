@@ -204,7 +204,7 @@ export default function PaymentMethodActionConfigsPage() {
   const [viewMode, setViewMode] = useState('global');
   const [selectedAccountId, setSelectedAccountId] = useState('');
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(10);
+  const [size, setSize] = useState(20);
   const [arrangeBy, setArrangeBy] = useState('rank');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);

@@ -7,7 +7,7 @@ export function DataTable({
   rows,
   emptyLabel = 'No data to display.',
   showIndex = true,
-  pageSize = 10,
+  pageSize = 20,
   page: controlledPage,
   totalPages,
   onPageChange,
@@ -17,7 +17,7 @@ export function DataTable({
   const isServerPagination = typeof onPageChange === 'function';
   const [localPage, setLocalPage] = useState(0);
   const page = isServerPagination ? Math.max(0, Number(controlledPage) || 0) : localPage;
-  const safePageSize = Math.max(1, Number(pageSize) || 10);
+  const safePageSize = Math.max(1, Number(pageSize) || 20);
 
   const visibleCols = useMemo(() => columns.filter((col) => col.key !== 'id'), [columns]);
   const localTotalPages = Math.max(1, Math.ceil(rows.length / safePageSize));

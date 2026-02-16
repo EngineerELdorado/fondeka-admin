@@ -239,7 +239,7 @@ export default function TransactionsPage() {
   const hasQueryFilters = Object.keys(queryFilters).length > 0;
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(10);
+  const [size, setSize] = useState(20);
   const [pageMeta, setPageMeta] = useState({ totalPages: null, totalElements: null });
   const [filters, setFilters] = useState(() => ({ ...initialFilters, ...queryFilters }));
   const [appliedFilters, setAppliedFilters] = useState(() => ({ ...initialFilters, ...queryFilters }));
