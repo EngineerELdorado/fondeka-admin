@@ -164,7 +164,7 @@ const normalizeKyc = (item) => {
 export default function KycsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(50);
+  const [size, setSize] = useState(10);
   const [filters, setFilters] = useState(emptyFilters);
   const [appliedFilters, setAppliedFilters] = useState(emptyFilters);
   const [showFilters, setShowFilters] = useState(false);
@@ -299,6 +299,9 @@ export default function KycsPage() {
     });
     return chips;
   }, [appliedFilters]);
+
+  const canGoPrevious = page > 0;
+  const canGoNext = rows.length === size && rows.length > 0;
 
   const columns = [
     { key: 'id', label: 'ID' },
@@ -619,6 +622,18 @@ export default function KycsPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="size">Size</label>
               <input id="size" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label>Navigate</label>
+              <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                <button type="button" className="btn-neutral" disabled={loading || !canGoPrevious} onClick={() => setPage((p) => Math.max(0, p - 1))}>
+                  ←
+                </button>
+                <button type="button" className="btn-neutral" disabled={loading || !canGoNext} onClick={() => setPage((p) => p + 1)}>
+                  →
+                </button>
+                <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Page {page + 1}</span>
+              </div>
             </div>
           </div>
         </div>
