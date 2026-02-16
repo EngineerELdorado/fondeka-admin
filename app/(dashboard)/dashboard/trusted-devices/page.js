@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
@@ -97,6 +97,7 @@ export default function TrustedDevicesPage() {
   const [actionLoading, setActionLoading] = useState('');
   const [pageMeta, setPageMeta] = useState({ totalElements: null, totalPages: null });
   const [selectedIds, setSelectedIds] = useState(new Set());
+  const [expandedGroups, setExpandedGroups] = useState(new Set());
 
   const openDetails = async (row) => {
     setDetailsRow(row);
@@ -308,8 +309,16 @@ export default function TrustedDevicesPage() {
             <div>
               {row.userFullName || `${row.userFirstName || ''} ${row.userLastName || ''}`.trim() || '—'}
             </div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              {row.accountReference ? row.accountReference : row.accountId !== undefined && row.accountId !== null ? `Account #${row.accountId}` : 'No account'}
+            </div>
           </div>
         )
+      },
+      {
+        key: 'userPhoneNumber',
+        label: 'Phone',
+        render: (row) => row.userPhoneNumber || row.phoneNumber || '—'
       },
       {
         key: 'status',
@@ -375,6 +384,75 @@ export default function TrustedDevicesPage() {
     ],
     [actionLoading, selectedIds]
   );
+
+  const parseTimestamp = (value) => {
+    if (!value) return 0;
+    const ts = new Date(value).getTime();
+    return Number.isNaN(ts) ? 0 : ts;
+  };
+
+  const groupedRows = useMemo(() => {
+    const groups = new Map();
+    rows.forEach((row) => {
+      const rawAccountId = row.accountId;
+      const groupKey = rawAccountId === null || rawAccountId === undefined || rawAccountId === '' ? '__unassigned__' : String(rawAccountId);
+      if (!groups.has(groupKey)) {
+        groups.set(groupKey, {
+          key: groupKey,
+          accountId: rawAccountId,
+          accountReference: row.accountReference || '',
+          rows: []
+        });
+      }
+      const group = groups.get(groupKey);
+      if (!group.accountReference && row.accountReference) group.accountReference = row.accountReference;
+      group.rows.push(row);
+    });
+    return Array.from(groups.values())
+      .map((group) => {
+        const sortedDevices = [...group.rows].sort((a, b) => {
+          const aTs = parseTimestamp(a.lastSeenAt || a.createdAt);
+          const bTs = parseTimestamp(b.lastSeenAt || b.createdAt);
+          return bTs - aTs;
+        });
+        const latestDevice = sortedDevices[0] || null;
+        const profileSource =
+          sortedDevices.find((item) => item.userFullName || item.userFirstName || item.userLastName || item.userEmail || item.email || item.userPhoneNumber || item.phoneNumber) ||
+          latestDevice ||
+          {};
+        return {
+          ...group,
+          rows: sortedDevices,
+          latestDevice,
+          otherDevices: sortedDevices.slice(1),
+          userName: profileSource.userFullName || `${profileSource.userFirstName || ''} ${profileSource.userLastName || ''}`.trim() || '—',
+          userEmail: profileSource.userEmail || profileSource.email || '—',
+          userPhone: profileSource.userPhoneNumber || profileSource.phoneNumber || '—'
+        };
+      })
+      .sort((a, b) => parseTimestamp(b.latestDevice?.lastSeenAt || b.latestDevice?.createdAt) - parseTimestamp(a.latestDevice?.lastSeenAt || a.latestDevice?.createdAt));
+  }, [rows]);
+
+  useEffect(() => {
+    setExpandedGroups((prev) => {
+      if (!prev.size) return prev;
+      const validKeys = new Set(groupedRows.map((group) => group.key));
+      const next = new Set();
+      prev.forEach((key) => {
+        if (validKeys.has(key)) next.add(key);
+      });
+      return next;
+    });
+  }, [groupedRows]);
+
+  const toggleGroup = (groupKey) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupKey)) next.delete(groupKey);
+      else next.add(groupKey);
+      return next;
+    });
+  };
 
   const DetailCard = ({ label, children }) => (
     <div className="detail-card">
@@ -536,7 +614,140 @@ export default function TrustedDevicesPage() {
         )}
       </div>
 
-      <DataTable columns={columns} rows={rows} emptyLabel="No devices found" />
+      <div className="card table-scroll">
+        <div className="table-scroll__hint">Swipe to see more</div>
+        <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr>
+              <th className="data-table__cell" style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                Expand
+              </th>
+              <th className="data-table__cell" style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                User
+              </th>
+              <th className="data-table__cell" style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                Email
+              </th>
+              <th className="data-table__cell" style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                Phone
+              </th>
+              <th className="data-table__cell" style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                Last device
+              </th>
+              <th className="data-table__cell" style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                Platform
+              </th>
+              <th className="data-table__cell" style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                Language
+              </th>
+              <th className="data-table__cell" style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                Other devices
+              </th>
+              <th className="data-table__cell" style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {groupedRows.length === 0 && (
+              <tr>
+                <td colSpan={9} style={{ padding: '1rem', textAlign: 'center', color: 'var(--muted)' }}>
+                  No devices found
+                </td>
+              </tr>
+            )}
+            {groupedRows.map((group) => {
+              const isExpanded = expandedGroups.has(group.key);
+              const latest = group.latestDevice;
+              return (
+                <Fragment key={group.key}>
+                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                    <td className="data-table__cell" style={{ padding: '0.75rem' }}>
+                      <button type="button" className="btn-neutral btn-sm" onClick={() => toggleGroup(group.key)}>
+                        {isExpanded ? 'Hide' : 'Show'}
+                      </button>
+                    </td>
+                    <td className="data-table__cell" style={{ padding: '0.75rem' }}>
+                      {group.userName}
+                    </td>
+                    <td className="data-table__cell" style={{ padding: '0.75rem' }}>
+                      {group.userEmail}
+                    </td>
+                    <td className="data-table__cell" style={{ padding: '0.75rem' }}>
+                      {group.userPhone}
+                    </td>
+                    <td className="data-table__cell" style={{ padding: '0.75rem' }}>
+                      {latest ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
+                          <div>{latest.deviceName || latest.deviceId || '—'}</div>
+                          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{formatDateTime(latest.lastSeenAt || latest.createdAt)}</div>
+                        </div>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                    <td className="data-table__cell" style={{ padding: '0.75rem' }}>
+                      {latest
+                        ? String(latest.platform || '').toLowerCase() === 'ios'
+                          ? 'iPhone'
+                          : String(latest.platform || '').toLowerCase() === 'android'
+                            ? 'Android'
+                            : latest.platform
+                              ? String(latest.platform).toUpperCase()
+                              : '—'
+                        : '—'}
+                    </td>
+                    <td className="data-table__cell" style={{ padding: '0.75rem' }}>
+                      {latest?.preferredLanguage ? String(latest.preferredLanguage).toUpperCase() : '—'}
+                    </td>
+                    <td className="data-table__cell" style={{ padding: '0.75rem' }}>
+                      {group.otherDevices.length}
+                    </td>
+                    <td className="data-table__cell" style={{ padding: '0.75rem' }}>
+                      {latest ? (
+                        <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                          <button type="button" onClick={() => openDetails(latest)} className="btn-ghost btn-sm">
+                            Details
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmRevoke(latest)}
+                            className="btn-danger btn-sm"
+                            disabled={actionLoading === `revoke-${latest.deviceId}`}
+                          >
+                            {actionLoading === `revoke-${latest.deviceId}` ? 'Revoking…' : 'Revoke'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDelete({ deviceIds: [latest.deviceId] })}
+                            className="btn-danger btn-sm"
+                            disabled={actionLoading === `delete-${latest.deviceId}`}
+                          >
+                            {actionLoading === `delete-${latest.deviceId}` ? 'Deleting…' : 'Delete'}
+                          </button>
+                        </div>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                  </tr>
+                  {isExpanded && (
+                    <tr>
+                      <td colSpan={9} style={{ padding: '0.75rem', background: 'var(--card-subtle)' }}>
+                        {group.otherDevices.length === 0 ? (
+                          <div style={{ color: 'var(--muted)' }}>No other devices for this account.</div>
+                        ) : (
+                          <DataTable columns={columns} rows={group.otherDevices} emptyLabel="No other devices" />
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
 
       {detailsRow && (
         <Modal title="Device details" onClose={() => setDetailsRow(null)}>
@@ -560,8 +771,8 @@ export default function TrustedDevicesPage() {
               {detailsRow.accountReference ? detailsRow.accountReference : detailsRow.accountId !== undefined && detailsRow.accountId !== null ? `Account #${detailsRow.accountId}` : '—'}
             </DetailCard>
             <DetailCard label="User reference">{detailsRow.userReference || '—'}</DetailCard>
-            <DetailCard label="Email">{detailsRow.email || '—'}</DetailCard>
-            <DetailCard label="Phone">{detailsRow.phoneNumber || '—'}</DetailCard>
+            <DetailCard label="Email">{detailsRow.userEmail || detailsRow.email || '—'}</DetailCard>
+            <DetailCard label="Phone">{detailsRow.userPhoneNumber || detailsRow.phoneNumber || '—'}</DetailCard>
             <DetailCard label="Last seen">{formatDateTime(detailsRow.lastSeenAt)}</DetailCard>
             <DetailCard label="Last seen IP">{detailsRow.lastSeenIp || '—'}</DetailCard>
             <DetailCard label="Last seen country">{detailsRow.lastSeenCountry ? String(detailsRow.lastSeenCountry).toUpperCase() : '—'}</DetailCard>
