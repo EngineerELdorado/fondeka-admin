@@ -13,7 +13,8 @@ const emptyState = {
   logoUrl: '',
   rank: '',
   countryIds: [],
-  active: true
+  active: true,
+  available: true
 };
 
 const typeOptions = ['TELEVISION', 'ELECTRICITY', 'INTERNET', 'WATER', 'STREAMING', 'AIRTIME', 'OTHERS'];
@@ -43,7 +44,8 @@ const toPayload = (state) => ({
   logoUrl: state.logoUrl || null,
   countryIds: Array.isArray(state.countryIds) ? state.countryIds.map((id) => Number(id)).filter((n) => !Number.isNaN(n)) : [],
   rank: state.rank === '' ? null : Number(state.rank),
-  active: Boolean(state.active)
+  active: Boolean(state.active),
+  available: Boolean(state.available)
 });
 
 const Modal = ({ title, onClose, children }) => (
@@ -127,7 +129,32 @@ export default function BillProductsPage() {
   }, []);
 
   const columns = useMemo(() => [
-    { key: 'displayName', label: 'Display' },
+    {
+      key: 'displayName',
+      label: 'Display',
+      render: (row) => (
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+          <span>{row.displayName || '—'}</span>
+          {row.available === false && (
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                borderRadius: '999px',
+                border: '1px solid #f8d5a2',
+                background: '#fff7ed',
+                color: '#9a3412',
+                padding: '0.18rem 0.55rem',
+                fontWeight: 700,
+                fontSize: '12px'
+              }}
+            >
+              Unavailable
+            </span>
+          )}
+        </div>
+      )
+    },
     { key: 'type', label: 'Type' },
     {
       key: 'country',
@@ -149,6 +176,11 @@ export default function BillProductsPage() {
     },
     { key: 'rank', label: 'Rank' },
     { key: 'active', label: 'Active' },
+    {
+      key: 'available',
+      label: 'Available',
+      render: (row) => (row.available === false ? 'No' : 'Yes')
+    },
     {
       key: 'actions',
       label: 'Actions',
@@ -179,7 +211,8 @@ export default function BillProductsPage() {
       logoUrl: row.logoUrl ?? '',
       countryIds: row.countryIds || [],
       rank: row.rank ?? '',
-      active: Boolean(row.active)
+      active: Boolean(row.active),
+      available: row.available !== false
     });
     setShowEdit(true);
     setInfo(null);
@@ -402,6 +435,16 @@ export default function BillProductsPage() {
         <input id="active" type="checkbox" checked={draft.active} onChange={(e) => setDraft((p) => ({ ...p, active: e.target.checked }))} />
         <label htmlFor="active">Active</label>
       </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <input id="available" type="checkbox" checked={draft.available} onChange={(e) => setDraft((p) => ({ ...p, available: e.target.checked }))} />
+        <label
+          htmlFor="available"
+          title="Use when provider is temporarily down. Purchases will be blocked."
+          style={{ margin: 0, cursor: 'help' }}
+        >
+          Available
+        </label>
+      </div>
     </div>
   );
 
@@ -495,6 +538,7 @@ export default function BillProductsPage() {
               },
               { label: 'Rank', value: selected?.rank },
               { label: 'Active', value: selected?.active ? 'Yes' : 'No' },
+              { label: 'Available', value: selected?.available !== false ? 'Yes' : 'No' },
               { label: 'Created', value: selected?.createdAt },
               { label: 'Updated', value: selected?.updatedAt }
             ]}
