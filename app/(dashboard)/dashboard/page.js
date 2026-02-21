@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend } from 'recharts';
+import { ResponsiveContainer, LineChart, Line, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 
@@ -64,6 +64,17 @@ const formatDateTime = (value) => {
   return date.toLocaleString(DISPLAY_LOCALE, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
 };
 
+const formatDuration = (ms) => {
+  if (ms === null || ms === undefined || Number.isNaN(ms) || ms < 0) return '—';
+  const minutes = Math.floor(ms / 60000);
+  const days = Math.floor(minutes / 1440);
+  const hours = Math.floor((minutes % 1440) / 60);
+  const mins = minutes % 60;
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${mins}m`;
+  return `${mins}m`;
+};
+
 const formatInputDate = (date) => {
   if (!date || Number.isNaN(date.getTime())) return '';
   const pad = (n) => String(n).padStart(2, '0');
@@ -122,6 +133,31 @@ const actionOptions = [
   'WITHDRAW_FROM_WALLET'
 ].sort();
 const statusOptions = ['INITIATED', 'PROCESSING', 'COMPLETED', 'FAILED', 'CANCELED'];
+const STALE_MINUTES_MIN = 1;
+const STALE_MINUTES_MAX = 43200;
+const STALE_MINUTES_PRESETS = [1, 3, 5, 10, 15, 30, 45, 60, 90, 120, 180, 240, 360, 720, 1440, 2880, 4320, 10080, 20160, 43200];
+const STUCK_CRITICAL_COUNT_THRESHOLD = 20;
+const STUCK_CRITICAL_AGE_MS = 6 * 60 * 60 * 1000;
+const STUCK_POLL_INTERVAL_MS = 30 * 1000;
+
+const clampStaleMinutes = (value) => {
+  const num = Math.floor(Number(value));
+  if (!Number.isFinite(num)) return STALE_MINUTES_MIN;
+  return Math.min(STALE_MINUTES_MAX, Math.max(STALE_MINUTES_MIN, num));
+};
+
+const formatStaleMinutesLabel = (minutes) => {
+  const value = clampStaleMinutes(minutes);
+  if (value < 60) return `${value} minute${value === 1 ? '' : 's'}`;
+  if (value < 1440) {
+    const hours = value / 60;
+    const rounded = Number.isInteger(hours) ? String(hours) : hours.toFixed(1).replace(/\.0$/, '');
+    return `${rounded} hour${hours === 1 ? '' : 's'}`;
+  }
+  const days = value / 1440;
+  const rounded = Number.isInteger(days) ? String(days) : days.toFixed(1).replace(/\.0$/, '');
+  return `${rounded} day${days === 1 ? '' : 's'}`;
+};
 
 const initialFilters = (() => {
   const now = new Date();
@@ -248,6 +284,18 @@ export default function DashboardPage() {
   const [billProviders, setBillProviders] = useState([]);
   const [countries, setCountries] = useState([]);
   const [showHoldings, setShowHoldings] = useState(false);
+  const [staleMinutes, setStaleMinutes] = useState(3);
+  const [staleMinutesMode, setStaleMinutesMode] = useState('preset');
+  const [fundedStuckReport, setFundedStuckReport] = useState(null);
+  const [fundedStuckLoading, setFundedStuckLoading] = useState(false);
+  const [fundedStuckError, setFundedStuckError] = useState(null);
+  const [stuckCriticalWindows, setStuckCriticalWindows] = useState(0);
+  const [stuckItemsModal, setStuckItemsModal] = useState(null);
+  const [stuckItemsPage, setStuckItemsPage] = useState(0);
+  const [stuckItemsSize, setStuckItemsSize] = useState(100);
+  const [stuckItemsData, setStuckItemsData] = useState(null);
+  const [stuckItemsLoading, setStuckItemsLoading] = useState(false);
+  const [stuckItemsError, setStuckItemsError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const refreshInFlight = useRef(false);
   const refreshTimerRef = useRef(null);
@@ -340,6 +388,44 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, [autoRefresh, fetchDashboard]);
 
+  const fetchFundedStuckReport = useCallback(
+    async ({ silent = false } = {}) => {
+      if (!silent) setFundedStuckLoading(true);
+      setFundedStuckError(null);
+      try {
+        const params = new URLSearchParams({ staleMinutes: String(staleMinutes) });
+        const res = await api.transactions.fundedStuckReport(params);
+        setFundedStuckReport(res || null);
+
+        const list = Array.isArray(res?.actions) ? res.actions : [];
+        const totalCount = Number(res?.totalCount) || 0;
+        const oldestTs = list
+          .map((item) => Date.parse(item?.oldestUpdatedAt || ''))
+          .filter((ts) => Number.isFinite(ts))
+          .reduce((min, ts) => (min === null ? ts : Math.min(min, ts)), null);
+        const oldestAgeMs = oldestTs !== null ? Date.now() - oldestTs : 0;
+        const isCritical = totalCount >= STUCK_CRITICAL_COUNT_THRESHOLD || oldestAgeMs > STUCK_CRITICAL_AGE_MS;
+        setStuckCriticalWindows((prev) => (isCritical ? prev + 1 : 0));
+      } catch (err) {
+        setFundedStuckError(err?.message || 'Failed to load stuck FUNDED report.');
+      } finally {
+        if (!silent) setFundedStuckLoading(false);
+      }
+    },
+    [staleMinutes]
+  );
+
+  useEffect(() => {
+    fetchFundedStuckReport();
+  }, [fetchFundedStuckReport]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchFundedStuckReport({ silent: true });
+    }, STUCK_POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [fetchFundedStuckReport]);
+
   useEffect(() => {
     const fetchOptions = async () => {
       try {
@@ -368,6 +454,14 @@ export default function DashboardPage() {
   const metrics = data?.metrics || {};
   const timeseries = data?.timeseries || [];
   const holdings = data?.holdings || {};
+  const fundedStuckActions = useMemo(() => {
+    const list = Array.isArray(fundedStuckReport?.actions) ? fundedStuckReport.actions : [];
+    return list
+      .slice()
+      .sort((a, b) => (Number(b?.count) || 0) - (Number(a?.count) || 0));
+  }, [fundedStuckReport]);
+  const fundedStuckTotalCount = Number(fundedStuckReport?.totalCount) || 0;
+  const showFundedStuckSection = fundedStuckTotalCount > 0;
   const chartData = useMemo(
     () =>
       (timeseries || [])
@@ -469,6 +563,50 @@ export default function DashboardPage() {
     const query = params.toString();
     router.push(`/dashboard/transactions${query ? `?${query}` : ''}`);
   };
+
+  const goToFundedStuckAction = (action) => {
+    const params = new URLSearchParams();
+    params.set('status', 'FUNDED');
+    if (action) params.set('action', String(action));
+    params.set('endDate', String(Date.now() - staleMinutes * 60 * 1000));
+    router.push(`/dashboard/transactions?${params.toString()}`);
+  };
+
+  const openFundedStuckItems = (action) => {
+    setStuckItemsModal({ action: action || null });
+    setStuckItemsPage(0);
+    setStuckItemsSize(100);
+    setStuckItemsData(null);
+    setStuckItemsError(null);
+  };
+
+  const fetchFundedStuckItems = useCallback(
+    async ({ action, page: targetPage, size: targetSize }) => {
+      if (!action) return;
+      setStuckItemsLoading(true);
+      setStuckItemsError(null);
+      try {
+        const params = new URLSearchParams({
+          action: String(action),
+          staleMinutes: String(staleMinutes),
+          page: String(Math.max(0, Number(targetPage) || 0)),
+          size: String(Math.min(500, Math.max(1, Number(targetSize) || 100)))
+        });
+        const res = await api.transactions.fundedStuckItems(params);
+        setStuckItemsData(res || null);
+      } catch (err) {
+        setStuckItemsError(err?.message || 'Failed to load stuck items.');
+      } finally {
+        setStuckItemsLoading(false);
+      }
+    },
+    [staleMinutes]
+  );
+
+  useEffect(() => {
+    if (!stuckItemsModal?.action) return;
+    fetchFundedStuckItems({ action: stuckItemsModal.action, page: stuckItemsPage, size: stuckItemsSize });
+  }, [stuckItemsModal?.action, stuckItemsPage, stuckItemsSize, fetchFundedStuckItems]);
 
   const kpiCards = [
     { label: 'Fiat balance', value: formatCurrency(holdings.fiatBalanceTotal), sub: 'Across fiat accounts', tone: '#2563eb' },
@@ -884,20 +1022,154 @@ export default function DashboardPage() {
           </div>
 
         </div>
-        <div className="card" style={{ display: 'grid', gap: '0.5rem' }}>
-          <div style={{ fontWeight: 800 }}>Key metrics</div>
-          <div className="dashboard-metrics-grid">
-            {metricCards.map((m) => (
-              <div key={m.key} style={{ padding: '0.75rem', border: `1px solid var(--border)`, borderRadius: '12px', display: 'grid', gap: '0.15rem', background: 'color-mix(in srgb, var(--surface) 90%, var(--accent-soft) 10%)' }}>
-                <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{m.label}</div>
-                <div style={{ fontWeight: 800, fontSize: '18px' }}>{formatNumber(metrics?.[m.key])}</div>
+        {showFundedStuckSection ? (
+          <div
+            className="card"
+            style={{
+              display: 'grid',
+              gap: '0.6rem',
+              border: '1px solid #f5c2c7',
+              background: 'linear-gradient(180deg, rgba(185,28,28,0.07) 0%, rgba(185,28,28,0.02) 100%)'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: 800, color: '#991b1b' }}>
+                <span
+                  aria-hidden="true"
+                  style={{ width: '8px', height: '8px', borderRadius: '999px', background: '#dc2626', boxShadow: '0 0 0 4px rgba(220,38,38,0.12)' }}
+                />
+                Stuck FUNDED • By action
               </div>
-            ))}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <label htmlFor="staleMinutesInline" style={{ margin: 0, fontSize: '12px', color: 'var(--muted)' }}>
+                  staleMinutes
+                </label>
+                <select
+                  id="staleMinutesInline"
+                  value={staleMinutesMode === 'custom' ? 'custom' : String(clampStaleMinutes(staleMinutes))}
+                  onChange={(e) => {
+                    if (e.target.value === 'custom') {
+                      setStaleMinutesMode('custom');
+                    } else {
+                      setStaleMinutesMode('preset');
+                      setStaleMinutes(clampStaleMinutes(e.target.value));
+                    }
+                    setStuckCriticalWindows(0);
+                  }}
+                  style={{ width: 'auto', minWidth: '110px' }}
+                >
+                  {STALE_MINUTES_PRESETS.map((minutes) => (
+                    <option key={minutes} value={minutes}>
+                      {formatStaleMinutesLabel(minutes)}
+                    </option>
+                  ))}
+                  <option value="custom">Custom...</option>
+                </select>
+                {staleMinutesMode === 'custom' && (
+                  <input
+                    type="number"
+                    min={STALE_MINUTES_MIN}
+                    max={STALE_MINUTES_MAX}
+                    step={1}
+                    value={staleMinutes}
+                    onChange={(e) => {
+                      setStaleMinutes(clampStaleMinutes(e.target.value));
+                      setStuckCriticalWindows(0);
+                    }}
+                    style={{ width: 'auto', minWidth: '110px' }}
+                  />
+                )}
+                <span style={{ fontSize: '11px', color: 'var(--muted)' }}>{formatStaleMinutesLabel(staleMinutes)}</span>
+                <button type="button" className="btn-neutral btn-sm" onClick={() => fetchFundedStuckReport()} disabled={fundedStuckLoading}>
+                  {fundedStuckLoading ? 'Refreshing...' : 'Refresh'}
+                </button>
+              </div>
+            </div>
+            <div
+              style={{
+                fontSize: '12px',
+                color: '#7f1d1d',
+                background: 'rgba(220,38,38,0.08)',
+                border: '1px solid rgba(220,38,38,0.18)',
+                borderRadius: '8px',
+                padding: '0.45rem 0.6rem'
+              }}
+            >
+              {formatNumber(fundedStuckTotalCount)} stuck transaction{fundedStuckTotalCount === 1 ? '' : 's'} older than {formatStaleMinutesLabel(staleMinutes)}.
+            </div>
+            <Table
+              columns={[
+                { key: 'action', label: 'Action', render: (row) => formatEnumLabel(row.action) },
+                {
+                  key: 'count',
+                  label: 'Count',
+                  render: (row) => (
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        padding: '0.12rem 0.45rem',
+                        borderRadius: '999px',
+                        fontWeight: 800,
+                        color: '#991b1b',
+                        background: 'rgba(220,38,38,0.12)',
+                        border: '1px solid rgba(220,38,38,0.2)'
+                      }}
+                    >
+                      {formatNumber(row.count)}
+                    </span>
+                  ),
+                  bold: true
+                },
+                { key: 'oldestUpdatedAt', label: 'Oldest', render: (row) => formatDateTime(row.oldestUpdatedAt) },
+                { key: 'newestUpdatedAt', label: 'Newest', render: (row) => formatDateTime(row.newestUpdatedAt) },
+                {
+                  key: 'drill',
+                  label: 'Drill-down',
+                  render: (row) => (
+                    <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                      <button type="button" className="btn-neutral btn-sm" onClick={() => openFundedStuckItems(row.action)}>
+                        View stuck
+                      </button>
+                      <button type="button" className="btn-neutral btn-sm" onClick={() => goToFundedStuckAction(row.action)}>
+                        Open tx
+                      </button>
+                    </div>
+                  )
+                }
+              ]}
+              rows={fundedStuckActions}
+              emptyLabel={fundedStuckLoading ? 'Loading report...' : 'No stuck FUNDED transactions.'}
+            />
           </div>
-        </div>
+        ) : (
+          <div className="card" style={{ display: 'grid', gap: '0.5rem' }}>
+            <div style={{ fontWeight: 800 }}>Key metrics</div>
+            <div className="dashboard-metrics-grid">
+              {metricCards.map((m) => (
+                <div key={m.key} style={{ padding: '0.75rem', border: `1px solid var(--border)`, borderRadius: '12px', display: 'grid', gap: '0.15rem', background: 'color-mix(in srgb, var(--surface) 90%, var(--accent-soft) 10%)' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{m.label}</div>
+                  <div style={{ fontWeight: 800, fontSize: '18px' }}>{formatNumber(metrics?.[m.key])}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="dashboard-tables-grid">
+        {showFundedStuckSection && (
+          <div className="card" style={{ display: 'grid', gap: '0.5rem' }}>
+            <div style={{ fontWeight: 800 }}>Key metrics</div>
+            <div className="dashboard-metrics-grid">
+              {metricCards.map((m) => (
+                <div key={m.key} style={{ padding: '0.75rem', border: `1px solid var(--border)`, borderRadius: '12px', display: 'grid', gap: '0.15rem', background: 'color-mix(in srgb, var(--surface) 90%, var(--accent-soft) 10%)' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{m.label}</div>
+                  <div style={{ fontWeight: 800, fontSize: '18px' }}>{formatNumber(metrics?.[m.key])}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ fontWeight: 800 }}>Service mix</div>
@@ -1070,6 +1342,73 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      {stuckItemsModal?.action && (
+        <Modal title={`Stuck FUNDED items • ${formatEnumLabel(stuckItemsModal.action)}`} onClose={() => setStuckItemsModal(null)}>
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                staleMinutes={staleMinutes} • generated {formatDateTime(stuckItemsData?.generatedAt)}
+              </div>
+              <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  className="btn-neutral btn-sm"
+                  onClick={() => setStuckItemsPage((p) => Math.max(0, p - 1))}
+                  disabled={stuckItemsLoading || stuckItemsPage === 0}
+                >
+                  ←
+                </button>
+                <button
+                  type="button"
+                  className="btn-neutral btn-sm"
+                  onClick={() => setStuckItemsPage((p) => p + 1)}
+                  disabled={stuckItemsLoading || ((stuckItemsPage + 1) * stuckItemsSize >= (Number(stuckItemsData?.totalCount) || 0))}
+                >
+                  →
+                </button>
+                <span style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                  Page {stuckItemsPage + 1} • Total {formatNumber(stuckItemsData?.totalCount || 0)}
+                </span>
+              </div>
+            </div>
+
+            {stuckItemsError && (
+              <div style={{ color: '#b91c1c', fontWeight: 700, border: '1px solid #fecdd3', background: '#fef2f2', borderRadius: '10px', padding: '0.6rem 0.75rem' }}>
+                {stuckItemsError}
+              </div>
+            )}
+
+            <Table
+              columns={[
+                { key: 'transactionId', label: 'Transaction ID' },
+                { key: 'reference', label: 'Reference' },
+                {
+                  key: 'user',
+                  label: 'User',
+                  render: (row) => row.username || row.userName || row.userFullName || row.customer || row.customerName || '—'
+                },
+                { key: 'updatedAt', label: 'Updated', render: (row) => formatDateTime(row.updatedAt) },
+                {
+                  key: 'open',
+                  label: 'Open',
+                  render: (row) => (
+                    <button
+                      type="button"
+                      className="btn-neutral btn-sm"
+                      onClick={() => router.push(`/dashboard/transactions?transactionId=${encodeURIComponent(row.transactionId)}`)}
+                    >
+                      Open
+                    </button>
+                  )
+                }
+              ]}
+              rows={stuckItemsData?.items || []}
+              emptyLabel={stuckItemsLoading ? 'Loading stuck items...' : 'No stuck items found for this action.'}
+            />
+          </div>
+        </Modal>
+      )}
 
     </div>
   );

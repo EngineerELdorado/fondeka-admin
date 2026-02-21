@@ -25,6 +25,7 @@ const navItems = [
   { href: '/dashboard/bank-deposit-proofs', label: 'Bank Deposit Proofs' },
   { href: '/dashboard/estimated-processing-times', label: 'Estimated Processing Times' },
   { href: '/dashboard/webhook-events', label: 'Webhook Events' },
+  { href: '/dashboard/outbox', label: 'Outbox' },
   { href: '/dashboard/liquibase/changelogs', label: 'Liquibase Changelogs' },
   { href: '/dashboard/kycs', label: 'KYCs' },
   { href: '/dashboard/kyc-caps', label: 'KycCaps' },

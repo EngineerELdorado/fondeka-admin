@@ -76,6 +76,13 @@ const receiptPayloadTemplates = {
   GENERIC: { reference: '', note: '' }
 };
 
+const manualReconciliationReasonLabels = {
+  status_not_completable: 'Transaction status cannot be reconciled to completed.',
+  action_not_supported: 'This action is not supported for manual completion.',
+  card_not_issued: 'Card order cannot be completed until the card is issued.',
+  terminal_status: 'Transaction is already terminal and cannot be manually completed.'
+};
+
 const serviceLabels = {
   WALLET: 'Wallet',
   BILL_PAYMENTS: 'Bill payments',
@@ -221,6 +228,19 @@ const formatWebhookPayload = (payload) => {
   }
 };
 
+const formatManualReconciliationReason = (eligibility) => {
+  if (!eligibility) return 'Eligibility not loaded.';
+  const code = String(eligibility.reasonCode || '').toLowerCase();
+  return eligibility.reason || manualReconciliationReasonLabels[code] || 'Manual completion is not available for this transaction.';
+};
+
+const formatDateTimeLocalInput = (value) => {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
 export default function TransactionsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -228,11 +248,23 @@ export default function TransactionsPage() {
   const queryFilters = useMemo(() => {
     const transactionId = searchParams.get('transactionId');
     const statusParam = searchParams.get('status');
+    const actionParam = searchParams.get('action');
+    const endDateParam = searchParams.get('endDate');
     const next = {};
     if (transactionId) next.transactionId = transactionId;
     if (statusParam) {
       const normalized = normalizeEnumKey(statusParam);
       if (statusOptions.includes(normalized)) next.status = normalized;
+    }
+    if (actionParam) {
+      const normalized = normalizeEnumKey(actionParam);
+      if (actionOptions.includes(normalized)) next.action = normalized;
+    }
+    if (endDateParam) {
+      const asNumber = Number(endDateParam);
+      const parsedDate = Number.isNaN(asNumber) ? new Date(endDateParam) : new Date(asNumber);
+      const formatted = formatDateTimeLocalInput(parsedDate);
+      if (formatted) next.endDate = formatted;
     }
     return next;
   }, [searchParams]);
@@ -297,6 +329,13 @@ export default function TransactionsPage() {
   const [bankPayoutMessage, setBankPayoutMessage] = useState('');
   const [bankPayoutError, setBankPayoutError] = useState(null);
   const [bankPayoutLoading, setBankPayoutLoading] = useState(false);
+  const [manualReconciliationEligibility, setManualReconciliationEligibility] = useState(null);
+  const [manualReconciliationLoading, setManualReconciliationLoading] = useState(false);
+  const [manualReconciliationError, setManualReconciliationError] = useState(null);
+  const [showManualReconciliationComplete, setShowManualReconciliationComplete] = useState(false);
+  const [manualReconciliationMessage, setManualReconciliationMessage] = useState('');
+  const [manualReconciliationSubmitError, setManualReconciliationSubmitError] = useState(null);
+  const [manualReconciliationSubmitLoading, setManualReconciliationSubmitLoading] = useState(false);
   const webhookEvents = Array.isArray(selected?.webhookEvents) ? selected.webhookEvents : [];
   const normalizedStatus = selected?.status?.toUpperCase?.() || '';
   const showErrorMessage = ['FAILED', 'CANCELED', 'CANCELLED'].includes(normalizedStatus);
@@ -493,6 +532,23 @@ export default function TransactionsPage() {
     }
   };
 
+  const loadManualReconciliationEligibility = async (transactionId) => {
+    if (!transactionId) return;
+    setManualReconciliationLoading(true);
+    setManualReconciliationError(null);
+    try {
+      const res = await api.transactions.manualReconciliationEligibility(transactionId);
+      setManualReconciliationEligibility(res || null);
+      return res || null;
+    } catch (err) {
+      setManualReconciliationEligibility(null);
+      setManualReconciliationError(err?.message || 'Failed to load manual reconciliation eligibility');
+      return null;
+    } finally {
+      setManualReconciliationLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchRows();
   }, [page, size, appliedFilters]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -627,7 +683,23 @@ export default function TransactionsPage() {
       {
         key: 'action',
         label: 'Action',
-        render: (row) => formatEnumLabel(row.action, actionLabels)
+        render: (row) => {
+          const actionLabel = formatEnumLabel(row.action, actionLabels);
+          const service = normalizeEnumKey(row.service);
+          if (service !== 'BILL_PAYMENTS') return actionLabel;
+          const rawBillProductName = row.billProductName || row.billProductDisplayName || row.billProductCode;
+          if (!rawBillProductName) return actionLabel;
+          const normalizedBillProductName = String(rawBillProductName)
+            .trim()
+            .replace(/[_\s]+/g, ' ')
+            .toUpperCase();
+          return (
+            <span>
+              {actionLabel}{' '}
+              <span style={{ fontWeight: 800, color: 'var(--text)' }}>({normalizedBillProductName})</span>
+            </span>
+          );
+        }
       },
       {
         key: 'status',
@@ -694,6 +766,11 @@ export default function TransactionsPage() {
     setShowBankPayoutComplete(false);
     setBankPayoutMessage('');
     setBankPayoutError(null);
+    setManualReconciliationEligibility(null);
+    setManualReconciliationError(null);
+    setShowManualReconciliationComplete(false);
+    setManualReconciliationMessage('');
+    setManualReconciliationSubmitError(null);
   };
 
   const showRefundTransaction = async ({ refundReference, refundTransactionId }) => {
@@ -748,6 +825,7 @@ export default function TransactionsPage() {
     const transactionId = selected?.transactionId || selected?.id;
     loadReceipt(transactionId);
     loadReceiptAuditLogs(transactionId);
+    loadManualReconciliationEligibility(transactionId);
     const service = String(selected?.service || '').toUpperCase();
     if (service === 'BILL_PAYMENTS') {
       loadBillStatusAuditLogs(transactionId);
@@ -828,6 +906,49 @@ export default function TransactionsPage() {
       pushToast({ tone: 'error', message });
     } finally {
       setBankPayoutLoading(false);
+    }
+  };
+
+  const openManualReconciliationComplete = async () => {
+    const transactionId = selected?.transactionId || selected?.id;
+    if (!transactionId) {
+      setManualReconciliationError('Missing transaction id');
+      return;
+    }
+    const eligibility = await loadManualReconciliationEligibility(transactionId);
+    if (!eligibility?.completable) return;
+    setManualReconciliationSubmitError(null);
+    setManualReconciliationMessage('');
+    setShowManualReconciliationComplete(true);
+  };
+
+  const handleCompleteManualReconciliation = async () => {
+    const transactionId = selected?.transactionId || selected?.id;
+    if (!transactionId) {
+      setManualReconciliationSubmitError('Missing transaction id');
+      return;
+    }
+    setManualReconciliationSubmitLoading(true);
+    setManualReconciliationSubmitError(null);
+    try {
+      const payload = manualReconciliationMessage.trim() ? { message: manualReconciliationMessage.trim() } : undefined;
+      await api.transactions.completeManualReconciliation(transactionId, payload);
+      pushToast({ tone: 'success', message: 'Transaction marked completed' });
+      setShowManualReconciliationComplete(false);
+      setManualReconciliationMessage('');
+      await loadManualReconciliationEligibility(transactionId);
+      await fetchRows();
+      await loadReceipt(transactionId);
+      const fresh = await api.transactions.list(new URLSearchParams({ page: '0', size: '1', transactionId: String(transactionId) }));
+      const latest = Array.isArray(fresh) ? fresh?.[0] : fresh?.content?.[0];
+      if (latest) setSelected(latest);
+    } catch (err) {
+      const message = err?.message || 'Failed to mark transaction as completed';
+      setManualReconciliationSubmitError(message);
+      pushToast({ tone: 'error', message });
+      await loadManualReconciliationEligibility(transactionId);
+    } finally {
+      setManualReconciliationSubmitLoading(false);
     }
   };
 
@@ -1431,6 +1552,56 @@ export default function TransactionsPage() {
             <div className="card" style={{ padding: '1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                  <div style={{ fontWeight: 800 }}>Manual reconciliation completion</div>
+                  <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                    Mark transaction as completed after provider/manual reconciliation checks.
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="btn-neutral btn-sm"
+                    onClick={() => loadManualReconciliationEligibility(selected?.transactionId || selected?.id)}
+                    disabled={manualReconciliationLoading}
+                  >
+                    {manualReconciliationLoading ? 'Checking...' : 'Refresh eligibility'}
+                  </button>
+                  {manualReconciliationEligibility?.completable && (
+                    <button
+                      type="button"
+                      className="btn-success btn-sm"
+                      onClick={openManualReconciliationComplete}
+                      disabled={manualReconciliationLoading}
+                    >
+                      Mark as Completed
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ marginTop: '0.75rem', display: 'grid', gap: '0.6rem' }}>
+                <DetailGrid
+                  rows={[
+                    { label: 'Current status', value: selected?.status || '—' },
+                    { label: 'Action', value: formatEnumLabel(selected?.action, actionLabels) },
+                    { label: 'Completable', value: manualReconciliationEligibility?.completable ? 'Yes' : 'No' },
+                    { label: 'Eligibility status', value: manualReconciliationEligibility?.status || '—' },
+                    { label: 'Reason code', value: manualReconciliationEligibility?.reasonCode || '—' },
+                    { label: 'Notification event', value: manualReconciliationEligibility?.notificationEvent || '—' }
+                  ]}
+                />
+                {manualReconciliationError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{manualReconciliationError}</div>}
+                {!manualReconciliationError && manualReconciliationEligibility && !manualReconciliationEligibility.completable && (
+                  <div style={{ color: '#92400e', fontWeight: 700 }}>
+                    {formatManualReconciliationReason(manualReconciliationEligibility)}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="card" style={{ padding: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
                   <div style={{ fontWeight: 800 }}>Refund lookup</div>
                   <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Verify whether a refund transaction exists.</div>
                 </div>
@@ -1880,6 +2051,43 @@ export default function TransactionsPage() {
               </button>
               <button type="button" className="btn-success" onClick={handleCompleteBankPayout} disabled={bankPayoutLoading}>
                 {bankPayoutLoading ? 'Completing…' : 'Confirm completion'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showManualReconciliationComplete && (
+        <Modal title="Mark as completed (manual reconciliation)" onClose={() => (!manualReconciliationSubmitLoading ? setShowManualReconciliationComplete(false) : null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ color: 'var(--muted)' }}>
+              Confirm manual reconciliation completion. This marks the transaction as completed and triggers the completion notification pipeline.
+            </div>
+            <DetailGrid
+              rows={[
+                { label: 'Transaction ID', value: selected?.transactionId || selected?.id },
+                { label: 'Reference', value: selected?.reference || '—' },
+                { label: 'Status', value: selected?.status || '—' },
+                { label: 'Action', value: formatEnumLabel(selected?.action, actionLabels) },
+                { label: 'Notification event', value: manualReconciliationEligibility?.notificationEvent || '—' }
+              ]}
+            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="manualReconciliationMessage">Note (optional)</label>
+              <input
+                id="manualReconciliationMessage"
+                value={manualReconciliationMessage}
+                onChange={(e) => setManualReconciliationMessage(e.target.value)}
+                placeholder="Reconciled with provider ticket #ABC-123"
+              />
+            </div>
+            {manualReconciliationSubmitError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{manualReconciliationSubmitError}</div>}
+            <div className="modal-actions">
+              <button type="button" className="btn-neutral" onClick={() => setShowManualReconciliationComplete(false)} disabled={manualReconciliationSubmitLoading}>
+                Cancel
+              </button>
+              <button type="button" className="btn-success" onClick={handleCompleteManualReconciliation} disabled={manualReconciliationSubmitLoading}>
+                {manualReconciliationSubmitLoading ? 'Submitting…' : 'Confirm completion'}
               </button>
             </div>
           </div>

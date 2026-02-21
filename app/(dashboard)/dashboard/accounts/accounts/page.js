@@ -271,6 +271,7 @@ export default function AccountsListPage() {
         kycProvider: item.kycProvider,
         kycLevel: item.kycLevel,
         blacklisted: item.blacklisted,
+        createdAt: item.createdAt,
         balance: item.balance,
         previousDebt: item.previousDebt,
         eligibleLoanAmount: item.eligibleLoanAmount,
@@ -384,7 +385,7 @@ export default function AccountsListPage() {
       { key: 'phone', label: 'Phone' },
       { key: 'balance', label: 'Balance' },
       { key: 'eligibleLoanAmount', label: 'Eligible loan' },
-      { key: 'blacklisted', label: 'Blacklisted', render: (row) => renderBlacklistBadge(row.blacklisted) },
+      { key: 'createdAt', label: 'Created at', render: (row) => formatDateTime(row.createdAt) },
       {
         key: 'actions',
         label: 'Actions',
