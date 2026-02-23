@@ -221,6 +221,18 @@ const paymentMethodNameRuleOptions = [
   'AIRTIME_TOPUP'
 ].sort();
 
+const providerRoutingContextOptions = ['COLLECTION', 'PAYOUT'];
+const providerRoutingFilterActionOptions = [''].concat(paymentMethodActionRuleOptions);
+const createEmptyProviderRoutingForm = () => ({
+  id: null,
+  paymentMethodPaymentProviderId: '',
+  action: '',
+  context: '',
+  rank: 1,
+  active: true
+});
+const normalizeEnumValue = (value) => (typeof value === 'string' ? value.trim().toUpperCase() : '');
+
 export default function AccountDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -296,6 +308,13 @@ const [notificationDataModal, setNotificationDataModal] = useState(null);
   const [paymentMethodActive, setPaymentMethodActive] = useState(true);
   const [paymentMethodRank, setPaymentMethodRank] = useState(0);
   const [paymentMethodActionSaving, setPaymentMethodActionSaving] = useState(false);
+  const [providerRoutingRows, setProviderRoutingRows] = useState([]);
+  const [providerRoutingLoading, setProviderRoutingLoading] = useState(false);
+  const [providerRoutingError, setProviderRoutingError] = useState(null);
+  const [providerRoutingFilters, setProviderRoutingFilters] = useState({ active: '', action: '', context: '' });
+  const [showProviderRoutingForm, setShowProviderRoutingForm] = useState(false);
+  const [providerRoutingForm, setProviderRoutingForm] = useState(() => createEmptyProviderRoutingForm());
+  const [providerRoutingSaving, setProviderRoutingSaving] = useState(false);
   const [cardProductCardProviders, setCardProductCardProviders] = useState([]);
   const [showCardPriceForm, setShowCardPriceForm] = useState(false);
   const [cardPrices, setCardPrices] = useState([]);
@@ -394,6 +413,21 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
     [paymentMethodCountryCode]
   );
   const canSavePaymentMethodRule = paymentMethodTypeConflicts.length === 0 && paymentMethodNameConflicts.length === 0 && paymentMethodCountryCodeValid;
+  const providerRoutingFormAction = normalizeEnumValue(providerRoutingForm.action);
+  const providerRoutingFormContext = normalizeEnumValue(providerRoutingForm.context);
+  const providerRoutingActionContextWarning = Boolean(providerRoutingFormAction && providerRoutingFormContext);
+  const providerRoutingFilteredRows = useMemo(() => {
+    return providerRoutingRows.filter((row) => {
+      if (providerRoutingFilters.active !== '') {
+        if (String(Boolean(row?.active)) !== providerRoutingFilters.active) return false;
+      }
+      const actionFilter = normalizeEnumValue(providerRoutingFilters.action);
+      if (actionFilter && normalizeEnumValue(row?.action) !== actionFilter) return false;
+      const contextFilter = normalizeEnumValue(providerRoutingFilters.context);
+      if (contextFilter && normalizeEnumValue(row?.context) !== contextFilter) return false;
+      return true;
+    });
+  }, [providerRoutingRows, providerRoutingFilters]);
 
   const actionOptions = [
     'BUY_CARD',
@@ -437,6 +471,7 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
       await loadKycCap(acc?.kycLevel);
       await loadFeeConfigs(targetId);
       await loadPaymentMethodActionConfigs(targetId);
+      await loadProviderRouting(targetId);
       await loadCardPrices(targetId);
       await loadLoanRates(targetId);
       await loadCryptoRates(targetId);
@@ -544,6 +579,22 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
       setPaymentMethodActionConfigsError(err.message || 'Failed to load payment method rules');
     } finally {
       setPaymentMethodActionConfigsLoading(false);
+    }
+  };
+
+  const loadProviderRouting = async (id) => {
+    if (!id && id !== 0) return;
+    setProviderRoutingLoading(true);
+    setProviderRoutingError(null);
+    try {
+      const res = await api.accounts.providerRouting.list(id);
+      const list = Array.isArray(res) ? res : res?.content || [];
+      setProviderRoutingRows(list || []);
+    } catch (err) {
+      setProviderRoutingRows([]);
+      setProviderRoutingError(err.message || 'Failed to load provider routing overrides');
+    } finally {
+      setProviderRoutingLoading(false);
     }
   };
 
@@ -1334,6 +1385,129 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
         } catch (err) {
           const message = err.message || 'Failed to delete payment method rule';
           setPaymentMethodActionConfigsError(message);
+          pushToast({ tone: 'error', message });
+          throw err;
+        }
+      }
+    });
+  };
+
+  const getPmpLabel = (paymentMethodPaymentProviderId) => {
+    if (!paymentMethodPaymentProviderId && paymentMethodPaymentProviderId !== 0) return '—';
+    const match = pmps.find((p) => String(p.id) === String(paymentMethodPaymentProviderId));
+    if (!match) return `PMPP #${paymentMethodPaymentProviderId}`;
+    const method = match.paymentMethodName || match.paymentMethodDisplayName || 'Method';
+    const provider = match.paymentProviderName || 'Provider';
+    return `${method} -> ${provider}`;
+  };
+
+  const openProviderRoutingForm = (row = null) => {
+    setProviderRoutingError(null);
+    if (!row) {
+      setProviderRoutingForm(createEmptyProviderRoutingForm());
+    } else {
+      setProviderRoutingForm({
+        id: row.id || null,
+        paymentMethodPaymentProviderId: row.paymentMethodPaymentProviderId ?? '',
+        action: row.action || '',
+        context: row.context || '',
+        rank: row.rank ?? 1,
+        active: Boolean(row.active ?? true)
+      });
+    }
+    setShowProviderRoutingForm(true);
+  };
+
+  const resetProviderRoutingForm = () => {
+    setProviderRoutingForm(createEmptyProviderRoutingForm());
+  };
+
+  const submitProviderRoutingForm = async () => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) {
+      setProviderRoutingError('No account loaded');
+      return;
+    }
+    if (!providerRoutingForm.paymentMethodPaymentProviderId && providerRoutingForm.paymentMethodPaymentProviderId !== 0) {
+      setProviderRoutingError('Payment method/provider is required');
+      return;
+    }
+    const rankNum = Number(providerRoutingForm.rank);
+    if (!Number.isFinite(rankNum)) {
+      setProviderRoutingError('Rank must be a number');
+      return;
+    }
+
+    setProviderRoutingSaving(true);
+    setProviderRoutingError(null);
+    const payload = {
+      paymentMethodPaymentProviderId: Number(providerRoutingForm.paymentMethodPaymentProviderId),
+      action: providerRoutingFormAction || null,
+      context: providerRoutingFormContext || null,
+      rank: rankNum,
+      active: Boolean(providerRoutingForm.active)
+    };
+    try {
+      if (providerRoutingForm.id) {
+        await api.accounts.providerRouting.update(resolvedAccountId, providerRoutingForm.id, payload);
+        pushToast({ tone: 'success', message: 'Provider routing override updated' });
+      } else {
+        await api.accounts.providerRouting.create(resolvedAccountId, payload);
+        pushToast({ tone: 'success', message: 'Provider routing override created' });
+      }
+      resetProviderRoutingForm();
+      setShowProviderRoutingForm(false);
+      await loadProviderRouting(resolvedAccountId);
+    } catch (err) {
+      const message = err.message || 'Failed to save provider routing override';
+      setProviderRoutingError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setProviderRoutingSaving(false);
+    }
+  };
+
+  const disableProviderRouting = (row) => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined || !row?.id) return;
+    openConfirm({
+      title: 'Disable provider routing override',
+      message: `Disable provider routing override ${row.id}?`,
+      onConfirm: async () => {
+        setProviderRoutingError(null);
+        const payload = {
+          paymentMethodPaymentProviderId: Number(row.paymentMethodPaymentProviderId),
+          action: normalizeEnumValue(row.action) || null,
+          context: normalizeEnumValue(row.context) || null,
+          rank: Number(row.rank ?? 1),
+          active: false
+        };
+        try {
+          await api.accounts.providerRouting.update(resolvedAccountId, row.id, payload);
+          pushToast({ tone: 'success', message: 'Provider routing override disabled' });
+          await loadProviderRouting(resolvedAccountId);
+        } catch (err) {
+          const message = err.message || 'Failed to disable provider routing override';
+          setProviderRoutingError(message);
+          pushToast({ tone: 'error', message });
+          throw err;
+        }
+      }
+    });
+  };
+
+  const deleteProviderRouting = (row) => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined || !row?.id) return;
+    openConfirm({
+      title: 'Delete provider routing override',
+      message: `Delete provider routing override ${row.id}?`,
+      onConfirm: async () => {
+        setProviderRoutingError(null);
+        try {
+          await api.accounts.providerRouting.remove(resolvedAccountId, row.id);
+          pushToast({ tone: 'success', message: 'Provider routing override deleted' });
+          await loadProviderRouting(resolvedAccountId);
+        } catch (err) {
+          const message = err.message || 'Failed to delete provider routing override';
+          setProviderRoutingError(message);
           pushToast({ tone: 'error', message });
           throw err;
         }
@@ -2228,6 +2402,128 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
                       </td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="card" style={{ padding: '1rem', ...fadeInStyle(!providerRoutingLoading) }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+            <div style={{ fontWeight: 800 }}>Provider Routing Overrides</div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Account-level payment method/provider routing. Resolution order: account action, account context, account default, then global rules.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button type="button" className="btn-neutral btn-sm" onClick={() => loadProviderRouting(resolvedAccountId)} disabled={providerRoutingLoading}>
+              {providerRoutingLoading ? 'Loading…' : 'Reload'}
+            </button>
+            <button
+              type="button"
+              className="btn-primary btn-sm"
+              onClick={() => openProviderRoutingForm()}
+            >
+              Add override
+            </button>
+          </div>
+        </div>
+
+        <div style={{ marginTop: '0.75rem', display: 'grid', gap: '0.75rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="providerRoutingFilterActive">Active</label>
+              <select
+                id="providerRoutingFilterActive"
+                value={providerRoutingFilters.active}
+                onChange={(e) => setProviderRoutingFilters((prev) => ({ ...prev, active: e.target.value }))}
+              >
+                <option value="">All</option>
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="providerRoutingFilterAction">Action</label>
+              <select
+                id="providerRoutingFilterAction"
+                value={providerRoutingFilters.action}
+                onChange={(e) => setProviderRoutingFilters((prev) => ({ ...prev, action: e.target.value }))}
+              >
+                {providerRoutingFilterActionOptions.map((option) => (
+                  <option key={option || 'all'} value={option}>
+                    {option || 'All'}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="providerRoutingFilterContext">Context</label>
+              <select
+                id="providerRoutingFilterContext"
+                value={providerRoutingFilters.context}
+                onChange={(e) => setProviderRoutingFilters((prev) => ({ ...prev, context: e.target.value }))}
+              >
+                <option value="">All</option>
+                {providerRoutingContextOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {providerRoutingError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{providerRoutingError}</div>}
+          {providerRoutingLoading && <div style={{ color: 'var(--muted)' }}>Loading provider routing overrides…</div>}
+          {!providerRoutingLoading && providerRoutingRows.length === 0 && <div style={{ color: 'var(--muted)' }}>No provider routing overrides.</div>}
+          {!providerRoutingLoading && providerRoutingRows.length > 0 && providerRoutingFilteredRows.length === 0 && (
+            <div style={{ color: 'var(--muted)' }}>No overrides match the selected filters.</div>
+          )}
+          {!providerRoutingLoading && providerRoutingFilteredRows.length > 0 && (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '980px' }}>
+                <thead>
+                  <tr>
+                    {['Payment method', 'Provider', 'Action', 'Context', 'Rank', 'Active', 'Updated', ''].map((h) => (
+                      <th key={h} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {providerRoutingFilteredRows.map((row) => {
+                    const match = pmps.find((p) => String(p.id) === String(row.paymentMethodPaymentProviderId));
+                    const methodName = row.paymentMethodName || match?.paymentMethodName || match?.paymentMethodDisplayName || '—';
+                    const providerName = row.providerName || row.paymentProviderName || match?.paymentProviderName || '—';
+                    return (
+                      <tr key={row.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '0.45rem' }}>{methodName}</td>
+                        <td style={{ padding: '0.45rem' }}>{providerName}</td>
+                        <td style={{ padding: '0.45rem' }}>{row.action || '—'}</td>
+                        <td style={{ padding: '0.45rem' }}>{row.context || '—'}</td>
+                        <td style={{ padding: '0.45rem' }}>{row.rank ?? 1}</td>
+                        <td style={{ padding: '0.45rem' }}>{row.active ? 'Yes' : 'No'}</td>
+                        <td style={{ padding: '0.45rem' }}>{row.updatedAt ? formatDateTime(row.updatedAt) : '—'}</td>
+                        <td style={{ padding: '0.45rem', display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                          <button type="button" className="btn-neutral btn-sm" onClick={() => openProviderRoutingForm(row)}>
+                            Edit
+                          </button>
+                          {row.active && (
+                            <button type="button" className="btn-neutral btn-sm" onClick={() => disableProviderRouting(row)}>
+                              Disable
+                            </button>
+                          )}
+                          <button type="button" className="btn-danger btn-sm" onClick={() => deleteProviderRouting(row)}>
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -3497,6 +3793,120 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
               </button>
               <button type="button" className="btn-primary" onClick={submitPaymentMethodActionForm} disabled={paymentMethodActionSaving || !canSavePaymentMethodRule}>
                 {paymentMethodActionSaving ? 'Saving…' : paymentMethodActionFormId ? 'Update' : 'Add'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showProviderRoutingForm && (
+        <Modal
+          title={`${providerRoutingForm.id ? 'Edit' : 'Add'} provider routing override`}
+          onClose={() => (!providerRoutingSaving ? setShowProviderRoutingForm(false) : null)}
+        >
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            {providerRoutingError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{providerRoutingError}</div>}
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Saving as account override for account <strong>#{resolvedAccountId ?? '—'}</strong>.
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="providerRoutingPmpId">Payment method / provider *</label>
+                <select
+                  id="providerRoutingPmpId"
+                  value={providerRoutingForm.paymentMethodPaymentProviderId}
+                  onChange={(e) => setProviderRoutingForm((prev) => ({ ...prev, paymentMethodPaymentProviderId: e.target.value }))}
+                >
+                  <option value="">Select</option>
+                  {pmps.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {getPmpLabel(p.id)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="providerRoutingAction">Action</label>
+                <select
+                  id="providerRoutingAction"
+                  value={providerRoutingForm.action}
+                  onChange={(e) => setProviderRoutingForm((prev) => ({ ...prev, action: e.target.value }))}
+                >
+                  <option value="">Any action</option>
+                  {paymentMethodActionRuleOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="providerRoutingContext">Context</label>
+                <select
+                  id="providerRoutingContext"
+                  value={providerRoutingForm.context}
+                  onChange={(e) => setProviderRoutingForm((prev) => ({ ...prev, context: e.target.value }))}
+                >
+                  <option value="">Any context</option>
+                  {providerRoutingContextOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="providerRoutingRank">Rank</label>
+                <input
+                  id="providerRoutingRank"
+                  type="number"
+                  value={providerRoutingForm.rank}
+                  onChange={(e) => setProviderRoutingForm((prev) => ({ ...prev, rank: e.target.value }))}
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <input
+                  id="providerRoutingActive"
+                  type="checkbox"
+                  checked={providerRoutingForm.active}
+                  onChange={(e) => setProviderRoutingForm((prev) => ({ ...prev, active: e.target.checked }))}
+                />
+                <label htmlFor="providerRoutingActive">Active</label>
+              </div>
+            </div>
+
+            {providerRoutingActionContextWarning && (
+              <div
+                style={{
+                  border: '1px solid #facc15',
+                  background: '#fef9c3',
+                  color: '#854d0e',
+                  borderRadius: '10px',
+                  padding: '0.65rem',
+                  fontSize: '13px',
+                  fontWeight: 600
+                }}
+              >
+                Both action and context are set. This is allowed, but backend resolution prefers action.
+              </div>
+            )}
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn-neutral"
+                onClick={() => {
+                  if (!providerRoutingSaving) {
+                    resetProviderRoutingForm();
+                    setShowProviderRoutingForm(false);
+                  }
+                }}
+                disabled={providerRoutingSaving}
+              >
+                Cancel
+              </button>
+              <button type="button" className="btn-primary" onClick={submitProviderRoutingForm} disabled={providerRoutingSaving}>
+                {providerRoutingSaving ? 'Saving…' : providerRoutingForm.id ? 'Update' : 'Add'}
               </button>
             </div>
           </div>

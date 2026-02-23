@@ -882,6 +882,7 @@ export default function TransactionsPage() {
     const eligible = status === 'FUNDED' && action === 'WITHDRAW_FROM_WALLET' && meetsName && meetsType;
     return { eligible, methodName, methodType, status, action };
   }, [paymentMethods, selected]);
+  const isSelectedCompleted = useMemo(() => normalizeEnumKey(selected?.status) === 'COMPLETED', [selected?.status]);
 
   const handleCompleteBankPayout = async () => {
     const transactionId = selected?.transactionId || selected?.id;
@@ -1519,17 +1520,19 @@ export default function TransactionsPage() {
                       Mark FUNDED Equity DRC bank payouts as completed after manual transfer.
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    className="btn-success btn-sm"
-                    onClick={() => {
-                      setBankPayoutError(null);
-                      setShowBankPayoutComplete(true);
-                    }}
-                    disabled={!bankPayoutMeta.eligible}
-                  >
-                    Complete payout
-                  </button>
+                  {!isSelectedCompleted && (
+                    <button
+                      type="button"
+                      className="btn-success btn-sm"
+                      onClick={() => {
+                        setBankPayoutError(null);
+                        setShowBankPayoutComplete(true);
+                      }}
+                      disabled={!bankPayoutMeta.eligible}
+                    >
+                      Complete payout
+                    </button>
+                  )}
                 </div>
                 <div style={{ marginTop: '0.75rem', display: 'grid', gap: '0.6rem' }}>
                   <DetailGrid
