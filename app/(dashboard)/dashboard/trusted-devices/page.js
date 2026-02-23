@@ -460,6 +460,8 @@ export default function TrustedDevicesPage() {
       <div className="detail-value">{children}</div>
     </div>
   );
+  const canPrev = page > 0;
+  const canNext = pageMeta.totalPages === null ? rows.length === size && rows.length > 0 : page + 1 < pageMeta.totalPages;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -747,6 +749,44 @@ export default function TrustedDevicesPage() {
             })}
           </tbody>
         </table>
+      </div>
+
+      <div className="card" style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="trustedDevicesPage">Page</label>
+            <input
+              id="trustedDevicesPage"
+              type="number"
+              min={0}
+              value={page}
+              onChange={(e) => setPage(Math.max(0, Number(e.target.value) || 0))}
+              style={{ width: '110px' }}
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="trustedDevicesSize">Size</label>
+            <input
+              id="trustedDevicesSize"
+              type="number"
+              min={1}
+              max={200}
+              value={size}
+              onChange={(e) => setSize(Math.max(1, Number(e.target.value) || 1))}
+              style={{ width: '110px' }}
+            />
+          </div>
+          <button type="button" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={loading || !canPrev} className="btn-neutral">
+            ← Prev
+          </button>
+          <button type="button" onClick={() => setPage((p) => p + 1)} disabled={loading || !canNext} className="btn-neutral">
+            Next →
+          </button>
+        </div>
+        <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+          {pageMeta.totalElements !== null ? `${pageMeta.totalElements} devices total` : 'Total devices: —'}
+          {pageMeta.totalPages !== null && pageMeta.totalPages > 0 ? ` · page ${page + 1}/${pageMeta.totalPages}` : ''}
+        </div>
       </div>
 
       {detailsRow && (

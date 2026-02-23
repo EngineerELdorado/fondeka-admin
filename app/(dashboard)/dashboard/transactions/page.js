@@ -41,7 +41,7 @@ const actionOptions = [
   'OTHER'
 ].sort();
 const balanceEffectOptions = ['CREDIT', 'DEBIT', 'NONE'];
-const statusOptions = ['COMPLETED', 'PROCESSING', 'FAILED', 'PENDING', 'CANCELLED', 'REFUNDED', 'REVERSED', 'FUNDED', 'SUBMITTED', 'UNKNOWN'];
+const statusOptions = ['COMPLETED', 'PROCESSING', 'FAILED', 'PENDING', 'CANCELLED', 'REFUNDED', 'REVERSED', 'FUNDED', 'EXECUTING', 'SUBMITTED', 'UNKNOWN'];
 const receiptTypes = [
   'GENERIC',
   'BILL_PAYMENT',
@@ -859,7 +859,7 @@ export default function TransactionsPage() {
   const canRetryPostWebhook = useMemo(() => {
     if (!selected) return false;
     const status = String(selected.status || '').toUpperCase();
-    return status === 'FUNDED' || status === 'PROCESSING';
+    return status === 'FUNDED' || status === 'PROCESSING' || status === 'EXECUTING';
   }, [selected]);
 
   const bankPayoutMeta = useMemo(() => {
@@ -1567,13 +1567,8 @@ export default function TransactionsPage() {
                     {manualReconciliationLoading ? 'Checking...' : 'Refresh eligibility'}
                   </button>
                   {manualReconciliationEligibility?.completable && (
-                    <button
-                      type="button"
-                      className="btn-success btn-sm"
-                      onClick={openManualReconciliationComplete}
-                      disabled={manualReconciliationLoading}
-                    >
-                      Mark as Completed
+                    <button type="button" className="btn-neutral btn-sm" onClick={openManualReconciliationComplete} disabled={manualReconciliationLoading}>
+                      Complete by Reconciliation
                     </button>
                   )}
                 </div>
@@ -1963,7 +1958,7 @@ export default function TransactionsPage() {
         <Modal title="Retry post-webhook fulfillment" onClose={() => (!postWebhookLoading ? setShowPostWebhookRetry(false) : null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ color: 'var(--muted)' }}>
-              Replays post-webhook fulfillment to resubmit the order to the provider. Allowed for FUNDED or PROCESSING transactions.
+              Replays post-webhook fulfillment to resubmit the order to the provider. Allowed for FUNDED, PROCESSING, or EXECUTING transactions.
             </div>
             {!selected?.needsManualRefund && (
               <div style={{ color: '#b45309', fontWeight: 700 }}>
@@ -2058,7 +2053,7 @@ export default function TransactionsPage() {
       )}
 
       {showManualReconciliationComplete && (
-        <Modal title="Mark as completed (manual reconciliation)" onClose={() => (!manualReconciliationSubmitLoading ? setShowManualReconciliationComplete(false) : null)}>
+        <Modal title="Complete by reconciliation" onClose={() => (!manualReconciliationSubmitLoading ? setShowManualReconciliationComplete(false) : null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ color: 'var(--muted)' }}>
               Confirm manual reconciliation completion. This marks the transaction as completed and triggers the completion notification pipeline.

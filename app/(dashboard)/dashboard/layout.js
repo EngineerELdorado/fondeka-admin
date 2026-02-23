@@ -35,6 +35,8 @@ const navItems = [
   { href: '/dashboard/announcements', label: 'Announcements' },
   { href: '/dashboard/notification-providers', label: 'Notification Providers' },
   { href: '/dashboard/notification-default-channels', label: 'Notification Defaults' },
+  { href: '/dashboard/notification-push-campaigns', label: 'Push Campaigns' },
+  { href: '/dashboard/notification-push-campaign-history', label: 'Push Campaign History' },
   { href: '/dashboard/notification-email-test', label: 'Email Tests' },
   { href: '/dashboard/redis-caches', label: 'Redis Caches' },
   { href: '/dashboard/admins', label: 'Admins' },

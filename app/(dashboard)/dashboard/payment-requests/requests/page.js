@@ -27,6 +27,7 @@ const typeOptions = ['QUICK_CHARGE', 'DONATION', 'INVOICE'];
 const approvalStatusOptions = ['PENDING', 'APPROVED', 'REJECTED'];
 const lifecycleOptions = ['DRAFT', 'NEW', 'ACTIVE', 'SUSPENDED', 'CANCELLED', 'EXPIRED', 'COMPLETED'];
 const feeInclusionOptions = ['ON_TOP', 'ABSORBED'];
+const recomputeEligibleTypes = new Set(['INVOICE', 'QUICK_CHARGE']);
 
 const initialFilters = {
   id: '',
@@ -162,6 +163,7 @@ export default function PaymentRequestsPage() {
   const [appliedFilters, setAppliedFilters] = useState(initialFilters);
   const [showFilters, setShowFilters] = useState(false);
   const [savingApprovalId, setSavingApprovalId] = useState(null);
+  const [recomputingLifecycleId, setRecomputingLifecycleId] = useState(null);
 
   const fetchRows = async () => {
     setLoading(true);
@@ -244,6 +246,31 @@ export default function PaymentRequestsPage() {
     }
   };
 
+  const canRecomputeLifecycle = (row) =>
+    row?.lifecycle === 'ACTIVE' && recomputeEligibleTypes.has(row?.type);
+
+  const handleRecomputeLifecycle = async (row) => {
+    if (!row?.id || !canRecomputeLifecycle(row)) return;
+    setError(null);
+    setInfo(null);
+    setRecomputingLifecycleId(row.id);
+    try {
+      const res = await api.paymentRequests.recomputeLifecycle(row.id);
+      if (res?.changed) {
+        const previous = res?.previousLifecycle || row.lifecycle || 'UNKNOWN';
+        const next = res?.lifecycle || previous;
+        setInfo(`Lifecycle updated: ${previous} -> ${next}`);
+      } else {
+        setInfo('No lifecycle change needed');
+      }
+      await fetchRows();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setRecomputingLifecycleId(null);
+    }
+  };
+
   const columns = useMemo(() => [
     { key: 'accountId', label: 'Account ID' },
     { key: 'type', label: 'Type' },
@@ -287,13 +314,23 @@ export default function PaymentRequestsPage() {
               {savingApprovalId === row.id ? 'Approving…' : 'Approve'}
             </button>
           )}
+          {canRecomputeLifecycle(row) && (
+            <button
+              type="button"
+              onClick={() => handleRecomputeLifecycle(row)}
+              className="btn-primary"
+              disabled={recomputingLifecycleId === row.id}
+            >
+              {recomputingLifecycleId === row.id ? 'Recomputing…' : 'Recompute Lifecycle'}
+            </button>
+          )}
           <button type="button" onClick={() => openDetail(row)} className="btn-neutral">View</button>
           <button type="button" onClick={() => openEdit(row)} className="btn-neutral">Edit</button>
           <button type="button" onClick={() => setConfirmDelete(row)} className="btn-danger">Delete</button>
         </div>
       )
     }
-  ], [savingApprovalId, handleApprove]);
+  ], [savingApprovalId, recomputingLifecycleId]);
 
   const openCreate = () => {
     setDraft(emptyState);

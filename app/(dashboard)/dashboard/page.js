@@ -139,6 +139,7 @@ const STALE_MINUTES_PRESETS = [1, 3, 5, 10, 15, 30, 45, 60, 90, 120, 180, 240, 3
 const STUCK_CRITICAL_COUNT_THRESHOLD = 20;
 const STUCK_CRITICAL_AGE_MS = 6 * 60 * 60 * 1000;
 const STUCK_POLL_INTERVAL_MS = 30 * 1000;
+const STUCK_STATUS_OPTIONS = ['FUNDED', 'EXECUTING'];
 
 const clampStaleMinutes = (value) => {
   const num = Math.floor(Number(value));
@@ -157,6 +158,25 @@ const formatStaleMinutesLabel = (minutes) => {
   const days = value / 1440;
   const rounded = Number.isInteger(days) ? String(days) : days.toFixed(1).replace(/\.0$/, '');
   return `${rounded} day${days === 1 ? '' : 's'}`;
+};
+
+const normalizeStuckStatus = (value) => {
+  const normalized = String(value || '').trim().toUpperCase();
+  return STUCK_STATUS_OPTIONS.includes(normalized) ? normalized : 'EXECUTING';
+};
+
+const resolveRailLabelFromType = (paymentMethodType) => {
+  const normalized = String(paymentMethodType || '').trim().toUpperCase();
+  if (normalized === 'MOBILE_MONEY') return 'Mobile Money';
+  if (normalized === 'CRYPTO') return 'Crypto';
+  if (normalized === 'BALANCE') return 'Balance';
+  if (normalized === 'CREDIT') return 'Loan';
+  return null;
+};
+
+const isAvadaPayRow = (row) => {
+  const provider = String(row?.paymentProviderName || row?.paymentProvider || row?.provider || '').toUpperCase();
+  return provider.includes('AVADAPAY');
 };
 
 const initialFilters = (() => {
@@ -289,6 +309,7 @@ export default function DashboardPage() {
   const [fundedStuckReport, setFundedStuckReport] = useState(null);
   const [fundedStuckLoading, setFundedStuckLoading] = useState(false);
   const [fundedStuckError, setFundedStuckError] = useState(null);
+  const [selectedStuckStatus, setSelectedStuckStatus] = useState('EXECUTING');
   const [stuckCriticalWindows, setStuckCriticalWindows] = useState(0);
   const [stuckItemsModal, setStuckItemsModal] = useState(null);
   const [stuckItemsPage, setStuckItemsPage] = useState(0);
@@ -296,6 +317,9 @@ export default function DashboardPage() {
   const [stuckItemsData, setStuckItemsData] = useState(null);
   const [stuckItemsLoading, setStuckItemsLoading] = useState(false);
   const [stuckItemsError, setStuckItemsError] = useState(null);
+  const [stuckRowActionLoading, setStuckRowActionLoading] = useState({});
+  const [stuckRowActionError, setStuckRowActionError] = useState({});
+  const [stuckRowProviderStatus, setStuckRowProviderStatus] = useState({});
   const [refreshing, setRefreshing] = useState(false);
   const refreshInFlight = useRef(false);
   const refreshTimerRef = useRef(null);
@@ -397,7 +421,10 @@ export default function DashboardPage() {
         const res = await api.transactions.fundedStuckReport(params);
         setFundedStuckReport(res || null);
 
-        const list = Array.isArray(res?.actions) ? res.actions : [];
+        const fundedActions = Array.isArray(res?.fundedActions) ? res.fundedActions : [];
+        const executingActions = Array.isArray(res?.executingActions) ? res.executingActions : [];
+        const legacyActions = Array.isArray(res?.actions) ? res.actions : [];
+        const list = [...fundedActions, ...executingActions, ...legacyActions];
         const totalCount = Number(res?.totalCount) || 0;
         const oldestTs = list
           .map((item) => Date.parse(item?.oldestUpdatedAt || ''))
@@ -407,7 +434,7 @@ export default function DashboardPage() {
         const isCritical = totalCount >= STUCK_CRITICAL_COUNT_THRESHOLD || oldestAgeMs > STUCK_CRITICAL_AGE_MS;
         setStuckCriticalWindows((prev) => (isCritical ? prev + 1 : 0));
       } catch (err) {
-        setFundedStuckError(err?.message || 'Failed to load stuck FUNDED report.');
+        setFundedStuckError(err?.message || 'Failed to load funded/executing stuck report.');
       } finally {
         if (!silent) setFundedStuckLoading(false);
       }
@@ -454,13 +481,19 @@ export default function DashboardPage() {
   const metrics = data?.metrics || {};
   const timeseries = data?.timeseries || [];
   const holdings = data?.holdings || {};
+  const fundedStuckFundedCount = Number(fundedStuckReport?.fundedCount) || 0;
+  const fundedStuckExecutingCount = Number(fundedStuckReport?.executingCount) || 0;
+  const fundedStuckTotalCount = Number(fundedStuckReport?.totalCount) || fundedStuckFundedCount + fundedStuckExecutingCount;
+  const selectedStuckLabel = selectedStuckStatus === 'EXECUTING' ? 'EXECUTING' : 'FUNDED';
   const fundedStuckActions = useMemo(() => {
-    const list = Array.isArray(fundedStuckReport?.actions) ? fundedStuckReport.actions : [];
+    const isExecutingTab = selectedStuckStatus === 'EXECUTING';
+    const splitActions = isExecutingTab ? fundedStuckReport?.executingActions : fundedStuckReport?.fundedActions;
+    const fallbackActions = isExecutingTab ? [] : fundedStuckReport?.actions;
+    const list = Array.isArray(splitActions) ? splitActions : Array.isArray(fallbackActions) ? fallbackActions : [];
     return list
       .slice()
       .sort((a, b) => (Number(b?.count) || 0) - (Number(a?.count) || 0));
-  }, [fundedStuckReport]);
-  const fundedStuckTotalCount = Number(fundedStuckReport?.totalCount) || 0;
+  }, [fundedStuckReport, selectedStuckStatus]);
   const showFundedStuckSection = fundedStuckTotalCount > 0;
   const chartData = useMemo(
     () =>
@@ -564,30 +597,34 @@ export default function DashboardPage() {
     router.push(`/dashboard/transactions${query ? `?${query}` : ''}`);
   };
 
-  const goToFundedStuckAction = (action) => {
+  const goToFundedStuckAction = (action, status = selectedStuckStatus) => {
     const params = new URLSearchParams();
-    params.set('status', 'FUNDED');
+    params.set('status', normalizeStuckStatus(status));
     if (action) params.set('action', String(action));
     params.set('endDate', String(Date.now() - staleMinutes * 60 * 1000));
     router.push(`/dashboard/transactions?${params.toString()}`);
   };
 
-  const openFundedStuckItems = (action) => {
-    setStuckItemsModal({ action: action || null });
+  const openFundedStuckItems = (action, status = selectedStuckStatus) => {
+    setStuckItemsModal({ action: action || null, status: normalizeStuckStatus(status) });
     setStuckItemsPage(0);
     setStuckItemsSize(100);
     setStuckItemsData(null);
     setStuckItemsError(null);
+    setStuckRowActionLoading({});
+    setStuckRowActionError({});
+    setStuckRowProviderStatus({});
   };
 
   const fetchFundedStuckItems = useCallback(
-    async ({ action, page: targetPage, size: targetSize }) => {
+    async ({ action, status, page: targetPage, size: targetSize }) => {
       if (!action) return;
       setStuckItemsLoading(true);
       setStuckItemsError(null);
       try {
         const params = new URLSearchParams({
           action: String(action),
+          status: normalizeStuckStatus(status),
           staleMinutes: String(staleMinutes),
           page: String(Math.max(0, Number(targetPage) || 0)),
           size: String(Math.min(500, Math.max(1, Number(targetSize) || 100)))
@@ -603,10 +640,47 @@ export default function DashboardPage() {
     [staleMinutes]
   );
 
+  const runReplayFulfillment = async (row) => {
+    const transactionId = row?.transactionId || row?.id;
+    if (!transactionId) return;
+    const railLabel = resolveRailLabelFromType(row?.paymentMethodType);
+    if (!railLabel) {
+      setStuckRowActionError((prev) => ({ ...prev, [transactionId]: 'Unknown payment method type; cannot detect rail label.' }));
+      return;
+    }
+    setStuckRowActionLoading((prev) => ({ ...prev, [transactionId]: true }));
+    setStuckRowActionError((prev) => ({ ...prev, [transactionId]: null }));
+    try {
+      await api.transactions.retryPostWebhook(transactionId, { force: true, railLabel });
+      setStuckRowProviderStatus((prev) => ({ ...prev, [transactionId]: `Replay submitted (${railLabel}).` }));
+      fetchFundedStuckItems({ action: stuckItemsModal?.action, status: stuckItemsModal?.status, page: stuckItemsPage, size: stuckItemsSize });
+    } catch (err) {
+      setStuckRowActionError((prev) => ({ ...prev, [transactionId]: err?.message || 'Replay failed.' }));
+    } finally {
+      setStuckRowActionLoading((prev) => ({ ...prev, [transactionId]: false }));
+    }
+  };
+
+  const checkProviderStatus = async (row) => {
+    const transactionId = row?.transactionId || row?.id;
+    if (!transactionId) return;
+    setStuckRowActionLoading((prev) => ({ ...prev, [transactionId]: true }));
+    setStuckRowActionError((prev) => ({ ...prev, [transactionId]: null }));
+    try {
+      const res = await api.transactions.momoStatus(transactionId);
+      const summary = typeof res === 'string' ? res : JSON.stringify(res);
+      setStuckRowProviderStatus((prev) => ({ ...prev, [transactionId]: summary }));
+    } catch (err) {
+      setStuckRowActionError((prev) => ({ ...prev, [transactionId]: err?.message || 'Provider status check failed.' }));
+    } finally {
+      setStuckRowActionLoading((prev) => ({ ...prev, [transactionId]: false }));
+    }
+  };
+
   useEffect(() => {
     if (!stuckItemsModal?.action) return;
-    fetchFundedStuckItems({ action: stuckItemsModal.action, page: stuckItemsPage, size: stuckItemsSize });
-  }, [stuckItemsModal?.action, stuckItemsPage, stuckItemsSize, fetchFundedStuckItems]);
+    fetchFundedStuckItems({ action: stuckItemsModal.action, status: stuckItemsModal.status, page: stuckItemsPage, size: stuckItemsSize });
+  }, [stuckItemsModal?.action, stuckItemsModal?.status, stuckItemsPage, stuckItemsSize, fetchFundedStuckItems]);
 
   const kpiCards = [
     { label: 'Fiat balance', value: formatCurrency(holdings.fiatBalanceTotal), sub: 'Across fiat accounts', tone: '#2563eb' },
@@ -1038,9 +1112,38 @@ export default function DashboardPage() {
                   aria-hidden="true"
                   style={{ width: '8px', height: '8px', borderRadius: '999px', background: '#dc2626', boxShadow: '0 0 0 4px rgba(220,38,38,0.12)' }}
                 />
-                Stuck FUNDED • By action
+                Stuck {selectedStuckLabel} • By action
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <div
+                  role="tablist"
+                  aria-label="Stuck status bucket"
+                  style={{ display: 'inline-flex', border: '1px solid rgba(220,38,38,0.25)', borderRadius: '10px', overflow: 'hidden' }}
+                >
+                  {STUCK_STATUS_OPTIONS.map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      role="tab"
+                      aria-selected={selectedStuckStatus === status}
+                      onClick={() => setSelectedStuckStatus(status)}
+                      className="btn-neutral btn-sm"
+                      style={{
+                        borderRadius: 0,
+                        border: 'none',
+                        borderRight: status === 'FUNDED' ? '1px solid rgba(220,38,38,0.25)' : 'none',
+                        background: selectedStuckStatus === status ? 'rgba(220,38,38,0.14)' : 'transparent',
+                        color: selectedStuckStatus === status ? '#991b1b' : 'var(--text)',
+                        fontWeight: selectedStuckStatus === status ? 800 : 600
+                      }}
+                    >
+                      Stuck {status}
+                    </button>
+                  ))}
+                </div>
+                <Pill tone="#991b1b" soft="rgba(220,38,38,0.09)">FUNDED: {formatNumber(fundedStuckFundedCount)}</Pill>
+                <Pill tone="#991b1b" soft="rgba(220,38,38,0.09)">EXECUTING: {formatNumber(fundedStuckExecutingCount)}</Pill>
+                <Pill tone="#991b1b" soft="rgba(220,38,38,0.09)">Total: {formatNumber(fundedStuckTotalCount)}</Pill>
                 <label htmlFor="staleMinutesInline" style={{ margin: 0, fontSize: '12px', color: 'var(--muted)' }}>
                   staleMinutes
                 </label>
@@ -1096,6 +1199,7 @@ export default function DashboardPage() {
               }}
             >
               {formatNumber(fundedStuckTotalCount)} stuck transaction{fundedStuckTotalCount === 1 ? '' : 's'} older than {formatStaleMinutesLabel(staleMinutes)}.
+              {' '}FUNDED: {formatNumber(fundedStuckFundedCount)} • EXECUTING: {formatNumber(fundedStuckExecutingCount)}.
             </div>
             <Table
               columns={[
@@ -1127,10 +1231,10 @@ export default function DashboardPage() {
                   label: 'Drill-down',
                   render: (row) => (
                     <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-                      <button type="button" className="btn-neutral btn-sm" onClick={() => openFundedStuckItems(row.action)}>
+                      <button type="button" className="btn-neutral btn-sm" onClick={() => openFundedStuckItems(row.action, selectedStuckStatus)}>
                         View stuck
                       </button>
-                      <button type="button" className="btn-neutral btn-sm" onClick={() => goToFundedStuckAction(row.action)}>
+                      <button type="button" className="btn-neutral btn-sm" onClick={() => goToFundedStuckAction(row.action, selectedStuckStatus)}>
                         Open tx
                       </button>
                     </div>
@@ -1138,7 +1242,7 @@ export default function DashboardPage() {
                 }
               ]}
               rows={fundedStuckActions}
-              emptyLabel={fundedStuckLoading ? 'Loading report...' : 'No stuck FUNDED transactions.'}
+              emptyLabel={fundedStuckLoading ? 'Loading report...' : `No stuck ${selectedStuckLabel} transactions.`}
             />
           </div>
         ) : (
@@ -1344,11 +1448,11 @@ export default function DashboardPage() {
       </div>
 
       {stuckItemsModal?.action && (
-        <Modal title={`Stuck FUNDED items • ${formatEnumLabel(stuckItemsModal.action)}`} onClose={() => setStuckItemsModal(null)}>
+        <Modal title={`Stuck ${normalizeStuckStatus(stuckItemsModal.status)} items • ${formatEnumLabel(stuckItemsModal.action)}`} onClose={() => setStuckItemsModal(null)}>
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
               <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-                staleMinutes={staleMinutes} • generated {formatDateTime(stuckItemsData?.generatedAt)}
+                status={stuckItemsData?.status || normalizeStuckStatus(stuckItemsModal.status)} • staleMinutes={staleMinutes} • generated {formatDateTime(stuckItemsData?.generatedAt)}
               </div>
               <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
                 <button
@@ -1383,6 +1487,7 @@ export default function DashboardPage() {
               columns={[
                 { key: 'transactionId', label: 'Transaction ID' },
                 { key: 'reference', label: 'Reference' },
+                { key: 'status', label: 'Status', render: (row) => row.status || normalizeStuckStatus(stuckItemsModal?.status) },
                 {
                   key: 'user',
                   label: 'User',
@@ -1390,16 +1495,47 @@ export default function DashboardPage() {
                 },
                 { key: 'updatedAt', label: 'Updated', render: (row) => formatDateTime(row.updatedAt) },
                 {
-                  key: 'open',
-                  label: 'Open',
+                  key: 'actions',
+                  label: 'Actions',
                   render: (row) => (
-                    <button
-                      type="button"
-                      className="btn-neutral btn-sm"
-                      onClick={() => router.push(`/dashboard/transactions?transactionId=${encodeURIComponent(row.transactionId)}`)}
-                    >
-                      Open
-                    </button>
+                    <div style={{ display: 'grid', gap: '0.35rem' }}>
+                      <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                        {normalizeStuckStatus(row?.status || stuckItemsModal?.status) === 'EXECUTING' && (
+                          <button
+                            type="button"
+                            className="btn-primary btn-sm"
+                            onClick={() => runReplayFulfillment(row)}
+                            disabled={Boolean(stuckRowActionLoading[row.transactionId || row.id]) || !resolveRailLabelFromType(row?.paymentMethodType)}
+                            title={!resolveRailLabelFromType(row?.paymentMethodType) ? 'Unknown payment method type for rail detection' : ''}
+                          >
+                            {stuckRowActionLoading[row.transactionId || row.id] ? 'Replaying...' : 'Replay Fulfillment'}
+                          </button>
+                        )}
+                        {normalizeStuckStatus(row?.status || stuckItemsModal?.status) === 'EXECUTING' && isAvadaPayRow(row) && (
+                          <button
+                            type="button"
+                            className="btn-neutral btn-sm"
+                            onClick={() => checkProviderStatus(row)}
+                            disabled={Boolean(stuckRowActionLoading[row.transactionId || row.id])}
+                          >
+                            Check Provider Status
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="btn-neutral btn-sm"
+                          onClick={() => router.push(`/dashboard/transactions?transactionId=${encodeURIComponent(row.transactionId)}`)}
+                        >
+                          Open
+                        </button>
+                      </div>
+                      {stuckRowActionError[row.transactionId || row.id] && (
+                        <div style={{ color: '#b91c1c', fontSize: '12px', fontWeight: 700 }}>{stuckRowActionError[row.transactionId || row.id]}</div>
+                      )}
+                      {stuckRowProviderStatus[row.transactionId || row.id] && (
+                        <div style={{ color: 'var(--muted)', fontSize: '12px', whiteSpace: 'pre-wrap' }}>{stuckRowProviderStatus[row.transactionId || row.id]}</div>
+                      )}
+                    </div>
                   )
                 }
               ]}
