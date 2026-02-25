@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { DataTable } from '@/components/DataTable';
@@ -74,13 +74,6 @@ const receiptPayloadTemplates = {
   ESIM: { providerReference: '', qr: '', pin: '', puk: '', instructions: '' },
   PAYMENT_REQUEST: { payer: '', requestReference: '', providerReference: '', note: '' },
   GENERIC: { reference: '', note: '' }
-};
-
-const manualReconciliationReasonLabels = {
-  status_not_completable: 'Transaction status cannot be reconciled to completed.',
-  action_not_supported: 'This action is not supported for manual completion.',
-  card_not_issued: 'Card order cannot be completed until the card is issued.',
-  terminal_status: 'Transaction is already terminal and cannot be manually completed.'
 };
 
 const serviceLabels = {
@@ -228,17 +221,31 @@ const formatWebhookPayload = (payload) => {
   }
 };
 
-const formatManualReconciliationReason = (eligibility) => {
-  if (!eligibility) return 'Eligibility not loaded.';
-  const code = String(eligibility.reasonCode || '').toLowerCase();
-  return eligibility.reason || manualReconciliationReasonLabels[code] || 'Manual completion is not available for this transaction.';
-};
-
 const formatDateTimeLocalInput = (value) => {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return '';
   const pad = (n) => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
+const normalizeErrorMessage = (err) => {
+  if (err?.status === 400) return 'Only UNKNOWN transactions can be manually reconciled.';
+  if (err?.status === 404) return 'Transaction not found.';
+  return 'Something went wrong. Please retry.';
+};
+
+const pickLatestAdminMessage = (txn) => {
+  if (!txn) return null;
+  const candidates = [
+    txn.latestAdminMessage,
+    txn.latestAdminNote,
+    txn.adminMessage,
+    txn.adminNote,
+    txn.message,
+    txn.note
+  ];
+  const found = candidates.find((value) => typeof value === 'string' && value.trim());
+  return found ? found.trim() : null;
 };
 
 export default function TransactionsPage() {
@@ -329,18 +336,18 @@ export default function TransactionsPage() {
   const [bankPayoutMessage, setBankPayoutMessage] = useState('');
   const [bankPayoutError, setBankPayoutError] = useState(null);
   const [bankPayoutLoading, setBankPayoutLoading] = useState(false);
-  const [manualReconciliationEligibility, setManualReconciliationEligibility] = useState(null);
-  const [manualReconciliationLoading, setManualReconciliationLoading] = useState(false);
-  const [manualReconciliationError, setManualReconciliationError] = useState(null);
-  const [showManualReconciliationComplete, setShowManualReconciliationComplete] = useState(false);
+  const [showManualReconciliationConfirm, setShowManualReconciliationConfirm] = useState(false);
+  const [manualReconciliationAction, setManualReconciliationAction] = useState(null);
   const [manualReconciliationMessage, setManualReconciliationMessage] = useState('');
   const [manualReconciliationSubmitError, setManualReconciliationSubmitError] = useState(null);
   const [manualReconciliationSubmitLoading, setManualReconciliationSubmitLoading] = useState(false);
   const webhookEvents = Array.isArray(selected?.webhookEvents) ? selected.webhookEvents : [];
   const normalizedStatus = selected?.status?.toUpperCase?.() || '';
   const showErrorMessage = ['FAILED', 'CANCELED', 'CANCELLED'].includes(normalizedStatus);
+  const isSelectedUnknown = normalizedStatus === 'UNKNOWN';
   const receiptPayloadData = receipt?.payload && typeof receipt.payload === 'object' ? receipt.payload : null;
   const bankRefValue = receiptPayloadData?.bankRef || selected?.externalReference || null;
+  const latestAdminMessage = pickLatestAdminMessage(selected);
   const noteFromSender =
     receiptPayloadData?.adminNote || receiptPayloadData?.noteFromSender || receiptPayloadData?.note || null;
 
@@ -529,23 +536,6 @@ export default function TransactionsPage() {
       setBillStatusAuditError(err?.message || 'Failed to load audit logs');
     } finally {
       setBillStatusAuditLoading(false);
-    }
-  };
-
-  const loadManualReconciliationEligibility = async (transactionId) => {
-    if (!transactionId) return;
-    setManualReconciliationLoading(true);
-    setManualReconciliationError(null);
-    try {
-      const res = await api.transactions.manualReconciliationEligibility(transactionId);
-      setManualReconciliationEligibility(res || null);
-      return res || null;
-    } catch (err) {
-      setManualReconciliationEligibility(null);
-      setManualReconciliationError(err?.message || 'Failed to load manual reconciliation eligibility');
-      return null;
-    } finally {
-      setManualReconciliationLoading(false);
     }
   };
 
@@ -766,9 +756,8 @@ export default function TransactionsPage() {
     setShowBankPayoutComplete(false);
     setBankPayoutMessage('');
     setBankPayoutError(null);
-    setManualReconciliationEligibility(null);
-    setManualReconciliationError(null);
-    setShowManualReconciliationComplete(false);
+    setShowManualReconciliationConfirm(false);
+    setManualReconciliationAction(null);
     setManualReconciliationMessage('');
     setManualReconciliationSubmitError(null);
   };
@@ -825,7 +814,6 @@ export default function TransactionsPage() {
     const transactionId = selected?.transactionId || selected?.id;
     loadReceipt(transactionId);
     loadReceiptAuditLogs(transactionId);
-    loadManualReconciliationEligibility(transactionId);
     const service = String(selected?.service || '').toUpperCase();
     if (service === 'BILL_PAYMENTS') {
       loadBillStatusAuditLogs(transactionId);
@@ -910,44 +898,54 @@ export default function TransactionsPage() {
     }
   };
 
-  const openManualReconciliationComplete = async () => {
-    const transactionId = selected?.transactionId || selected?.id;
-    if (!transactionId) {
-      setManualReconciliationError('Missing transaction id');
+  const openManualReconciliationConfirm = (action) => {
+    if (!isSelectedUnknown) {
+      setManualReconciliationSubmitError('Only UNKNOWN transactions can be manually reconciled.');
       return;
     }
-    const eligibility = await loadManualReconciliationEligibility(transactionId);
-    if (!eligibility?.completable) return;
     setManualReconciliationSubmitError(null);
     setManualReconciliationMessage('');
-    setShowManualReconciliationComplete(true);
+    setManualReconciliationAction(action);
+    setShowManualReconciliationConfirm(true);
   };
 
-  const handleCompleteManualReconciliation = async () => {
+  const refreshSelectedTransaction = async (transactionId) => {
+    await fetchRows();
+    const fresh = await api.transactions.list(new URLSearchParams({ page: '0', size: '1', transactionId: String(transactionId) }));
+    const latest = Array.isArray(fresh) ? fresh?.[0] : fresh?.content?.[0];
+    if (latest) setSelected(latest);
+  };
+
+  const submitManualReconciliation = async () => {
     const transactionId = selected?.transactionId || selected?.id;
     if (!transactionId) {
       setManualReconciliationSubmitError('Missing transaction id');
+      return;
+    }
+    if (!manualReconciliationAction) {
+      setManualReconciliationSubmitError('Select an action first.');
       return;
     }
     setManualReconciliationSubmitLoading(true);
     setManualReconciliationSubmitError(null);
     try {
       const payload = manualReconciliationMessage.trim() ? { message: manualReconciliationMessage.trim() } : undefined;
-      await api.transactions.completeManualReconciliation(transactionId, payload);
-      pushToast({ tone: 'success', message: 'Transaction marked completed' });
-      setShowManualReconciliationComplete(false);
+      if (manualReconciliationAction === 'complete') {
+        await api.transactions.completeManualReconciliation(transactionId, payload);
+      } else {
+        await api.transactions.failManualReconciliation(transactionId, payload);
+      }
+      const successMessage = manualReconciliationAction === 'complete' ? 'Transaction marked as completed.' : 'Transaction marked as failed.';
+      pushToast({ tone: 'success', message: successMessage });
+      setShowManualReconciliationConfirm(false);
+      setManualReconciliationAction(null);
       setManualReconciliationMessage('');
-      await loadManualReconciliationEligibility(transactionId);
-      await fetchRows();
+      await refreshSelectedTransaction(transactionId);
       await loadReceipt(transactionId);
-      const fresh = await api.transactions.list(new URLSearchParams({ page: '0', size: '1', transactionId: String(transactionId) }));
-      const latest = Array.isArray(fresh) ? fresh?.[0] : fresh?.content?.[0];
-      if (latest) setSelected(latest);
     } catch (err) {
-      const message = err?.message || 'Failed to mark transaction as completed';
+      const message = normalizeErrorMessage(err);
       setManualReconciliationSubmitError(message);
       pushToast({ tone: 'error', message });
-      await loadManualReconciliationEligibility(transactionId);
     } finally {
       setManualReconciliationSubmitLoading(false);
     }
@@ -1484,6 +1482,7 @@ export default function TransactionsPage() {
                 { label: 'Action', value: formatEnumLabel(selected?.action, actionLabels) },
                 { label: 'Effect', value: selected?.balanceEffect },
                 { label: 'Status', value: selected?.status },
+                { label: 'Updated at', value: formatDateTime(selected?.updatedAt) },
                 { label: 'Amount', value: `${selected?.amount ?? '—'} ${selected?.currency || ''}`.trim() },
                 { label: 'Account ref', value: selected?.accountReference || '—' },
                 { label: 'Account balance', value: accountLoading ? 'Loading…' : accountSummary?.balance ?? '—' },
@@ -1503,6 +1502,7 @@ export default function TransactionsPage() {
                 { label: 'Payment provider', value: selected?.paymentProviderName || selected?.paymentProviderId },
                 { label: 'Refunded', value: selected?.refunded || selected?.refundedAt ? 'Yes' : 'No' },
                 { label: 'Refunded at', value: formatDateTime(selected?.refundedAt) },
+                { label: 'Latest admin note', value: latestAdminMessage || '—' },
                 { label: 'Needs manual refund', value: selected?.needsManualRefund ? 'Yes' : 'No' },
                 { label: 'Refund ref', value: selected?.refundReference || '—' },
                 { label: 'Refund txn ID', value: selected?.refundTransactionId || '—' },
@@ -1555,43 +1555,45 @@ export default function TransactionsPage() {
             <div className="card" style={{ padding: '1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                  <div style={{ fontWeight: 800 }}>Manual reconciliation completion</div>
+                  <div style={{ fontWeight: 800 }}>Manual reconciliation</div>
                   <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-                    Mark transaction as completed after provider/manual reconciliation checks.
+                    Available only when transaction status is UNKNOWN.
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <button
-                    type="button"
-                    className="btn-neutral btn-sm"
-                    onClick={() => loadManualReconciliationEligibility(selected?.transactionId || selected?.id)}
-                    disabled={manualReconciliationLoading}
-                  >
-                    {manualReconciliationLoading ? 'Checking...' : 'Refresh eligibility'}
-                  </button>
-                  {manualReconciliationEligibility?.completable && (
-                    <button type="button" className="btn-neutral btn-sm" onClick={openManualReconciliationComplete} disabled={manualReconciliationLoading}>
-                      Complete by Reconciliation
+                {isSelectedUnknown && (
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className="btn-success btn-sm"
+                      onClick={() => openManualReconciliationConfirm('complete')}
+                      disabled={manualReconciliationSubmitLoading}
+                    >
+                      Mark as Completed
                     </button>
-                  )}
-                </div>
+                    <button
+                      type="button"
+                      className="btn-danger btn-sm"
+                      onClick={() => openManualReconciliationConfirm('fail')}
+                      disabled={manualReconciliationSubmitLoading}
+                    >
+                      Mark as Failed
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div style={{ marginTop: '0.75rem', display: 'grid', gap: '0.6rem' }}>
                 <DetailGrid
                   rows={[
                     { label: 'Current status', value: selected?.status || '—' },
-                    { label: 'Action', value: formatEnumLabel(selected?.action, actionLabels) },
-                    { label: 'Completable', value: manualReconciliationEligibility?.completable ? 'Yes' : 'No' },
-                    { label: 'Eligibility status', value: manualReconciliationEligibility?.status || '—' },
-                    { label: 'Reason code', value: manualReconciliationEligibility?.reasonCode || '—' },
-                    { label: 'Notification event', value: manualReconciliationEligibility?.notificationEvent || '—' }
+                    { label: 'Updated at', value: formatDateTime(selected?.updatedAt) },
+                    { label: 'Refunded at', value: formatDateTime(selected?.refundedAt) },
+                    { label: 'Latest admin note', value: latestAdminMessage || '—' }
                   ]}
                 />
-                {manualReconciliationError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{manualReconciliationError}</div>}
-                {!manualReconciliationError && manualReconciliationEligibility && !manualReconciliationEligibility.completable && (
+                {!isSelectedUnknown && (
                   <div style={{ color: '#92400e', fontWeight: 700 }}>
-                    {formatManualReconciliationReason(manualReconciliationEligibility)}
+                    Only UNKNOWN transactions can be manually reconciled.
                   </div>
                 )}
               </div>
@@ -2055,37 +2057,63 @@ export default function TransactionsPage() {
         </Modal>
       )}
 
-      {showManualReconciliationComplete && (
-        <Modal title="Complete by reconciliation" onClose={() => (!manualReconciliationSubmitLoading ? setShowManualReconciliationComplete(false) : null)}>
+      {showManualReconciliationConfirm && (
+        <Modal
+          title={manualReconciliationAction === 'fail' ? 'Mark as failed' : 'Mark as completed'}
+          onClose={() => {
+            if (manualReconciliationSubmitLoading) return;
+            setShowManualReconciliationConfirm(false);
+            setManualReconciliationAction(null);
+          }}
+        >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ color: 'var(--muted)' }}>
-              Confirm manual reconciliation completion. This marks the transaction as completed and triggers the completion notification pipeline.
+              {manualReconciliationAction === 'fail'
+                ? 'This will mark the transaction as failed. If customer balance was already debited, refund will be processed automatically.'
+                : 'This will mark the transaction as successful.'}
             </div>
             <DetailGrid
               rows={[
                 { label: 'Transaction ID', value: selected?.transactionId || selected?.id },
                 { label: 'Reference', value: selected?.reference || '—' },
                 { label: 'Status', value: selected?.status || '—' },
-                { label: 'Action', value: formatEnumLabel(selected?.action, actionLabels) },
-                { label: 'Notification event', value: manualReconciliationEligibility?.notificationEvent || '—' }
+                { label: 'Action', value: formatEnumLabel(selected?.action, actionLabels) }
               ]}
             />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="manualReconciliationMessage">Note (optional)</label>
-              <input
+              <textarea
                 id="manualReconciliationMessage"
                 value={manualReconciliationMessage}
                 onChange={(e) => setManualReconciliationMessage(e.target.value)}
-                placeholder="Reconciled with provider ticket #ABC-123"
+                placeholder={
+                  manualReconciliationAction === 'fail'
+                    ? 'Provider confirmed failure manually'
+                    : 'Provider confirmed success manually'
+                }
+                rows={4}
               />
             </div>
             {manualReconciliationSubmitError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{manualReconciliationSubmitError}</div>}
             <div className="modal-actions">
-              <button type="button" className="btn-neutral" onClick={() => setShowManualReconciliationComplete(false)} disabled={manualReconciliationSubmitLoading}>
+              <button
+                type="button"
+                className="btn-neutral"
+                onClick={() => {
+                  setShowManualReconciliationConfirm(false);
+                  setManualReconciliationAction(null);
+                }}
+                disabled={manualReconciliationSubmitLoading}
+              >
                 Cancel
               </button>
-              <button type="button" className="btn-success" onClick={handleCompleteManualReconciliation} disabled={manualReconciliationSubmitLoading}>
-                {manualReconciliationSubmitLoading ? 'Submitting…' : 'Confirm completion'}
+              <button
+                type="button"
+                className={manualReconciliationAction === 'fail' ? 'btn-danger' : 'btn-success'}
+                onClick={submitManualReconciliation}
+                disabled={manualReconciliationSubmitLoading}
+              >
+                {manualReconciliationSubmitLoading ? 'Submitting…' : manualReconciliationAction === 'fail' ? 'Confirm failure' : 'Confirm completion'}
               </button>
             </div>
           </div>
