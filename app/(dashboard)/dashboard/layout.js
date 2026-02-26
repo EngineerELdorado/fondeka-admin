@@ -41,6 +41,7 @@ const navItems = [
   { href: '/dashboard/notification-email-test', label: 'Email Tests' },
   { href: '/dashboard/redis-caches', label: 'Redis Caches' },
   { href: '/dashboard/admins', label: 'Admins' },
+  { href: '/dashboard/admin/stub-failure-modes', label: 'Stub Failure Modes (QA)' },
   { href: '/dashboard/fees/fee-configs', label: 'Fee Configs' },
   { href: '/dashboard/geo', label: 'Geo' }
 ];

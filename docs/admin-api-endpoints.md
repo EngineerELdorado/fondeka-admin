@@ -102,6 +102,9 @@ Base URL: `${app.api.baseUrls.admin-api}` (default `/admin-api`). All endpoints 
 ## KYC jobs
 - **KYC jobs**: `/kyc-jobs` `{ internalReference, externalReference?, country, idType, status?, vendorStatus?, vendorCode?, submittedAt?, kycId }`.
 
+## QA
+- **Stub failure modes**: `GET /qa/stub-failure-modes` returns shared trigger tokens (`1111`, `2222`, `3333`, `4444`, `5555`, `6666`, `stub_*`), expected outcome per mode, and per-provider injection fields to indicate where QA should place each trigger.
+
 ## Notes
 - Dates use epoch milliseconds; decimals are numbers (BigDecimal).
 - Role enforcement: only `role=ADMIN` tokens can access these routes.
