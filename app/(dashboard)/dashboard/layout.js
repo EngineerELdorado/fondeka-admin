@@ -41,7 +41,6 @@ const navItems = [
   { href: '/dashboard/notification-email-test', label: 'Email Tests' },
   { href: '/dashboard/redis-caches', label: 'Redis Caches' },
   { href: '/dashboard/admins', label: 'Admins' },
-  { href: '/dashboard/admin/stub-failure-modes', label: 'Stub Failure Modes (QA)' },
   { href: '/dashboard/fees/fee-configs', label: 'Fee Configs' },
   { href: '/dashboard/geo', label: 'Geo' }
 ];
@@ -52,6 +51,11 @@ export default function DashboardLayout({ children }) {
   const pathname = usePathname();
   const [theme, setTheme] = useState('light');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showQaStubFailureModes, setShowQaStubFailureModes] = useState(false);
+  const renderedNavItems = useMemo(() => {
+    if (!showQaStubFailureModes) return navItems;
+    return [...navItems, { href: '/dashboard/admin/stub-failure-modes', label: 'Stub Failure Modes (QA)' }];
+  }, [showQaStubFailureModes]);
   const userLabel = useMemo(() => {
     const payload = session?.tokens?.idToken?.payload || session?.tokens?.accessToken?.payload;
     return (
@@ -68,6 +72,11 @@ export default function DashboardLayout({ children }) {
     const stored = typeof window !== 'undefined' ? localStorage.getItem('fondeka-theme') : null;
     const initial = stored || 'light';
     setTheme(initial);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setShowQaStubFailureModes(['localhost', '127.0.0.1', '::1'].includes(window.location.hostname));
   }, []);
 
   useEffect(() => {
@@ -129,7 +138,7 @@ export default function DashboardLayout({ children }) {
           Fondeka Admin
         </div>
         <nav className="dashboard-nav-links" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-          {navItems.map((item) => (
+          {renderedNavItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
