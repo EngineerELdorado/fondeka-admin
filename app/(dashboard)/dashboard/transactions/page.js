@@ -229,7 +229,7 @@ const formatDateTimeLocalInput = (value) => {
 };
 
 const normalizeErrorMessage = (err) => {
-  if (err?.status === 400) return 'Only UNKNOWN transactions can be manually reconciled.';
+  if (err?.status === 400) return 'Only UNKNOWN or MANUAL_INTERVENTION_REQUIRED transactions can be manually reconciled.';
   if (err?.status === 404) return 'Transaction not found.';
   return 'Something went wrong. Please retry.';
 };
@@ -344,7 +344,7 @@ export default function TransactionsPage() {
   const webhookEvents = Array.isArray(selected?.webhookEvents) ? selected.webhookEvents : [];
   const normalizedStatus = selected?.status?.toUpperCase?.() || '';
   const showErrorMessage = ['FAILED', 'CANCELED', 'CANCELLED'].includes(normalizedStatus);
-  const isSelectedUnknown = normalizedStatus === 'UNKNOWN';
+  const isSelectedManualReconciliationEligible = ['UNKNOWN', 'MANUAL_INTERVENTION_REQUIRED'].includes(normalizedStatus);
   const receiptPayloadData = receipt?.payload && typeof receipt.payload === 'object' ? receipt.payload : null;
   const bankRefValue = receiptPayloadData?.bankRef || selected?.externalReference || null;
   const latestAdminMessage = pickLatestAdminMessage(selected);
@@ -825,7 +825,7 @@ export default function TransactionsPage() {
     const effect = String(selected.balanceEffect || '').toUpperCase();
     const status = String(selected.status || '').toUpperCase();
     const refunded = Boolean(selected.refunded) || Boolean(selected.refundedAt);
-    return effect === 'DEBIT' && (status === 'FAILED' || status === 'PROCESSING') && !refunded;
+    return effect === 'DEBIT' && (status === 'FAILED' || status === 'PROCESSING' || status === 'MANUAL_INTERVENTION_REQUIRED') && !refunded;
   }, [selected]);
 
   const canReplayFulfillment = useMemo(() => {
@@ -899,8 +899,8 @@ export default function TransactionsPage() {
   };
 
   const openManualReconciliationConfirm = (action) => {
-    if (!isSelectedUnknown) {
-      setManualReconciliationSubmitError('Only UNKNOWN transactions can be manually reconciled.');
+    if (!isSelectedManualReconciliationEligible) {
+      setManualReconciliationSubmitError('Only UNKNOWN or MANUAL_INTERVENTION_REQUIRED transactions can be manually reconciled.');
       return;
     }
     setManualReconciliationSubmitError(null);
@@ -1557,10 +1557,10 @@ export default function TransactionsPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
                   <div style={{ fontWeight: 800 }}>Manual reconciliation</div>
                   <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-                    Available only when transaction status is UNKNOWN.
+                    Available only when transaction status is UNKNOWN or MANUAL_INTERVENTION_REQUIRED.
                   </div>
                 </div>
-                {isSelectedUnknown && (
+                {isSelectedManualReconciliationEligible && (
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                     <button
                       type="button"
@@ -1591,9 +1591,9 @@ export default function TransactionsPage() {
                     { label: 'Latest admin note', value: latestAdminMessage || '—' }
                   ]}
                 />
-                {!isSelectedUnknown && (
+                {!isSelectedManualReconciliationEligible && (
                   <div style={{ color: '#92400e', fontWeight: 700 }}>
-                    Only UNKNOWN transactions can be manually reconciled.
+                    Only UNKNOWN or MANUAL_INTERVENTION_REQUIRED transactions can be manually reconciled.
                   </div>
                 )}
               </div>
