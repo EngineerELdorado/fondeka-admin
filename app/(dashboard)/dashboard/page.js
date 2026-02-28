@@ -139,7 +139,7 @@ const STALE_MINUTES_PRESETS = [1, 3, 5, 10, 15, 30, 45, 60, 90, 120, 180, 240, 3
 const STUCK_CRITICAL_COUNT_THRESHOLD = 20;
 const STUCK_CRITICAL_AGE_MS = 6 * 60 * 60 * 1000;
 const STUCK_POLL_INTERVAL_MS = 30 * 1000;
-const STUCK_STATUS_OPTIONS = ['FUNDED', 'EXECUTING'];
+const STUCK_STATUS_OPTIONS = ['FUNDED', 'EXECUTING', 'UNKNOWN', 'MANUAL_INTERVENTION_REQUIRED'];
 
 const clampStaleMinutes = (value) => {
   const num = Math.floor(Number(value));
@@ -162,7 +162,7 @@ const formatStaleMinutesLabel = (minutes) => {
 
 const normalizeStuckStatus = (value) => {
   const normalized = String(value || '').trim().toUpperCase();
-  return STUCK_STATUS_OPTIONS.includes(normalized) ? normalized : 'EXECUTING';
+  return STUCK_STATUS_OPTIONS.includes(normalized) ? normalized : STUCK_STATUS_OPTIONS[0];
 };
 
 const resolveRailLabelFromType = (paymentMethodType) => {
@@ -423,9 +423,16 @@ export default function DashboardPage() {
 
         const fundedActions = Array.isArray(res?.fundedActions) ? res.fundedActions : [];
         const executingActions = Array.isArray(res?.executingActions) ? res.executingActions : [];
+        const unknownActions = Array.isArray(res?.unknownActions) ? res.unknownActions : [];
+        const manualInterventionRequiredActions = Array.isArray(res?.manualInterventionRequiredActions) ? res.manualInterventionRequiredActions : [];
         const legacyActions = Array.isArray(res?.actions) ? res.actions : [];
-        const list = [...fundedActions, ...executingActions, ...legacyActions];
-        const totalCount = Number(res?.totalCount) || 0;
+        const list = [...fundedActions, ...executingActions, ...unknownActions, ...manualInterventionRequiredActions, ...legacyActions];
+        const fallbackTotalCount =
+          (Number(res?.fundedCount) || 0) +
+          (Number(res?.executingCount) || 0) +
+          (Number(res?.unknownCount) || 0) +
+          (Number(res?.manualInterventionRequiredCount) || 0);
+        const totalCount = Number(res?.totalCount) || fallbackTotalCount;
         const oldestTs = list
           .map((item) => Date.parse(item?.oldestUpdatedAt || ''))
           .filter((ts) => Number.isFinite(ts))
@@ -434,7 +441,7 @@ export default function DashboardPage() {
         const isCritical = totalCount >= STUCK_CRITICAL_COUNT_THRESHOLD || oldestAgeMs > STUCK_CRITICAL_AGE_MS;
         setStuckCriticalWindows((prev) => (isCritical ? prev + 1 : 0));
       } catch (err) {
-        setFundedStuckError(err?.message || 'Failed to load funded/executing stuck report.');
+        setFundedStuckError(err?.message || 'Failed to load stuck transactions report.');
       } finally {
         if (!silent) setFundedStuckLoading(false);
       }
@@ -483,12 +490,21 @@ export default function DashboardPage() {
   const holdings = data?.holdings || {};
   const fundedStuckFundedCount = Number(fundedStuckReport?.fundedCount) || 0;
   const fundedStuckExecutingCount = Number(fundedStuckReport?.executingCount) || 0;
-  const fundedStuckTotalCount = Number(fundedStuckReport?.totalCount) || fundedStuckFundedCount + fundedStuckExecutingCount;
-  const selectedStuckLabel = selectedStuckStatus === 'EXECUTING' ? 'EXECUTING' : 'FUNDED';
+  const fundedStuckUnknownCount = Number(fundedStuckReport?.unknownCount) || 0;
+  const fundedStuckManualInterventionRequiredCount = Number(fundedStuckReport?.manualInterventionRequiredCount) || 0;
+  const fundedStuckTotalCount =
+    Number(fundedStuckReport?.totalCount) ||
+    fundedStuckFundedCount + fundedStuckExecutingCount + fundedStuckUnknownCount + fundedStuckManualInterventionRequiredCount;
+  const selectedStuckLabel = selectedStuckStatus;
   const fundedStuckActions = useMemo(() => {
-    const isExecutingTab = selectedStuckStatus === 'EXECUTING';
-    const splitActions = isExecutingTab ? fundedStuckReport?.executingActions : fundedStuckReport?.fundedActions;
-    const fallbackActions = isExecutingTab ? [] : fundedStuckReport?.actions;
+    const splitActionsByStatus = {
+      FUNDED: fundedStuckReport?.fundedActions,
+      EXECUTING: fundedStuckReport?.executingActions,
+      UNKNOWN: fundedStuckReport?.unknownActions,
+      MANUAL_INTERVENTION_REQUIRED: fundedStuckReport?.manualInterventionRequiredActions
+    };
+    const splitActions = splitActionsByStatus[selectedStuckStatus];
+    const fallbackActions = selectedStuckStatus === 'FUNDED' ? fundedStuckReport?.actions : [];
     const list = Array.isArray(splitActions) ? splitActions : Array.isArray(fallbackActions) ? fallbackActions : [];
     return list
       .slice()
@@ -1120,29 +1136,36 @@ export default function DashboardPage() {
                   aria-label="Stuck status bucket"
                   style={{ display: 'inline-flex', border: '1px solid rgba(220,38,38,0.25)', borderRadius: '10px', overflow: 'hidden' }}
                 >
-                  {STUCK_STATUS_OPTIONS.map((status) => (
-                    <button
-                      key={status}
-                      type="button"
-                      role="tab"
-                      aria-selected={selectedStuckStatus === status}
-                      onClick={() => setSelectedStuckStatus(status)}
-                      className="btn-neutral btn-sm"
-                      style={{
-                        borderRadius: 0,
-                        border: 'none',
-                        borderRight: status === 'FUNDED' ? '1px solid rgba(220,38,38,0.25)' : 'none',
-                        background: selectedStuckStatus === status ? 'rgba(220,38,38,0.14)' : 'transparent',
-                        color: selectedStuckStatus === status ? '#991b1b' : 'var(--text)',
-                        fontWeight: selectedStuckStatus === status ? 800 : 600
-                      }}
-                    >
-                      Stuck {status}
-                    </button>
-                  ))}
+                  {STUCK_STATUS_OPTIONS.map((status, index) => {
+                    const isLast = index === STUCK_STATUS_OPTIONS.length - 1;
+                    return (
+                      <button
+                        key={status}
+                        type="button"
+                        role="tab"
+                        aria-selected={selectedStuckStatus === status}
+                        onClick={() => setSelectedStuckStatus(status)}
+                        className="btn-neutral btn-sm"
+                        style={{
+                          borderRadius: 0,
+                          border: 'none',
+                          borderRight: isLast ? 'none' : '1px solid rgba(220,38,38,0.25)',
+                          background: selectedStuckStatus === status ? 'rgba(220,38,38,0.14)' : 'transparent',
+                          color: selectedStuckStatus === status ? '#991b1b' : 'var(--text)',
+                          fontWeight: selectedStuckStatus === status ? 800 : 600
+                        }}
+                      >
+                        Stuck {status}
+                      </button>
+                    );
+                  })}
                 </div>
                 <Pill tone="#991b1b" soft="rgba(220,38,38,0.09)">FUNDED: {formatNumber(fundedStuckFundedCount)}</Pill>
                 <Pill tone="#991b1b" soft="rgba(220,38,38,0.09)">EXECUTING: {formatNumber(fundedStuckExecutingCount)}</Pill>
+                <Pill tone="#991b1b" soft="rgba(220,38,38,0.09)">UNKNOWN: {formatNumber(fundedStuckUnknownCount)}</Pill>
+                <Pill tone="#991b1b" soft="rgba(220,38,38,0.09)">
+                  MANUAL_INTERVENTION_REQUIRED: {formatNumber(fundedStuckManualInterventionRequiredCount)}
+                </Pill>
                 <Pill tone="#991b1b" soft="rgba(220,38,38,0.09)">Total: {formatNumber(fundedStuckTotalCount)}</Pill>
                 <label htmlFor="staleMinutesInline" style={{ margin: 0, fontSize: '12px', color: 'var(--muted)' }}>
                   staleMinutes
@@ -1199,7 +1222,8 @@ export default function DashboardPage() {
               }}
             >
               {formatNumber(fundedStuckTotalCount)} stuck transaction{fundedStuckTotalCount === 1 ? '' : 's'} older than {formatStaleMinutesLabel(staleMinutes)}.
-              {' '}FUNDED: {formatNumber(fundedStuckFundedCount)} • EXECUTING: {formatNumber(fundedStuckExecutingCount)}.
+              {' '}FUNDED: {formatNumber(fundedStuckFundedCount)} • EXECUTING: {formatNumber(fundedStuckExecutingCount)} •
+              {' '}UNKNOWN: {formatNumber(fundedStuckUnknownCount)} • MANUAL_INTERVENTION_REQUIRED: {formatNumber(fundedStuckManualInterventionRequiredCount)}.
             </div>
             <Table
               columns={[
