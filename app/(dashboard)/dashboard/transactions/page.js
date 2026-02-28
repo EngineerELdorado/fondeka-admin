@@ -41,7 +41,20 @@ const actionOptions = [
   'OTHER'
 ].sort();
 const balanceEffectOptions = ['CREDIT', 'DEBIT', 'NONE'];
-const statusOptions = ['COMPLETED', 'PROCESSING', 'FAILED', 'PENDING', 'CANCELLED', 'REFUNDED', 'REVERSED', 'FUNDED', 'EXECUTING', 'SUBMITTED', 'UNKNOWN'];
+const statusOptions = [
+  'COMPLETED',
+  'PROCESSING',
+  'FAILED',
+  'PENDING',
+  'CANCELLED',
+  'REFUNDED',
+  'REVERSED',
+  'FUNDED',
+  'EXECUTING',
+  'SUBMITTED',
+  'UNKNOWN',
+  'MANUAL_INTERVENTION_REQUIRED'
+];
 const receiptTypes = [
   'GENERIC',
   'BILL_PAYMENT',
@@ -228,8 +241,13 @@ const formatDateTimeLocalInput = (value) => {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };
 
-const normalizeErrorMessage = (err) => {
-  if (err?.status === 400) return 'Only UNKNOWN or MANUAL_INTERVENTION_REQUIRED transactions can be manually reconciled.';
+const normalizeErrorMessage = (err, action) => {
+  if (err?.status === 400) {
+    if (action === 'cancel') {
+      return 'Cancel is allowed only for UNKNOWN, MANUAL_INTERVENTION_REQUIRED, PROCESSING, or INITIATED transactions.';
+    }
+    return 'Only UNKNOWN or MANUAL_INTERVENTION_REQUIRED transactions can be manually reconciled.';
+  }
   if (err?.status === 404) return 'Transaction not found.';
   return 'Something went wrong. Please retry.';
 };
@@ -344,7 +362,8 @@ export default function TransactionsPage() {
   const webhookEvents = Array.isArray(selected?.webhookEvents) ? selected.webhookEvents : [];
   const normalizedStatus = selected?.status?.toUpperCase?.() || '';
   const showErrorMessage = ['FAILED', 'CANCELED', 'CANCELLED'].includes(normalizedStatus);
-  const isSelectedManualReconciliationEligible = ['UNKNOWN', 'MANUAL_INTERVENTION_REQUIRED'].includes(normalizedStatus);
+  const canCompleteOrFailSelected = ['UNKNOWN', 'MANUAL_INTERVENTION_REQUIRED'].includes(normalizedStatus);
+  const canCancelSelected = ['UNKNOWN', 'MANUAL_INTERVENTION_REQUIRED', 'PROCESSING', 'INITIATED'].includes(normalizedStatus);
   const receiptPayloadData = receipt?.payload && typeof receipt.payload === 'object' ? receipt.payload : null;
   const bankRefValue = receiptPayloadData?.bankRef || selected?.externalReference || null;
   const latestAdminMessage = pickLatestAdminMessage(selected);
@@ -899,8 +918,16 @@ export default function TransactionsPage() {
   };
 
   const openManualReconciliationConfirm = (action) => {
-    if (!isSelectedManualReconciliationEligible) {
-      setManualReconciliationSubmitError('Only UNKNOWN or MANUAL_INTERVENTION_REQUIRED transactions can be manually reconciled.');
+    const eligible =
+      action === 'cancel'
+        ? canCancelSelected
+        : canCompleteOrFailSelected;
+    if (!eligible) {
+      const message =
+        action === 'cancel'
+          ? 'Cancel is allowed only for UNKNOWN, MANUAL_INTERVENTION_REQUIRED, PROCESSING, or INITIATED transactions.'
+          : 'Only UNKNOWN or MANUAL_INTERVENTION_REQUIRED transactions can be manually reconciled.';
+      setManualReconciliationSubmitError(message);
       return;
     }
     setManualReconciliationSubmitError(null);
@@ -932,10 +959,17 @@ export default function TransactionsPage() {
       const payload = manualReconciliationMessage.trim() ? { message: manualReconciliationMessage.trim() } : undefined;
       if (manualReconciliationAction === 'complete') {
         await api.transactions.completeManualReconciliation(transactionId, payload);
+      } else if (manualReconciliationAction === 'cancel') {
+        await api.transactions.cancelManualReconciliation(transactionId, payload);
       } else {
         await api.transactions.failManualReconciliation(transactionId, payload);
       }
-      const successMessage = manualReconciliationAction === 'complete' ? 'Transaction marked as completed.' : 'Transaction marked as failed.';
+      const successMessage =
+        manualReconciliationAction === 'complete'
+          ? 'Transaction marked as completed.'
+          : manualReconciliationAction === 'cancel'
+            ? 'Transaction canceled.'
+            : 'Transaction marked as failed.';
       pushToast({ tone: 'success', message: successMessage });
       setShowManualReconciliationConfirm(false);
       setManualReconciliationAction(null);
@@ -943,7 +977,7 @@ export default function TransactionsPage() {
       await refreshSelectedTransaction(transactionId);
       await loadReceipt(transactionId);
     } catch (err) {
-      const message = normalizeErrorMessage(err);
+      const message = normalizeErrorMessage(err, manualReconciliationAction);
       setManualReconciliationSubmitError(message);
       pushToast({ tone: 'error', message });
     } finally {
@@ -1557,27 +1591,41 @@ export default function TransactionsPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
                   <div style={{ fontWeight: 800 }}>Manual reconciliation</div>
                   <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-                    Available only when transaction status is UNKNOWN or MANUAL_INTERVENTION_REQUIRED.
+                    Complete/Fail: UNKNOWN or MANUAL_INTERVENTION_REQUIRED. Cancel: UNKNOWN, MANUAL_INTERVENTION_REQUIRED, PROCESSING, INITIATED.
                   </div>
                 </div>
-                {isSelectedManualReconciliationEligible && (
+                {(canCompleteOrFailSelected || canCancelSelected) && (
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    <button
-                      type="button"
-                      className="btn-success btn-sm"
-                      onClick={() => openManualReconciliationConfirm('complete')}
-                      disabled={manualReconciliationSubmitLoading}
-                    >
-                      Mark as Completed
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-danger btn-sm"
-                      onClick={() => openManualReconciliationConfirm('fail')}
-                      disabled={manualReconciliationSubmitLoading}
-                    >
-                      Mark as Failed
-                    </button>
+                    {canCompleteOrFailSelected && (
+                      <>
+                        <button
+                          type="button"
+                          className="btn-success btn-sm"
+                          onClick={() => openManualReconciliationConfirm('complete')}
+                          disabled={manualReconciliationSubmitLoading}
+                        >
+                          Mark as Completed
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-danger btn-sm"
+                          onClick={() => openManualReconciliationConfirm('fail')}
+                          disabled={manualReconciliationSubmitLoading}
+                        >
+                          Mark as Failed
+                        </button>
+                      </>
+                    )}
+                    {canCancelSelected && (
+                      <button
+                        type="button"
+                        className="btn-neutral btn-sm"
+                        onClick={() => openManualReconciliationConfirm('cancel')}
+                        disabled={manualReconciliationSubmitLoading}
+                      >
+                        Cancel Transaction
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -1591,9 +1639,9 @@ export default function TransactionsPage() {
                     { label: 'Latest admin note', value: latestAdminMessage || '—' }
                   ]}
                 />
-                {!isSelectedManualReconciliationEligible && (
+                {!canCompleteOrFailSelected && !canCancelSelected && (
                   <div style={{ color: '#92400e', fontWeight: 700 }}>
-                    Only UNKNOWN or MANUAL_INTERVENTION_REQUIRED transactions can be manually reconciled.
+                    No manual reconciliation actions available for this status. CANCELED is terminal.
                   </div>
                 )}
               </div>
@@ -2059,7 +2107,13 @@ export default function TransactionsPage() {
 
       {showManualReconciliationConfirm && (
         <Modal
-          title={manualReconciliationAction === 'fail' ? 'Mark as failed' : 'Mark as completed'}
+          title={
+            manualReconciliationAction === 'fail'
+              ? 'Mark as failed'
+              : manualReconciliationAction === 'cancel'
+                ? 'Cancel transaction'
+                : 'Mark as completed'
+          }
           onClose={() => {
             if (manualReconciliationSubmitLoading) return;
             setShowManualReconciliationConfirm(false);
@@ -2070,7 +2124,9 @@ export default function TransactionsPage() {
             <div style={{ color: 'var(--muted)' }}>
               {manualReconciliationAction === 'fail'
                 ? 'This will mark the transaction as failed. If customer balance was already debited, refund will be processed automatically.'
-                : 'This will mark the transaction as successful.'}
+                : manualReconciliationAction === 'cancel'
+                  ? 'This will mark the transaction as CANCELED (final). Canceled transactions are not retried or lookup-processed, and no user notification is sent.'
+                  : 'This will mark the transaction as successful.'}
             </div>
             <DetailGrid
               rows={[
@@ -2089,7 +2145,9 @@ export default function TransactionsPage() {
                 placeholder={
                   manualReconciliationAction === 'fail'
                     ? 'Provider confirmed failure manually'
-                    : 'Provider confirmed success manually'
+                    : manualReconciliationAction === 'cancel'
+                      ? 'Canceled by admin'
+                      : 'Provider confirmed success manually'
                 }
                 rows={4}
               />
@@ -2109,11 +2167,17 @@ export default function TransactionsPage() {
               </button>
               <button
                 type="button"
-                className={manualReconciliationAction === 'fail' ? 'btn-danger' : 'btn-success'}
+                className={manualReconciliationAction === 'complete' ? 'btn-success' : 'btn-danger'}
                 onClick={submitManualReconciliation}
                 disabled={manualReconciliationSubmitLoading}
               >
-                {manualReconciliationSubmitLoading ? 'Submitting…' : manualReconciliationAction === 'fail' ? 'Confirm failure' : 'Confirm completion'}
+                {manualReconciliationSubmitLoading
+                  ? 'Submitting…'
+                  : manualReconciliationAction === 'fail'
+                    ? 'Confirm failure'
+                    : manualReconciliationAction === 'cancel'
+                      ? 'Confirm cancel'
+                      : 'Confirm completion'}
               </button>
             </div>
           </div>
