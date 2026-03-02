@@ -105,6 +105,14 @@ Base URL: `${app.api.baseUrls.admin-api}` (default `/admin-api`). All endpoints 
 ## QA
 - **Stub failure modes**: `GET /qa/stub-failure-modes` returns shared trigger tokens (`1111`, `2222`, `3333`, `4444`, `5555`, `6666`, `stub_*`), expected outcome per mode, and per-provider injection fields to indicate where QA should place each trigger.
 
+## Feature flags
+- **Global flags**: `GET /feature-flags`, `GET /feature-flags/{key}`, `PUT /feature-flags/{key}` body `{ enabled }`, `DELETE /feature-flags/{key}`.
+- **Per-account overrides**:
+  - `GET /feature-flags/{key}/overrides`
+  - `PUT /feature-flags/{key}/overrides/{accountId}` body `{ enabled }`
+  - `DELETE /feature-flags/{key}/overrides/{accountId}`
+- **QA rollout pattern**: keep feature globally disabled (`PUT /feature-flags/{key}` with `{ "enabled": false }`) and allow only QA account(s) with override `enabled=true`. Remove override after testing.
+
 ## Notes
 - Dates use epoch milliseconds; decimals are numbers (BigDecimal).
 - Role enforcement: only `role=ADMIN` tokens can access these routes.

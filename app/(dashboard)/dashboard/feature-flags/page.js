@@ -100,6 +100,21 @@ const formatActionLabel = (key) => {
 
 const formatDisplayLabel = (key) => (isActionLimitKey(key) ? formatActionLabel(key) : formatLabel(key));
 
+const normalizeOverride = (entry) => {
+  if (!entry || typeof entry !== 'object') return null;
+  const accountId = entry.accountId ?? entry.account_id ?? entry.id ?? entry?.account?.id ?? '';
+  if (accountId === null || accountId === undefined || accountId === '') return null;
+  return {
+    accountId: String(accountId),
+    enabled: Boolean(entry.enabled)
+  };
+};
+
+const getOverrideErrorMessage = (err, fallback) => {
+  if (err?.status === 404) return 'Account not found';
+  return err?.message || fallback;
+};
+
 export default function FeatureFlagsPage() {
   const [flags, setFlags] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -110,6 +125,14 @@ export default function FeatureFlagsPage() {
   const [draftKey, setDraftKey] = useState('');
   const [draftEnabled, setDraftEnabled] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [overrideDialog, setOverrideDialog] = useState(null);
+  const [overridesLoading, setOverridesLoading] = useState(false);
+  const [overridesSaving, setOverridesSaving] = useState(false);
+  const [overrideAccountId, setOverrideAccountId] = useState('');
+  const [overrideEnabled, setOverrideEnabled] = useState(true);
+  const [overrideEmail, setOverrideEmail] = useState('');
+  const [overrideEmailEnabled, setOverrideEmailEnabled] = useState(true);
+  const [overrides, setOverrides] = useState([]);
 
   const actionLimitFlags = useMemo(
     () =>
@@ -260,6 +283,121 @@ export default function FeatureFlagsPage() {
     }
   };
 
+  const openOverridesDialog = async (key) => {
+    if (!key) return;
+    setOverrideDialog({ key });
+    setOverrideAccountId('');
+    setOverrideEnabled(true);
+    setOverrideEmail('');
+    setOverrideEmailEnabled(true);
+    setOverrides([]);
+    setOverridesLoading(true);
+    setError(null);
+    try {
+      const res = await api.featureFlags.listOverrides(key);
+      const list = (Array.isArray(res) ? res : [])
+        .map(normalizeOverride)
+        .filter(Boolean)
+        .sort((a, b) => a.accountId.localeCompare(b.accountId));
+      setOverrides(list);
+    } catch (err) {
+      setError(err.message || 'Failed to load overrides');
+    } finally {
+      setOverridesLoading(false);
+    }
+  };
+
+  const handleSaveOverride = async () => {
+    const key = overrideDialog?.key;
+    const accountId = overrideAccountId.trim();
+    if (!key || !accountId || overridesSaving) return;
+    setOverridesSaving(true);
+    setError(null);
+    setInfo(null);
+    try {
+      await api.featureFlags.upsertOverride(key, accountId, { enabled: overrideEnabled });
+      const res = await api.featureFlags.listOverrides(key);
+      const list = (Array.isArray(res) ? res : [])
+        .map(normalizeOverride)
+        .filter(Boolean)
+        .sort((a, b) => a.accountId.localeCompare(b.accountId));
+      setOverrides(list);
+      setOverrideAccountId('');
+      setOverrideEnabled(true);
+      setInfo(`Override updated for account ${accountId}.`);
+    } catch (err) {
+      setError(err.message || 'Failed to save override');
+    } finally {
+      setOverridesSaving(false);
+    }
+  };
+
+  const handleSaveOverrideByEmail = async () => {
+    const key = overrideDialog?.key;
+    const email = overrideEmail.trim();
+    if (!key || !email || overridesSaving) return;
+    setOverridesSaving(true);
+    setError(null);
+    setInfo(null);
+    try {
+      await api.featureFlags.upsertOverrideByEmail(key, email, { enabled: overrideEmailEnabled });
+      const res = await api.featureFlags.listOverrides(key);
+      const list = (Array.isArray(res) ? res : [])
+        .map(normalizeOverride)
+        .filter(Boolean)
+        .sort((a, b) => a.accountId.localeCompare(b.accountId));
+      setOverrides(list);
+      setOverrideEmail('');
+      setOverrideEmailEnabled(true);
+      setInfo(`Override updated for ${email}.`);
+    } catch (err) {
+      setError(getOverrideErrorMessage(err, 'Failed to save override'));
+    } finally {
+      setOverridesSaving(false);
+    }
+  };
+
+  const handleDeleteOverrideByEmail = async () => {
+    const key = overrideDialog?.key;
+    const email = overrideEmail.trim();
+    if (!key || !email || overridesSaving) return;
+    setOverridesSaving(true);
+    setError(null);
+    setInfo(null);
+    try {
+      await api.featureFlags.removeOverrideByEmail(key, email);
+      const res = await api.featureFlags.listOverrides(key);
+      const list = (Array.isArray(res) ? res : [])
+        .map(normalizeOverride)
+        .filter(Boolean)
+        .sort((a, b) => a.accountId.localeCompare(b.accountId));
+      setOverrides(list);
+      setOverrideEmail('');
+      setInfo(`Override removed for ${email}.`);
+    } catch (err) {
+      setError(getOverrideErrorMessage(err, 'Failed to remove override'));
+    } finally {
+      setOverridesSaving(false);
+    }
+  };
+
+  const handleDeleteOverride = async (accountId) => {
+    const key = overrideDialog?.key;
+    if (!key || !accountId || overridesSaving) return;
+    setOverridesSaving(true);
+    setError(null);
+    setInfo(null);
+    try {
+      await api.featureFlags.removeOverride(key, accountId);
+      setOverrides((prev) => prev.filter((entry) => entry.accountId !== accountId));
+      setInfo(`Override removed for account ${accountId}.`);
+    } catch (err) {
+      setError(err.message || 'Failed to remove override');
+    } finally {
+      setOverridesSaving(false);
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div>
@@ -332,6 +470,21 @@ export default function FeatureFlagsPage() {
                         <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{flag.key}</div>
                       </div>
                       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        <button
+                          type="button"
+                          onClick={() => openOverridesDialog(flag.key)}
+                          disabled={savingKey === flag.key}
+                          style={{
+                            border: `1px solid var(--border)`,
+                            background: 'var(--surface)',
+                            padding: '0.45rem 0.7rem',
+                            borderRadius: '10px',
+                            cursor: 'pointer',
+                            color: 'var(--text)'
+                          }}
+                        >
+                          Overrides
+                        </button>
                         <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
                           <input type="checkbox" checked={Boolean(flag.enabled)} onChange={() => handleToggle(flag.key)} disabled={loading || savingKey === flag.key} />
                           {flag.enabled ? 'Enabled' : 'Disabled'}
@@ -377,6 +530,21 @@ export default function FeatureFlagsPage() {
                       <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{flag.key}</div>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <button
+                        type="button"
+                        onClick={() => openOverridesDialog(flag.key)}
+                        disabled={savingKey === flag.key}
+                        style={{
+                          border: `1px solid var(--border)`,
+                          background: 'var(--surface)',
+                          padding: '0.45rem 0.7rem',
+                          borderRadius: '10px',
+                          cursor: 'pointer',
+                          color: 'var(--text)'
+                        }}
+                      >
+                        Overrides
+                      </button>
                       <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
                         <input type="checkbox" checked={Boolean(flag.enabled)} onChange={() => handleToggle(flag.key)} disabled={loading || savingKey === flag.key} />
                         {flag.enabled ? 'Enabled' : 'Disabled'}
@@ -434,6 +602,139 @@ export default function FeatureFlagsPage() {
               >
                 Disable
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {overrideDialog && (
+        <div className="modal-backdrop">
+          <div className="modal-surface" style={{ width: 'min(720px, 96vw)', display: 'grid', gap: '0.85rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.25rem', borderBottom: '1px solid var(--border)' }}>
+              <div style={{ fontWeight: 800 }}>Feature Overrides</div>
+              <button
+                type="button"
+                onClick={() => setOverrideDialog(null)}
+                style={{ border: 'none', background: 'transparent', fontSize: '18px', cursor: 'pointer', color: 'var(--text)' }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div style={{ color: 'var(--muted)' }}>
+              Feature: <strong>{overrideDialog.key}</strong>. Keep global flag disabled and enable only specific QA accounts with overrides.
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: '0.65rem', alignItems: 'end' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="overrideAccountId">Account ID</label>
+                <input
+                  id="overrideAccountId"
+                  placeholder="123"
+                  value={overrideAccountId}
+                  onChange={(e) => setOverrideAccountId(e.target.value)}
+                  disabled={overridesSaving}
+                />
+              </div>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                <input type="checkbox" checked={overrideEnabled} onChange={(e) => setOverrideEnabled(e.target.checked)} disabled={overridesSaving} />
+                {overrideEnabled ? 'Enabled' : 'Disabled'}
+              </label>
+              <button
+                type="button"
+                onClick={handleSaveOverride}
+                disabled={!overrideAccountId.trim() || overridesSaving}
+                style={{
+                  border: `1px solid var(--border)`,
+                  background: 'var(--surface)',
+                  padding: '0.6rem 0.85rem',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  color: 'var(--text)'
+                }}
+              >
+                Save Override
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto auto', gap: '0.65rem', alignItems: 'end' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="overrideEmail">Override by email</label>
+                <input
+                  id="overrideEmail"
+                  placeholder="qa@example.com"
+                  value={overrideEmail}
+                  onChange={(e) => setOverrideEmail(e.target.value)}
+                  disabled={overridesSaving}
+                />
+              </div>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                <input type="checkbox" checked={overrideEmailEnabled} onChange={(e) => setOverrideEmailEnabled(e.target.checked)} disabled={overridesSaving} />
+                {overrideEmailEnabled ? 'Enabled' : 'Disabled'}
+              </label>
+              <button
+                type="button"
+                onClick={handleSaveOverrideByEmail}
+                disabled={!overrideEmail.trim() || overridesSaving}
+                style={{
+                  border: `1px solid var(--border)`,
+                  background: 'var(--surface)',
+                  padding: '0.6rem 0.85rem',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  color: 'var(--text)'
+                }}
+              >
+                Save by Email
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteOverrideByEmail}
+                disabled={!overrideEmail.trim() || overridesSaving}
+                style={{
+                  border: `1px solid #b91c1c`,
+                  background: '#fff',
+                  color: '#b91c1c',
+                  padding: '0.6rem 0.85rem',
+                  borderRadius: '10px',
+                  cursor: 'pointer'
+                }}
+              >
+                Delete by Email
+              </button>
+            </div>
+
+            <div className="card" style={{ display: 'grid', gap: '0.65rem' }}>
+              <div style={{ fontWeight: 700 }}>Current Overrides</div>
+              {overridesLoading && <div style={{ color: 'var(--muted)' }}>Loading overrides…</div>}
+              {!overridesLoading && overrides.length === 0 && <div style={{ color: 'var(--muted)' }}>No overrides for this feature.</div>}
+              {!overridesLoading &&
+                overrides.map((entry) => (
+                  <div
+                    key={entry.accountId}
+                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.55rem 0.65rem' }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 700 }}>Account {entry.accountId}</div>
+                      <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{entry.enabled ? 'Enabled' : 'Disabled'}</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteOverride(entry.accountId)}
+                      disabled={overridesSaving}
+                      style={{
+                        border: `1px solid #b91c1c`,
+                        background: '#fff',
+                        color: '#b91c1c',
+                        padding: '0.45rem 0.7rem',
+                        borderRadius: '10px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ))}
             </div>
           </div>
         </div>
