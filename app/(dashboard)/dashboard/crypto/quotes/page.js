@@ -4,6 +4,16 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 
+const CRYPTO_WARNING_FALLBACK_MESSAGE =
+  'You are not yet allowed to perform crypto operations. Please contact customer service to enable it for your account.';
+
+const isWarningMessageError = (err) => {
+  const code = err?.data?.errorCode || err?.data?.code || err?.data?.name || '';
+  return String(code).toUpperCase() === 'WARNING_MESSAGE';
+};
+
+const getWarningMessage = (err) => err?.data?.message || CRYPTO_WARNING_FALLBACK_MESSAGE;
+
 const DetailGrid = ({ rows }) => (
   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
     {rows.map((row) => (
@@ -27,6 +37,7 @@ export default function CryptoQuotesPage() {
   const [quote, setQuote] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [warning, setWarning] = useState(null);
 
   const fetchQuote = async () => {
     const from = (fromPreset === 'OTHER' ? fromCustom : fromPreset).trim();
@@ -40,11 +51,16 @@ export default function CryptoQuotesPage() {
 
     setLoading(true);
     setError(null);
+    setWarning(null);
     try {
       const res = await api.cryptoQuotes.quote({ fromCurrency: from, toCurrency: to, amount: rawAmount });
       setQuote(res || null);
     } catch (err) {
-      setError(err.message || 'Failed to fetch quote');
+      if (isWarningMessageError(err)) {
+        setWarning(getWarningMessage(err));
+      } else {
+        setError(err.message || 'Failed to fetch quote');
+      }
     } finally {
       setLoading(false);
     }
@@ -107,6 +123,7 @@ export default function CryptoQuotesPage() {
       </div>
 
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
+      {warning && <div className="card" style={{ color: '#b45309', fontWeight: 700 }}>{warning}</div>}
 
       {quote && (
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>

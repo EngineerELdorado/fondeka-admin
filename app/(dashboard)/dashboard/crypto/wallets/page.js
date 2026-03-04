@@ -6,6 +6,15 @@ import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
 const emptyState = { accountId: '', productNetworkId: '', balance: '' };
+const CRYPTO_WARNING_FALLBACK_MESSAGE =
+  'You are not yet allowed to perform crypto operations. Please contact customer service to enable it for your account.';
+
+const isWarningMessageError = (err) => {
+  const code = err?.data?.errorCode || err?.data?.code || err?.data?.name || '';
+  return String(code).toUpperCase() === 'WARNING_MESSAGE';
+};
+
+const getWarningMessage = (err) => err?.data?.message || CRYPTO_WARNING_FALLBACK_MESSAGE;
 
 const toPayload = (state) => ({
   accountId: Number(state.accountId) || 0,
@@ -57,12 +66,14 @@ export default function CryptoWalletsPage() {
   const [creditNote, setCreditNote] = useState('');
   const [creditAction, setCreditAction] = useState('MANUAL_ADJUSTMENT');
   const [creditError, setCreditError] = useState(null);
+  const [creditWarning, setCreditWarning] = useState(null);
   const [creditLoading, setCreditLoading] = useState(false);
   const [quoteFrom, setQuoteFrom] = useState('USDT');
   const [quoteTo, setQuoteTo] = useState('');
   const [quoteAmount, setQuoteAmount] = useState('');
   const [quoteResult, setQuoteResult] = useState(null);
   const [quoteError, setQuoteError] = useState(null);
+  const [quoteWarning, setQuoteWarning] = useState(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [openGroups, setOpenGroups] = useState(() => new Set());
   const [accounts, setAccounts] = useState([]);
@@ -202,11 +213,13 @@ export default function CryptoWalletsPage() {
     setCreditNote('');
     setCreditAction('MANUAL_ADJUSTMENT');
     setCreditError(null);
+    setCreditWarning(null);
     setQuoteFrom('USDT');
     setQuoteTo(row?.currency || '');
     setQuoteAmount('');
     setQuoteResult(null);
     setQuoteError(null);
+    setQuoteWarning(null);
     setQuoteLoading(false);
     setShowCredit(true);
     setInfo(null);
@@ -268,6 +281,7 @@ export default function CryptoWalletsPage() {
     }
     setCreditLoading(true);
     setCreditError(null);
+    setCreditWarning(null);
     setInfo(null);
     setError(null);
     try {
@@ -289,7 +303,11 @@ export default function CryptoWalletsPage() {
       setCreditAction('MANUAL_ADJUSTMENT');
       await fetchRows();
     } catch (err) {
-      setCreditError(err.message || 'Failed to credit wallet');
+      if (isWarningMessageError(err)) {
+        setCreditWarning(getWarningMessage(err));
+      } else {
+        setCreditError(err.message || 'Failed to credit wallet');
+      }
     } finally {
       setCreditLoading(false);
     }
@@ -310,11 +328,16 @@ export default function CryptoWalletsPage() {
     }
     setQuoteLoading(true);
     setQuoteError(null);
+    setQuoteWarning(null);
     try {
       const res = await api.cryptoQuotes.quote({ fromCurrency: from, toCurrency: to, amount: rawAmount });
       setQuoteResult(res || null);
     } catch (err) {
-      setQuoteError(err.message || 'Failed to fetch quote');
+      if (isWarningMessageError(err)) {
+        setQuoteWarning(getWarningMessage(err));
+      } else {
+        setQuoteError(err.message || 'Failed to fetch quote');
+      }
     } finally {
       setQuoteLoading(false);
     }
@@ -559,6 +582,7 @@ export default function CryptoWalletsPage() {
                 </button>
               </div>
               {quoteError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{quoteError}</div>}
+              {quoteWarning && <div style={{ color: '#b45309', fontWeight: 700 }}>{quoteWarning}</div>}
               {quoteResult && (
                 <DetailGrid
                   rows={[
@@ -609,6 +633,7 @@ export default function CryptoWalletsPage() {
               </div>
             </div>
             {creditError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{creditError}</div>}
+            {creditWarning && <div style={{ color: '#b45309', fontWeight: 700 }}>{creditWarning}</div>}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
               <button type="button" onClick={() => setShowCredit(false)} className="btn-neutral" disabled={creditLoading}>Cancel</button>
               <button type="button" onClick={submitCredit} className="btn-success" disabled={creditLoading}>

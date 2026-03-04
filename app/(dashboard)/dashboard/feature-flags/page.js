@@ -5,7 +5,9 @@ import { api } from '@/lib/api';
 
 const LABELS = {
   trusted_device_enforcement: 'Enforce Trusted Device',
-  auto_refund: 'Auto Refunds'
+  auto_refund: 'Auto Refunds',
+  'crypto.external.collection.verified_only': 'Restrict crypto collection to verified users',
+  'crypto.external.collection.allow_public_endpoints': 'Allow public crypto payment links'
 };
 
 const WARNINGS = {
@@ -74,6 +76,10 @@ const SUPPORTED_KEYS = [
   'gift_cards'
 ];
 
+const CRYPTO_COLLECTION_GATE_KEY = 'crypto.external.collection.verified_only';
+const CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY = 'crypto.external.collection.allow_public_endpoints';
+const CRYPTO_COLLECTION_GATE_KYC_STATUSES = ['APPROVED', 'PROVISIONALLY_APPROVED'];
+
 const formatKeyPart = (value) =>
   String(value || '')
     .replace(/_/g, ' ')
@@ -103,15 +109,23 @@ const formatDisplayLabel = (key) => (isActionLimitKey(key) ? formatActionLabel(k
 const normalizeOverride = (entry) => {
   if (!entry || typeof entry !== 'object') return null;
   const accountId = entry.accountId ?? entry.account_id ?? entry.id ?? entry?.account?.id ?? '';
-  if (accountId === null || accountId === undefined || accountId === '') return null;
+  const email = entry.email ?? entry.emailAddress ?? entry.accountEmail ?? entry?.account?.email ?? '';
+  if ((accountId === null || accountId === undefined || accountId === '') && !email) return null;
+  const hasAccount = accountId !== null && accountId !== undefined && accountId !== '';
+  const normalizedTarget = hasAccount ? String(accountId) : String(email);
+  const targetType = hasAccount ? 'account' : 'email';
   return {
-    accountId: String(accountId),
+    id: `${targetType}:${normalizedTarget}`,
+    accountId: hasAccount ? String(accountId) : '',
+    email: hasAccount ? '' : String(email),
+    targetType,
+    targetLabel: hasAccount ? `Account ${accountId}` : `Email ${email}`,
     enabled: Boolean(entry.enabled)
   };
 };
 
 const getOverrideErrorMessage = (err, fallback) => {
-  if (err?.status === 404) return 'Account not found';
+  if (err?.status === 404) return 'Account or email not found';
   return err?.message || fallback;
 };
 
@@ -134,9 +148,31 @@ export default function FeatureFlagsPage() {
   const [overrideEmailEnabled, setOverrideEmailEnabled] = useState(true);
   const [overrides, setOverrides] = useState([]);
 
+  const cryptoCollectionGateFlag = useMemo(
+    () => flags.find((flag) => String(flag.key) === CRYPTO_COLLECTION_GATE_KEY),
+    [flags]
+  );
+
+  const cryptoCollectionPublicEndpointsFlag = useMemo(
+    () => flags.find((flag) => String(flag.key) === CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY),
+    [flags]
+  );
+
+  const otherFlags = useMemo(
+    () =>
+      flags.filter(
+        (flag) =>
+          String(flag.key) !== CRYPTO_COLLECTION_GATE_KEY &&
+          String(flag.key) !== CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY
+      ),
+    [flags]
+  );
+
   const actionLimitFlags = useMemo(
     () =>
       flags
+        .filter((flag) => String(flag.key) !== CRYPTO_COLLECTION_GATE_KEY)
+        .filter((flag) => String(flag.key) !== CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY)
         .filter((flag) => isActionLimitKey(flag.key))
         .sort((a, b) => actionFromLimitKey(a.key).localeCompare(actionFromLimitKey(b.key))),
     [flags]
@@ -144,7 +180,7 @@ export default function FeatureFlagsPage() {
 
   const groupedFlags = useMemo(() => {
     const groups = new Map();
-    flags
+    otherFlags
       .filter((flag) => !isActionLimitKey(flag.key))
       .forEach((flag) => {
         const rawKey = String(flag.key || '');
@@ -163,14 +199,20 @@ export default function FeatureFlagsPage() {
       label: groupKey === 'modules' ? 'Module flags' : formatKeyPart(groupKey),
       flags: list.sort((a, b) => String(a.key || '').localeCompare(String(b.key || '')))
     }));
-  }, [flags]);
+  }, [otherFlags]);
 
   const loadFlags = async () => {
     setLoading(true);
     setError(null);
     try {
       const res = await api.featureFlags.list();
-      setFlags(Array.isArray(res) ? res : []);
+      const list = Array.isArray(res) ? res : [];
+      const hasCryptoCollectionGate = list.some((flag) => String(flag?.key) === CRYPTO_COLLECTION_GATE_KEY);
+      const hasPublicEndpointsFlag = list.some((flag) => String(flag?.key) === CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY);
+      const defaults = [];
+      if (!hasCryptoCollectionGate) defaults.push({ key: CRYPTO_COLLECTION_GATE_KEY, enabled: true, isDefault: true });
+      if (!hasPublicEndpointsFlag) defaults.push({ key: CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY, enabled: true, isDefault: true });
+      setFlags([...defaults, ...list]);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -298,7 +340,7 @@ export default function FeatureFlagsPage() {
       const list = (Array.isArray(res) ? res : [])
         .map(normalizeOverride)
         .filter(Boolean)
-        .sort((a, b) => a.accountId.localeCompare(b.accountId));
+        .sort((a, b) => a.targetLabel.localeCompare(b.targetLabel));
       setOverrides(list);
     } catch (err) {
       setError(err.message || 'Failed to load overrides');
@@ -320,7 +362,7 @@ export default function FeatureFlagsPage() {
       const list = (Array.isArray(res) ? res : [])
         .map(normalizeOverride)
         .filter(Boolean)
-        .sort((a, b) => a.accountId.localeCompare(b.accountId));
+        .sort((a, b) => a.targetLabel.localeCompare(b.targetLabel));
       setOverrides(list);
       setOverrideAccountId('');
       setOverrideEnabled(true);
@@ -345,7 +387,7 @@ export default function FeatureFlagsPage() {
       const list = (Array.isArray(res) ? res : [])
         .map(normalizeOverride)
         .filter(Boolean)
-        .sort((a, b) => a.accountId.localeCompare(b.accountId));
+        .sort((a, b) => a.targetLabel.localeCompare(b.targetLabel));
       setOverrides(list);
       setOverrideEmail('');
       setOverrideEmailEnabled(true);
@@ -370,7 +412,7 @@ export default function FeatureFlagsPage() {
       const list = (Array.isArray(res) ? res : [])
         .map(normalizeOverride)
         .filter(Boolean)
-        .sort((a, b) => a.accountId.localeCompare(b.accountId));
+        .sort((a, b) => a.targetLabel.localeCompare(b.targetLabel));
       setOverrides(list);
       setOverrideEmail('');
       setInfo(`Override removed for ${email}.`);
@@ -381,16 +423,23 @@ export default function FeatureFlagsPage() {
     }
   };
 
-  const handleDeleteOverride = async (accountId) => {
+  const handleDeleteOverride = async (entry) => {
     const key = overrideDialog?.key;
-    if (!key || !accountId || overridesSaving) return;
+    const accountId = entry?.accountId || '';
+    const email = entry?.email || '';
+    if (!key || (!accountId && !email) || overridesSaving) return;
     setOverridesSaving(true);
     setError(null);
     setInfo(null);
     try {
-      await api.featureFlags.removeOverride(key, accountId);
-      setOverrides((prev) => prev.filter((entry) => entry.accountId !== accountId));
-      setInfo(`Override removed for account ${accountId}.`);
+      if (accountId) {
+        await api.featureFlags.removeOverride(key, accountId);
+        setInfo(`Override removed for account ${accountId}.`);
+      } else {
+        await api.featureFlags.removeOverrideByEmail(key, email);
+        setInfo(`Override removed for ${email}.`);
+      }
+      setOverrides((prev) => prev.filter((row) => row.id !== entry.id));
     } catch (err) {
       setError(err.message || 'Failed to remove override');
     } finally {
@@ -449,9 +498,77 @@ export default function FeatureFlagsPage() {
         </div>
       </div>
 
+      {cryptoCollectionGateFlag && (
+        <div className="card" style={{ maxWidth: '720px', display: 'grid', gap: '0.75rem', borderColor: '#f59e0b' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontWeight: 800 }}>Restrict crypto collection to verified users</div>
+              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{CRYPTO_COLLECTION_GATE_KEY}</div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <button
+                type="button"
+                onClick={() => openOverridesDialog(CRYPTO_COLLECTION_GATE_KEY)}
+                disabled={savingKey === CRYPTO_COLLECTION_GATE_KEY}
+                style={{
+                  border: `1px solid var(--border)`,
+                  background: 'var(--surface)',
+                  padding: '0.45rem 0.7rem',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  color: 'var(--text)'
+                }}
+              >
+                Manage Overrides
+              </button>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(cryptoCollectionGateFlag.enabled)}
+                  onChange={() => handleToggle(CRYPTO_COLLECTION_GATE_KEY)}
+                  disabled={loading || savingKey === CRYPTO_COLLECTION_GATE_KEY}
+                />
+                {cryptoCollectionGateFlag.enabled ? 'ON · Gate enforced' : 'OFF · Gate removed'}
+              </label>
+            </div>
+          </div>
+          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+            Access is allowed only when KYC status is <strong>{CRYPTO_COLLECTION_GATE_KYC_STATUSES.join(' or ')}</strong> and KYC level is <strong>2 or above</strong>, unless an override is set.
+          </div>
+          <div style={{ display: 'grid', gap: '0.25rem', color: 'var(--muted)', fontSize: '13px' }}>
+            <div>`enabled=true` globally enforces the gate for everyone by default.</div>
+            <div>Override `enabled=false` for an account/email to allow collection while global gate is ON.</div>
+            <div>Override `enabled=true` for an account/email to enforce the gate for that target.</div>
+          </div>
+        </div>
+      )}
+
+      {cryptoCollectionPublicEndpointsFlag && (
+        <div className="card" style={{ maxWidth: '720px', display: 'grid', gap: '0.75rem', borderColor: '#0284c7' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontWeight: 800 }}>Allow public crypto payment links</div>
+              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY}</div>
+            </div>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+              <input
+                type="checkbox"
+                checked={Boolean(cryptoCollectionPublicEndpointsFlag.enabled)}
+                onChange={() => handleToggle(CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY)}
+                disabled={loading || savingKey === CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY}
+              />
+              {cryptoCollectionPublicEndpointsFlag.enabled ? 'ON · Public links bypass gate' : 'OFF · Public links enforce gate'}
+            </label>
+          </div>
+          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+            Controls crypto collection behavior for payment-request pay links and other public endpoints.
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'grid', gap: '0.85rem', maxWidth: '720px' }}>
         {loading && <div className="card">Loading feature flags…</div>}
-        {!loading && flags.length === 0 && <div className="card">No feature flags available.</div>}
+        {!loading && otherFlags.length === 0 && <div className="card">No feature flags available.</div>}
         {groupedFlags.map((group) => (
           <div key={group.key} className="card" style={{ display: 'grid', gap: '0.75rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -611,7 +728,7 @@ export default function FeatureFlagsPage() {
         <div className="modal-backdrop">
           <div className="modal-surface" style={{ width: 'min(720px, 96vw)', display: 'grid', gap: '0.85rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.25rem', borderBottom: '1px solid var(--border)' }}>
-              <div style={{ fontWeight: 800 }}>Feature Overrides</div>
+              <div style={{ fontWeight: 800 }}>{overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? 'Account crypto collection override' : 'Feature Overrides'}</div>
               <button
                 type="button"
                 onClick={() => setOverrideDialog(null)}
@@ -622,8 +739,14 @@ export default function FeatureFlagsPage() {
             </div>
 
             <div style={{ color: 'var(--muted)' }}>
-              Feature: <strong>{overrideDialog.key}</strong>. Keep global flag disabled and enable only specific QA accounts with overrides.
+              Feature: <strong>{overrideDialog.key}</strong>.
             </div>
+            {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY && (
+              <div style={{ display: 'grid', gap: '0.25rem', color: '#b45309', fontWeight: 600 }}>
+                <div>Use override `enabled=false` to allow crypto collection for a specific account/email even when global gate is ON.</div>
+                <div>Use override `enabled=true` to explicitly enforce the gate for that account/email.</div>
+              </div>
+            )}
 
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: '0.65rem', alignItems: 'end' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -638,7 +761,7 @@ export default function FeatureFlagsPage() {
               </div>
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
                 <input type="checkbox" checked={overrideEnabled} onChange={(e) => setOverrideEnabled(e.target.checked)} disabled={overridesSaving} />
-                {overrideEnabled ? 'Enabled' : 'Disabled'}
+                {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? (overrideEnabled ? 'Enforce gate' : 'Allow collection') : overrideEnabled ? 'Enabled' : 'Disabled'}
               </label>
               <button
                 type="button"
@@ -670,7 +793,7 @@ export default function FeatureFlagsPage() {
               </div>
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
                 <input type="checkbox" checked={overrideEmailEnabled} onChange={(e) => setOverrideEmailEnabled(e.target.checked)} disabled={overridesSaving} />
-                {overrideEmailEnabled ? 'Enabled' : 'Disabled'}
+                {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? (overrideEmailEnabled ? 'Enforce gate' : 'Allow collection') : overrideEmailEnabled ? 'Enabled' : 'Disabled'}
               </label>
               <button
                 type="button"
@@ -711,16 +834,18 @@ export default function FeatureFlagsPage() {
               {!overridesLoading &&
                 overrides.map((entry) => (
                   <div
-                    key={entry.accountId}
+                    key={entry.id}
                     style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.55rem 0.65rem' }}
                   >
                     <div>
-                      <div style={{ fontWeight: 700 }}>Account {entry.accountId}</div>
-                      <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{entry.enabled ? 'Enabled' : 'Disabled'}</div>
+                      <div style={{ fontWeight: 700 }}>{entry.targetLabel}</div>
+                      <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                        {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? (entry.enabled ? 'Enforce gate' : 'Allow collection') : entry.enabled ? 'Enabled' : 'Disabled'}
+                      </div>
                     </div>
                     <button
                       type="button"
-                      onClick={() => handleDeleteOverride(entry.accountId)}
+                      onClick={() => handleDeleteOverride(entry)}
                       disabled={overridesSaving}
                       style={{
                         border: `1px solid #b91c1c`,
