@@ -349,15 +349,16 @@ export default function FeatureFlagsPage() {
     }
   };
 
-  const handleSaveOverride = async () => {
+  const handleSaveOverride = async (forcedEnabled) => {
     const key = overrideDialog?.key;
     const accountId = overrideAccountId.trim();
     if (!key || !accountId || overridesSaving) return;
+    const enabled = typeof forcedEnabled === 'boolean' ? forcedEnabled : overrideEnabled;
     setOverridesSaving(true);
     setError(null);
     setInfo(null);
     try {
-      await api.featureFlags.upsertOverride(key, accountId, { enabled: overrideEnabled });
+      await api.featureFlags.upsertOverride(key, accountId, { enabled });
       const res = await api.featureFlags.listOverrides(key);
       const list = (Array.isArray(res) ? res : [])
         .map(normalizeOverride)
@@ -366,7 +367,7 @@ export default function FeatureFlagsPage() {
       setOverrides(list);
       setOverrideAccountId('');
       setOverrideEnabled(true);
-      setInfo(`Override updated for account ${accountId}.`);
+      setInfo(`Override set for account ${accountId}: ${enabled ? 'forced ON' : 'forced OFF'}.`);
     } catch (err) {
       setError(err.message || 'Failed to save override');
     } finally {
@@ -374,15 +375,16 @@ export default function FeatureFlagsPage() {
     }
   };
 
-  const handleSaveOverrideByEmail = async () => {
+  const handleSaveOverrideByEmail = async (forcedEnabled) => {
     const key = overrideDialog?.key;
     const email = overrideEmail.trim();
     if (!key || !email || overridesSaving) return;
+    const enabled = typeof forcedEnabled === 'boolean' ? forcedEnabled : overrideEmailEnabled;
     setOverridesSaving(true);
     setError(null);
     setInfo(null);
     try {
-      await api.featureFlags.upsertOverrideByEmail(key, email, { enabled: overrideEmailEnabled });
+      await api.featureFlags.upsertOverrideByEmail(key, email, { enabled });
       const res = await api.featureFlags.listOverrides(key);
       const list = (Array.isArray(res) ? res : [])
         .map(normalizeOverride)
@@ -391,7 +393,7 @@ export default function FeatureFlagsPage() {
       setOverrides(list);
       setOverrideEmail('');
       setOverrideEmailEnabled(true);
-      setInfo(`Override updated for ${email}.`);
+      setInfo(`Override set for ${email}: ${enabled ? 'forced ON' : 'forced OFF'}.`);
     } catch (err) {
       setError(getOverrideErrorMessage(err, 'Failed to save override'));
     } finally {
@@ -741,6 +743,9 @@ export default function FeatureFlagsPage() {
             <div style={{ color: 'var(--muted)' }}>
               Feature: <strong>{overrideDialog.key}</strong>.
             </div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Per-account/per-email overrides take precedence over the global flag. Use <strong>forced OFF</strong> to block an individual even when the feature is globally ON.
+            </div>
             {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY && (
               <div style={{ display: 'grid', gap: '0.25rem', color: '#b45309', fontWeight: 600 }}>
                 <div>Use override `enabled=false` to allow crypto collection for a specific account/email even when global gate is ON.</div>
@@ -748,7 +753,7 @@ export default function FeatureFlagsPage() {
               </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: '0.65rem', alignItems: 'end' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto auto', gap: '0.65rem', alignItems: 'end' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="overrideAccountId">Account ID</label>
                 <input
@@ -778,9 +783,25 @@ export default function FeatureFlagsPage() {
               >
                 Save Override
               </button>
+              <button
+                type="button"
+                onClick={() => handleSaveOverride(false)}
+                disabled={!overrideAccountId.trim() || overridesSaving}
+                style={{
+                  border: `1px solid #b91c1c`,
+                  background: '#fff',
+                  color: '#b91c1c',
+                  padding: '0.6rem 0.85rem',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  fontWeight: 700
+                }}
+              >
+                Block Account
+              </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto auto', gap: '0.65rem', alignItems: 'end' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto auto auto', gap: '0.65rem', alignItems: 'end' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="overrideEmail">Override by email</label>
                 <input
@@ -812,6 +833,22 @@ export default function FeatureFlagsPage() {
               </button>
               <button
                 type="button"
+                onClick={() => handleSaveOverrideByEmail(false)}
+                disabled={!overrideEmail.trim() || overridesSaving}
+                style={{
+                  border: `1px solid #b91c1c`,
+                  background: '#fff',
+                  color: '#b91c1c',
+                  padding: '0.6rem 0.85rem',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  fontWeight: 700
+                }}
+              >
+                Block Email
+              </button>
+              <button
+                type="button"
                 onClick={handleDeleteOverrideByEmail}
                 disabled={!overrideEmail.trim() || overridesSaving}
                 style={{
@@ -840,7 +877,7 @@ export default function FeatureFlagsPage() {
                     <div>
                       <div style={{ fontWeight: 700 }}>{entry.targetLabel}</div>
                       <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-                        {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? (entry.enabled ? 'Enforce gate' : 'Allow collection') : entry.enabled ? 'Enabled' : 'Disabled'}
+                        {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? (entry.enabled ? 'Enforce gate' : 'Allow collection') : entry.enabled ? 'Forced ON' : 'Forced OFF'}
                       </div>
                     </div>
                     <button
