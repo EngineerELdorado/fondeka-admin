@@ -721,10 +721,10 @@ export default function DashboardPage() {
       onClick: () => goToTransactions('COMPLETED')
     },
     {
-      label: 'Failed',
+      label: 'Unconfirmed',
       value: formatNumber(totals.failedCount),
       sub: `Volume ${formatCurrency(totals.failedVolume)}`,
-      tone: '#b91c1c',
+      tone: '#6b7280',
       onClick: () => goToTransactions('FAILED')
     },
     {

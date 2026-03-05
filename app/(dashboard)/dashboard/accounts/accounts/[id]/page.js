@@ -461,7 +461,7 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
       setAccount(acc || null);
       const targetId = acc?.id ?? (Number.isFinite(Number(accountId)) ? Number(accountId) : null);
       if (acc?.accountReference) {
-        const txParams = new URLSearchParams({ page: '0', size: '1', accountReference: String(acc.accountReference) });
+        const txParams = new URLSearchParams({ page: '0', size: '10', accountReference: String(acc.accountReference) });
         const txRes = await api.transactions.list(txParams);
         const list = Array.isArray(txRes) ? txRes : txRes?.content || [];
         setTransactions(list || []);
