@@ -248,6 +248,10 @@ const [account, setAccount] = useState(null);
   const [appVersionSaving, setAppVersionSaving] = useState(false);
   const [appVersionError, setAppVersionError] = useState(null);
   const [appVersionInfo, setAppVersionInfo] = useState(null);
+  const [phoneNumberDraft, setPhoneNumberDraft] = useState('');
+  const [phoneSaving, setPhoneSaving] = useState(false);
+  const [phoneError, setPhoneError] = useState(null);
+  const [phoneInfo, setPhoneInfo] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [notifications, setNotifications] = useState([]);
 const [notificationsLoading, setNotificationsLoading] = useState(false);
@@ -707,6 +711,10 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
     setAppVersionOverride(account?.customAppVersion ?? '');
   }, [account?.customAppVersion]);
 
+  useEffect(() => {
+    setPhoneNumberDraft(account?.phoneNumber || account?.phone || '');
+  }, [account?.phoneNumber, account?.phone]);
+
   const updateCardholderField = (field, value) => {
     setCardholderForm((prev) => ({ ...prev, [field]: value }));
   };
@@ -923,6 +931,33 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
       pushToast({ tone: 'error', message });
     } finally {
       setAppVersionSaving(false);
+    }
+  };
+
+  const saveAccountPhone = async () => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) {
+      pushToast({ tone: 'error', message: 'No account loaded' });
+      return;
+    }
+    const trimmed = String(phoneNumberDraft || '').trim();
+    if (!trimmed) {
+      setPhoneError('Phone number is required.');
+      return;
+    }
+    setPhoneSaving(true);
+    setPhoneError(null);
+    setPhoneInfo(null);
+    try {
+      await api.accounts.updatePhone(resolvedAccountId, { phoneNumber: trimmed });
+      setAccount((prev) => (prev ? { ...prev, phoneNumber: trimmed, phone: trimmed } : prev));
+      setPhoneInfo(`Phone number updated to ${trimmed}.`);
+      pushToast({ tone: 'success', message: `Account phone updated to ${trimmed}` });
+    } catch (err) {
+      const message = err.message || 'Failed to update phone number';
+      setPhoneError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setPhoneSaving(false);
     }
   };
 
@@ -1922,6 +1957,7 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
         rows={[
           { label: 'Account reference', value: accountView?.accountReference },
           { label: 'User', value: accountView?.username },
+          { label: 'Phone', value: accountView?.phoneNumber || accountView?.phone },
           { label: 'KYC status', value: accountView?.kycStatus },
           { label: 'Balance', value: accountView?.balance },
           { label: 'Eligible loan', value: accountView?.eligibleLoanAmount },
@@ -1970,6 +2006,45 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
             disabled={countrySaving || resolvedAccountId === null || resolvedAccountId === undefined}
           >
             {countrySaving ? 'Saving…' : 'Update country'}
+          </button>
+        </div>
+      </div>
+
+      <div className="card" style={{ padding: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+            <div style={{ fontWeight: 800 }}>Phone number</div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Current: {accountView?.phoneNumber || accountView?.phone || '—'}
+            </div>
+          </div>
+          <button type="button" className="btn-neutral btn-sm" onClick={loadAccount} disabled={loading}>
+            {loading ? 'Refreshing…' : 'Refresh'}
+          </button>
+        </div>
+
+        {(phoneError || phoneInfo) && (
+          <div style={{ marginTop: '0.5rem', color: phoneError ? '#b91c1c' : '#15803d', fontWeight: 700 }}>
+            {phoneError || phoneInfo}
+          </div>
+        )}
+
+        <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'end' }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minWidth: '240px', flex: 1 }}>
+            <span>Phone number</span>
+            <input
+              value={phoneNumberDraft}
+              onChange={(e) => setPhoneNumberDraft(e.target.value)}
+              placeholder="+243970000000"
+            />
+          </label>
+          <button
+            type="button"
+            className="btn-primary btn-sm"
+            onClick={saveAccountPhone}
+            disabled={phoneSaving || resolvedAccountId === null || resolvedAccountId === undefined}
+          >
+            {phoneSaving ? 'Saving…' : 'Update phone'}
           </button>
         </div>
       </div>
