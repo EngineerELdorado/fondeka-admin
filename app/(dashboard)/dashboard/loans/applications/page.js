@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
@@ -139,6 +140,7 @@ const RepaymentBadge = ({ value }) => {
 };
 
 export default function LoanApplicationsPage() {
+  const router = useRouter();
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
@@ -234,6 +236,7 @@ export default function LoanApplicationsPage() {
         interestAmount: item.loan?.interestAmount ?? item.interestAmount,
         currency: item.loan?.currency || item.currency,
         createdAt: item.loan?.createdAt || item.createdAt,
+        accountId: item.accountId ?? item.loan?.accountId ?? item.account?.id,
         accountReference: item.accountReference,
         userEmailOrUsername: item.username || item.email || item.userEmailOrUsername,
         userPhoneNumber: item.phoneNumber || item.userPhoneNumber,
@@ -305,6 +308,27 @@ export default function LoanApplicationsPage() {
     return chips;
   }, [appliedFilters]);
 
+  const openLoanOwnerAccount = useCallback(async (row) => {
+    const directAccountId = row?.accountId ?? row?.account?.id;
+    if (directAccountId !== null && directAccountId !== undefined && String(directAccountId).trim() !== '') {
+      router.push(`/dashboard/accounts/accounts/${encodeURIComponent(String(directAccountId).trim())}`);
+      return;
+    }
+    const accountReference = String(row?.accountReference || '').trim();
+    if (!accountReference) return;
+    try {
+      const params = new URLSearchParams({ page: '0', size: '1', accountReference });
+      const res = await api.accounts.list(params);
+      const list = Array.isArray(res) ? res : res?.content || [];
+      const match = list?.[0];
+      const resolvedAccountId = match?.accountId ?? match?.id;
+      if (resolvedAccountId === null || resolvedAccountId === undefined || String(resolvedAccountId).trim() === '') return;
+      router.push(`/dashboard/accounts/accounts/${encodeURIComponent(String(resolvedAccountId).trim())}`);
+    } catch {
+      // ignore resolve failures for table shortcut
+    }
+  }, [router]);
+
   const columns = useMemo(
     () => [
       { key: 'id', label: 'ID' },
@@ -318,7 +342,45 @@ export default function LoanApplicationsPage() {
       {
         key: 'customer',
         label: 'Customer',
-        render: (row) => row.customer || '—'
+        render: (row) => {
+          const customerLabel = row.customer || '—';
+          const hasAccountShortcut = Boolean(
+            (row?.accountId !== null && row?.accountId !== undefined && String(row.accountId).trim() !== '') ||
+              String(row?.accountReference || '').trim()
+          );
+          if (!hasAccountShortcut) return customerLabel;
+          return (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
+              <span>{customerLabel}</span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openLoanOwnerAccount(row);
+                }}
+                aria-label={`Open account for ${customerLabel}`}
+                title={`Open account for ${customerLabel}`}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '999px',
+                  border: '1px solid var(--border)',
+                  background: 'transparent',
+                  color: 'var(--text)',
+                  cursor: 'pointer'
+                }}
+              >
+                <svg aria-hidden="true" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21a8 8 0 1 0-16 0" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </button>
+            </span>
+          );
+        }
       },
       {
         key: 'givenAmount',
@@ -400,7 +462,7 @@ export default function LoanApplicationsPage() {
         )
       }
     ],
-    []
+    [openLoanOwnerAccount]
   );
 
   const handleAction = async () => {
@@ -598,7 +660,15 @@ export default function LoanApplicationsPage() {
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
-      <DataTable columns={columns} rows={rows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No loans found" />
+      <DataTable
+        columns={columns}
+        rows={rows}
+        page={page}
+        pageSize={size}
+        onPageChange={setPage}
+        emptyLabel="No loans found"
+        showAccountQuickNav={false}
+      />
 
       {showDetail && (
         <Modal title={`Loan ${selected?.loanReference || selected?.id}`} onClose={() => { setShowDetail(false); setSelected(null); }}>

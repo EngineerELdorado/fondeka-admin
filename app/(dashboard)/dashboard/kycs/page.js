@@ -303,6 +303,27 @@ export default function KycsPage() {
   const canGoPrevious = page > 0;
   const canGoNext = rows.length === size && rows.length > 0;
 
+  const openKycAccount = async (row) => {
+    const directAccountId = row?.accountId ?? row?.account?.id;
+    if (directAccountId !== null && directAccountId !== undefined && String(directAccountId).trim() !== '') {
+      router.push(`/dashboard/accounts/accounts/${encodeURIComponent(String(directAccountId).trim())}`);
+      return;
+    }
+    const accountReference = String(row?.accountRef || row?.accountReference || '').trim();
+    if (!accountReference) return;
+    try {
+      const params = new URLSearchParams({ page: '0', size: '1', accountReference });
+      const res = await api.accounts.list(params);
+      const list = Array.isArray(res) ? res : res?.content || [];
+      const match = list?.[0];
+      const resolvedAccountId = match?.accountId ?? match?.id;
+      if (resolvedAccountId === null || resolvedAccountId === undefined || String(resolvedAccountId).trim() === '') return;
+      router.push(`/dashboard/accounts/accounts/${encodeURIComponent(String(resolvedAccountId).trim())}`);
+    } catch {
+      // ignore resolution failures silently
+    }
+  };
+
   const columns = [
     { key: 'id', label: 'ID' },
     {
@@ -315,7 +336,45 @@ export default function KycsPage() {
     {
       key: 'accountRef',
       label: 'Account ref',
-      render: (row) => row.accountRef || row.accountReference || '—'
+      render: (row) => {
+        const accountReference = row.accountRef || row.accountReference || '—';
+        const hasAccountLink = Boolean(
+          (row?.accountId !== null && row?.accountId !== undefined && String(row.accountId).trim() !== '') ||
+            String(row?.accountRef || row?.accountReference || '').trim()
+        );
+        if (!hasAccountLink) return accountReference;
+        return (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
+            <span>{accountReference}</span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                openKycAccount(row);
+              }}
+              aria-label={`Open account ${accountReference}`}
+              title={`Open account ${accountReference}`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '24px',
+                height: '24px',
+                borderRadius: '999px',
+                border: '1px solid var(--border)',
+                background: 'transparent',
+                color: 'var(--text)',
+                cursor: 'pointer'
+              }}
+            >
+              <svg aria-hidden="true" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21a8 8 0 1 0-16 0" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            </button>
+          </span>
+        );
+      }
     },
     {
       key: 'emailOrUsername',
@@ -695,7 +754,7 @@ export default function KycsPage() {
         </div>
       )}
 
-      <DataTable columns={columns} rows={rows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No KYCs found" />
+      <DataTable columns={columns} rows={rows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No KYCs found" showAccountQuickNav={false} />
 
       {showDetail && (
         <Modal title={`KYC ${selected?.id}`} onClose={() => setShowDetail(false)}>

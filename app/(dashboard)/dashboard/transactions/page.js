@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { DataTable } from '@/components/DataTable';
@@ -676,6 +676,33 @@ export default function TransactionsPage() {
     return entries;
   }, [appliedFilters]);
 
+  const openTransactionOwnerAccount = useCallback(async (row) => {
+    const directAccountId = row?.accountId ?? row?.account?.id;
+    if (directAccountId !== null && directAccountId !== undefined && String(directAccountId).trim() !== '') {
+      router.push(`/dashboard/accounts/accounts/${encodeURIComponent(String(directAccountId).trim())}`);
+      return;
+    }
+    const accountReference = String(row?.accountReference || '').trim();
+    if (!accountReference) {
+      pushToast({ tone: 'error', message: 'No account info available for this transaction.' });
+      return;
+    }
+    try {
+      const params = new URLSearchParams({ page: '0', size: '1', accountReference });
+      const res = await api.accounts.list(params);
+      const list = Array.isArray(res) ? res : res?.content || [];
+      const match = list?.[0];
+      const resolvedAccountId = match?.accountId ?? match?.id;
+      if (resolvedAccountId === null || resolvedAccountId === undefined || String(resolvedAccountId).trim() === '') {
+        pushToast({ tone: 'error', message: `Could not resolve account for ${accountReference}.` });
+        return;
+      }
+      router.push(`/dashboard/accounts/accounts/${encodeURIComponent(String(resolvedAccountId).trim())}`);
+    } catch (err) {
+      pushToast({ tone: 'error', message: err?.message || 'Failed to resolve account.' });
+    }
+  }, [pushToast, router]);
+
   const columns = useMemo(
     () => [
       {
@@ -728,7 +755,45 @@ export default function TransactionsPage() {
       {
         key: 'customer',
         label: 'Customer',
-        render: (row) => row.customer || '—'
+        render: (row) => {
+          const accountId = row?.accountId ?? row?.account?.id ?? null;
+          const accountReference = String(row?.accountReference || '').trim();
+          const customerLabel = row.customer || '—';
+          const hasDirectAccountId = accountId !== null && accountId !== undefined && String(accountId).trim() !== '';
+          if (!hasDirectAccountId && !accountReference) return customerLabel;
+          const accountHint = hasDirectAccountId ? String(accountId).trim() : accountReference;
+          return (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
+              <span>{customerLabel}</span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openTransactionOwnerAccount(row);
+                }}
+                aria-label={`Open account ${accountHint}`}
+                title={`Open account ${accountHint}`}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '999px',
+                  border: '1px solid var(--border)',
+                  background: 'transparent',
+                  color: 'var(--text)',
+                  cursor: 'pointer'
+                }}
+              >
+                <svg aria-hidden="true" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21a8 8 0 1 0-16 0" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </button>
+            </span>
+          );
+        }
       },
       {
         key: 'actions',
@@ -742,7 +807,7 @@ export default function TransactionsPage() {
         )
       }
     ],
-    []
+    [openTransactionOwnerAccount]
   );
 
   const openDetail = (row) => {
@@ -1491,6 +1556,7 @@ export default function TransactionsPage() {
         columns={columns}
         rows={rows}
         emptyLabel="No transactions found"
+        showAccountQuickNav={false}
         page={page}
         pageSize={size}
         totalPages={pageMeta.totalPages}

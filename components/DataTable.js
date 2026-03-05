@@ -1,6 +1,16 @@
 'use client';
 
+import Link from 'next/link';
 import React, { useEffect, useMemo, useState } from 'react';
+
+const resolveAccountId = (row) => {
+  if (!row || typeof row !== 'object') return null;
+  const direct = row.accountId;
+  if (direct !== null && direct !== undefined && String(direct).trim() !== '') return String(direct).trim();
+  const nested = row?.account?.id;
+  if (nested !== null && nested !== undefined && String(nested).trim() !== '') return String(nested).trim();
+  return null;
+};
 
 export function DataTable({
   columns,
@@ -13,7 +23,8 @@ export function DataTable({
   totalElements,
   onPageChange,
   canPrev,
-  canNext
+  canNext,
+  showAccountQuickNav = true
 }) {
   const isServerPagination = typeof onPageChange === 'function';
   const [localPage, setLocalPage] = useState(0);
@@ -21,6 +32,52 @@ export function DataTable({
   const safePageSize = Math.max(1, Number(pageSize) || 20);
 
   const visibleCols = useMemo(() => columns.filter((col) => col.key !== 'id'), [columns]);
+  const hasAccountLikeColumn = useMemo(
+    () => visibleCols.some((col) => ['accountId', 'accountReference', 'account'].includes(String(col?.key || ''))),
+    [visibleCols]
+  );
+  const shouldShowAccountQuickNav = useMemo(() => {
+    if (!showAccountQuickNav) return false;
+    if (hasAccountLikeColumn) return true;
+    return rows.some((row) => Boolean(resolveAccountId(row)));
+  }, [showAccountQuickNav, hasAccountLikeColumn, rows]);
+  const effectiveCols = useMemo(() => {
+    if (!shouldShowAccountQuickNav) return visibleCols;
+    return [
+      ...visibleCols,
+      {
+        key: '__account_quick_nav__',
+        label: '',
+        render: (row) => {
+          const accountId = resolveAccountId(row);
+          if (!accountId) return '—';
+          return (
+            <Link
+              href={`/dashboard/accounts/accounts/${encodeURIComponent(accountId)}`}
+              aria-label={`Open account ${accountId}`}
+              title={`Open account ${accountId}`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '28px',
+                height: '28px',
+                borderRadius: '999px',
+                border: '1px solid var(--border)',
+                color: 'var(--text)',
+                textDecoration: 'none'
+              }}
+            >
+              <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21a8 8 0 1 0-16 0" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            </Link>
+          );
+        }
+      }
+    ];
+  }, [shouldShowAccountQuickNav, visibleCols]);
   const localTotalPages = Math.max(1, Math.ceil(rows.length / safePageSize));
   const inferredCanNext = rows.length === safePageSize && rows.length > 0;
   const effectiveCanNext = typeof canNext === 'boolean' ? canNext : inferredCanNext;
@@ -97,7 +154,7 @@ export function DataTable({
                 #
               </th>
             )}
-            {visibleCols.map((col) => (
+            {effectiveCols.map((col) => (
               <th
                 key={String(col.key)}
                 className="data-table__cell"
@@ -111,7 +168,7 @@ export function DataTable({
         <tbody>
           {rows.length === 0 && (
             <tr>
-              <td colSpan={(showIndex ? 1 : 0) + visibleCols.length} style={{ padding: '1rem', textAlign: 'center', color: 'var(--muted)' }}>
+              <td colSpan={(showIndex ? 1 : 0) + effectiveCols.length} style={{ padding: '1rem', textAlign: 'center', color: 'var(--muted)' }}>
                 {emptyLabel}
               </td>
             </tr>
@@ -123,7 +180,7 @@ export function DataTable({
                   {idx + 1 + page * safePageSize}
                 </td>
               )}
-              {visibleCols.map((col) => (
+              {effectiveCols.map((col) => (
                 <td key={String(col.key)} className="data-table__cell" style={{ padding: '0.75rem' }}>
                   {col.render ? formatValue(col.render(row)) : String(formatValue(row[col.key]))}
                 </td>

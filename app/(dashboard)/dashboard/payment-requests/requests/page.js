@@ -271,8 +271,42 @@ export default function PaymentRequestsPage() {
     }
   };
 
-  const columns = useMemo(() => [
-    { key: 'accountId', label: 'Account ID' },
+  const columns = [
+    {
+      key: 'userName',
+      label: 'Requester',
+      render: (row) => {
+        const label = row.userName || '—';
+        const accountId = row?.accountId;
+        if (accountId === null || accountId === undefined || String(accountId).trim() === '') return label;
+        return (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
+            <span>{label}</span>
+            <Link
+              href={`/dashboard/accounts/accounts/${encodeURIComponent(String(accountId).trim())}`}
+              aria-label={`Open account ${accountId}`}
+              title={`Open account ${accountId}`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '24px',
+                height: '24px',
+                borderRadius: '999px',
+                border: '1px solid var(--border)',
+                color: 'var(--text)',
+                textDecoration: 'none'
+              }}
+            >
+              <svg aria-hidden="true" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21a8 8 0 1 0-16 0" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            </Link>
+          </span>
+        );
+      }
+    },
     { key: 'type', label: 'Type' },
     { key: 'amount', label: 'Amount' },
     { key: 'totalCollected', label: 'Collected' },
@@ -330,7 +364,7 @@ export default function PaymentRequestsPage() {
         </div>
       )
     }
-  ], [savingApprovalId, recomputingLifecycleId]);
+  ];
 
   const openCreate = () => {
     setDraft(emptyState);
@@ -700,7 +734,15 @@ export default function PaymentRequestsPage() {
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
-      <DataTable columns={columns} rows={rows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No payment requests found" />
+      <DataTable
+        columns={columns}
+        rows={rows}
+        page={page}
+        pageSize={size}
+        onPageChange={setPage}
+        emptyLabel="No payment requests found"
+        showAccountQuickNav={false}
+      />
 
       {showCreate && (
         <Modal title="Add payment request" onClose={() => setShowCreate(false)}>
@@ -728,6 +770,9 @@ export default function PaymentRequestsPage() {
             rows={[
               { label: 'ID', value: selected?.id },
               { label: 'Account ID', value: selected?.accountId },
+              { label: 'Requester', value: selected?.userName },
+              { label: 'Email', value: selected?.email },
+              { label: 'Phone', value: selected?.phone },
               { label: 'Link code', value: selected?.linkCode },
               { label: 'Type', value: selected?.type },
               { label: 'Title', value: selected?.title },
