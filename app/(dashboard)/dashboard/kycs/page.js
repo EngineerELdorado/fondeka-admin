@@ -165,6 +165,7 @@ export default function KycsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
+  const [pageMeta, setPageMeta] = useState({ totalElements: null, totalPages: null });
   const [filters, setFilters] = useState(emptyFilters);
   const [appliedFilters, setAppliedFilters] = useState(emptyFilters);
   const [showFilters, setShowFilters] = useState(false);
@@ -230,8 +231,13 @@ export default function KycsPage() {
       const list = Array.isArray(res) ? res : res?.content || [];
       const normalized = (list || []).map((item) => normalizeKyc(item));
       setRows(normalized);
+      setPageMeta({
+        totalElements: typeof res?.totalElements === 'number' ? res.totalElements : null,
+        totalPages: typeof res?.totalPages === 'number' ? res.totalPages : null
+      });
     } catch (err) {
       setError(err.message);
+      setPageMeta({ totalElements: null, totalPages: null });
     } finally {
       setLoading(false);
     }
@@ -301,7 +307,7 @@ export default function KycsPage() {
   }, [appliedFilters]);
 
   const canGoPrevious = page > 0;
-  const canGoNext = rows.length === size && rows.length > 0;
+  const canGoNext = pageMeta.totalPages === null ? rows.length === size && rows.length > 0 : page + 1 < pageMeta.totalPages;
 
   const openKycAccount = async (row) => {
     const directAccountId = row?.accountId ?? row?.account?.id;
@@ -754,7 +760,19 @@ export default function KycsPage() {
         </div>
       )}
 
-      <DataTable columns={columns} rows={rows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No KYCs found" showAccountQuickNav={false} />
+      <DataTable
+        columns={columns}
+        rows={rows}
+        page={page}
+        pageSize={size}
+        totalPages={pageMeta.totalPages}
+        totalElements={pageMeta.totalElements}
+        onPageChange={setPage}
+        canPrev={canGoPrevious}
+        canNext={canGoNext}
+        emptyLabel="No KYCs found"
+        showAccountQuickNav={false}
+      />
 
       {showDetail && (
         <Modal title={`KYC ${selected?.id}`} onClose={() => setShowDetail(false)}>
