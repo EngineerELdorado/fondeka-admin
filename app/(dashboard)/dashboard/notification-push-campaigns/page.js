@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 
 const DEFAULT_ACCOUNT_PAGE_SIZE = 500;
-const DEFAULT_BATCH_SIZE = 150;
+const DEFAULT_BATCH_SIZE = 100;
 const DEFAULT_BATCH_DELAY_SECONDS = 20;
 const DEFAULT_INITIAL_DELAY_SECONDS = 5;
 const POLL_INTERVAL_MS = 10000;
