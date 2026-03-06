@@ -246,7 +246,7 @@ const normalizeErrorMessage = (err, action) => {
     if (action === 'cancel') {
       return 'Cancel is allowed only for UNKNOWN, MANUAL_INTERVENTION_REQUIRED, PROCESSING, or INITIATED transactions.';
     }
-    return 'Only UNKNOWN or MANUAL_INTERVENTION_REQUIRED transactions can be manually reconciled.';
+    return 'Only UNKNOWN, MANUAL_INTERVENTION_REQUIRED, or EXECUTING transactions can be manually reconciled.';
   }
   if (err?.status === 404) return 'Transaction not found.';
   return 'Something went wrong. Please retry.';
@@ -362,7 +362,7 @@ export default function TransactionsPage() {
   const webhookEvents = Array.isArray(selected?.webhookEvents) ? selected.webhookEvents : [];
   const normalizedStatus = selected?.status?.toUpperCase?.() || '';
   const showErrorMessage = ['FAILED', 'CANCELED', 'CANCELLED'].includes(normalizedStatus);
-  const canCompleteOrFailSelected = ['UNKNOWN', 'MANUAL_INTERVENTION_REQUIRED'].includes(normalizedStatus);
+  const canCompleteOrFailSelected = ['UNKNOWN', 'MANUAL_INTERVENTION_REQUIRED', 'EXECUTING'].includes(normalizedStatus);
   const canCancelSelected = ['UNKNOWN', 'MANUAL_INTERVENTION_REQUIRED', 'PROCESSING', 'INITIATED'].includes(normalizedStatus);
   const receiptPayloadData = receipt?.payload && typeof receipt.payload === 'object' ? receipt.payload : null;
   const bankRefValue = receiptPayloadData?.bankRef || selected?.externalReference || null;
@@ -991,7 +991,7 @@ export default function TransactionsPage() {
       const message =
         action === 'cancel'
           ? 'Cancel is allowed only for UNKNOWN, MANUAL_INTERVENTION_REQUIRED, PROCESSING, or INITIATED transactions.'
-          : 'Only UNKNOWN or MANUAL_INTERVENTION_REQUIRED transactions can be manually reconciled.';
+          : 'Only UNKNOWN, MANUAL_INTERVENTION_REQUIRED, or EXECUTING transactions can be manually reconciled.';
       setManualReconciliationSubmitError(message);
       return;
     }
@@ -1657,7 +1657,7 @@ export default function TransactionsPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
                   <div style={{ fontWeight: 800 }}>Manual reconciliation</div>
                   <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-                    Complete/Fail: UNKNOWN or MANUAL_INTERVENTION_REQUIRED. Cancel: UNKNOWN, MANUAL_INTERVENTION_REQUIRED, PROCESSING, INITIATED.
+                    Complete/Fail: UNKNOWN, MANUAL_INTERVENTION_REQUIRED, or EXECUTING. Cancel: UNKNOWN, MANUAL_INTERVENTION_REQUIRED, PROCESSING, INITIATED.
                   </div>
                 </div>
                 {(canCompleteOrFailSelected || canCancelSelected) && (
