@@ -5,13 +5,14 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
-const emptyState = { billProductId: '', billProviderId: '', rank: '', active: true, commissionPercentage: '', cegawebProfileKey: '' };
+const emptyState = { billProductId: '', billProviderId: '', rank: '', active: true, commissionPercentage: '', kwhPerUsd: '', cegawebProfileKey: '' };
 
 const toPayload = (state) => ({
   billProductId: Number(state.billProductId) || 0,
   billProviderId: Number(state.billProviderId) || 0,
   rank: state.rank === '' ? null : Number(state.rank),
   commissionPercentage: state.commissionPercentage === '' ? null : Number(state.commissionPercentage),
+  kwhPerUsd: state.kwhPerUsd === '' ? null : Number(state.kwhPerUsd),
   active: Boolean(state.active),
   cegawebProfileKey: state.cegawebProfileKey ? String(state.cegawebProfileKey) : null
 });
@@ -98,6 +99,11 @@ export default function BillProductProvidersPage() {
       label: 'Commission (%)',
       render: (row) => (row.commissionPercentage === null || row.commissionPercentage === undefined ? '—' : row.commissionPercentage)
     },
+    {
+      key: 'kwhPerUsd',
+      label: 'kWh/USD',
+      render: (row) => (row.kwhPerUsd === null || row.kwhPerUsd === undefined ? '—' : row.kwhPerUsd)
+    },
     { key: 'active', label: 'Active' },
     {
       key: 'actions',
@@ -126,6 +132,7 @@ export default function BillProductProvidersPage() {
       billProviderId: row.billProviderId ?? '',
       rank: row.rank ?? '',
       commissionPercentage: row.commissionPercentage ?? '',
+      kwhPerUsd: row.kwhPerUsd ?? '',
       active: Boolean(row.active),
       cegawebProfileKey: row.cegawebProfileKey ?? ''
     });
@@ -249,6 +256,16 @@ export default function BillProductProvidersPage() {
           onChange={(e) => setDraft((prev) => ({ ...prev, commissionPercentage: e.target.value }))}
         />
       </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="kwhPerUsd">kWh per USD</label>
+        <input
+          id="kwhPerUsd"
+          type="number"
+          step="0.0001"
+          value={draft.kwhPerUsd}
+          onChange={(e) => setDraft((prev) => ({ ...prev, kwhPerUsd: e.target.value }))}
+        />
+      </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <input
           id="active"
@@ -353,6 +370,7 @@ export default function BillProductProvidersPage() {
                 { label: 'CegaWeb profile', value: selected?.cegawebProfileKey || '—' },
                 { label: 'Rank', value: selected?.rank },
                 { label: 'Commission (%)', value: selected?.commissionPercentage ?? '—' },
+                { label: 'kWh per USD', value: selected?.kwhPerUsd ?? '—' },
                 { label: 'Active', value: selected?.active ? 'Yes' : 'No' },
                 { label: 'Created at', value: selected?.createdAt },
                 { label: 'Updated at', value: selected?.updatedAt }
