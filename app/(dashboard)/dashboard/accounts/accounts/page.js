@@ -175,6 +175,9 @@ export default function AccountsListPage() {
   const [pricingSaving, setPricingSaving] = useState(false);
   const [showPricingRemove, setShowPricingRemove] = useState(false);
   const [pricingRemoving, setPricingRemoving] = useState(false);
+  const [amlLoading, setAmlLoading] = useState(false);
+  const [amlResult, setAmlResult] = useState(null);
+  const [amlError, setAmlError] = useState(null);
 
   const renderStatusBadge = (value) => {
     if (!value) return '—';
@@ -453,6 +456,41 @@ export default function AccountsListPage() {
     setPricingError(null);
     setShowPricingRemove(false);
     setKycCap(null);
+    setAmlResult(null);
+    setAmlError(null);
+  };
+
+  const runAmlCheck = async () => {
+    if (!selected?.id) {
+      setAmlError('No account selected');
+      return;
+    }
+    setAmlLoading(true);
+    setAmlError(null);
+    try {
+      const res = await api.accounts.checkAml(selected.id);
+      const next = {
+        blackListed: Boolean(res?.blackListed),
+        message: res?.message || '',
+        checkedAt: Date.now()
+      };
+      setAmlResult(next);
+      pushToast({
+        tone: next.blackListed ? 'error' : 'success',
+        message: next.blackListed ? 'AML check flagged this account.' : 'AML check completed.'
+      });
+    } catch (err) {
+      let message = err?.message || 'Failed to run AML check';
+      if (err?.status === 400) {
+        message = `${message}. Ensure KYC includes dob, countryCode, fullName, and externalReference.`;
+      } else if (err?.status === 404) {
+        message = `${message}. Account or KYC was not found.`;
+      }
+      setAmlError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setAmlLoading(false);
+    }
   };
 
   const loadCustomPricing = async (accountId) => {
@@ -1087,10 +1125,39 @@ export default function AccountsListPage() {
               >
                 {detailLoading ? 'Refreshing…' : 'Refresh'}
               </button>
+              <button type="button" onClick={runAmlCheck} className="btn-neutral" disabled={amlLoading}>
+                {amlLoading ? 'Running AML…' : 'Run AML check'}
+              </button>
               <span style={{ color: 'var(--muted)', fontSize: '13px' }}>
                 {detailLoading ? 'Loading latest account data…' : ' '}
               </span>
             </div>
+
+            {(amlError || amlResult) && (
+              <div
+                className="card"
+                style={{
+                  border: amlError ? '1px solid #fecaca' : amlResult?.blackListed ? '1px solid #fecaca' : '1px solid #bbf7d0',
+                  background: amlError ? '#fef2f2' : amlResult?.blackListed ? '#fef2f2' : '#f0fdf4'
+                }}
+              >
+                {amlError ? (
+                  <div style={{ color: '#991b1b', fontWeight: 700 }}>{amlError}</div>
+                ) : (
+                  <div style={{ display: 'grid', gap: '0.35rem' }}>
+                    <div style={{ fontWeight: 800, color: amlResult?.blackListed ? '#991b1b' : '#166534' }}>
+                      AML result: {amlResult?.blackListed ? 'BLACKLISTED' : 'CLEAR'}
+                    </div>
+                    <div style={{ color: 'var(--text)' }}>{amlResult?.message || 'No provider message.'}</div>
+                    {amlResult?.checkedAt ? (
+                      <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                        Checked: {new Date(amlResult.checkedAt).toLocaleString()}
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+            )}
 
             {accountView?.blacklisted && (
               <div className="card" style={{ border: '1px solid #fecaca', background: '#fef2f2', color: '#991b1b', fontWeight: 700 }}>

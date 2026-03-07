@@ -186,6 +186,9 @@ export default function KycsPage() {
   const [editLoading, setEditLoading] = useState(false);
   const [uploadFiles, setUploadFiles] = useState({ docFront: null, docBack: null, selfie: null });
   const [uploadLoading, setUploadLoading] = useState(false);
+  const [amlLoading, setAmlLoading] = useState(false);
+  const [amlResult, setAmlResult] = useState(null);
+  const [amlError, setAmlError] = useState(null);
   const router = useRouter();
 
   const formatDate = (value) => {
@@ -439,6 +442,8 @@ export default function KycsPage() {
     setShowDetail(true);
     setInfo(null);
     setError(null);
+    setAmlResult(null);
+    setAmlError(null);
   };
 
   const openEdit = (row) => {
@@ -539,6 +544,45 @@ export default function KycsPage() {
       setError(err.message || 'Failed to delete SmileID user.');
     } finally {
       setSmileAction(null);
+    }
+  };
+
+  const runAmlCheck = async (row) => {
+    const source = row || selected;
+    if (!source) return;
+    setAmlLoading(true);
+    setAmlError(null);
+    setAmlResult(null);
+    try {
+      let accountId = source?.accountId ?? source?.account?.id;
+      if (accountId === null || accountId === undefined || String(accountId).trim() === '') {
+        const accountReference = String(source?.accountRef || source?.accountReference || '').trim();
+        if (!accountReference) throw new Error('No account reference found on this KYC profile.');
+        const params = new URLSearchParams({ page: '0', size: '1', accountReference });
+        const res = await api.accounts.list(params);
+        const list = Array.isArray(res) ? res : res?.content || [];
+        const match = list?.[0];
+        accountId = match?.accountId ?? match?.id;
+      }
+      if (accountId === null || accountId === undefined || String(accountId).trim() === '') {
+        throw new Error('Could not resolve account ID for AML check.');
+      }
+      const res = await api.accounts.checkAml(accountId);
+      setAmlResult({
+        blackListed: Boolean(res?.blackListed),
+        message: res?.message || '',
+        checkedAt: Date.now()
+      });
+    } catch (err) {
+      let message = err?.message || 'Failed to run AML check.';
+      if (err?.status === 400) {
+        message = `${message} KYC must include dob, countryCode, fullName, and externalReference.`;
+      } else if (err?.status === 404) {
+        message = `${message} Account or KYC not found.`;
+      }
+      setAmlError(message);
+    } finally {
+      setAmlLoading(false);
     }
   };
 
@@ -800,7 +844,36 @@ export default function KycsPage() {
             >
               Delete SmileID user
             </button>
+            <button type="button" onClick={() => runAmlCheck(selected)} className="btn-neutral" disabled={amlLoading}>
+              {amlLoading ? 'Running AML…' : 'Run AML check'}
+            </button>
           </div>
+          {(amlError || amlResult) && (
+            <div
+              className="card"
+              style={{
+                marginBottom: '0.75rem',
+                border: amlError ? '1px solid #fecaca' : amlResult?.blackListed ? '1px solid #fecaca' : '1px solid #bbf7d0',
+                background: amlError ? '#fef2f2' : amlResult?.blackListed ? '#fef2f2' : '#f0fdf4'
+              }}
+            >
+              {amlError ? (
+                <div style={{ color: '#991b1b', fontWeight: 700 }}>{amlError}</div>
+              ) : (
+                <div style={{ display: 'grid', gap: '0.35rem' }}>
+                  <div style={{ fontWeight: 800, color: amlResult?.blackListed ? '#991b1b' : '#166534' }}>
+                    AML result: {amlResult?.blackListed ? 'BLACKLISTED' : 'CLEAR'}
+                  </div>
+                  <div style={{ color: 'var(--text)' }}>{amlResult?.message || 'No provider message.'}</div>
+                  {amlResult?.checkedAt ? (
+                    <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                      Checked: {new Date(amlResult.checkedAt).toLocaleString()}
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </div>
+          )}
           <DetailGrid
             rows={[
               { label: 'ID', value: selected?.id },
