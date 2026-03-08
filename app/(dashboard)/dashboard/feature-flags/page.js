@@ -367,7 +367,11 @@ export default function FeatureFlagsPage() {
       setOverrides(list);
       setOverrideAccountId('');
       setOverrideEnabled(true);
-      setInfo(`Override set for account ${accountId}: ${enabled ? 'forced ON' : 'forced OFF'}.`);
+      if (key === CRYPTO_COLLECTION_GATE_KEY) {
+        setInfo(`Override set for account ${accountId}: ${enabled ? 'gate enforced (verified only)' : 'crypto collection allowed'}.`);
+      } else {
+        setInfo(`Override set for account ${accountId}: ${enabled ? 'forced ON' : 'forced OFF'}.`);
+      }
     } catch (err) {
       setError(err.message || 'Failed to save override');
     } finally {
@@ -393,7 +397,11 @@ export default function FeatureFlagsPage() {
       setOverrides(list);
       setOverrideEmail('');
       setOverrideEmailEnabled(true);
-      setInfo(`Override set for ${email}: ${enabled ? 'forced ON' : 'forced OFF'}.`);
+      if (key === CRYPTO_COLLECTION_GATE_KEY) {
+        setInfo(`Override set for ${email}: ${enabled ? 'gate enforced (verified only)' : 'crypto collection allowed'}.`);
+      } else {
+        setInfo(`Override set for ${email}: ${enabled ? 'forced ON' : 'forced OFF'}.`);
+      }
     } catch (err) {
       setError(getOverrideErrorMessage(err, 'Failed to save override'));
     } finally {
@@ -728,7 +736,7 @@ export default function FeatureFlagsPage() {
 
       {overrideDialog && (
         <div className="modal-backdrop">
-          <div className="modal-surface" style={{ width: 'min(720px, 96vw)', display: 'grid', gap: '0.85rem' }}>
+          <div className="modal-surface" style={{ width: 'min(920px, 96vw)', display: 'grid', gap: '0.85rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.25rem', borderBottom: '1px solid var(--border)' }}>
               <div style={{ fontWeight: 800 }}>{overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? 'Account crypto collection override' : 'Feature Overrides'}</div>
               <button
@@ -744,7 +752,9 @@ export default function FeatureFlagsPage() {
               Feature: <strong>{overrideDialog.key}</strong>.
             </div>
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-              Per-account/per-email overrides take precedence over the global flag. Use <strong>forced OFF</strong> to block an individual even when the feature is globally ON.
+              {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY
+                ? 'Per-account/per-email overrides take precedence over the global flag.'
+                : <>Per-account/per-email overrides take precedence over the global flag. Use <strong>forced OFF</strong> to block an individual even when the feature is globally ON.</>}
             </div>
             {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY && (
               <div style={{ display: 'grid', gap: '0.25rem', color: '#b45309', fontWeight: 600 }}>
@@ -753,8 +763,9 @@ export default function FeatureFlagsPage() {
               </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto auto', gap: '0.65rem', alignItems: 'end' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <div className="card" style={{ display: 'grid', gap: '0.65rem' }}>
+              <div style={{ fontWeight: 700 }}>Override by account</div>
+              <div style={{ display: 'grid', gap: '0.5rem' }}>
                 <label htmlFor="overrideAccountId">Account ID</label>
                 <input
                   id="overrideAccountId"
@@ -762,106 +773,113 @@ export default function FeatureFlagsPage() {
                   value={overrideAccountId}
                   onChange={(e) => setOverrideAccountId(e.target.value)}
                   disabled={overridesSaving}
+                  style={{ width: '100%' }}
                 />
               </div>
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
                 <input type="checkbox" checked={overrideEnabled} onChange={(e) => setOverrideEnabled(e.target.checked)} disabled={overridesSaving} />
-                {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? (overrideEnabled ? 'Enforce gate' : 'Allow collection') : overrideEnabled ? 'Enabled' : 'Disabled'}
+                {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? (overrideEnabled ? 'Enforce gate (verified only)' : 'Allow crypto collection') : overrideEnabled ? 'Enabled' : 'Disabled'}
               </label>
-              <button
-                type="button"
-                onClick={handleSaveOverride}
-                disabled={!overrideAccountId.trim() || overridesSaving}
-                style={{
-                  border: `1px solid var(--border)`,
-                  background: 'var(--surface)',
-                  padding: '0.6rem 0.85rem',
-                  borderRadius: '10px',
-                  cursor: 'pointer',
-                  color: 'var(--text)'
-                }}
-              >
-                Save Override
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSaveOverride(false)}
-                disabled={!overrideAccountId.trim() || overridesSaving}
-                style={{
-                  border: `1px solid #b91c1c`,
-                  background: '#fff',
-                  color: '#b91c1c',
-                  padding: '0.6rem 0.85rem',
-                  borderRadius: '10px',
-                  cursor: 'pointer',
-                  fontWeight: 700
-                }}
-              >
-                Block Account
-              </button>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={handleSaveOverride}
+                  disabled={!overrideAccountId.trim() || overridesSaving}
+                  style={{
+                    border: `1px solid var(--border)`,
+                    background: 'var(--surface)',
+                    padding: '0.6rem 0.85rem',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    color: 'var(--text)'
+                  }}
+                >
+                  Save account override
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSaveOverride(false)}
+                  disabled={!overrideAccountId.trim() || overridesSaving}
+                  style={{
+                    border: `1px solid #b91c1c`,
+                    background: '#fff',
+                    color: '#b91c1c',
+                    padding: '0.6rem 0.85rem',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    fontWeight: 700
+                  }}
+                >
+                  {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? 'Allow crypto collection for this user' : 'Block account'}
+                </button>
+              </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto auto auto', gap: '0.65rem', alignItems: 'end' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="overrideEmail">Override by email</label>
+            <div className="card" style={{ display: 'grid', gap: '0.65rem' }}>
+              <div style={{ fontWeight: 700 }}>Override by email</div>
+              <div style={{ display: 'grid', gap: '0.5rem' }}>
+                <label htmlFor="overrideEmail">Email</label>
                 <input
                   id="overrideEmail"
                   placeholder="qa@example.com"
                   value={overrideEmail}
                   onChange={(e) => setOverrideEmail(e.target.value)}
                   disabled={overridesSaving}
+                  style={{ width: '100%' }}
                 />
               </div>
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
                 <input type="checkbox" checked={overrideEmailEnabled} onChange={(e) => setOverrideEmailEnabled(e.target.checked)} disabled={overridesSaving} />
-                {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? (overrideEmailEnabled ? 'Enforce gate' : 'Allow collection') : overrideEmailEnabled ? 'Enabled' : 'Disabled'}
+                {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? (overrideEmailEnabled ? 'Enforce gate (verified only)' : 'Allow crypto collection') : overrideEmailEnabled ? 'Enabled' : 'Disabled'}
               </label>
-              <button
-                type="button"
-                onClick={handleSaveOverrideByEmail}
-                disabled={!overrideEmail.trim() || overridesSaving}
-                style={{
-                  border: `1px solid var(--border)`,
-                  background: 'var(--surface)',
-                  padding: '0.6rem 0.85rem',
-                  borderRadius: '10px',
-                  cursor: 'pointer',
-                  color: 'var(--text)'
-                }}
-              >
-                Save by Email
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSaveOverrideByEmail(false)}
-                disabled={!overrideEmail.trim() || overridesSaving}
-                style={{
-                  border: `1px solid #b91c1c`,
-                  background: '#fff',
-                  color: '#b91c1c',
-                  padding: '0.6rem 0.85rem',
-                  borderRadius: '10px',
-                  cursor: 'pointer',
-                  fontWeight: 700
-                }}
-              >
-                Block Email
-              </button>
-              <button
-                type="button"
-                onClick={handleDeleteOverrideByEmail}
-                disabled={!overrideEmail.trim() || overridesSaving}
-                style={{
-                  border: `1px solid #b91c1c`,
-                  background: '#fff',
-                  color: '#b91c1c',
-                  padding: '0.6rem 0.85rem',
-                  borderRadius: '10px',
-                  cursor: 'pointer'
-                }}
-              >
-                Delete by Email
-              </button>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={handleSaveOverrideByEmail}
+                  disabled={!overrideEmail.trim() || overridesSaving}
+                  style={{
+                    border: `1px solid var(--border)`,
+                    background: 'var(--surface)',
+                    padding: '0.6rem 0.85rem',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    color: 'var(--text)'
+                  }}
+                >
+                  Save email override
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSaveOverrideByEmail(false)}
+                  disabled={!overrideEmail.trim() || overridesSaving}
+                  style={{
+                    border: `1px solid #b91c1c`,
+                    background: '#fff',
+                    color: '#b91c1c',
+                    padding: '0.6rem 0.85rem',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    fontWeight: 700
+                  }}
+                >
+                  {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? 'Allow crypto collection for this user' : 'Block email'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteOverrideByEmail}
+                  disabled={!overrideEmail.trim() || overridesSaving}
+                  style={{
+                    border: `1px solid #b91c1c`,
+                    background: '#fff',
+                    color: '#b91c1c',
+                    padding: '0.6rem 0.85rem',
+                    borderRadius: '10px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Delete email override
+                </button>
+              </div>
             </div>
 
             <div className="card" style={{ display: 'grid', gap: '0.65rem' }}>
