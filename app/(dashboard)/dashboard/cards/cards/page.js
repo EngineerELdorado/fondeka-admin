@@ -116,6 +116,13 @@ export default function CardsPage() {
   const [confirmBlock, setConfirmBlock] = useState(null);
   const [confirmUnblock, setConfirmUnblock] = useState(null);
 
+  const formatDateTime = (value) => {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+  };
+
   const fetchRows = async () => {
     setLoading(true);
     setError(null);
@@ -149,6 +156,7 @@ export default function CardsPage() {
     { key: 'id', label: 'ID' },
     { key: 'name', label: 'Name' },
     { key: 'status', label: 'Status', render: (row) => <StatusBadge value={row.status} /> },
+    { key: 'createdAt', label: 'Created', render: (row) => formatDateTime(row.createdAt) },
     { key: 'last4', label: 'Last 4', render: (row) => row.last4 || '—' },
     { key: 'issued', label: 'Issued', render: (row) => (row.issued ? 'Yes' : 'No') },
     { key: 'internalReference', label: 'Internal ref' },
@@ -472,6 +480,7 @@ export default function CardsPage() {
               { label: 'Name', value: selected?.name },
               { label: 'External ref', value: selected?.externalReference },
               { label: 'Status', value: <StatusBadge value={selected?.status} /> },
+              { label: 'Created at', value: formatDateTime(selected?.createdAt) },
               { label: 'Last 4', value: selected?.last4 },
               { label: 'Issued', value: String(selected?.issued) },
               { label: 'Product/provider ID', value: selected?.cardProductCardProviderId }
