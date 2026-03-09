@@ -12,6 +12,7 @@ const emptyState = {
   purchaseCost: '',
   price: '',
   monthlyMaintenanceCost: '',
+  verificationCost: '',
   transactionFeePercentage: '',
   rank: '',
   maxDailyLimit: '',
@@ -29,6 +30,7 @@ const toPayload = (state) => ({
   purchaseCost: state.purchaseCost === '' ? null : Number(state.purchaseCost),
   price: state.price === '' ? null : Number(state.price),
   monthlyMaintenanceCost: state.monthlyMaintenanceCost === '' ? null : Number(state.monthlyMaintenanceCost),
+  verificationCost: state.verificationCost === '' ? 0 : Number(state.verificationCost),
   transactionFeePercentage: state.transactionFeePercentage === '' ? null : Number(state.transactionFeePercentage),
   rank: state.rank === '' ? null : Number(state.rank),
   maxDailyLimit: state.maxDailyLimit === '' ? null : Number(state.maxDailyLimit),
@@ -143,6 +145,11 @@ export default function CardProductProvidersPage() {
         render: (row) => fmtAmount(row, 'maxDailyLimit')
       },
       {
+        key: 'verificationCost',
+        label: 'Verification cost (USD)',
+        render: (row) => (row.verificationCost === null || row.verificationCost === undefined ? '—' : row.verificationCost)
+      },
+      {
         key: 'minFirstTopup',
         label: 'Min first top-up',
         render: (row) => fmtAmount(row, 'minFirstTopup')
@@ -205,6 +212,7 @@ export default function CardProductProvidersPage() {
       purchaseCost: row.purchaseCost ?? '',
       price: row.price ?? '',
       monthlyMaintenanceCost: row.monthlyMaintenanceCost ?? '',
+      verificationCost: row.verificationCost ?? 0,
       transactionFeePercentage: row.transactionFeePercentage ?? '',
       rank: row.rank ?? '',
       maxDailyLimit: row.maxDailyLimit ?? '',
@@ -311,6 +319,17 @@ export default function CardProductProvidersPage() {
           type="number"
           value={draft.monthlyMaintenanceCost}
           onChange={(e) => setDraft((p) => ({ ...p, monthlyMaintenanceCost: e.target.value }))}
+        />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="verificationCost">Verification cost (USD)</label>
+        <input
+          id="verificationCost"
+          type="number"
+          min={0}
+          step="0.01"
+          value={draft.verificationCost}
+          onChange={(e) => setDraft((p) => ({ ...p, verificationCost: e.target.value }))}
         />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -459,6 +478,7 @@ export default function CardProductProvidersPage() {
               { label: 'Price', value: selected?.price ?? '—' },
               { label: 'Purchase cost', value: selected?.purchaseCost ?? '—' },
               { label: 'Monthly maintenance', value: selected?.monthlyMaintenanceCost ?? '—' },
+              { label: 'Verification cost (USD)', value: selected?.verificationCost ?? '—' },
               { label: 'Max daily limit', value: selected?.maxDailyLimit ?? '—' },
               { label: 'Min first top-up', value: selected?.minFirstTopup ?? '—' },
               { label: 'Min txn fee', value: selected?.minTransactionFeeAmount ?? '—' },
