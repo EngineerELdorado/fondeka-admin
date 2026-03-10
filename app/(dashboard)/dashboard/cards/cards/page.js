@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
@@ -118,6 +118,13 @@ export default function CardsPage() {
   const [providerDetailLoading, setProviderDetailLoading] = useState(false);
   const [providerDetailError, setProviderDetailError] = useState(null);
   const [providerDetailData, setProviderDetailData] = useState(null);
+  const [providerTxLoading, setProviderTxLoading] = useState(false);
+  const [providerTxError, setProviderTxError] = useState(null);
+  const [providerTxData, setProviderTxData] = useState(null);
+  const [providerTxPage, setProviderTxPage] = useState('1');
+  const [providerTxStartDate, setProviderTxStartDate] = useState('');
+  const [providerTxEndDate, setProviderTxEndDate] = useState('');
+  const providerTxLastRequestRef = useRef(new Map());
 
   const formatDateTime = (value) => {
     if (!value) return '—';
@@ -134,6 +141,26 @@ export default function CardsPage() {
     } catch {
       return String(value);
     }
+  };
+
+  const formatProviderDateTime = (value) => {
+    if (!value) return '—';
+    if (typeof value === 'number') {
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+    }
+    const text = String(value).trim();
+    if (!text) return '—';
+    let parsed = null;
+    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(text)) {
+      parsed = new Date(text.replace(' ', 'T') + 'Z');
+    } else if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(text)) {
+      parsed = new Date(text + 'Z');
+    } else {
+      parsed = new Date(text);
+    }
+    if (Number.isNaN(parsed.getTime())) return text;
+    return parsed.toLocaleString();
   };
 
   const fetchRows = async () => {
@@ -224,6 +251,11 @@ export default function CardsPage() {
     setError(null);
     setProviderDetailData(null);
     setProviderDetailError(null);
+    setProviderTxData(null);
+    setProviderTxError(null);
+    setProviderTxPage('1');
+    setProviderTxStartDate('');
+    setProviderTxEndDate('');
   };
 
   const loadProviderDetails = async (cardId) => {
@@ -246,9 +278,58 @@ export default function CardsPage() {
     }
   };
 
+  const loadProviderTransactions = async (cardId, options = {}) => {
+    if (!cardId) return;
+    const pageValueRaw = options.page ?? providerTxPage;
+    const startDateRaw = (options.startDate ?? providerTxStartDate).trim();
+    const endDateRaw = (options.endDate ?? providerTxEndDate).trim();
+    const pageNum = Number(pageValueRaw);
+    if (!Number.isInteger(pageNum) || pageNum < 1) {
+      setProviderTxError('Page must be 1 or greater.');
+      return;
+    }
+    if ((startDateRaw && !endDateRaw) || (!startDateRaw && endDateRaw)) {
+      setProviderTxError('Provide both startDate and endDate together.');
+      return;
+    }
+    const datePattern = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
+    if ((startDateRaw && !datePattern.test(startDateRaw)) || (endDateRaw && !datePattern.test(endDateRaw))) {
+      setProviderTxError('Dates must use format yyyy-MM-dd HH:mm:ss.');
+      return;
+    }
+
+    const requestKey = `${cardId}|${pageNum}|${startDateRaw}|${endDateRaw}`;
+    const now = Date.now();
+    const last = providerTxLastRequestRef.current.get(requestKey) || 0;
+    if (now - last < 3000) {
+      const waitMs = 3000 - (now - last);
+      const waitSec = Math.ceil(waitMs / 1000);
+      setProviderTxError(`Please wait ${waitSec}s before requesting the same card/page again.`);
+      return;
+    }
+    providerTxLastRequestRef.current.set(requestKey, now);
+
+    setProviderTxLoading(true);
+    setProviderTxError(null);
+    try {
+      const query = new URLSearchParams({ page: String(pageNum) });
+      if (startDateRaw && endDateRaw) {
+        query.set('startDate', startDateRaw);
+        query.set('endDate', endDateRaw);
+      }
+      const res = await api.cards.providerTransactions(cardId, query);
+      setProviderTxData(res || null);
+    } catch (err) {
+      setProviderTxError(err?.message || 'Failed to load provider transactions');
+    } finally {
+      setProviderTxLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!showDetail || !selected?.id) return;
     loadProviderDetails(selected.id);
+    loadProviderTransactions(selected.id, { page: '1', startDate: '', endDate: '' });
   }, [showDetail, selected?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCreate = async () => {
@@ -563,6 +644,124 @@ export default function CardsPage() {
                     {formatJson(providerDetailData?.providerDetails)}
                   </pre>
                 </div>
+              )}
+            </div>
+
+            <div className="card" style={{ padding: '0.9rem', display: 'grid', gap: '0.6rem' }}>
+              <div style={{ fontWeight: 800 }}>Provider transactions (BridgeCard)</div>
+              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                Provider timestamps are GMT and displayed in your local timezone here.
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem', alignItems: 'end' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="providerTxPage">Page</label>
+                  <input id="providerTxPage" type="number" min={1} value={providerTxPage} onChange={(e) => setProviderTxPage(e.target.value)} />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="providerTxStartDate">Start date (yyyy-MM-dd HH:mm:ss)</label>
+                  <input
+                    id="providerTxStartDate"
+                    value={providerTxStartDate}
+                    onChange={(e) => setProviderTxStartDate(e.target.value)}
+                    placeholder="2026-03-01 00:00:00"
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="providerTxEndDate">End date (yyyy-MM-dd HH:mm:ss)</label>
+                  <input
+                    id="providerTxEndDate"
+                    value={providerTxEndDate}
+                    onChange={(e) => setProviderTxEndDate(e.target.value)}
+                    placeholder="2026-03-10 23:59:59"
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="btn-neutral btn-sm"
+                    onClick={() => loadProviderTransactions(selected?.id)}
+                    disabled={providerTxLoading || !selected?.id}
+                  >
+                    {providerTxLoading ? 'Loading…' : 'Load transactions'}
+                  </button>
+                </div>
+              </div>
+
+              {providerTxError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{providerTxError}</div>}
+
+              {!providerTxError && providerTxLoading && <div style={{ color: 'var(--muted)' }}>Loading provider transactions…</div>}
+
+              {!providerTxError && !providerTxLoading && (
+                <>
+                  <DetailGrid
+                    rows={[
+                      { label: 'Current page', value: providerTxData?.data?.meta?.page ?? providerTxData?.meta?.page ?? '—' },
+                      { label: 'Total pages', value: providerTxData?.data?.meta?.totalPages ?? providerTxData?.meta?.totalPages ?? '—' },
+                      { label: 'Total records', value: providerTxData?.data?.meta?.total ?? providerTxData?.meta?.total ?? '—' }
+                    ]}
+                  />
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '860px' }}>
+                      <thead>
+                        <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
+                          <th style={{ padding: '0.45rem' }}>Time</th>
+                          <th style={{ padding: '0.45rem' }}>Type</th>
+                          <th style={{ padding: '0.45rem' }}>Status</th>
+                          <th style={{ padding: '0.45rem' }}>Amount</th>
+                          <th style={{ padding: '0.45rem' }}>Interchange fee</th>
+                          <th style={{ padding: '0.45rem' }}>Interchange revenue</th>
+                          <th style={{ padding: '0.45rem' }}>Refunds</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {((providerTxData?.data?.transactions || providerTxData?.transactions || [])).length === 0 ? (
+                          <tr>
+                            <td colSpan={7} style={{ padding: '0.6rem', color: 'var(--muted)' }}>
+                              No provider transactions returned.
+                            </td>
+                          </tr>
+                        ) : (
+                          (providerTxData?.data?.transactions || providerTxData?.transactions || []).map((tx, idx) => (
+                            <tr key={tx?.id || tx?.transaction_id || idx} style={{ borderBottom: '1px solid var(--border)' }}>
+                              <td style={{ padding: '0.45rem' }}>
+                                {formatProviderDateTime(
+                                  tx?.createdAt ||
+                                    tx?.created_at ||
+                                    tx?.transactionDate ||
+                                    tx?.transaction_date ||
+                                    tx?.date ||
+                                    tx?.timestamp
+                                )}
+                              </td>
+                              <td style={{ padding: '0.45rem' }}>{tx?.type || tx?.transaction_type || '—'}</td>
+                              <td style={{ padding: '0.45rem' }}>{tx?.status || '—'}</td>
+                              <td style={{ padding: '0.45rem' }}>{tx?.amount ?? tx?.transaction_amount ?? '—'}</td>
+                              <td style={{ padding: '0.45rem' }}>{tx?.partner_interchange_fee ?? '—'}</td>
+                              <td style={{ padding: '0.45rem' }}>{tx?.interchange_revenue ?? '—'}</td>
+                              <td style={{ padding: '0.45rem' }}>{tx?.refunds ?? '—'}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  <details>
+                    <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Raw provider response</summary>
+                    <pre
+                      style={{
+                        margin: '0.5rem 0 0',
+                        padding: '0.75rem',
+                        background: 'var(--surface)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '10px',
+                        overflowX: 'auto',
+                        fontSize: '12px'
+                      }}
+                    >
+                      {formatJson(providerTxData)}
+                    </pre>
+                  </details>
+                </>
               )}
             </div>
           </div>
