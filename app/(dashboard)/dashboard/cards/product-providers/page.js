@@ -14,6 +14,9 @@ const emptyState = {
   monthlyMaintenanceCost: '',
   verificationCost: '',
   transactionFeePercentage: '',
+  interchangeFeePercentage: '',
+  minInterchangeFeeAmount: '',
+  maxInterchangeFeeAmount: '',
   rank: '',
   maxDailyLimit: '',
   minFirstTopup: '',
@@ -32,6 +35,9 @@ const toPayload = (state) => ({
   monthlyMaintenanceCost: state.monthlyMaintenanceCost === '' ? null : Number(state.monthlyMaintenanceCost),
   verificationCost: state.verificationCost === '' ? 0 : Number(state.verificationCost),
   transactionFeePercentage: state.transactionFeePercentage === '' ? null : Number(state.transactionFeePercentage),
+  interchangeFeePercentage: state.interchangeFeePercentage === '' ? null : Number(state.interchangeFeePercentage),
+  minInterchangeFeeAmount: state.minInterchangeFeeAmount === '' ? null : Number(state.minInterchangeFeeAmount),
+  maxInterchangeFeeAmount: state.maxInterchangeFeeAmount === '' ? null : Number(state.maxInterchangeFeeAmount),
   rank: state.rank === '' ? null : Number(state.rank),
   maxDailyLimit: state.maxDailyLimit === '' ? null : Number(state.maxDailyLimit),
   minFirstTopup: state.minFirstTopup === '' ? null : Number(state.minFirstTopup),
@@ -166,6 +172,24 @@ export default function CardProductProvidersPage() {
           row.transactionFeePercentage === null || row.transactionFeePercentage === undefined ? '—' : row.transactionFeePercentage
       },
       {
+        key: 'interchangeFeePercentage',
+        label: 'Interchange %',
+        render: (row) =>
+          row.interchangeFeePercentage === null || row.interchangeFeePercentage === undefined ? '—' : row.interchangeFeePercentage
+      },
+      {
+        key: 'interchangeBounds',
+        label: 'Interchange min/max (USD)',
+        render: (row) => {
+          const min = row.minInterchangeFeeAmount;
+          const max = row.maxInterchangeFeeAmount;
+          if ((min === null || min === undefined || min === '') && (max === null || max === undefined || max === '')) return '—';
+          const minLabel = min === null || min === undefined || min === '' ? '—' : min;
+          const maxLabel = max === null || max === undefined || max === '' ? '—' : max;
+          return `${minLabel} / ${maxLabel}`;
+        }
+      },
+      {
         key: 'rank',
         label: 'Rank',
         render: (row) => (row.rank === null || row.rank === undefined ? '—' : row.rank)
@@ -214,6 +238,9 @@ export default function CardProductProvidersPage() {
       monthlyMaintenanceCost: row.monthlyMaintenanceCost ?? '',
       verificationCost: row.verificationCost ?? 0,
       transactionFeePercentage: row.transactionFeePercentage ?? '',
+      interchangeFeePercentage: row.interchangeFeePercentage ?? '',
+      minInterchangeFeeAmount: row.minInterchangeFeeAmount ?? '',
+      maxInterchangeFeeAmount: row.maxInterchangeFeeAmount ?? '',
       rank: row.rank ?? '',
       maxDailyLimit: row.maxDailyLimit ?? '',
       minFirstTopup: row.minFirstTopup ?? '',
@@ -337,9 +364,52 @@ export default function CardProductProvidersPage() {
         <input
           id="transactionFeePercentage"
           type="number"
+          step="0.01"
+          min={0}
           value={draft.transactionFeePercentage}
           onChange={(e) => setDraft((p) => ({ ...p, transactionFeePercentage: e.target.value }))}
         />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <label htmlFor="interchangeFeePercentage">Interchange fee %</label>
+          <input
+            id="interchangeFeePercentage"
+            type="number"
+            min={0}
+            step="0.01"
+            value={draft.interchangeFeePercentage}
+            onChange={(e) => setDraft((p) => ({ ...p, interchangeFeePercentage: e.target.value }))}
+            placeholder="5.00"
+          />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <label htmlFor="minInterchangeFeeAmount">Min interchange fee (USD)</label>
+          <input
+            id="minInterchangeFeeAmount"
+            type="number"
+            min={0}
+            step="0.01"
+            value={draft.minInterchangeFeeAmount}
+            onChange={(e) => setDraft((p) => ({ ...p, minInterchangeFeeAmount: e.target.value }))}
+            placeholder="2.00"
+          />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <label htmlFor="maxInterchangeFeeAmount">Max interchange fee (USD)</label>
+          <input
+            id="maxInterchangeFeeAmount"
+            type="number"
+            min={0}
+            step="0.01"
+            value={draft.maxInterchangeFeeAmount}
+            onChange={(e) => setDraft((p) => ({ ...p, maxInterchangeFeeAmount: e.target.value }))}
+            placeholder="10.00"
+          />
+        </div>
+      </div>
+      <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+        Leave all interchange fields empty for no interchange earnings; set percentage only for pure percent; set percentage + min/max for bounded earnings.
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -483,6 +553,9 @@ export default function CardProductProvidersPage() {
               { label: 'Min first top-up', value: selected?.minFirstTopup ?? '—' },
               { label: 'Min txn fee', value: selected?.minTransactionFeeAmount ?? '—' },
               { label: 'Transaction fee %', value: selected?.transactionFeePercentage ?? '—' },
+              { label: 'Interchange fee %', value: selected?.interchangeFeePercentage ?? '—' },
+              { label: 'Min interchange fee (USD)', value: selected?.minInterchangeFeeAmount ?? '—' },
+              { label: 'Max interchange fee (USD)', value: selected?.maxInterchangeFeeAmount ?? '—' },
               { label: 'Validity length', value: selected?.validityLength ?? '—' },
               { label: 'Validity type', value: selected?.validityType ?? '—' },
               { label: 'Rank', value: selected?.rank ?? '—' },
