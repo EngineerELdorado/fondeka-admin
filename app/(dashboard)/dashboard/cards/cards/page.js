@@ -115,12 +115,25 @@ export default function CardsPage() {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [confirmBlock, setConfirmBlock] = useState(null);
   const [confirmUnblock, setConfirmUnblock] = useState(null);
+  const [providerDetailLoading, setProviderDetailLoading] = useState(false);
+  const [providerDetailError, setProviderDetailError] = useState(null);
+  const [providerDetailData, setProviderDetailData] = useState(null);
 
   const formatDateTime = (value) => {
     if (!value) return '—';
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
     return date.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+  };
+
+  const formatJson = (value) => {
+    if (value === null || value === undefined) return '—';
+    if (typeof value === 'string') return value;
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return String(value);
+    }
   };
 
   const fetchRows = async () => {
@@ -209,7 +222,34 @@ export default function CardsPage() {
     setShowDetail(true);
     setInfo(null);
     setError(null);
+    setProviderDetailData(null);
+    setProviderDetailError(null);
   };
+
+  const loadProviderDetails = async (cardId) => {
+    if (!cardId) return;
+    setProviderDetailLoading(true);
+    setProviderDetailError(null);
+    try {
+      const [base, live] = await Promise.all([
+        api.cards.get(cardId),
+        api.cards.providerDetails(cardId)
+      ]);
+      if (base) {
+        setSelected((prev) => ({ ...(prev || {}), ...base }));
+      }
+      setProviderDetailData(live || null);
+    } catch (err) {
+      setProviderDetailError(err?.message || 'Failed to load provider details');
+    } finally {
+      setProviderDetailLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!showDetail || !selected?.id) return;
+    loadProviderDetails(selected.id);
+  }, [showDetail, selected?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCreate = async () => {
     setError(null);
@@ -473,19 +513,59 @@ export default function CardsPage() {
 
       {showDetail && (
         <Modal title={`Details ${selected?.id}`} onClose={() => setShowDetail(false)}>
-          <DetailGrid
-            rows={[
-              { label: 'ID', value: selected?.id },
-              { label: 'Internal ref', value: selected?.internalReference },
-              { label: 'Name', value: selected?.name },
-              { label: 'External ref', value: selected?.externalReference },
-              { label: 'Status', value: <StatusBadge value={selected?.status} /> },
-              { label: 'Created at', value: formatDateTime(selected?.createdAt) },
-              { label: 'Last 4', value: selected?.last4 },
-              { label: 'Issued', value: String(selected?.issued) },
-              { label: 'Product/provider ID', value: selected?.cardProductCardProviderId }
-            ]}
-          />
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button type="button" className="btn-neutral btn-sm" onClick={() => loadProviderDetails(selected?.id)} disabled={providerDetailLoading || !selected?.id}>
+                {providerDetailLoading ? 'Refreshing…' : 'Refresh live details'}
+              </button>
+            </div>
+
+            <DetailGrid
+              rows={[
+                { label: 'ID', value: selected?.id },
+                { label: 'Internal ref', value: selected?.internalReference },
+                { label: 'Name', value: selected?.name },
+                { label: 'External ref', value: selected?.externalReference },
+                { label: 'Status', value: <StatusBadge value={selected?.status} /> },
+                { label: 'Created at', value: formatDateTime(selected?.createdAt) },
+                { label: 'Last 4', value: selected?.last4 },
+                { label: 'Issued', value: String(selected?.issued) },
+                { label: 'Product/provider ID', value: selected?.cardProductCardProviderId }
+              ]}
+            />
+
+            <div className="card" style={{ padding: '0.9rem', display: 'grid', gap: '0.6rem' }}>
+              <div style={{ fontWeight: 800 }}>Live provider financial/details</div>
+              {providerDetailError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{providerDetailError}</div>}
+              {!providerDetailError && providerDetailLoading && <div style={{ color: 'var(--muted)' }}>Loading provider details…</div>}
+              {!providerDetailError && !providerDetailLoading && (
+                <DetailGrid
+                  rows={[
+                    { label: 'Provider Balance', value: providerDetailData?.providerBalance ?? '—' },
+                    { label: 'User Visible Balance', value: providerDetailData?.appVisibleBalance ?? '—' }
+                  ]}
+                />
+              )}
+              {!providerDetailError && !providerDetailLoading && (
+                <div style={{ display: 'grid', gap: '0.35rem' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>Provider details</div>
+                  <pre
+                    style={{
+                      margin: 0,
+                      padding: '0.75rem',
+                      background: 'var(--surface)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '10px',
+                      overflowX: 'auto',
+                      fontSize: '12px'
+                    }}
+                  >
+                    {formatJson(providerDetailData?.providerDetails)}
+                  </pre>
+                </div>
+              )}
+            </div>
+          </div>
         </Modal>
       )}
 
