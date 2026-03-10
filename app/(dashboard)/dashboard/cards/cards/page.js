@@ -143,6 +143,26 @@ export default function CardsPage() {
     }
   };
 
+  const toFiniteNumber = (value) => {
+    const num = Number(value);
+    return Number.isFinite(num) ? num : null;
+  };
+
+  const formatMoney = (amount, currency) => {
+    const num = toFiniteNumber(amount);
+    if (num === null) return amount ?? '—';
+    const safeCurrency = currency || 'USD';
+    try {
+      return new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency: safeCurrency,
+        maximumFractionDigits: 2
+      }).format(num);
+    } catch {
+      return `${num.toFixed(2)} ${safeCurrency}`.trim();
+    }
+  };
+
   const formatProviderDateTime = (value) => {
     if (!value) return '—';
     if (typeof value === 'number') {
@@ -693,6 +713,37 @@ export default function CardsPage() {
 
               {!providerTxError && !providerTxLoading && (
                 <>
+                  {(() => {
+                    const txList = providerTxData?.data?.transactions || providerTxData?.transactions || [];
+                    const creditCount = txList.filter((tx) => String(tx?.card_transaction_type || tx?.type || '').toUpperCase() === 'CREDIT').length;
+                    const debitCount = txList.filter((tx) => String(tx?.card_transaction_type || tx?.type || '').toUpperCase() === 'DEBIT').length;
+                    const creditTotal = txList.reduce((sum, tx) => {
+                      const type = String(tx?.card_transaction_type || tx?.type || '').toUpperCase();
+                      const amount = toFiniteNumber(tx?.amount);
+                      if (type !== 'CREDIT' || amount === null) return sum;
+                      return sum + amount;
+                    }, 0);
+                    const debitTotal = txList.reduce((sum, tx) => {
+                      const type = String(tx?.card_transaction_type || tx?.type || '').toUpperCase();
+                      const amount = toFiniteNumber(tx?.amount);
+                      if (type !== 'DEBIT' || amount === null) return sum;
+                      return sum + amount;
+                    }, 0);
+                    const currency =
+                      txList.find((tx) => tx?.currency)?.currency ||
+                      providerTxData?.data?.transactions?.[0]?.currency ||
+                      providerTxData?.transactions?.[0]?.currency ||
+                      'USD';
+                    return (
+                      <DetailGrid
+                        rows={[
+                          { label: 'Rows', value: txList.length },
+                          { label: 'Credits', value: `${creditCount} (${formatMoney(creditTotal, currency)})` },
+                          { label: 'Debits', value: `${debitCount} (${formatMoney(debitTotal, currency)})` }
+                        ]}
+                      />
+                    );
+                  })()}
                   <DetailGrid
                     rows={[
                       { label: 'Current page', value: providerTxData?.data?.meta?.page ?? providerTxData?.meta?.page ?? '—' },
@@ -705,18 +756,21 @@ export default function CardsPage() {
                       <thead>
                         <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
                           <th style={{ padding: '0.45rem' }}>Time</th>
-                          <th style={{ padding: '0.45rem' }}>Type</th>
-                          <th style={{ padding: '0.45rem' }}>Status</th>
+                          <th style={{ padding: '0.45rem' }}>Direction</th>
+                          <th style={{ padding: '0.45rem' }}>Category</th>
+                          <th style={{ padding: '0.45rem' }}>Description</th>
+                          <th style={{ padding: '0.45rem' }}>Merchant</th>
                           <th style={{ padding: '0.45rem' }}>Amount</th>
                           <th style={{ padding: '0.45rem' }}>Interchange fee</th>
                           <th style={{ padding: '0.45rem' }}>Interchange revenue</th>
-                          <th style={{ padding: '0.45rem' }}>Refunds</th>
+                          <th style={{ padding: '0.45rem' }}>FX fee</th>
+                          <th style={{ padding: '0.45rem' }}>References</th>
                         </tr>
                       </thead>
                       <tbody>
                         {((providerTxData?.data?.transactions || providerTxData?.transactions || [])).length === 0 ? (
                           <tr>
-                            <td colSpan={7} style={{ padding: '0.6rem', color: 'var(--muted)' }}>
+                            <td colSpan={10} style={{ padding: '0.6rem', color: 'var(--muted)' }}>
                               No provider transactions returned.
                             </td>
                           </tr>
@@ -733,12 +787,62 @@ export default function CardsPage() {
                                     tx?.timestamp
                                 )}
                               </td>
-                              <td style={{ padding: '0.45rem' }}>{tx?.type || tx?.transaction_type || '—'}</td>
-                              <td style={{ padding: '0.45rem' }}>{tx?.status || '—'}</td>
-                              <td style={{ padding: '0.45rem' }}>{tx?.amount ?? tx?.transaction_amount ?? '—'}</td>
-                              <td style={{ padding: '0.45rem' }}>{tx?.partner_interchange_fee ?? '—'}</td>
-                              <td style={{ padding: '0.45rem' }}>{tx?.interchange_revenue ?? '—'}</td>
-                              <td style={{ padding: '0.45rem' }}>{tx?.refunds ?? '—'}</td>
+                              <td style={{ padding: '0.45rem' }}>
+                                {(() => {
+                                  const dir = String(tx?.card_transaction_type || tx?.type || tx?.transaction_type || '—').toUpperCase();
+                                  const tone =
+                                    dir === 'CREDIT'
+                                      ? { bg: '#ECFDF3', fg: '#15803D' }
+                                      : dir === 'DEBIT'
+                                        ? { bg: '#FEF2F2', fg: '#B91C1C' }
+                                        : { bg: '#E5E7EB', fg: '#374151' };
+                                  return (
+                                    <span
+                                      style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        padding: '0.18rem 0.5rem',
+                                        borderRadius: '999px',
+                                        fontSize: '12px',
+                                        fontWeight: 700,
+                                        background: tone.bg,
+                                        color: tone.fg
+                                      }}
+                                    >
+                                      {dir}
+                                    </span>
+                                  );
+                                })()}
+                              </td>
+                              <td style={{ padding: '0.45rem' }}>
+                                <div style={{ display: 'grid', gap: '0.15rem' }}>
+                                  <div>{tx?.enriched_data?.transaction_category || '—'}</div>
+                                  <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{tx?.enriched_data?.transaction_group || '—'}</div>
+                                </div>
+                              </td>
+                              <td style={{ padding: '0.45rem' }}>{tx?.description || '—'}</td>
+                              <td style={{ padding: '0.45rem' }}>
+                                <div style={{ display: 'grid', gap: '0.15rem' }}>
+                                  <div>{tx?.enriched_data?.merchant_name || '—'}</div>
+                                  <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{tx?.enriched_data?.merchant_city || '—'}</div>
+                                </div>
+                              </td>
+                              <td style={{ padding: '0.45rem', fontWeight: 700 }}>
+                                {(() => {
+                                  const dir = String(tx?.card_transaction_type || tx?.type || tx?.transaction_type || '').toUpperCase();
+                                  const prefix = dir === 'DEBIT' ? '-' : dir === 'CREDIT' ? '+' : '';
+                                  return `${prefix}${formatMoney(tx?.amount ?? tx?.transaction_amount, tx?.currency)}`;
+                                })()}
+                              </td>
+                              <td style={{ padding: '0.45rem' }}>{formatMoney(tx?.partner_interchange_fee, tx?.currency)}</td>
+                              <td style={{ padding: '0.45rem' }}>{formatMoney(tx?.interchange_revenue, tx?.currency)}</td>
+                              <td style={{ padding: '0.45rem' }}>{formatMoney(tx?.foreign_exchange_fee, tx?.currency)}</td>
+                              <td style={{ padding: '0.45rem' }}>
+                                <div style={{ display: 'grid', gap: '0.15rem' }}>
+                                  <div style={{ fontSize: '12px' }}>Bridge: {tx?.bridgecard_transaction_reference || '—'}</div>
+                                  <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Client: {tx?.client_transaction_reference || '—'}</div>
+                                </div>
+                              </td>
                             </tr>
                           ))
                         )}
