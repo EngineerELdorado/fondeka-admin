@@ -97,6 +97,30 @@ const StatusBadge = ({ value }) => {
   );
 };
 
+const ExpandableText = ({ value, maxLength = 28 }) => {
+  const [expanded, setExpanded] = useState(false);
+  const text = value === null || value === undefined ? '' : String(value);
+  if (!text) return '—';
+  if (text.length <= maxLength) return text;
+  const short = `${text.slice(0, maxLength)}…`;
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+      <span title={text}>{expanded ? text : short}</span>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setExpanded((prev) => !prev);
+        }}
+        className="btn-neutral btn-sm"
+        style={{ padding: '0.1rem 0.45rem' }}
+      >
+        {expanded ? 'Show less' : 'Show more'}
+      </button>
+    </span>
+  );
+};
+
 export default function CardsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
@@ -280,7 +304,11 @@ export default function CardsPage() {
     { key: 'last4', label: 'Last 4', render: (row) => row.last4 || '—' },
     { key: 'issued', label: 'Issued', render: (row) => (row.issued ? 'Yes' : 'No') },
     { key: 'internalReference', label: 'Internal ref' },
-    { key: 'externalReference', label: 'External ref', render: (row) => row.externalReference || '—' },
+    {
+      key: 'externalReference',
+      label: 'External ref',
+      render: (row) => <ExpandableText value={row.externalReference} maxLength={20} />
+    },
     {
       key: 'actions',
       label: 'Actions',
@@ -746,7 +774,7 @@ export default function CardsPage() {
                 { label: 'ID', value: selected?.id },
                 { label: 'Internal ref', value: selected?.internalReference },
                 { label: 'Name', value: selected?.name },
-                { label: 'External ref', value: selected?.externalReference },
+                { label: 'External ref', value: <ExpandableText value={selected?.externalReference} maxLength={40} /> },
                 { label: 'Status', value: <StatusBadge value={selected?.status} /> },
                 { label: 'Created at', value: formatDateTime(selected?.createdAt) },
                 { label: 'Last 4', value: selected?.last4 },
