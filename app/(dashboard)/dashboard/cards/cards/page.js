@@ -142,6 +142,25 @@ export default function CardsPage() {
       return String(value);
     }
   };
+  const formatKeyLabel = (key) =>
+    String(key || '')
+      .replace(/[_-]+/g, ' ')
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .trim()
+      .replace(/\b\w/g, (ch) => ch.toUpperCase());
+
+  const formatCompactValue = (value) => {
+    if (value === null || value === undefined || value === '') return '—';
+    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    if (typeof value === 'number') return String(value);
+    if (typeof value === 'string') return value;
+    if (Array.isArray(value)) return value.length ? `${value.length} items` : 'Empty list';
+    if (typeof value === 'object') {
+      const keys = Object.keys(value);
+      return keys.length ? `${keys.length} fields` : 'Empty object';
+    }
+    return String(value);
+  };
 
   const toFiniteNumber = (value) => {
     const num = Number(value);
@@ -663,11 +682,63 @@ export default function CardsPage() {
 
       {showDetail && (
         <Modal title={`Details ${selected?.id}`} onClose={() => setShowDetail(false)}>
+          {(() => {
+            const providerDetailsPayload = providerDetailData?.providerDetails;
+            const providerDetailsEntries =
+              providerDetailsPayload && typeof providerDetailsPayload === 'object' && !Array.isArray(providerDetailsPayload)
+                ? Object.entries(providerDetailsPayload)
+                : [];
+            const txList = providerTxData?.data?.transactions || providerTxData?.transactions || [];
+            const creditCount = txList.filter((tx) => String(tx?.card_transaction_type || tx?.type || '').toUpperCase() === 'CREDIT').length;
+            const debitCount = txList.filter((tx) => String(tx?.card_transaction_type || tx?.type || '').toUpperCase() === 'DEBIT').length;
+            const creditTotal = txList.reduce((sum, tx) => {
+              const type = String(tx?.card_transaction_type || tx?.type || '').toUpperCase();
+              const amount = toFiniteNumber(tx?.amount);
+              if (type !== 'CREDIT' || amount === null) return sum;
+              return sum + amount;
+            }, 0);
+            const debitTotal = txList.reduce((sum, tx) => {
+              const type = String(tx?.card_transaction_type || tx?.type || '').toUpperCase();
+              const amount = toFiniteNumber(tx?.amount);
+              if (type !== 'DEBIT' || amount === null) return sum;
+              return sum + amount;
+            }, 0);
+            const txCurrency =
+              txList.find((tx) => tx?.currency)?.currency ||
+              providerTxData?.data?.transactions?.[0]?.currency ||
+              providerTxData?.transactions?.[0]?.currency ||
+              'USD';
+            return (
           <div style={{ display: 'grid', gap: '0.75rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button type="button" className="btn-neutral btn-sm" onClick={() => loadProviderDetails(selected?.id)} disabled={providerDetailLoading || !selected?.id}>
-                {providerDetailLoading ? 'Refreshing…' : 'Refresh live details'}
-              </button>
+            <div
+              className="card"
+              style={{
+                padding: '0.85rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '0.75rem',
+                flexWrap: 'wrap'
+              }}
+            >
+              <div style={{ display: 'flex', gap: '0.45rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                <StatusBadge value={selected?.status} />
+                <span style={{ fontWeight: 700 }}>Card {selected?.name || selected?.id}</span>
+                <span style={{ color: 'var(--muted)', fontSize: '12px' }}>•••• {selected?.last4 || '—'}</span>
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <button type="button" className="btn-neutral btn-sm" onClick={() => loadProviderDetails(selected?.id)} disabled={providerDetailLoading || !selected?.id}>
+                  {providerDetailLoading ? 'Refreshing details…' : 'Refresh live details'}
+                </button>
+                <button
+                  type="button"
+                  className="btn-neutral btn-sm"
+                  onClick={() => loadProviderTransactions(selected?.id)}
+                  disabled={providerTxLoading || !selected?.id}
+                >
+                  {providerTxLoading ? 'Refreshing transactions…' : 'Refresh transactions'}
+                </button>
+              </div>
             </div>
 
             <DetailGrid
@@ -693,31 +764,43 @@ export default function CardsPage() {
                   rows={[
                     {
                       label: 'Provider Balance',
-                      value: formatMoneyFromCents(providerDetailData?.providerBalance, providerDetailData?.currency || selected?.currency || 'USD')
+                      value: providerDetailData?.providerBalance ?? '—'
                     },
                     {
                       label: 'User Visible Balance',
-                      value: formatMoneyFromCents(providerDetailData?.appVisibleBalance, providerDetailData?.currency || selected?.currency || 'USD')
+                      value: providerDetailData?.appVisibleBalance ?? '—'
                     }
                   ]}
                 />
               )}
               {!providerDetailError && !providerDetailLoading && (
-                <div style={{ display: 'grid', gap: '0.35rem' }}>
-                  <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>Provider details</div>
-                  <pre
-                    style={{
-                      margin: 0,
-                      padding: '0.75rem',
-                      background: 'var(--surface)',
-                      border: '1px solid var(--border)',
-                      borderRadius: '10px',
-                      overflowX: 'auto',
-                      fontSize: '12px'
-                    }}
-                  >
-                    {formatJson(providerDetailData?.providerDetails)}
-                  </pre>
+                <div style={{ display: 'grid', gap: '0.6rem' }}>
+                  {providerDetailsEntries.length > 0 ? (
+                    <DetailGrid
+                      rows={providerDetailsEntries.map(([key, value]) => ({
+                        label: formatKeyLabel(key),
+                        value: formatCompactValue(value)
+                      }))}
+                    />
+                  ) : (
+                    <div style={{ color: 'var(--muted)', fontSize: '13px' }}>No provider detail fields returned.</div>
+                  )}
+                  <details>
+                    <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Full provider details payload</summary>
+                    <pre
+                      style={{
+                        margin: '0.5rem 0 0',
+                        padding: '0.75rem',
+                        background: 'var(--surface)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '10px',
+                        overflowX: 'auto',
+                        fontSize: '12px'
+                      }}
+                    >
+                      {formatJson(providerDetailData?.providerDetails)}
+                    </pre>
+                  </details>
                 </div>
               )}
             </div>
@@ -759,6 +842,18 @@ export default function CardsPage() {
                   >
                     {providerTxLoading ? 'Loading…' : 'Load transactions'}
                   </button>
+                  <button
+                    type="button"
+                    className="btn-neutral btn-sm"
+                    onClick={() => {
+                      setProviderTxPage('1');
+                      setProviderTxStartDate('');
+                      setProviderTxEndDate('');
+                    }}
+                    disabled={providerTxLoading}
+                  >
+                    Reset range
+                  </button>
                 </div>
               </div>
 
@@ -768,37 +863,13 @@ export default function CardsPage() {
 
               {!providerTxError && !providerTxLoading && (
                 <>
-                  {(() => {
-                    const txList = providerTxData?.data?.transactions || providerTxData?.transactions || [];
-                    const creditCount = txList.filter((tx) => String(tx?.card_transaction_type || tx?.type || '').toUpperCase() === 'CREDIT').length;
-                    const debitCount = txList.filter((tx) => String(tx?.card_transaction_type || tx?.type || '').toUpperCase() === 'DEBIT').length;
-                    const creditTotal = txList.reduce((sum, tx) => {
-                      const type = String(tx?.card_transaction_type || tx?.type || '').toUpperCase();
-                      const amount = toFiniteNumber(tx?.amount);
-                      if (type !== 'CREDIT' || amount === null) return sum;
-                      return sum + amount;
-                    }, 0);
-                    const debitTotal = txList.reduce((sum, tx) => {
-                      const type = String(tx?.card_transaction_type || tx?.type || '').toUpperCase();
-                      const amount = toFiniteNumber(tx?.amount);
-                      if (type !== 'DEBIT' || amount === null) return sum;
-                      return sum + amount;
-                    }, 0);
-                    const currency =
-                      txList.find((tx) => tx?.currency)?.currency ||
-                      providerTxData?.data?.transactions?.[0]?.currency ||
-                      providerTxData?.transactions?.[0]?.currency ||
-                      'USD';
-                    return (
-                      <DetailGrid
-                        rows={[
-                          { label: 'Rows', value: txList.length },
-                          { label: 'Credits', value: `${creditCount} (${formatMoneyFromCents(creditTotal, currency)})` },
-                          { label: 'Debits', value: `${debitCount} (${formatMoneyFromCents(debitTotal, currency)})` }
-                        ]}
-                      />
-                    );
-                  })()}
+                  <DetailGrid
+                    rows={[
+                      { label: 'Rows', value: txList.length },
+                      { label: 'Credits', value: `${creditCount} (${formatMoneyFromCents(creditTotal, txCurrency)})` },
+                      { label: 'Debits', value: `${debitCount} (${formatMoneyFromCents(debitTotal, txCurrency)})` }
+                    ]}
+                  />
                   <DetailGrid
                     rows={[
                       { label: 'Current page', value: providerTxData?.data?.meta?.page ?? providerTxData?.meta?.page ?? '—' },
@@ -812,25 +883,22 @@ export default function CardsPage() {
                         <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
                           <th style={{ padding: '0.45rem' }}>Time</th>
                           <th style={{ padding: '0.45rem' }}>Direction</th>
-                          <th style={{ padding: '0.45rem' }}>Category</th>
-                          <th style={{ padding: '0.45rem' }}>Description</th>
-                          <th style={{ padding: '0.45rem' }}>Merchant</th>
+                          <th style={{ padding: '0.45rem' }}>Summary</th>
                           <th style={{ padding: '0.45rem' }}>Amount</th>
-                          <th style={{ padding: '0.45rem' }}>Interchange fee</th>
-                          <th style={{ padding: '0.45rem' }}>Interchange revenue</th>
-                          <th style={{ padding: '0.45rem' }}>FX fee</th>
-                          <th style={{ padding: '0.45rem' }}>References</th>
+                          <th style={{ padding: '0.45rem' }}>Fees</th>
+                          <th style={{ padding: '0.45rem' }}>Refs</th>
+                          <th style={{ padding: '0.45rem' }}>More</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {((providerTxData?.data?.transactions || providerTxData?.transactions || [])).length === 0 ? (
+                        {txList.length === 0 ? (
                           <tr>
-                            <td colSpan={10} style={{ padding: '0.6rem', color: 'var(--muted)' }}>
+                            <td colSpan={7} style={{ padding: '0.6rem', color: 'var(--muted)' }}>
                               No provider transactions returned.
                             </td>
                           </tr>
                         ) : (
-                          (providerTxData?.data?.transactions || providerTxData?.transactions || []).map((tx, idx) => (
+                          txList.map((tx, idx) => (
                             <tr key={tx?.id || tx?.transaction_id || idx} style={{ borderBottom: '1px solid var(--border)' }}>
                               <td style={{ padding: '0.45rem' }}>
                                 {formatProviderDateTime(
@@ -871,15 +939,11 @@ export default function CardsPage() {
                               </td>
                               <td style={{ padding: '0.45rem' }}>
                                 <div style={{ display: 'grid', gap: '0.15rem' }}>
-                                  <div>{tx?.enriched_data?.transaction_category || '—'}</div>
-                                  <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{tx?.enriched_data?.transaction_group || '—'}</div>
-                                </div>
-                              </td>
-                              <td style={{ padding: '0.45rem' }}>{tx?.description || '—'}</td>
-                              <td style={{ padding: '0.45rem' }}>
-                                <div style={{ display: 'grid', gap: '0.15rem' }}>
-                                  <div>{tx?.enriched_data?.merchant_name || '—'}</div>
-                                  <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{tx?.enriched_data?.merchant_city || '—'}</div>
+                                  <div>{tx?.description || tx?.enriched_data?.transaction_category || '—'}</div>
+                                  <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                                    {(tx?.enriched_data?.merchant_name || 'Unknown merchant')}
+                                    {tx?.enriched_data?.merchant_city ? ` • ${tx.enriched_data.merchant_city}` : ''}
+                                  </div>
                                 </div>
                               </td>
                               <td style={{ padding: '0.45rem', fontWeight: 700 }}>
@@ -889,14 +953,45 @@ export default function CardsPage() {
                                   return `${prefix}${formatMoneyFromCents(tx?.amount ?? tx?.transaction_amount, tx?.currency)}`;
                                 })()}
                               </td>
-                              <td style={{ padding: '0.45rem' }}>{formatMoneyFromCents(tx?.partner_interchange_fee, tx?.currency)}</td>
-                              <td style={{ padding: '0.45rem' }}>{formatMoneyFromCents(tx?.interchange_revenue, tx?.currency)}</td>
-                              <td style={{ padding: '0.45rem' }}>{formatMoneyFromCents(tx?.foreign_exchange_fee, tx?.currency)}</td>
                               <td style={{ padding: '0.45rem' }}>
                                 <div style={{ display: 'grid', gap: '0.15rem' }}>
-                                  <div style={{ fontSize: '12px' }}>Bridge: {tx?.bridgecard_transaction_reference || '—'}</div>
-                                  <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Client: {tx?.client_transaction_reference || '—'}</div>
+                                  <div style={{ fontSize: '12px' }}>Fee: {formatMoneyFromCents(tx?.partner_interchange_fee, tx?.currency)}</div>
+                                  <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Revenue: {formatMoneyFromCents(tx?.interchange_revenue, tx?.currency)}</div>
+                                  <div style={{ fontSize: '12px', color: 'var(--muted)' }}>FX: {formatMoneyFromCents(tx?.foreign_exchange_fee, tx?.currency)}</div>
                                 </div>
+                              </td>
+                              <td style={{ padding: '0.45rem', fontSize: '12px' }}>
+                                <div>Bridge: {tx?.bridgecard_transaction_reference || '—'}</div>
+                                <div style={{ color: 'var(--muted)' }}>Client: {tx?.client_transaction_reference || '—'}</div>
+                              </td>
+                              <td style={{ padding: '0.45rem' }}>
+                                <details>
+                                  <summary style={{ cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}>View</summary>
+                                  <div style={{ marginTop: '0.45rem', display: 'grid', gap: '0.35rem' }}>
+                                    <DetailGrid
+                                      rows={[
+                                        { label: 'Category', value: tx?.enriched_data?.transaction_category || '—' },
+                                        { label: 'Group', value: tx?.enriched_data?.transaction_group || '—' },
+                                        { label: 'Merchant website', value: tx?.enriched_data?.merchant_website || '—' },
+                                        { label: 'Recurring', value: formatCompactValue(tx?.enriched_data?.is_recurring) },
+                                        { label: 'Merchant code', value: tx?.enriched_data?.merchant_code || '—' }
+                                      ]}
+                                    />
+                                    <pre
+                                      style={{
+                                        margin: 0,
+                                        padding: '0.6rem',
+                                        background: 'var(--surface)',
+                                        border: '1px solid var(--border)',
+                                        borderRadius: '8px',
+                                        overflowX: 'auto',
+                                        fontSize: '11px'
+                                      }}
+                                    >
+                                      {formatJson(tx)}
+                                    </pre>
+                                  </div>
+                                </details>
                               </td>
                             </tr>
                           ))
@@ -924,6 +1019,8 @@ export default function CardsPage() {
               )}
             </div>
           </div>
+            );
+          })()}
         </Modal>
       )}
 
