@@ -189,6 +189,10 @@ export default function KycsPage() {
   const [amlLoading, setAmlLoading] = useState(false);
   const [amlResult, setAmlResult] = useState(null);
   const [amlError, setAmlError] = useState(null);
+  const [syncNamesLoading, setSyncNamesLoading] = useState(false);
+  const [zoomedDocument, setZoomedDocument] = useState(null);
+  const [documentZoomScale, setDocumentZoomScale] = useState(1);
+  const [documentRotation, setDocumentRotation] = useState(0);
   const router = useRouter();
 
   const formatDate = (value) => {
@@ -311,6 +315,25 @@ export default function KycsPage() {
 
   const canGoPrevious = page > 0;
   const canGoNext = pageMeta.totalPages === null ? rows.length === size && rows.length > 0 : page + 1 < pageMeta.totalPages;
+  const zoomInDocument = () => setDocumentZoomScale((prev) => Math.min(prev + 0.5, 3));
+  const zoomOutDocument = () => setDocumentZoomScale((prev) => Math.max(prev - 0.5, 1));
+  const resetDocumentView = () => {
+    setDocumentZoomScale(1);
+    setDocumentRotation(0);
+  };
+  const rotateDocumentLeft = () => setDocumentRotation((prev) => prev - 90);
+  const rotateDocumentRight = () => setDocumentRotation((prev) => prev + 90);
+  const openDocumentPreview = (label, url) => {
+    if (!url) return;
+    setZoomedDocument({ label, url });
+    setDocumentZoomScale(1);
+    setDocumentRotation(0);
+  };
+  const closeDocumentPreview = () => {
+    setZoomedDocument(null);
+    setDocumentZoomScale(1);
+    setDocumentRotation(0);
+  };
 
   const openKycAccount = async (row) => {
     const directAccountId = row?.accountId ?? row?.account?.id;
@@ -544,6 +567,25 @@ export default function KycsPage() {
       setError(err.message || 'Failed to delete SmileID user.');
     } finally {
       setSmileAction(null);
+    }
+  };
+
+  const handleSyncUserNames = async (row) => {
+    const source = row || selected;
+    if (!source?.id) return;
+    setError(null);
+    setInfo(null);
+    setSyncNamesLoading(true);
+    try {
+      const res = await api.kycs.syncUserNames(source.id);
+      const normalized = normalizeKyc(res || {});
+      setSelected(normalized || null);
+      setRows((prev) => prev.map((item) => (item.id === source.id ? normalized : item)));
+      setInfo(`User names synced from KYC ${source.id}.`);
+    } catch (err) {
+      setError(err.message || 'Failed to sync user names.');
+    } finally {
+      setSyncNamesLoading(false);
     }
   };
 
@@ -839,10 +881,13 @@ export default function KycsPage() {
               type="button"
               onClick={() => setConfirmSmileDelete(selected)}
               className="btn-primary"
-              disabled={smileAction !== null}
+              disabled={smileAction !== null || syncNamesLoading}
               style={{ background: 'linear-gradient(90deg, #F97316, #DC2626)', border: 'none' }}
             >
               Delete SmileID user
+            </button>
+            <button type="button" onClick={() => handleSyncUserNames(selected)} className="btn-neutral" disabled={syncNamesLoading}>
+              {syncNamesLoading ? 'Syncing names…' : 'Sync user names'}
             </button>
             <button type="button" onClick={() => runAmlCheck(selected)} className="btn-neutral" disabled={amlLoading}>
               {amlLoading ? 'Running AML…' : 'Run AML check'}
@@ -903,10 +948,13 @@ export default function KycsPage() {
                   <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{item.label}</div>
                   {item.value ? (
                     <>
-                      <img src={item.value} alt={item.label} style={{ width: '100%', height: '160px', objectFit: 'cover', borderRadius: '8px' }} />
-                      <a href={item.value} target="_blank" rel="noreferrer" style={{ fontSize: '12px', color: 'var(--accent)' }}>
-                        Open full size
-                      </a>
+                      <img
+                        src={item.value}
+                        alt={item.label}
+                        onClick={() => openDocumentPreview(item.label, item.value)}
+                        style={{ width: '100%', height: '160px', objectFit: 'cover', borderRadius: '8px', cursor: 'zoom-in' }}
+                      />
+                      <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Click to zoom and rotate</div>
                     </>
                   ) : (
                     <div style={{ color: 'var(--muted)', fontSize: '12px' }}>No image</div>
@@ -958,6 +1006,58 @@ export default function KycsPage() {
             >
               {smileAction === 'delete' ? 'Deleting…' : 'Delete user'}
             </button>
+          </div>
+        </Modal>
+      )}
+
+      {zoomedDocument && (
+        <Modal title={zoomedDocument.label} onClose={closeDocumentPreview}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.75rem' }}>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Use controls to zoom and rotate.</div>
+            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+              <button type="button" className="btn-neutral btn-sm" onClick={zoomOutDocument} disabled={documentZoomScale <= 1}>
+                Zoom out
+              </button>
+              <button type="button" className="btn-neutral btn-sm" onClick={resetDocumentView} disabled={documentZoomScale === 1 && documentRotation % 360 === 0}>
+                Reset
+              </button>
+              <button type="button" className="btn-neutral btn-sm" onClick={zoomInDocument} disabled={documentZoomScale >= 3}>
+                Zoom in
+              </button>
+              <button type="button" className="btn-neutral btn-sm" onClick={rotateDocumentLeft}>
+                Rotate left
+              </button>
+              <button type="button" className="btn-neutral btn-sm" onClick={rotateDocumentRight}>
+                Rotate right
+              </button>
+            </div>
+          </div>
+          <div
+            style={{
+              marginTop: '0.75rem',
+              width: '100%',
+              maxHeight: '75vh',
+              overflow: 'auto',
+              border: '1px solid var(--border)',
+              borderRadius: '10px',
+              padding: '0.75rem',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              background: '#fff'
+            }}
+          >
+            <img
+              src={zoomedDocument.url}
+              alt={`${zoomedDocument.label} preview`}
+              style={{
+                maxWidth: '100%',
+                maxHeight: '68vh',
+                objectFit: 'contain',
+                transform: `scale(${documentZoomScale}) rotate(${documentRotation}deg)`,
+                transformOrigin: 'center center'
+              }}
+            />
           </div>
         </Modal>
       )}
