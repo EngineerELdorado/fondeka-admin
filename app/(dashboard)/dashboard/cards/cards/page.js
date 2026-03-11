@@ -163,6 +163,12 @@ export default function CardsPage() {
     }
   };
 
+  const formatMoneyFromCents = (amountInCents, currency) => {
+    const num = toFiniteNumber(amountInCents);
+    if (num === null) return amountInCents ?? '—';
+    return formatMoney(num / 100, currency);
+  };
+
   const formatProviderDateTime = (value) => {
     if (!value) return '—';
     if (typeof value === 'number') {
@@ -685,8 +691,14 @@ export default function CardsPage() {
               {!providerDetailError && !providerDetailLoading && (
                 <DetailGrid
                   rows={[
-                    { label: 'Provider Balance', value: providerDetailData?.providerBalance ?? '—' },
-                    { label: 'User Visible Balance', value: providerDetailData?.appVisibleBalance ?? '—' }
+                    {
+                      label: 'Provider Balance',
+                      value: formatMoneyFromCents(providerDetailData?.providerBalance, providerDetailData?.currency || selected?.currency || 'USD')
+                    },
+                    {
+                      label: 'User Visible Balance',
+                      value: formatMoneyFromCents(providerDetailData?.appVisibleBalance, providerDetailData?.currency || selected?.currency || 'USD')
+                    }
                   ]}
                 />
               )}
@@ -781,8 +793,8 @@ export default function CardsPage() {
                       <DetailGrid
                         rows={[
                           { label: 'Rows', value: txList.length },
-                          { label: 'Credits', value: `${creditCount} (${formatMoney(creditTotal, currency)})` },
-                          { label: 'Debits', value: `${debitCount} (${formatMoney(debitTotal, currency)})` }
+                          { label: 'Credits', value: `${creditCount} (${formatMoneyFromCents(creditTotal, currency)})` },
+                          { label: 'Debits', value: `${debitCount} (${formatMoneyFromCents(debitTotal, currency)})` }
                         ]}
                       />
                     );
@@ -874,12 +886,12 @@ export default function CardsPage() {
                                 {(() => {
                                   const dir = String(tx?.card_transaction_type || tx?.type || tx?.transaction_type || '').toUpperCase();
                                   const prefix = dir === 'DEBIT' ? '-' : dir === 'CREDIT' ? '+' : '';
-                                  return `${prefix}${formatMoney(tx?.amount ?? tx?.transaction_amount, tx?.currency)}`;
+                                  return `${prefix}${formatMoneyFromCents(tx?.amount ?? tx?.transaction_amount, tx?.currency)}`;
                                 })()}
                               </td>
-                              <td style={{ padding: '0.45rem' }}>{formatMoney(tx?.partner_interchange_fee, tx?.currency)}</td>
-                              <td style={{ padding: '0.45rem' }}>{formatMoney(tx?.interchange_revenue, tx?.currency)}</td>
-                              <td style={{ padding: '0.45rem' }}>{formatMoney(tx?.foreign_exchange_fee, tx?.currency)}</td>
+                              <td style={{ padding: '0.45rem' }}>{formatMoneyFromCents(tx?.partner_interchange_fee, tx?.currency)}</td>
+                              <td style={{ padding: '0.45rem' }}>{formatMoneyFromCents(tx?.interchange_revenue, tx?.currency)}</td>
+                              <td style={{ padding: '0.45rem' }}>{formatMoneyFromCents(tx?.foreign_exchange_fee, tx?.currency)}</td>
                               <td style={{ padding: '0.45rem' }}>
                                 <div style={{ display: 'grid', gap: '0.15rem' }}>
                                   <div style={{ fontSize: '12px' }}>Bridge: {tx?.bridgecard_transaction_reference || '—'}</div>

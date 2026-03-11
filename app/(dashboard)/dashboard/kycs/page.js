@@ -190,6 +190,7 @@ export default function KycsPage() {
   const [amlResult, setAmlResult] = useState(null);
   const [amlError, setAmlError] = useState(null);
   const [syncNamesLoading, setSyncNamesLoading] = useState(false);
+  const [syncSmileImagesLoading, setSyncSmileImagesLoading] = useState(false);
   const [zoomedDocument, setZoomedDocument] = useState(null);
   const [documentZoomScale, setDocumentZoomScale] = useState(1);
   const [documentRotation, setDocumentRotation] = useState(0);
@@ -589,6 +590,25 @@ export default function KycsPage() {
     }
   };
 
+  const handleSyncSmileIdImages = async (row) => {
+    const source = row || selected;
+    if (!source?.id) return;
+    setError(null);
+    setInfo(null);
+    setSyncSmileImagesLoading(true);
+    try {
+      const res = await api.kycs.syncSmileIdImages(source.id);
+      const normalized = normalizeKyc(res || {});
+      setSelected(normalized || null);
+      setRows((prev) => prev.map((item) => (item.id === source.id ? normalized : item)));
+      setInfo(`SmileID images synced for KYC ${source.id}.`);
+    } catch (err) {
+      setError(err.message || 'Failed to sync SmileID images.');
+    } finally {
+      setSyncSmileImagesLoading(false);
+    }
+  };
+
   const runAmlCheck = async (row) => {
     const source = row || selected;
     if (!source) return;
@@ -881,13 +901,16 @@ export default function KycsPage() {
               type="button"
               onClick={() => setConfirmSmileDelete(selected)}
               className="btn-primary"
-              disabled={smileAction !== null || syncNamesLoading}
+              disabled={smileAction !== null || syncNamesLoading || syncSmileImagesLoading}
               style={{ background: 'linear-gradient(90deg, #F97316, #DC2626)', border: 'none' }}
             >
               Delete SmileID user
             </button>
             <button type="button" onClick={() => handleSyncUserNames(selected)} className="btn-neutral" disabled={syncNamesLoading}>
               {syncNamesLoading ? 'Syncing names…' : 'Sync user names'}
+            </button>
+            <button type="button" onClick={() => handleSyncSmileIdImages(selected)} className="btn-neutral" disabled={syncSmileImagesLoading}>
+              {syncSmileImagesLoading ? 'Syncing images…' : 'Sync SmileID images'}
             </button>
             <button type="button" onClick={() => runAmlCheck(selected)} className="btn-neutral" disabled={amlLoading}>
               {amlLoading ? 'Running AML…' : 'Run AML check'}
