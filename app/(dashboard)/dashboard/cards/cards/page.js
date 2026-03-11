@@ -166,26 +166,6 @@ export default function CardsPage() {
       return String(value);
     }
   };
-  const formatKeyLabel = (key) =>
-    String(key || '')
-      .replace(/[_-]+/g, ' ')
-      .replace(/([a-z])([A-Z])/g, '$1 $2')
-      .trim()
-      .replace(/\b\w/g, (ch) => ch.toUpperCase());
-
-  const formatCompactValue = (value) => {
-    if (value === null || value === undefined || value === '') return '—';
-    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
-    if (typeof value === 'number') return String(value);
-    if (typeof value === 'string') return value;
-    if (Array.isArray(value)) return value.length ? `${value.length} items` : 'Empty list';
-    if (typeof value === 'object') {
-      const keys = Object.keys(value);
-      return keys.length ? `${keys.length} fields` : 'Empty object';
-    }
-    return String(value);
-  };
-
   const toFiniteNumber = (value) => {
     const num = Number(value);
     return Number.isFinite(num) ? num : null;
@@ -562,6 +542,11 @@ export default function CardsPage() {
     </div>
   );
 
+  const providerBalanceValue = providerDetailData?.providerBalance;
+  const userVisibleBalanceValue = providerDetailData?.appVisibleBalance;
+  const hasBothBalances = providerBalanceValue !== null && providerBalanceValue !== undefined && userVisibleBalanceValue !== null && userVisibleBalanceValue !== undefined;
+  const balancesAreSame = hasBothBalances && String(providerBalanceValue) === String(userVisibleBalanceValue);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
@@ -710,33 +695,6 @@ export default function CardsPage() {
 
       {showDetail && (
         <Modal title={`Details ${selected?.id}`} onClose={() => setShowDetail(false)}>
-          {(() => {
-            const providerDetailsPayload = providerDetailData?.providerDetails;
-            const providerDetailsEntries =
-              providerDetailsPayload && typeof providerDetailsPayload === 'object' && !Array.isArray(providerDetailsPayload)
-                ? Object.entries(providerDetailsPayload)
-                : [];
-            const txList = providerTxData?.data?.transactions || providerTxData?.transactions || [];
-            const creditCount = txList.filter((tx) => String(tx?.card_transaction_type || tx?.type || '').toUpperCase() === 'CREDIT').length;
-            const debitCount = txList.filter((tx) => String(tx?.card_transaction_type || tx?.type || '').toUpperCase() === 'DEBIT').length;
-            const creditTotal = txList.reduce((sum, tx) => {
-              const type = String(tx?.card_transaction_type || tx?.type || '').toUpperCase();
-              const amount = toFiniteNumber(tx?.amount);
-              if (type !== 'CREDIT' || amount === null) return sum;
-              return sum + amount;
-            }, 0);
-            const debitTotal = txList.reduce((sum, tx) => {
-              const type = String(tx?.card_transaction_type || tx?.type || '').toUpperCase();
-              const amount = toFiniteNumber(tx?.amount);
-              if (type !== 'DEBIT' || amount === null) return sum;
-              return sum + amount;
-            }, 0);
-            const txCurrency =
-              txList.find((tx) => tx?.currency)?.currency ||
-              providerTxData?.data?.transactions?.[0]?.currency ||
-              providerTxData?.transactions?.[0]?.currency ||
-              'USD';
-            return (
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             <div
               className="card"
@@ -772,69 +730,36 @@ export default function CardsPage() {
             <DetailGrid
               rows={[
                 { label: 'ID', value: selected?.id },
-                { label: 'Internal ref', value: selected?.internalReference },
                 { label: 'Name', value: selected?.name },
-                { label: 'External ref', value: <ExpandableText value={selected?.externalReference} maxLength={40} /> },
                 { label: 'Status', value: <StatusBadge value={selected?.status} /> },
+                { label: 'External ref', value: <ExpandableText value={selected?.externalReference} maxLength={40} /> },
+                { label: 'Internal ref', value: <ExpandableText value={selected?.internalReference} maxLength={40} /> },
                 { label: 'Created at', value: formatDateTime(selected?.createdAt) },
                 { label: 'Last 4', value: selected?.last4 },
-                { label: 'Issued', value: String(selected?.issued) },
-                { label: 'Product/provider ID', value: selected?.cardProductCardProviderId }
+                { label: 'Issued', value: selected?.issued ? 'Yes' : 'No' }
               ]}
             />
 
             <div className="card" style={{ padding: '0.9rem', display: 'grid', gap: '0.6rem' }}>
-              <div style={{ fontWeight: 800 }}>Live provider financial/details</div>
+              <div style={{ fontWeight: 800 }}>Balances</div>
               {providerDetailError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{providerDetailError}</div>}
               {!providerDetailError && providerDetailLoading && <div style={{ color: 'var(--muted)' }}>Loading provider details…</div>}
               {!providerDetailError && !providerDetailLoading && (
                 <DetailGrid
-                  rows={[
-                    {
-                      label: 'Provider Balance',
-                      value: providerDetailData?.providerBalance ?? '—'
-                    },
-                    {
-                      label: 'User Visible Balance',
-                      value: providerDetailData?.appVisibleBalance ?? '—'
-                    }
-                  ]}
+                  rows={
+                    balancesAreSame
+                      ? [{ label: 'Balance', value: providerBalanceValue }]
+                      : [
+                          { label: 'Provider Balance', value: providerBalanceValue ?? '—' },
+                          { label: 'User Visible Balance', value: userVisibleBalanceValue ?? '—' }
+                        ]
+                  }
                 />
-              )}
-              {!providerDetailError && !providerDetailLoading && (
-                <div style={{ display: 'grid', gap: '0.6rem' }}>
-                  {providerDetailsEntries.length > 0 ? (
-                    <DetailGrid
-                      rows={providerDetailsEntries.map(([key, value]) => ({
-                        label: formatKeyLabel(key),
-                        value: formatCompactValue(value)
-                      }))}
-                    />
-                  ) : (
-                    <div style={{ color: 'var(--muted)', fontSize: '13px' }}>No provider detail fields returned.</div>
-                  )}
-                  <details>
-                    <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Full provider details payload</summary>
-                    <pre
-                      style={{
-                        margin: '0.5rem 0 0',
-                        padding: '0.75rem',
-                        background: 'var(--surface)',
-                        border: '1px solid var(--border)',
-                        borderRadius: '10px',
-                        overflowX: 'auto',
-                        fontSize: '12px'
-                      }}
-                    >
-                      {formatJson(providerDetailData?.providerDetails)}
-                    </pre>
-                  </details>
-                </div>
               )}
             </div>
 
             <div className="card" style={{ padding: '0.9rem', display: 'grid', gap: '0.6rem' }}>
-              <div style={{ fontWeight: 800 }}>Provider transactions (BridgeCard)</div>
+              <div style={{ fontWeight: 800 }}>Transactions</div>
               <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
                 Provider timestamps are GMT and displayed in your local timezone here.
               </div>
@@ -891,6 +816,28 @@ export default function CardsPage() {
 
               {!providerTxError && !providerTxLoading && (
                 <>
+                  {(() => {
+                    const txList = providerTxData?.data?.transactions || providerTxData?.transactions || [];
+                    const creditCount = txList.filter((tx) => String(tx?.card_transaction_type || tx?.type || '').toUpperCase() === 'CREDIT').length;
+                    const debitCount = txList.filter((tx) => String(tx?.card_transaction_type || tx?.type || '').toUpperCase() === 'DEBIT').length;
+                    const creditTotal = txList.reduce((sum, tx) => {
+                      const type = String(tx?.card_transaction_type || tx?.type || '').toUpperCase();
+                      const amount = toFiniteNumber(tx?.amount);
+                      if (type !== 'CREDIT' || amount === null) return sum;
+                      return sum + amount;
+                    }, 0);
+                    const debitTotal = txList.reduce((sum, tx) => {
+                      const type = String(tx?.card_transaction_type || tx?.type || '').toUpperCase();
+                      const amount = toFiniteNumber(tx?.amount);
+                      if (type !== 'DEBIT' || amount === null) return sum;
+                      return sum + amount;
+                    }, 0);
+                    const txCurrency =
+                      txList.find((tx) => tx?.currency)?.currency ||
+                      providerTxData?.data?.transactions?.[0]?.currency ||
+                      providerTxData?.transactions?.[0]?.currency ||
+                      'USD';
+                    return (
                   <DetailGrid
                     rows={[
                       { label: 'Rows', value: txList.length },
@@ -898,6 +845,8 @@ export default function CardsPage() {
                       { label: 'Debits', value: `${debitCount} (${formatMoneyFromCents(debitTotal, txCurrency)})` }
                     ]}
                   />
+                    );
+                  })()}
                   <DetailGrid
                     rows={[
                       { label: 'Current page', value: providerTxData?.data?.meta?.page ?? providerTxData?.meta?.page ?? '—' },
@@ -911,22 +860,20 @@ export default function CardsPage() {
                         <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
                           <th style={{ padding: '0.45rem' }}>Time</th>
                           <th style={{ padding: '0.45rem' }}>Direction</th>
-                          <th style={{ padding: '0.45rem' }}>Summary</th>
+                          <th style={{ padding: '0.45rem' }}>Description</th>
                           <th style={{ padding: '0.45rem' }}>Amount</th>
-                          <th style={{ padding: '0.45rem' }}>Fees</th>
                           <th style={{ padding: '0.45rem' }}>Refs</th>
-                          <th style={{ padding: '0.45rem' }}>More</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {txList.length === 0 ? (
+                        {((providerTxData?.data?.transactions || providerTxData?.transactions || [])).length === 0 ? (
                           <tr>
-                            <td colSpan={7} style={{ padding: '0.6rem', color: 'var(--muted)' }}>
+                            <td colSpan={5} style={{ padding: '0.6rem', color: 'var(--muted)' }}>
                               No provider transactions returned.
                             </td>
                           </tr>
                         ) : (
-                          txList.map((tx, idx) => (
+                          (providerTxData?.data?.transactions || providerTxData?.transactions || []).map((tx, idx) => (
                             <tr key={tx?.id || tx?.transaction_id || idx} style={{ borderBottom: '1px solid var(--border)' }}>
                               <td style={{ padding: '0.45rem' }}>
                                 {formatProviderDateTime(
@@ -966,13 +913,7 @@ export default function CardsPage() {
                                 })()}
                               </td>
                               <td style={{ padding: '0.45rem' }}>
-                                <div style={{ display: 'grid', gap: '0.15rem' }}>
-                                  <div>{tx?.description || tx?.enriched_data?.transaction_category || '—'}</div>
-                                  <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-                                    {(tx?.enriched_data?.merchant_name || 'Unknown merchant')}
-                                    {tx?.enriched_data?.merchant_city ? ` • ${tx.enriched_data.merchant_city}` : ''}
-                                  </div>
-                                </div>
+                                {tx?.description || tx?.enriched_data?.transaction_category || '—'}
                               </td>
                               <td style={{ padding: '0.45rem', fontWeight: 700 }}>
                                 {(() => {
@@ -981,45 +922,9 @@ export default function CardsPage() {
                                   return `${prefix}${formatMoneyFromCents(tx?.amount ?? tx?.transaction_amount, tx?.currency)}`;
                                 })()}
                               </td>
-                              <td style={{ padding: '0.45rem' }}>
-                                <div style={{ display: 'grid', gap: '0.15rem' }}>
-                                  <div style={{ fontSize: '12px' }}>Fee: {formatMoneyFromCents(tx?.partner_interchange_fee, tx?.currency)}</div>
-                                  <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Revenue: {formatMoneyFromCents(tx?.interchange_revenue, tx?.currency)}</div>
-                                  <div style={{ fontSize: '12px', color: 'var(--muted)' }}>FX: {formatMoneyFromCents(tx?.foreign_exchange_fee, tx?.currency)}</div>
-                                </div>
-                              </td>
                               <td style={{ padding: '0.45rem', fontSize: '12px' }}>
                                 <div>Bridge: {tx?.bridgecard_transaction_reference || '—'}</div>
                                 <div style={{ color: 'var(--muted)' }}>Client: {tx?.client_transaction_reference || '—'}</div>
-                              </td>
-                              <td style={{ padding: '0.45rem' }}>
-                                <details>
-                                  <summary style={{ cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}>View</summary>
-                                  <div style={{ marginTop: '0.45rem', display: 'grid', gap: '0.35rem' }}>
-                                    <DetailGrid
-                                      rows={[
-                                        { label: 'Category', value: tx?.enriched_data?.transaction_category || '—' },
-                                        { label: 'Group', value: tx?.enriched_data?.transaction_group || '—' },
-                                        { label: 'Merchant website', value: tx?.enriched_data?.merchant_website || '—' },
-                                        { label: 'Recurring', value: formatCompactValue(tx?.enriched_data?.is_recurring) },
-                                        { label: 'Merchant code', value: tx?.enriched_data?.merchant_code || '—' }
-                                      ]}
-                                    />
-                                    <pre
-                                      style={{
-                                        margin: 0,
-                                        padding: '0.6rem',
-                                        background: 'var(--surface)',
-                                        border: '1px solid var(--border)',
-                                        borderRadius: '8px',
-                                        overflowX: 'auto',
-                                        fontSize: '11px'
-                                      }}
-                                    >
-                                      {formatJson(tx)}
-                                    </pre>
-                                  </div>
-                                </details>
                               </td>
                             </tr>
                           ))
@@ -1027,28 +932,10 @@ export default function CardsPage() {
                       </tbody>
                     </table>
                   </div>
-                  <details>
-                    <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Raw provider response</summary>
-                    <pre
-                      style={{
-                        margin: '0.5rem 0 0',
-                        padding: '0.75rem',
-                        background: 'var(--surface)',
-                        border: '1px solid var(--border)',
-                        borderRadius: '10px',
-                        overflowX: 'auto',
-                        fontSize: '12px'
-                      }}
-                    >
-                      {formatJson(providerTxData)}
-                    </pre>
-                  </details>
                 </>
               )}
             </div>
           </div>
-            );
-          })()}
         </Modal>
       )}
 
