@@ -215,6 +215,41 @@ export default function CardsPage() {
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
     { key: 'name', label: 'Name' },
+    {
+      key: 'account',
+      label: 'Account',
+      render: (row) => {
+        const accountId = row?.accountId ?? row?.account_id;
+        if (accountId === null || accountId === undefined || String(accountId).trim() === '') return '—';
+        const accountLabel = `#${accountId}`;
+        return (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
+            <span>{accountLabel}</span>
+            <Link
+              href={`/dashboard/accounts/accounts/${encodeURIComponent(String(accountId).trim())}`}
+              aria-label={`Open account ${accountId}`}
+              title={`Open account ${accountId}`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '24px',
+                height: '24px',
+                borderRadius: '999px',
+                border: '1px solid var(--border)',
+                color: 'var(--text)',
+                textDecoration: 'none'
+              }}
+            >
+              <svg aria-hidden="true" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21a8 8 0 1 0-16 0" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            </Link>
+          </span>
+        );
+      }
+    },
     { key: 'status', label: 'Status', render: (row) => <StatusBadge value={row.status} /> },
     { key: 'createdAt', label: 'Created', render: (row) => formatDateTime(row.createdAt) },
     { key: 'last4', label: 'Last 4', render: (row) => row.last4 || '—' },
@@ -590,7 +625,15 @@ export default function CardsPage() {
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
-      <DataTable columns={columns} rows={rows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No cards found" />
+      <DataTable
+        columns={columns}
+        rows={rows}
+        page={page}
+        pageSize={size}
+        onPageChange={setPage}
+        emptyLabel="No cards found"
+        showAccountQuickNav={false}
+      />
 
       {showCreate && (
         <Modal title="Add card" onClose={() => setShowCreate(false)}>

@@ -2893,12 +2893,12 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
 
       {txView?.length > 0 && (
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', ...fadeInStyle(!loading) }}>
-          <div style={{ fontWeight: 700 }}>Last transaction</div>
+          <div style={{ fontWeight: 700 }}>Recent transactions</div>
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '1100px' }}>
               <thead>
                 <tr>
-                  {['Created', 'Reference', 'Status', 'Service', 'Action', 'Amount'].map((label) => (
+                  {['ID', 'Created', 'Reference', 'Action', 'Status', 'Amount', 'Method', 'Customer', 'Actions'].map((label) => (
                     <th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid #e5e7eb', color: '#6b7280' }}>
                       {label}
                     </th>
@@ -2906,20 +2906,34 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
                 </tr>
               </thead>
               <tbody>
-                {txView.map((txn) => (
-                  <tr key={txn.transactionId || txn.id || txn.reference} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '0.5rem' }}>{formatDateTime(txn.createdAt)}</td>
-                    <td style={{ padding: '0.5rem' }}>{txn.reference}</td>
-                    <td style={{ padding: '0.5rem' }}>
-                      <Badge>{txn.status}</Badge>
-                    </td>
-                    <td style={{ padding: '0.5rem' }}>{txn.service}</td>
-                    <td style={{ padding: '0.5rem' }}>{txn.action}</td>
-                    <td style={{ padding: '0.5rem' }}>
-                      {txn.amount} {txn.currency || ''}
-                    </td>
-                  </tr>
-                ))}
+                {txView.map((txn) => {
+                  const transactionId = txn.transactionId || txn.id;
+                  return (
+                    <tr key={transactionId || txn.reference} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '0.5rem' }}>{transactionId ?? '—'}</td>
+                      <td style={{ padding: '0.5rem' }}>{formatDateTime(txn.createdAt)}</td>
+                      <td style={{ padding: '0.5rem' }}>{txn.reference || '—'}</td>
+                      <td style={{ padding: '0.5rem' }}>{txn.action || '—'}</td>
+                      <td style={{ padding: '0.5rem' }}>
+                        <Badge>{txn.status || '—'}</Badge>
+                      </td>
+                      <td style={{ padding: '0.5rem' }}>
+                        {`${txn.amount ?? '—'} ${txn.currency || ''}`.trim()}
+                      </td>
+                      <td style={{ padding: '0.5rem' }}>{txn.paymentMethodName || txn.paymentMethodId || '—'}</td>
+                      <td style={{ padding: '0.5rem' }}>{txn.customer || '—'}</td>
+                      <td style={{ padding: '0.5rem' }}>
+                        {transactionId ? (
+                          <Link href={`/dashboard/transactions?transactionId=${encodeURIComponent(transactionId)}`} className="btn-neutral btn-sm">
+                            View
+                          </Link>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
