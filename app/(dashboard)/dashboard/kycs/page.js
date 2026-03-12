@@ -218,6 +218,15 @@ export default function KycsPage() {
     return date.toISOString().slice(0, 10);
   };
 
+  const toUtcIsoDateTime = (value) => {
+    const text = String(value || '').trim();
+    if (!text) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return `${text}T00:00:00Z`;
+    const parsed = new Date(text);
+    if (Number.isNaN(parsed.getTime())) return text;
+    return parsed.toISOString();
+  };
+
   const fetchRows = async () => {
     setLoading(true);
     setError(null);
@@ -660,6 +669,11 @@ export default function KycsPage() {
         if (key === 'level') {
           const num = Number(value);
           if (!Number.isNaN(num)) payload.level = num;
+          return;
+        }
+        if (key === 'dob' || key === 'issuedAt' || key === 'expiresAt') {
+          const isoValue = toUtcIsoDateTime(value);
+          if (isoValue) payload[key] = isoValue;
           return;
         }
         payload[key] = value;

@@ -8,6 +8,16 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const emptyState = { internalReference: '', externalReference: '', accountId: '', verified: false, metaData: '' };
 const emptyFilters = { accountReference: '', email: '', phoneNumber: '' };
+const cardStatusOptions = ['IN_PREPARATION', 'ACTIVE', 'FAILED', 'BLOCKED_BY_USER', 'BLOCKED_BY_ADMIN', 'DELETED_BY_PROVIDER'];
+const emptyReconcileDraft = {
+  internalReference: '',
+  name: '',
+  externalReference: '',
+  status: 'ACTIVE',
+  last4: '',
+  issued: true,
+  cardProductCardProviderId: ''
+};
 
 const toPayload = (state) => ({
   internalReference: state.internalReference,
@@ -57,6 +67,11 @@ export default function CardHoldersPage() {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [confirmReset, setConfirmReset] = useState(null);
   const [resetLoading, setResetLoading] = useState(false);
+  const [showReconcile, setShowReconcile] = useState(false);
+  const [reconcileDraft, setReconcileDraft] = useState(emptyReconcileDraft);
+  const [reconcileLoading, setReconcileLoading] = useState(false);
+  const [mappingOptions, setMappingOptions] = useState([]);
+  const [mappingLoading, setMappingLoading] = useState(false);
 
   const isSuperAdmin = useMemo(() => {
     const payload = session?.tokens?.idToken?.payload || session?.tokens?.accessToken?.payload;
@@ -145,6 +160,32 @@ export default function CardHoldersPage() {
     setError(null);
   };
 
+  const loadCardProductProviderMappings = async () => {
+    setMappingLoading(true);
+    try {
+      const res = await api.cardProductCardProviders.list(new URLSearchParams({ page: '0', size: '200' }));
+      const list = Array.isArray(res) ? res : res?.content || [];
+      setMappingOptions(list || []);
+    } catch {
+      setMappingOptions([]);
+    } finally {
+      setMappingLoading(false);
+    }
+  };
+
+  const openReconcile = async (row) => {
+    if (!row?.id) return;
+    const nextName = String(row?.userName || '').trim();
+    const nextInternalRef = String(row?.internalReference || '').trim();
+    setReconcileDraft({
+      ...emptyReconcileDraft,
+      internalReference: nextInternalRef ? `${nextInternalRef}-CARD` : '',
+      name: nextName ? `${nextName} Card` : ''
+    });
+    setShowReconcile(true);
+    await loadCardProductProviderMappings();
+  };
+
   const handleCreate = async () => {
     setError(null);
     setInfo(null);
@@ -203,6 +244,52 @@ export default function CardHoldersPage() {
       setError(err.message);
     } finally {
       setResetLoading(false);
+    }
+  };
+
+  const handleReconcile = async () => {
+    if (!selected?.id) return;
+    const internalReference = String(reconcileDraft.internalReference || '').trim();
+    const name = String(reconcileDraft.name || '').trim();
+    const status = String(reconcileDraft.status || '').trim();
+    const cardProductCardProviderId = Number(reconcileDraft.cardProductCardProviderId);
+    if (!internalReference) {
+      setError('Internal reference is required.');
+      return;
+    }
+    if (!name) {
+      setError('Card name is required.');
+      return;
+    }
+    if (!status) {
+      setError('Status is required.');
+      return;
+    }
+    if (!Number.isInteger(cardProductCardProviderId) || cardProductCardProviderId <= 0) {
+      setError('Select a valid product/provider mapping.');
+      return;
+    }
+    setError(null);
+    setInfo(null);
+    setReconcileLoading(true);
+    try {
+      const payload = {
+        internalReference,
+        name,
+        externalReference: String(reconcileDraft.externalReference || '').trim() || null,
+        status,
+        last4: String(reconcileDraft.last4 || '').trim() || null,
+        cardHolderId: Number(selected.id),
+        issued: Boolean(reconcileDraft.issued),
+        cardProductCardProviderId
+      };
+      const res = await api.cards.reconcile(payload);
+      setShowReconcile(false);
+      setInfo(`Card reconciled locally (ID: ${res?.id ?? 'new'}).`);
+    } catch (err) {
+      setError(err?.message || 'Failed to reconcile card.');
+    } finally {
+      setReconcileLoading(false);
     }
   };
 
@@ -337,13 +424,113 @@ export default function CardHoldersPage() {
               { label: 'Metadata', value: selected?.metaData }
             ]}
           />
-          {isSuperAdmin && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.75rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.75rem' }}>
+            <button type="button" onClick={() => openReconcile(selected)} className="btn-primary">
+              Reconcile card
+            </button>
+            {isSuperAdmin && (
               <button type="button" onClick={() => setConfirmReset(selected)} className="btn-danger">
                 Reset card holder
               </button>
+            )}
+          </div>
+        </Modal>
+      )}
+
+      {showReconcile && (
+        <Modal title={`Reconcile card for holder ${selected?.id}`} onClose={() => (!reconcileLoading ? setShowReconcile(false) : null)}>
+          <div style={{ color: 'var(--muted)', marginBottom: '0.75rem' }}>
+            Restore a provider-side card in local DB without creating it again at provider.
+          </div>
+          <DetailGrid
+            rows={[
+              { label: 'Card holder ID', value: selected?.id },
+              { label: 'Holder internal ref', value: selected?.internalReference || '—' },
+              { label: 'Holder user', value: selected?.userName || selected?.userEmail || '—' }
+            ]}
+          />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem', marginTop: '0.75rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="reconcileInternalReference">Internal reference *</label>
+              <input
+                id="reconcileInternalReference"
+                value={reconcileDraft.internalReference}
+                onChange={(e) => setReconcileDraft((p) => ({ ...p, internalReference: e.target.value }))}
+                placeholder="CARD-LOCAL-001"
+              />
             </div>
-          )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="reconcileName">Card name *</label>
+              <input
+                id="reconcileName"
+                value={reconcileDraft.name}
+                onChange={(e) => setReconcileDraft((p) => ({ ...p, name: e.target.value }))}
+                placeholder="Virtual Dollar Card"
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="reconcileExternalReference">Provider card ID (external ref)</label>
+              <input
+                id="reconcileExternalReference"
+                value={reconcileDraft.externalReference}
+                onChange={(e) => setReconcileDraft((p) => ({ ...p, externalReference: e.target.value }))}
+                placeholder="bridge_card_id_if_known"
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="reconcileLast4">Last 4</label>
+              <input
+                id="reconcileLast4"
+                maxLength={4}
+                value={reconcileDraft.last4}
+                onChange={(e) => setReconcileDraft((p) => ({ ...p, last4: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
+                placeholder="1234"
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="reconcileStatus">Status *</label>
+              <select id="reconcileStatus" value={reconcileDraft.status} onChange={(e) => setReconcileDraft((p) => ({ ...p, status: e.target.value }))}>
+                {cardStatusOptions.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="reconcileMapping">Product/provider mapping *</label>
+              <select
+                id="reconcileMapping"
+                value={reconcileDraft.cardProductCardProviderId}
+                onChange={(e) => setReconcileDraft((p) => ({ ...p, cardProductCardProviderId: e.target.value }))}
+                disabled={mappingLoading}
+              >
+                <option value="">{mappingLoading ? 'Loading mappings…' : 'Select mapping'}</option>
+                {mappingOptions.map((mapping) => (
+                  <option key={mapping.id} value={mapping.id}>
+                    #{mapping.id} • product {mapping.cardProductId} • provider {mapping.cardProviderId}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <input
+                id="reconcileIssued"
+                type="checkbox"
+                checked={reconcileDraft.issued}
+                onChange={(e) => setReconcileDraft((p) => ({ ...p, issued: e.target.checked }))}
+              />
+              <label htmlFor="reconcileIssued">Issued</label>
+            </div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.75rem' }}>
+            <button type="button" onClick={() => setShowReconcile(false)} className="btn-neutral" disabled={reconcileLoading}>
+              Cancel
+            </button>
+            <button type="button" onClick={handleReconcile} className="btn-primary" disabled={reconcileLoading}>
+              {reconcileLoading ? 'Reconciling…' : 'Reconcile card'}
+            </button>
+          </div>
         </Modal>
       )}
 
