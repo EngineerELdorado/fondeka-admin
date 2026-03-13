@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const emptyState = { internalReference: '', externalReference: '', accountId: '', verified: false, metaData: '' };
 const emptyFilters = { accountReference: '', email: '', phoneNumber: '' };
-const cardStatusOptions = ['IN_PREPARATION', 'ACTIVE', 'FAILED', 'BLOCKED_BY_USER', 'BLOCKED_BY_ADMIN', 'DELETED_BY_PROVIDER'];
+const cardStatusOptions = ['IN_PREPARATION', 'ACTIVE', 'FAILED', 'BLOCKED_BY_USER', 'BLOCKED_BY_ADMIN', 'BLOCKED_BY_PROVIDER'];
 const emptyReconcileDraft = {
   internalReference: '',
   name: '',
