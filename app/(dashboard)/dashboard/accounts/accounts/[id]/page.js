@@ -403,6 +403,11 @@ const [debitAction, setDebitAction] = useState('MANUAL_ADJUSTMENT');
 const [debitError, setDebitError] = useState(null);
 const [debitLoading, setDebitLoading] = useState(false);
 const [debitResult, setDebitResult] = useState(null);
+const [showBlacklistModal, setShowBlacklistModal] = useState(false);
+const [showUnblacklistModal, setShowUnblacklistModal] = useState(false);
+const [blacklistReason, setBlacklistReason] = useState('');
+const [blacklistError, setBlacklistError] = useState(null);
+const [blacklistLoading, setBlacklistLoading] = useState(false);
 const [showCryptoCredit, setShowCryptoCredit] = useState(false);
 const [cryptoCreditWallet, setCryptoCreditWallet] = useState(null);
 const [cryptoCreditAmount, setCryptoCreditAmount] = useState('');
@@ -791,20 +796,52 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
     setShowNotification(true);
   };
 
-  const removeAccountFromBlacklist = () => {
+  const submitBlacklist = async () => {
     if (resolvedAccountId === null || resolvedAccountId === undefined) {
-      pushToast({ tone: 'error', message: 'No account loaded' });
+      setBlacklistError('No account loaded');
       return;
     }
-    openConfirm({
-      title: 'Remove from blacklist',
-      message: `Remove account ${accountView?.accountReference || resolvedAccountId} from blacklist and restore access?`,
-      onConfirm: async () => {
-        await api.accounts.removeFromBlacklist(resolvedAccountId);
-        await loadAccount();
-        pushToast({ tone: 'success', message: 'Removed from blacklist. Access restored.' });
-      }
-    });
+    const reason = String(blacklistReason || '').trim();
+    if (!reason) {
+      setBlacklistError('Reason is required');
+      return;
+    }
+    setBlacklistLoading(true);
+    setBlacklistError(null);
+    try {
+      await api.accounts.blacklist(resolvedAccountId, { reason });
+      setShowBlacklistModal(false);
+      setBlacklistReason('');
+      await loadAccount();
+      pushToast({ tone: 'success', message: 'Account blacklisted' });
+    } catch (err) {
+      const message = err?.message || 'Failed to blacklist account';
+      setBlacklistError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setBlacklistLoading(false);
+    }
+  };
+
+  const submitUnblacklist = async () => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) {
+      setBlacklistError('No account loaded');
+      return;
+    }
+    setBlacklistLoading(true);
+    setBlacklistError(null);
+    try {
+      await api.accounts.removeFromBlacklist(resolvedAccountId);
+      setShowUnblacklistModal(false);
+      await loadAccount();
+      pushToast({ tone: 'success', message: 'Removed from blacklist. Access restored.' });
+    } catch (err) {
+      const message = err?.message || 'Failed to remove from blacklist';
+      setBlacklistError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setBlacklistLoading(false);
+    }
   };
 
   const submitCardholderSync = async () => {
@@ -1980,9 +2017,28 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
           <button type="button" className="btn-danger" onClick={openDebit}>
             Debit wallet
           </button>
-          {accountView?.blacklisted && (
-            <button type="button" className="btn-neutral" onClick={removeAccountFromBlacklist}>
-              Remove from blacklist (restore access)
+          {accountView?.blacklisted ? (
+            <button
+              type="button"
+              className="btn-neutral"
+              onClick={() => {
+                setBlacklistError(null);
+                setShowUnblacklistModal(true);
+              }}
+            >
+              Remove from blacklist
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn-danger"
+              onClick={() => {
+                setBlacklistError(null);
+                setBlacklistReason('');
+                setShowBlacklistModal(true);
+              }}
+            >
+              Blacklist account
             </button>
           )}
         </div>
@@ -3609,6 +3665,53 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
               </button>
               <button type="button" className="btn-danger" onClick={submitDebit} disabled={debitLoading}>
                 {debitLoading ? 'Debiting…' : 'Debit wallet'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showBlacklistModal && (
+        <Modal title="Blacklist account" onClose={() => (!blacklistLoading ? setShowBlacklistModal(false) : null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ color: 'var(--muted)' }}>
+              Add <span style={{ fontWeight: 800 }}>{accountView?.username || accountView?.accountReference || `account ${resolvedAccountId}`}</span> to the blacklist.
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="blacklistReason">Reason (required)</label>
+              <input
+                id="blacklistReason"
+                value={blacklistReason}
+                onChange={(e) => setBlacklistReason(e.target.value)}
+                placeholder="e.g. Fraud investigation"
+              />
+            </div>
+            {blacklistError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{blacklistError}</div>}
+            <div className="modal-actions">
+              <button type="button" className="btn-neutral" onClick={() => setShowBlacklistModal(false)} disabled={blacklistLoading}>
+                Cancel
+              </button>
+              <button type="button" className="btn-danger" onClick={submitBlacklist} disabled={blacklistLoading}>
+                {blacklistLoading ? 'Blacklisting…' : 'Confirm blacklist'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showUnblacklistModal && (
+        <Modal title="Remove from blacklist" onClose={() => (!blacklistLoading ? setShowUnblacklistModal(false) : null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ color: 'var(--muted)' }}>
+              Remove <span style={{ fontWeight: 800 }}>{accountView?.accountReference || `account ${resolvedAccountId}`}</span> from blacklist and restore access?
+            </div>
+            {blacklistError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{blacklistError}</div>}
+            <div className="modal-actions">
+              <button type="button" className="btn-neutral" onClick={() => setShowUnblacklistModal(false)} disabled={blacklistLoading}>
+                Cancel
+              </button>
+              <button type="button" className="btn-primary" onClick={submitUnblacklist} disabled={blacklistLoading}>
+                {blacklistLoading ? 'Updating…' : 'Remove from blacklist'}
               </button>
             </div>
           </div>
