@@ -175,9 +175,14 @@ export default function BlacklistPage() {
           <div style={{ fontWeight: 800, fontSize: '20px' }}>Blacklist</div>
           <div style={{ color: 'var(--muted)' }}>Review blocked accounts and remove blacklist entries by entry ID.</div>
         </div>
-        <Link href="/dashboard/accounts/accounts" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
-          ← Accounts
-        </Link>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <button type="button" className="btn-neutral" onClick={fetchRows} disabled={loading}>
+            {loading ? 'Refreshing…' : 'Refresh'}
+          </button>
+          <Link href="/dashboard/accounts/accounts" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
+            ← Accounts
+          </Link>
+        </div>
       </div>
 
       <div className="card" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
