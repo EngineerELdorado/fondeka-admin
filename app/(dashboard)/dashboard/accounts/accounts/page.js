@@ -212,7 +212,7 @@ export default function AccountsListPage() {
 
   const renderBlacklistBadge = (flag) => {
     if (flag === null || flag === undefined) return '—';
-    const tone = flag ? { bg: '#FEF2F2', fg: '#B91C1C', label: 'Blacklisted' } : { bg: '#E5E7EB', fg: '#374151', label: 'No' };
+    const tone = flag ? { bg: '#FEF2F2', fg: '#B91C1C', label: 'Blacklisted' } : { bg: '#E5E7EB', fg: '#374151', label: 'Not blacklisted' };
     return (
       <span
         style={{
@@ -379,6 +379,8 @@ export default function AccountsListPage() {
     return chips;
   }, [appliedFilters]);
 
+  const blacklistedCount = useMemo(() => rows.filter((row) => Boolean(row?.blacklisted)).length, [rows]);
+
   const columns = useMemo(
     () => [
       { key: 'id', label: 'ID' },
@@ -389,6 +391,7 @@ export default function AccountsListPage() {
       { key: 'balance', label: 'Balance' },
       { key: 'eligibleLoanAmount', label: 'Eligible loan' },
       { key: 'createdAt', label: 'Created at', render: (row) => formatDateTime(row.createdAt) },
+      { key: 'blacklisted', label: 'Blacklist status', render: (row) => renderBlacklistBadge(row.blacklisted) },
       {
         key: 'actions',
         label: 'Actions',
@@ -406,6 +409,7 @@ export default function AccountsListPage() {
                   setShowUnblacklistModal(true);
                 }}
                 className="btn-neutral"
+                title="Remove account from blacklist and restore access"
               >
                 Remove from blacklist
               </button>
@@ -419,8 +423,9 @@ export default function AccountsListPage() {
                   setShowBlacklistModal(true);
                 }}
                 className="btn-danger"
+                title="Add account to blacklist"
               >
-                Blacklist
+                Blacklist account
               </button>
             )}
           </div>
@@ -630,7 +635,7 @@ export default function AccountsListPage() {
     setBlacklistLoading(true);
     try {
       await api.accounts.removeFromBlacklist(selected.id);
-      pushToast({ tone: 'success', message: 'Removed from blacklist' });
+      pushToast({ tone: 'success', message: 'Removed from blacklist. Access restored.' });
       setShowUnblacklistModal(false);
       const updated = await refreshSelectedRow();
       if (showDetail && (updated?.id || selected?.id)) {
@@ -1056,6 +1061,11 @@ export default function AccountsListPage() {
 
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
+      <div className="card" style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        <Badge>Visible rows: {rows.length}</Badge>
+        <Badge>Blacklisted (visible): {blacklistedCount}</Badge>
+        <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Use the `Blacklisted` filter to list only blocked or non-blocked accounts.</span>
+      </div>
 
       <DataTable
         columns={columns}
@@ -1093,30 +1103,31 @@ export default function AccountsListPage() {
               >
                 Debit wallet
               </button>
-              {accountView?.blacklisted ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setBlacklistError(null);
-                    setShowUnblacklistModal(true);
-                  }}
-                  className="btn-neutral"
-                >
-                  Remove from blacklist
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setBlacklistError(null);
-                    setBlacklistReason('');
-                    setShowBlacklistModal(true);
-                  }}
-                  className="btn-danger"
-                >
-                  Blacklist
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setBlacklistError(null);
+                  setBlacklistReason('');
+                  setShowBlacklistModal(true);
+                }}
+                className="btn-danger"
+                disabled={Boolean(accountView?.blacklisted)}
+                title={accountView?.blacklisted ? 'Account is already blacklisted' : 'Add account to blacklist'}
+              >
+                Blacklist account
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setBlacklistError(null);
+                  setShowUnblacklistModal(true);
+                }}
+                className="btn-neutral"
+                disabled={!accountView?.blacklisted}
+                title={accountView?.blacklisted ? 'Remove account from blacklist and restore access' : 'Account is not blacklisted'}
+              >
+                Remove from blacklist
+              </button>
               <button
                 type="button"
                 onClick={() => loadAccountDetail({ accountId: selected?.id, accountReference: selected?.accountReference })}
@@ -1513,7 +1524,7 @@ export default function AccountsListPage() {
       )}
 
       {showUnblacklistModal && (
-        <Modal title="Remove from blacklist" onClose={() => (!blacklistLoading ? setShowUnblacklistModal(false) : null)}>
+        <Modal title="Remove from blacklist (restore access)" onClose={() => (!blacklistLoading ? setShowUnblacklistModal(false) : null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ fontWeight: 700 }}>
               Allow account <span style={{ fontWeight: 900 }}>{selected?.accountReference || selected?.id}</span> to transact again?
@@ -1525,7 +1536,7 @@ export default function AccountsListPage() {
                 Cancel
               </button>
               <button type="button" className="btn-primary" disabled={blacklistLoading} onClick={submitUnblacklist}>
-                {blacklistLoading ? 'Updating…' : 'Remove from blacklist'}
+                {blacklistLoading ? 'Updating…' : 'Remove from blacklist (restore access)'}
               </button>
             </div>
           </div>

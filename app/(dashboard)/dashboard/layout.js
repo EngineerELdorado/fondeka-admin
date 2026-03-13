@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 const navItems = [
   { href: '/dashboard', label: 'Overview' },
   { href: '/dashboard/accounts/accounts', label: 'Accounts / Users' },
+  { href: '/dashboard/blacklist', label: 'Blacklist' },
   { href: '/dashboard/payments', label: 'Payment Methods' },
   // Products cluster
   { href: '/dashboard/loans', label: 'Loans & Products' },

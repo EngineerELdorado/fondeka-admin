@@ -18,6 +18,8 @@ const WARNINGS = {
 const ACTION_LIMIT_PREFIX = 'limit.check.action.';
 const ACTION_LIMIT_WARNING = 'Disabling limit checks may allow transactions above regulatory or internal limits.';
 const ACTION_LIMIT_EXPLANATION = 'If disabled, amount limits (KYC caps or custom limits) are not enforced for this action.';
+const CRYPTO_SPREAD_GLOBAL_KEY = 'crypto.spread.enabled';
+const CRYPTO_SPREAD_ACTION_PREFIX = 'crypto.spread.action.';
 
 const ACTION_LABELS = {
   fund_wallet: 'Wallet Deposit',
@@ -105,6 +107,13 @@ const formatActionLabel = (key) => {
 };
 
 const formatDisplayLabel = (key) => (isActionLimitKey(key) ? formatActionLabel(key) : formatLabel(key));
+const isCryptoSpreadActionKey = (key) => String(key || '').startsWith(CRYPTO_SPREAD_ACTION_PREFIX);
+const actionFromCryptoSpreadKey = (key) => String(key || '').replace(CRYPTO_SPREAD_ACTION_PREFIX, '');
+const formatCryptoSpreadActionLabel = (key) => {
+  const action = actionFromCryptoSpreadKey(key);
+  return ACTION_LABELS[action] || formatKeyPart(action);
+};
+const normalizeActionToken = (value) => String(value || '').trim().toLowerCase().replace(/\s+/g, '_');
 
 const normalizeOverride = (entry) => {
   if (!entry || typeof entry !== 'object') return null;
@@ -147,6 +156,8 @@ export default function FeatureFlagsPage() {
   const [overrideEmail, setOverrideEmail] = useState('');
   const [overrideEmailEnabled, setOverrideEmailEnabled] = useState(true);
   const [overrides, setOverrides] = useState([]);
+  const [spreadActionDraft, setSpreadActionDraft] = useState('');
+  const [spreadActionEnabled, setSpreadActionEnabled] = useState(true);
 
   const cryptoCollectionGateFlag = useMemo(
     () => flags.find((flag) => String(flag.key) === CRYPTO_COLLECTION_GATE_KEY),
@@ -158,12 +169,27 @@ export default function FeatureFlagsPage() {
     [flags]
   );
 
+  const cryptoSpreadGlobalFlag = useMemo(
+    () => flags.find((flag) => String(flag.key) === CRYPTO_SPREAD_GLOBAL_KEY),
+    [flags]
+  );
+
+  const cryptoSpreadActionFlags = useMemo(
+    () =>
+      flags
+        .filter((flag) => isCryptoSpreadActionKey(flag.key))
+        .sort((a, b) => actionFromCryptoSpreadKey(a.key).localeCompare(actionFromCryptoSpreadKey(b.key))),
+    [flags]
+  );
+
   const otherFlags = useMemo(
     () =>
       flags.filter(
         (flag) =>
           String(flag.key) !== CRYPTO_COLLECTION_GATE_KEY &&
-          String(flag.key) !== CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY
+          String(flag.key) !== CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY &&
+          String(flag.key) !== CRYPTO_SPREAD_GLOBAL_KEY &&
+          !isCryptoSpreadActionKey(flag.key)
       ),
     [flags]
   );
@@ -209,9 +235,11 @@ export default function FeatureFlagsPage() {
       const list = Array.isArray(res) ? res : [];
       const hasCryptoCollectionGate = list.some((flag) => String(flag?.key) === CRYPTO_COLLECTION_GATE_KEY);
       const hasPublicEndpointsFlag = list.some((flag) => String(flag?.key) === CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY);
+      const hasCryptoSpreadGlobal = list.some((flag) => String(flag?.key) === CRYPTO_SPREAD_GLOBAL_KEY);
       const defaults = [];
       if (!hasCryptoCollectionGate) defaults.push({ key: CRYPTO_COLLECTION_GATE_KEY, enabled: true, isDefault: true });
       if (!hasPublicEndpointsFlag) defaults.push({ key: CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY, enabled: true, isDefault: true });
+      if (!hasCryptoSpreadGlobal) defaults.push({ key: CRYPTO_SPREAD_GLOBAL_KEY, enabled: true, isDefault: true });
       setFlags([...defaults, ...list]);
     } catch (err) {
       setError(err.message);
@@ -320,6 +348,36 @@ export default function FeatureFlagsPage() {
       setDraftEnabled(true);
     } catch (err) {
       setError(err.message);
+    } finally {
+      setSavingKey('');
+    }
+  };
+
+  const handleSaveCryptoSpreadAction = async () => {
+    const action = normalizeActionToken(spreadActionDraft);
+    if (!action) {
+      setError('Enter an action, for example fund_card.');
+      return;
+    }
+    const key = `${CRYPTO_SPREAD_ACTION_PREFIX}${action}`;
+    if (savingKey) return;
+    setSavingKey(key);
+    setError(null);
+    setInfo(null);
+    try {
+      const res = await api.featureFlags.update(key, { enabled: spreadActionEnabled });
+      setFlags((prev) => {
+        const exists = prev.some((flag) => flag.key === key);
+        if (exists) {
+          return prev.map((flag) => (flag.key === key ? { ...flag, enabled: Boolean(res?.enabled) } : flag));
+        }
+        return [{ key, enabled: Boolean(res?.enabled) }, ...prev];
+      });
+      setInfo(`${formatCryptoSpreadActionLabel(key)} spread ${res?.enabled ? 'enabled' : 'disabled'}.`);
+      setSpreadActionDraft('');
+      setSpreadActionEnabled(true);
+    } catch (err) {
+      setError(err?.message || 'Failed to save crypto spread action flag.');
     } finally {
       setSavingKey('');
     }
@@ -572,6 +630,130 @@ export default function FeatureFlagsPage() {
           </div>
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
             Controls crypto collection behavior for payment-request pay links and other public endpoints.
+          </div>
+        </div>
+      )}
+
+      {cryptoSpreadGlobalFlag && (
+        <div className="card" style={{ maxWidth: '720px', display: 'grid', gap: '0.75rem', borderColor: '#0ea5e9' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontWeight: 800 }}>Crypto spread</div>
+              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{CRYPTO_SPREAD_GLOBAL_KEY}</div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <button
+                type="button"
+                onClick={() => openOverridesDialog(CRYPTO_SPREAD_GLOBAL_KEY)}
+                disabled={savingKey === CRYPTO_SPREAD_GLOBAL_KEY}
+                style={{
+                  border: `1px solid var(--border)`,
+                  background: 'var(--surface)',
+                  padding: '0.45rem 0.7rem',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  color: 'var(--text)'
+                }}
+              >
+                Manage Overrides
+              </button>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(cryptoSpreadGlobalFlag.enabled)}
+                  onChange={() => handleToggle(CRYPTO_SPREAD_GLOBAL_KEY)}
+                  disabled={loading || savingKey === CRYPTO_SPREAD_GLOBAL_KEY}
+                />
+                {cryptoSpreadGlobalFlag.enabled ? 'ON · enabled globally' : 'OFF · disabled globally'}
+              </label>
+            </div>
+          </div>
+          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+            Resolution order: action override → action global → global override → global `crypto.spread.enabled` (default true).
+          </div>
+
+          <div className="card" style={{ display: 'grid', gap: '0.65rem' }}>
+            <div style={{ fontWeight: 700 }}>Create or update action key</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: '0.65rem', alignItems: 'end' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="spreadActionDraft">Action (lowercase enum)</label>
+                <input
+                  id="spreadActionDraft"
+                  placeholder="fund_card"
+                  value={spreadActionDraft}
+                  onChange={(e) => setSpreadActionDraft(e.target.value)}
+                />
+              </div>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                <input type="checkbox" checked={spreadActionEnabled} onChange={(e) => setSpreadActionEnabled(e.target.checked)} />
+                {spreadActionEnabled ? 'Enabled' : 'Disabled'}
+              </label>
+              <button
+                type="button"
+                onClick={handleSaveCryptoSpreadAction}
+                disabled={savingKey === `${CRYPTO_SPREAD_ACTION_PREFIX}${normalizeActionToken(spreadActionDraft)}`}
+                style={{
+                  border: `1px solid var(--border)`,
+                  background: 'var(--surface)',
+                  padding: '0.65rem 0.85rem',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  color: 'var(--text)',
+                  fontWeight: 600
+                }}
+              >
+                Save action
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gap: '0.7rem' }}>
+            <div style={{ fontWeight: 700 }}>Action spread flags</div>
+            {cryptoSpreadActionFlags.length === 0 && <div style={{ color: 'var(--muted)', fontSize: '13px' }}>No action keys yet.</div>}
+            {cryptoSpreadActionFlags.map((flag) => (
+              <div key={flag.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.6rem 0.7rem' }}>
+                <div>
+                  <div style={{ fontWeight: 700 }}>{formatCryptoSpreadActionLabel(flag.key)}</div>
+                  <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{flag.key}</div>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => openOverridesDialog(flag.key)}
+                    disabled={savingKey === flag.key}
+                    style={{
+                      border: `1px solid var(--border)`,
+                      background: 'var(--surface)',
+                      padding: '0.45rem 0.7rem',
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      color: 'var(--text)'
+                    }}
+                  >
+                    Overrides
+                  </button>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                    <input type="checkbox" checked={Boolean(flag.enabled)} onChange={() => handleToggle(flag.key)} disabled={loading || savingKey === flag.key} />
+                    {flag.enabled ? 'Enabled' : 'Disabled'}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setDeleteConfirm({ key: flag.key })}
+                    disabled={savingKey === flag.key}
+                    style={{
+                      border: `1px solid var(--border)`,
+                      background: 'var(--surface)',
+                      padding: '0.45rem 0.7rem',
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      color: 'var(--text)'
+                    }}
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

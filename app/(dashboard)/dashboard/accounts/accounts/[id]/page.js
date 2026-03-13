@@ -87,6 +87,23 @@ const Badge = ({ children }) => (
   </span>
 );
 
+const BlacklistBadge = ({ blacklisted }) => (
+  <span
+    style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      padding: '0.2rem 0.5rem',
+      borderRadius: '999px',
+      fontSize: '12px',
+      fontWeight: 700,
+      background: blacklisted ? '#FEF2F2' : '#E5E7EB',
+      color: blacklisted ? '#B91C1C' : '#374151'
+    }}
+  >
+    {blacklisted ? 'Blacklisted' : 'Not blacklisted'}
+  </span>
+);
+
 const formatDateTime = (value) => {
   if (!value) return '—';
   const date = new Date(value);
@@ -772,6 +789,22 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
     setNotificationError(null);
     setNotificationResult(null);
     setShowNotification(true);
+  };
+
+  const removeAccountFromBlacklist = () => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) {
+      pushToast({ tone: 'error', message: 'No account loaded' });
+      return;
+    }
+    openConfirm({
+      title: 'Remove from blacklist',
+      message: `Remove account ${accountView?.accountReference || resolvedAccountId} from blacklist and restore access?`,
+      onConfirm: async () => {
+        await api.accounts.removeFromBlacklist(resolvedAccountId);
+        await loadAccount();
+        pushToast({ tone: 'success', message: 'Removed from blacklist. Access restored.' });
+      }
+    });
   };
 
   const submitCardholderSync = async () => {
@@ -1926,6 +1959,9 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
               {(accountView?.country?.alpha2Code || accountView?.countryCode) && (
                 <Badge>Country: {accountView?.country?.alpha2Code || accountView.countryCode}</Badge>
               )}
+              {accountView?.blacklisted !== undefined && accountView?.blacklisted !== null && (
+                <BlacklistBadge blacklisted={Boolean(accountView?.blacklisted)} />
+              )}
             </div>
           </div>
         <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -1944,6 +1980,11 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
           <button type="button" className="btn-danger" onClick={openDebit}>
             Debit wallet
           </button>
+          {accountView?.blacklisted && (
+            <button type="button" className="btn-neutral" onClick={removeAccountFromBlacklist}>
+              Remove from blacklist (restore access)
+            </button>
+          )}
         </div>
       </div>
 
@@ -1959,6 +2000,7 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
           { label: 'User', value: accountView?.username },
           { label: 'Phone', value: accountView?.phoneNumber || accountView?.phone },
           { label: 'KYC status', value: accountView?.kycStatus },
+          { label: 'Blacklist', value: <BlacklistBadge blacklisted={Boolean(accountView?.blacklisted)} /> },
           { label: 'Balance', value: accountView?.balance },
           { label: 'Eligible loan', value: accountView?.eligibleLoanAmount },
           {
