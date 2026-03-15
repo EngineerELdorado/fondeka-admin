@@ -243,10 +243,7 @@ const formatDateTimeLocalInput = (value) => {
 
 const normalizeErrorMessage = (err, action) => {
   if (err?.status === 400) {
-    if (action === 'cancel') {
-      return 'Cancel is allowed only for UNKNOWN, MANUAL_INTERVENTION_REQUIRED, PROCESSING, or INITIATED transactions.';
-    }
-    return 'Only UNKNOWN, MANUAL_INTERVENTION_REQUIRED, EXECUTING, or PROCESSING transactions can be manually reconciled.';
+    return 'Manual reconciliation is available for non-terminal statuses only (not COMPLETED, FAILED, or CANCELED).';
   }
   if (err?.status === 404) return 'Transaction not found.';
   return 'Something went wrong. Please retry.';
@@ -361,9 +358,10 @@ export default function TransactionsPage() {
   const [manualReconciliationSubmitLoading, setManualReconciliationSubmitLoading] = useState(false);
   const webhookEvents = Array.isArray(selected?.webhookEvents) ? selected.webhookEvents : [];
   const normalizedStatus = selected?.status?.toUpperCase?.() || '';
+  const isTerminalForManualReconciliation = ['COMPLETED', 'FAILED', 'CANCELED', 'CANCELLED'].includes(normalizedStatus);
   const showErrorMessage = ['FAILED', 'CANCELED', 'CANCELLED'].includes(normalizedStatus);
-  const canCompleteOrFailSelected = ['UNKNOWN', 'MANUAL_INTERVENTION_REQUIRED', 'EXECUTING', 'PROCESSING'].includes(normalizedStatus);
-  const canCancelSelected = ['UNKNOWN', 'MANUAL_INTERVENTION_REQUIRED', 'PROCESSING', 'INITIATED'].includes(normalizedStatus);
+  const canCompleteOrFailSelected = !isTerminalForManualReconciliation;
+  const canCancelSelected = !isTerminalForManualReconciliation;
   const receiptPayloadData = receipt?.payload && typeof receipt.payload === 'object' ? receipt.payload : null;
   const bankRefValue = receiptPayloadData?.bankRef || selected?.externalReference || null;
   const latestAdminMessage = pickLatestAdminMessage(selected);
@@ -988,10 +986,7 @@ export default function TransactionsPage() {
         ? canCancelSelected
         : canCompleteOrFailSelected;
     if (!eligible) {
-      const message =
-        action === 'cancel'
-          ? 'Cancel is allowed only for UNKNOWN, MANUAL_INTERVENTION_REQUIRED, PROCESSING, or INITIATED transactions.'
-          : 'Only UNKNOWN, MANUAL_INTERVENTION_REQUIRED, EXECUTING, or PROCESSING transactions can be manually reconciled.';
+      const message = 'Manual reconciliation is available for non-terminal statuses only (not COMPLETED, FAILED, or CANCELED).';
       setManualReconciliationSubmitError(message);
       return;
     }
@@ -1657,7 +1652,7 @@ export default function TransactionsPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
                   <div style={{ fontWeight: 800 }}>Manual reconciliation</div>
                   <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-                    Complete/Fail: UNKNOWN, MANUAL_INTERVENTION_REQUIRED, EXECUTING, PROCESSING. Cancel: UNKNOWN, MANUAL_INTERVENTION_REQUIRED, PROCESSING, INITIATED.
+                    Available for all non-terminal statuses. Not available for COMPLETED, FAILED, or CANCELED transactions.
                   </div>
                 </div>
                 {(canCompleteOrFailSelected || canCancelSelected) && (

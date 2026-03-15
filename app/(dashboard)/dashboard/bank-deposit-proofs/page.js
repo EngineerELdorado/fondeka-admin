@@ -9,10 +9,12 @@ const statusOptions = ['CREDITED', 'PENDING', 'REJECTED'];
 
 const emptyState = {
   accountId: '',
+  accountEmail: '',
   paymentMethodId: '',
   bankRef: '',
   amount: '',
   currency: '',
+  feePercentage: '',
   bankName: '',
   note: '',
   creditTarget: 'WALLET',
@@ -22,18 +24,25 @@ const emptyState = {
 
 const normalizeEnumKey = (value) => String(value || '').trim().replace(/\s+/g, '_').toUpperCase();
 
-const toPayload = (state) => ({
-  accountId: Number(state.accountId),
-  paymentMethodId: Number(state.paymentMethodId),
-  bankRef: state.bankRef.trim(),
-  amount: Number(state.amount),
-  currency: state.currency.trim(),
-  ...(state.creditTarget ? { creditTarget: state.creditTarget } : {}),
-  ...(state.creditTarget === 'CRYPTO' && state.cryptoProductId ? { cryptoProductId: Number(state.cryptoProductId) } : {}),
-  ...(state.creditTarget === 'CRYPTO' && state.cryptoNetworkId ? { cryptoNetworkId: Number(state.cryptoNetworkId) } : {}),
-  ...(state.bankName.trim() ? { bankName: state.bankName.trim() } : {}),
-  ...(state.note.trim() ? { note: state.note.trim() } : {})
-});
+const toPayload = (state) => {
+  const accountIdNum = Number(state.accountId);
+  const accountEmail = state.accountEmail.trim();
+  const feePercentageText = String(state.feePercentage || '').trim();
+  return {
+    ...(Number.isInteger(accountIdNum) && accountIdNum > 0 ? { accountId: accountIdNum } : {}),
+    ...(accountEmail ? { accountEmail } : {}),
+    paymentMethodId: Number(state.paymentMethodId),
+    bankRef: state.bankRef.trim(),
+    amount: Number(state.amount),
+    currency: state.currency.trim(),
+    ...(feePercentageText !== '' ? { feePercentage: Number(feePercentageText) } : {}),
+    ...(state.creditTarget ? { creditTarget: state.creditTarget } : {}),
+    ...(state.creditTarget === 'CRYPTO' && state.cryptoProductId ? { cryptoProductId: Number(state.cryptoProductId) } : {}),
+    ...(state.creditTarget === 'CRYPTO' && state.cryptoNetworkId ? { cryptoNetworkId: Number(state.cryptoNetworkId) } : {}),
+    ...(state.bankName.trim() ? { bankName: state.bankName.trim() } : {}),
+    ...(state.note.trim() ? { note: state.note.trim() } : {})
+  };
+};
 
 const Modal = ({ title, onClose, children }) => (
   <div className="modal-backdrop">
@@ -246,12 +255,19 @@ export default function BankDepositProofsPage() {
   };
 
   const validateDraft = () => {
-    if (!draft.accountId) return 'Account ID is required.';
+    const accountIdNum = Number(draft.accountId);
+    const accountEmail = draft.accountEmail.trim();
+    if ((!Number.isInteger(accountIdNum) || accountIdNum <= 0) && !accountEmail) return 'Account required (id or email).';
+    if (accountEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(accountEmail)) return 'Account email is invalid.';
     if (!draft.paymentMethodId) return 'Payment method ID is required.';
     if (!draft.bankRef.trim()) return 'Bank ref is required.';
     const amount = Number(draft.amount);
     if (!Number.isFinite(amount) || amount <= 0) return 'Amount must be greater than zero.';
     if (!draft.currency.trim()) return 'Currency is required.';
+    if (String(draft.feePercentage || '').trim() !== '') {
+      const fee = Number(draft.feePercentage);
+      if (!Number.isFinite(fee) || fee < 0 || fee > 100) return 'Fee percentage invalid (must be 0..100).';
+    }
     if (draft.creditTarget === 'CRYPTO') {
       if (!draft.cryptoProductId) return 'Crypto product is required.';
       if (!draft.cryptoNetworkId) return 'Crypto network is required.';
@@ -317,6 +333,17 @@ export default function BankDepositProofsPage() {
         <input id="accountId" type="number" value={draft.accountId} onChange={(e) => setDraft((p) => ({ ...p, accountId: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="accountEmail">Account email</label>
+        <input
+          id="accountEmail"
+          type="email"
+          value={draft.accountEmail}
+          onChange={(e) => setDraft((p) => ({ ...p, accountEmail: e.target.value }))}
+          placeholder="user@example.com"
+        />
+        <span style={{ color: 'var(--muted)', fontSize: '12px' }}>Provide either account ID or account email.</span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="paymentMethodId">Payment method</label>
         <select id="paymentMethodId" value={draft.paymentMethodId} onChange={(e) => setDraft((p) => ({ ...p, paymentMethodId: e.target.value }))}>
           <option value="">Select BANK method</option>
@@ -339,6 +366,19 @@ export default function BankDepositProofsPage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="amount">Amount</label>
         <input id="amount" type="number" step="0.01" value={draft.amount} onChange={(e) => setDraft((p) => ({ ...p, amount: e.target.value }))} />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="feePercentage">Fee % (optional)</label>
+        <input
+          id="feePercentage"
+          type="number"
+          min="0"
+          max="100"
+          step="0.01"
+          value={draft.feePercentage}
+          onChange={(e) => setDraft((p) => ({ ...p, feePercentage: e.target.value }))}
+          placeholder="5"
+        />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="currency">Currency</label>
@@ -549,9 +589,13 @@ export default function BankDepositProofsPage() {
             rows={[
               { label: 'Proof ID', value: selected?.id },
               { label: 'Account ID', value: selected?.accountId },
+              { label: 'Account email', value: selected?.accountEmail || selected?.email || '—' },
               { label: 'Transaction ID', value: selected?.transactionId || '—' },
               { label: 'Bank ref', value: selected?.bankRef },
               { label: 'Amount', value: `${selected?.amount ?? '—'} ${selected?.currency || ''}`.trim() },
+              { label: 'Fee %', value: selected?.feePercentage ?? '—' },
+              { label: 'Fee amount', value: selected?.feeAmount ?? '—' },
+              { label: 'Net amount', value: selected?.netAmount ?? '—' },
               { label: 'Bank name', value: selected?.bankName || '—' },
               {
                 label: 'Proof link',
