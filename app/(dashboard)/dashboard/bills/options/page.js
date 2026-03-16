@@ -26,6 +26,20 @@ const DetailGrid = ({ rows }) => (
   </div>
 );
 
+const formatCodes = (row) => {
+  const optionCode = row?.code || row?.optionCode;
+  const productCode = row?.billProductCode || row?.productCode;
+  const providerCode = row?.billProviderCode || row?.providerCode;
+  const externalReference = row?.externalReference;
+  const parts = [
+    optionCode ? `Option: ${optionCode}` : null,
+    productCode ? `Product: ${productCode}` : null,
+    providerCode ? `Provider: ${providerCode}` : null,
+    !optionCode && !productCode && !providerCode && externalReference ? `External: ${externalReference}` : null
+  ].filter(Boolean);
+  return parts.length ? parts.join(' • ') : '—';
+};
+
 const toPayload = (state) => ({
   billProductBillProviderId: Number(state.billProductBillProviderId) || 0,
   name: state.name,
@@ -101,6 +115,7 @@ export default function BillOptionsPage() {
     { key: 'id', label: 'ID' },
     { key: 'name', label: 'Name' },
     { key: 'displayName', label: 'Display' },
+    { key: 'codes', label: 'Codes', render: (row) => formatCodes(row) },
     { key: 'price', label: 'Price', render: (row) => `${row.price ?? ''} ${row.currency ?? ''}`.trim() },
     { key: 'ourPriceInUsd', label: 'Our price (USD)', render: (row) => (row.ourPriceInUsd ? `${row.ourPriceInUsd} $` : '—') },
     {

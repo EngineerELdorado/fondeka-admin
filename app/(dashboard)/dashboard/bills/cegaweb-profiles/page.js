@@ -11,6 +11,7 @@ const emptyState = {
   password: '',
   distributorNumber: '',
   codePays: '',
+  localCurrencyPerUsd: '',
   active: true
 };
 
@@ -72,11 +73,12 @@ export default function CegawebProfilesPage() {
     fetchRows();
   }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const columns = useMemo(() => [
+  const columns = [
     { key: 'profileKey', label: 'Profile key' },
     { key: 'username', label: 'Username' },
     { key: 'distributorNumber', label: 'Distributor #' },
     { key: 'codePays', label: 'Code pays' },
+    { key: 'localCurrencyPerUsd', label: 'Local/1 USD', render: (row) => (row.localCurrencyPerUsd ?? '—') },
     { key: 'active', label: 'Active', render: (row) => (row.active ? 'Yes' : 'No') },
     { key: 'createdAt', label: 'Created' },
     {
@@ -91,7 +93,7 @@ export default function CegawebProfilesPage() {
         </div>
       )
     }
-  ], []);
+  ];
 
   const openCreate = () => {
     setDraft(emptyState);
@@ -108,6 +110,7 @@ export default function CegawebProfilesPage() {
       password: '',
       distributorNumber: row.distributorNumber ?? '',
       codePays: row.codePays ?? '',
+      localCurrencyPerUsd: row.localCurrencyPerUsd ?? '',
       active: Boolean(row.active)
     });
     setShowEdit(true);
@@ -128,6 +131,10 @@ export default function CegawebProfilesPage() {
     if (!isEdit && !draft.password.trim()) return 'Password is required for new profiles.';
     if (!draft.distributorNumber.toString().trim()) return 'Distributor number is required.';
     if (!draft.codePays.toString().trim()) return 'Code pays is required.';
+    if (String(draft.localCurrencyPerUsd).trim()) {
+      const rate = Number(draft.localCurrencyPerUsd);
+      if (!Number.isFinite(rate) || rate <= 0) return 'Local currency per USD must be greater than zero.';
+    }
 
     const existingKey = rows.find((row) => row.profileKey === draft.profileKey.trim());
     if (existingKey && (!isEdit || existingKey.id !== selected?.id)) {
@@ -143,6 +150,7 @@ export default function CegawebProfilesPage() {
       username: draft.username.trim(),
       distributorNumber: draft.distributorNumber,
       codePays: draft.codePays,
+      ...(String(draft.localCurrencyPerUsd).trim() ? { localCurrencyPerUsd: Number(draft.localCurrencyPerUsd) } : {}),
       active: Boolean(draft.active)
     };
     if (includePassword) {
@@ -214,6 +222,7 @@ export default function CegawebProfilesPage() {
         username: row.username,
         distributorNumber: row.distributorNumber,
         codePays: row.codePays,
+        ...(row?.localCurrencyPerUsd !== null && row?.localCurrencyPerUsd !== undefined ? { localCurrencyPerUsd: row.localCurrencyPerUsd } : {}),
         active: !row.active
       });
       setInfo(`${row.active ? 'Disabled' : 'Enabled'} ${row.profileKey}.`);
@@ -266,6 +275,18 @@ export default function CegawebProfilesPage() {
           id="codePays"
           value={draft.codePays}
           onChange={(e) => setDraft((p) => ({ ...p, codePays: e.target.value }))}
+        />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="localCurrencyPerUsd">Local currency per USD</label>
+        <input
+          id="localCurrencyPerUsd"
+          type="number"
+          min="0"
+          step="0.000001"
+          value={draft.localCurrencyPerUsd}
+          onChange={(e) => setDraft((p) => ({ ...p, localCurrencyPerUsd: e.target.value }))}
+          placeholder="2450"
         />
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -351,6 +372,7 @@ export default function CegawebProfilesPage() {
               { label: 'Username', value: selected?.username },
               { label: 'Distributor #', value: selected?.distributorNumber },
               { label: 'Code pays', value: selected?.codePays },
+              { label: 'Local currency per USD', value: selected?.localCurrencyPerUsd ?? '—' },
               { label: 'Active', value: selected?.active ? 'Yes' : 'No' },
               { label: 'Created', value: selected?.createdAt },
               { label: 'Updated', value: selected?.updatedAt }
