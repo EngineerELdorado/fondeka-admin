@@ -44,6 +44,7 @@ const navItems = [
   { href: '/dashboard/referral-campaigns', label: 'Referral Campaigns' },
   { href: '/dashboard/notification-email-test', label: 'Email Tests' },
   { href: '/dashboard/provider-tokens', label: 'Provider Tokens' },
+  { href: '/dashboard/cron-jobs', label: 'Cron Jobs' },
   { href: '/dashboard/redis-caches', label: 'Redis Caches' },
   { href: '/dashboard/admins', label: 'Admins' },
   { href: '/dashboard/fees/fee-configs', label: 'Fee Configs' },
