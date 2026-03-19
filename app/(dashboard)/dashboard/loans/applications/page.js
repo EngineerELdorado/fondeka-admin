@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
@@ -141,6 +141,7 @@ const RepaymentBadge = ({ value }) => {
 
 export default function LoanApplicationsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
@@ -255,6 +256,23 @@ export default function LoanApplicationsPage() {
   useEffect(() => {
     fetchRows();
   }, [page, size, appliedFilters]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const next = { ...emptyFilters };
+    const allowedKeys = ['loanReference', 'transactionReference', 'accountReference', 'userEmailOrUsername', 'userPhoneNumber', 'applicationStatus'];
+    let hasAny = false;
+    allowedKeys.forEach((key) => {
+      const value = searchParams.get(key);
+      if (!value) return;
+      next[key] = value;
+      hasAny = true;
+    });
+    if (!hasAny) return;
+    setFilters((prev) => ({ ...prev, ...next }));
+    setAppliedFilters((prev) => ({ ...prev, ...next }));
+    setShowFilters(true);
+    setPage(0);
+  }, [searchParams]);
 
   const activeFilterChips = useMemo(() => {
     const chips = [];

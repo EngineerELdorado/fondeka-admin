@@ -12,6 +12,9 @@ const navItems = [
   { href: '/dashboard/payments', label: 'Payment Methods' },
   // Products cluster
   { href: '/dashboard/loans', label: 'Loans & Products' },
+  { href: '/dashboard/loans/direct-credit', label: 'Direct Loan Credit' },
+  { href: '/dashboard/loans/loan-policy-config', label: 'Loan Policy Config' },
+  { href: '/dashboard/loans/untrusted-borrowers', label: 'Untrusted Borrowers' },
   { href: '/dashboard/bills', label: 'Bills & Products' },
   { href: '/dashboard/bills/cegaweb-profiles', label: 'CegaWeb Profiles' },
   { href: '/dashboard/cards', label: 'Cards & Products' },

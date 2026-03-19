@@ -295,6 +295,7 @@ const [notificationDataModal, setNotificationDataModal] = useState(null);
   const [countryInfo, setCountryInfo] = useState(null);
 
   const [showPricingForm, setShowPricingForm] = useState(false);
+  const [pricingBaseLoanPercent, setPricingBaseLoanPercent] = useState('');
   const [pricingExtraLoan, setPricingExtraLoan] = useState('');
   const [pricingMaxCollection, setPricingMaxCollection] = useState('');
   const [pricingMaxPayout, setPricingMaxPayout] = useState('');
@@ -1241,6 +1242,7 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
     setShowPricingRemove(false);
     setShowPricingForm(true);
     const source = seed || customPricing || {};
+    setPricingBaseLoanPercent(source?.baseLoanEligibilityPercent !== undefined && source?.baseLoanEligibilityPercent !== null ? String(source.baseLoanEligibilityPercent) : '');
     setPricingExtraLoan(source?.extraLoanEligibilityAmount !== undefined && source?.extraLoanEligibilityAmount !== null ? String(source.extraLoanEligibilityAmount) : '0');
     setPricingMaxCollection(source?.maxCollectionAmount !== undefined && source?.maxCollectionAmount !== null ? String(source.maxCollectionAmount) : '');
     setPricingMaxPayout(source?.maxPayoutAmount !== undefined && source?.maxPayoutAmount !== null ? String(source.maxPayoutAmount) : '');
@@ -1267,6 +1269,12 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
       return num;
     };
 
+    const baseLoanPercent = parseOptional(pricingBaseLoanPercent);
+    if (Number.isNaN(baseLoanPercent)) {
+      setPricingError('Base loan eligibility percent must be a number (or empty)');
+      return;
+    }
+
     const maxCollection = parseOptional(pricingMaxCollection);
     if (Number.isNaN(maxCollection)) {
       setPricingError('Max collection amount must be a number (or empty)');
@@ -1281,6 +1289,7 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
     setPricingSaving(true);
     try {
       const payload = {
+        baseLoanEligibilityPercent: baseLoanPercent,
         extraLoanEligibilityAmount: extraLoan,
         maxCollectionAmount: maxCollection,
         maxPayoutAmount: maxPayout,
@@ -2324,6 +2333,13 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
           {!customPricingLoading && customPricing && (
             <DetailGrid
               rows={[
+                {
+                  label: 'Base loan eligibility %',
+                  value:
+                    customPricing.baseLoanEligibilityPercent !== null && customPricing.baseLoanEligibilityPercent !== undefined
+                      ? customPricing.baseLoanEligibilityPercent
+                      : 'Default policy'
+                },
                 { label: 'Extra loan eligibility', value: customPricing.extraLoanEligibilityAmount },
                 { label: 'Max collection', value: customPricing.maxCollectionAmount ?? 'Default' },
                 { label: 'Max payout', value: customPricing.maxPayoutAmount ?? 'Default' },
@@ -2372,6 +2388,12 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
 
                       const rows = [
                         {
+                          label: 'Base loan eligibility %',
+                          base: 'Default policy',
+                          override: customPricing?.baseLoanEligibilityPercent ?? null,
+                          effective: customPricing?.baseLoanEligibilityPercent ?? 'Default policy'
+                        },
+                        {
                           label: 'Loan eligibility (computed)',
                           base: eligibleLoanBase,
                           override: extraLoan,
@@ -2409,7 +2431,7 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
                   </tbody>
                 </table>
                 <div style={{ marginTop: '0.4rem', color: 'var(--muted)', fontSize: '12px' }}>
-                  Loan eligibility uses the computed `eligibleLoanAmount` from the account record; the “Override” column uses `extraLoanEligibilityAmount` from custom KYC caps when available.
+                  Loan eligibility uses the computed `eligibleLoanAmount` from the account record; overrides come from custom KYC caps (`baseLoanEligibilityPercent` and `extraLoanEligibilityAmount`) when set.
                 </div>
               </div>
             )}
@@ -3271,6 +3293,18 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
                   value={pricingExtraLoan}
                   onChange={(e) => setPricingExtraLoan(e.target.value)}
                   placeholder="200.00"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="baseLoanEligibilityPercent">Base loan eligibility percent (optional)</label>
+                <input
+                  id="baseLoanEligibilityPercent"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={pricingBaseLoanPercent}
+                  onChange={(e) => setPricingBaseLoanPercent(e.target.value)}
+                  placeholder="35"
                 />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
