@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 
 const emptyDraft = {
   accountId: '',
+  email: '',
   reason: ''
 };
 
@@ -163,6 +164,7 @@ export default function UntrustedBorrowersPage() {
     setSelected(row);
     setDraft({
       accountId: row?.accountId ? String(row.accountId) : '',
+      email: row?.email || '',
       reason: row?.reason || ''
     });
     setShowEdit(true);
@@ -201,9 +203,16 @@ export default function UntrustedBorrowersPage() {
 
   const submitCreate = async () => {
     const accountId = Number(draft.accountId);
+    const email = normalizeEmail(draft.email);
     const reason = String(draft.reason || '').trim();
-    if (!Number.isFinite(accountId) || accountId <= 0) {
-      setError('Valid account ID is required');
+    const hasAccountId = Number.isFinite(accountId) && accountId > 0;
+    const hasEmail = Boolean(email);
+    if (!hasAccountId && !hasEmail) {
+      setError('Either account ID or email is required');
+      return;
+    }
+    if (hasEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError('Email format is invalid');
       return;
     }
     if (!reason) {
@@ -214,7 +223,10 @@ export default function UntrustedBorrowersPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.untrustedBorrowers.create({ accountId, reason });
+      const payload = { reason };
+      if (hasAccountId) payload.accountId = accountId;
+      if (hasEmail) payload.email = email;
+      await api.untrustedBorrowers.create(payload);
       setShowCreate(false);
       setInfo('Untrusted borrower added.');
       await fetchRows();
@@ -388,6 +400,17 @@ export default function UntrustedBorrowersPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
               <label htmlFor="createAccountId">Account ID</label>
               <input id="createAccountId" type="number" min="1" value={draft.accountId} onChange={(e) => setDraft((prev) => ({ ...prev, accountId: e.target.value }))} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+              <label htmlFor="createEmail">Email</label>
+              <input
+                id="createEmail"
+                type="email"
+                value={draft.email}
+                onChange={(e) => setDraft((prev) => ({ ...prev, email: e.target.value }))}
+                placeholder="user@example.com"
+              />
+              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Use account ID or email. If both are provided, account ID is used first.</div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
               <label htmlFor="createReason">Reason</label>
