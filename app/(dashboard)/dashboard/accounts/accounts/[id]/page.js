@@ -393,6 +393,8 @@ const [cardholderResult, setCardholderResult] = useState(null);
   }, [account?.country?.alpha2Code, account?.countryCode]);
 const [showCredit, setShowCredit] = useState(false);
 const [creditAmount, setCreditAmount] = useState('');
+const [creditInternalFeeAmount, setCreditInternalFeeAmount] = useState('');
+const [creditGrossAmount, setCreditGrossAmount] = useState('');
 const [creditNote, setCreditNote] = useState('');
 const [creditAction, setCreditAction] = useState('MANUAL_ADJUSTMENT');
 const [creditError, setCreditError] = useState(null);
@@ -765,7 +767,10 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
 
   const openCredit = () => {
     setCreditAmount('');
+    setCreditInternalFeeAmount('');
+    setCreditGrossAmount('');
     setCreditNote('');
+    setCreditAction('MANUAL_ADJUSTMENT');
     setCreditError(null);
     setShowCredit(true);
   };
@@ -1042,11 +1047,29 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
       setCreditError('Amount must be greater than 0');
       return;
     }
+    const parseOptionalNumber = (raw) => {
+      if (raw === '' || raw === null || raw === undefined) return null;
+      const parsed = Number(raw);
+      if (!Number.isFinite(parsed)) return NaN;
+      return parsed;
+    };
+    const internalFeeNum = parseOptionalNumber(creditInternalFeeAmount);
+    if (Number.isNaN(internalFeeNum) || (internalFeeNum !== null && internalFeeNum < 0)) {
+      setCreditError('Internal fee amount must be 0 or more');
+      return;
+    }
+    const grossAmountNum = parseOptionalNumber(creditGrossAmount);
+    if (Number.isNaN(grossAmountNum) || (grossAmountNum !== null && grossAmountNum <= 0)) {
+      setCreditError('Gross amount must be greater than 0');
+      return;
+    }
     setCreditLoading(true);
     setCreditError(null);
     try {
       const payload = {
         amount: amountNum,
+        ...(internalFeeNum !== null ? { internalFeeAmount: internalFeeNum } : {}),
+        ...(grossAmountNum !== null ? { grossAmount: grossAmountNum } : {}),
         ...(creditAction ? { action: creditAction } : {}),
         ...(creditNote?.trim() ? { note: creditNote.trim() } : {})
       };
@@ -1058,6 +1081,8 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
       });
       setShowCredit(false);
       setCreditAmount('');
+      setCreditInternalFeeAmount('');
+      setCreditGrossAmount('');
       setCreditNote('');
       setCreditAction('MANUAL_ADJUSTMENT');
       await loadAccount();
@@ -3619,6 +3644,7 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
                   onChange={(e) => setCreditAmount(e.target.value)}
                   placeholder="100.00"
                 />
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>amount = net credited to user wallet.</div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="creditNote">Note (optional)</label>
@@ -3630,6 +3656,37 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
                 />
               </div>
             </div>
+            <details style={{ border: '1px solid var(--border)', borderRadius: '10px', padding: '0.6rem 0.75rem' }}>
+              <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Advanced (optional)</summary>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem', marginTop: '0.65rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="creditInternalFeeAmount">Internal fee amount</label>
+                  <input
+                    id="creditInternalFeeAmount"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={creditInternalFeeAmount}
+                    onChange={(e) => setCreditInternalFeeAmount(e.target.value)}
+                    placeholder="20.00"
+                  />
+                  <div style={{ color: 'var(--muted)', fontSize: '12px' }}>internalFeeAmount = our fee.</div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="creditGrossAmount">Gross amount</label>
+                  <input
+                    id="creditGrossAmount"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={creditGrossAmount}
+                    onChange={(e) => setCreditGrossAmount(e.target.value)}
+                    placeholder="120.00"
+                  />
+                  <div style={{ color: 'var(--muted)', fontSize: '12px' }}>grossAmount = net + fee. Leave empty to let backend compute.</div>
+                </div>
+              </div>
+            </details>
             {creditError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{creditError}</div>}
             <div className="modal-actions">
               <button type="button" className="btn-neutral" onClick={() => setShowCredit(false)} disabled={creditLoading}>
