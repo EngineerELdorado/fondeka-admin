@@ -23,6 +23,8 @@ const emptyState = {
   minTransactionFeeAmount: '',
   validityLength: '',
   validityType: '',
+  notesEn: '',
+  notesFr: '',
   active: true
 };
 
@@ -44,6 +46,8 @@ const toPayload = (state) => ({
   minTransactionFeeAmount: state.minTransactionFeeAmount === '' ? null : Number(state.minTransactionFeeAmount),
   validityLength: state.validityLength === '' ? null : Number(state.validityLength),
   validityType: state.validityType || null,
+  notesEn: state.notesEn?.trim() ? state.notesEn.trim() : null,
+  notesFr: state.notesFr?.trim() ? state.notesFr.trim() : null,
   active: Boolean(state.active)
 });
 
@@ -206,6 +210,15 @@ export default function CardProductProvidersPage() {
         render: (row) => (row.active === null || row.active === undefined ? '—' : String(row.active))
       },
       {
+        key: 'notesEn',
+        label: 'Notes (EN)',
+        render: (row) => {
+          const text = String(row.notesEn || '').trim();
+          if (!text) return '—';
+          return text.length > 80 ? `${text.slice(0, 80)}…` : text;
+        }
+      },
+      {
         key: 'actions',
         label: 'Actions',
         render: (row) => (
@@ -247,6 +260,8 @@ export default function CardProductProvidersPage() {
       minTransactionFeeAmount: row.minTransactionFeeAmount ?? '',
       validityLength: row.validityLength ?? '',
       validityType: row.validityType ?? '',
+      notesEn: row.notesEn ?? '',
+      notesFr: row.notesFr ?? '',
       active: Boolean(row.active)
     });
     setShowEdit(true);
@@ -478,6 +493,26 @@ export default function CardProductProvidersPage() {
         <input id="active" type="checkbox" checked={draft.active} onChange={(e) => setDraft((p) => ({ ...p, active: e.target.checked }))} />
         <label htmlFor="active">Active</label>
       </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="notesEn">Notes (English, optional)</label>
+        <textarea
+          id="notesEn"
+          rows={3}
+          value={draft.notesEn}
+          onChange={(e) => setDraft((p) => ({ ...p, notesEn: e.target.value }))}
+          placeholder="This works best for online purchases."
+        />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="notesFr">Notes (French, optional)</label>
+        <textarea
+          id="notesFr"
+          rows={3}
+          value={draft.notesFr}
+          onChange={(e) => setDraft((p) => ({ ...p, notesFr: e.target.value }))}
+          placeholder="Cette carte fonctionne mieux pour les achats en ligne."
+        />
+      </div>
     </div>
   );
 
@@ -559,6 +594,8 @@ export default function CardProductProvidersPage() {
               { label: 'Validity length', value: selected?.validityLength ?? '—' },
               { label: 'Validity type', value: selected?.validityType ?? '—' },
               { label: 'Rank', value: selected?.rank ?? '—' },
+              { label: 'Notes (EN)', value: selected?.notesEn || '—' },
+              { label: 'Notes (FR)', value: selected?.notesFr || '—' },
               { label: 'Active', value: selected?.active === undefined || selected?.active === null ? '—' : String(selected?.active) }
             ]}
           />
