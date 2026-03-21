@@ -21,6 +21,9 @@ const ACTION_LIMIT_EXPLANATION = 'If disabled, amount limits (KYC caps or custom
 const CRYPTO_SPREAD_GLOBAL_KEY = 'crypto.spread.enabled';
 const CRYPTO_SPREAD_ACTION_PREFIX = 'crypto.spread.action.';
 const INTER_TRANSFER_FLAG_KEY = 'wallet.inter_transfer.enabled';
+const TRUSTED_DEVICE_GLOBAL_KEY = 'trusted_device_enforcement';
+const TRUSTED_DEVICE_ANDROID_KEY = 'trusted_device_enforcement.android';
+const TRUSTED_DEVICE_IOS_KEY = 'trusted_device_enforcement.ios';
 
 const ACTION_LABELS = {
   fund_wallet: 'Wallet Deposit',
@@ -174,6 +177,18 @@ export default function FeatureFlagsPage() {
     () => flags.find((flag) => String(flag.key) === CRYPTO_SPREAD_GLOBAL_KEY),
     [flags]
   );
+  const trustedDeviceGlobalFlag = useMemo(
+    () => flags.find((flag) => String(flag.key) === TRUSTED_DEVICE_GLOBAL_KEY),
+    [flags]
+  );
+  const trustedDeviceAndroidFlag = useMemo(
+    () => flags.find((flag) => String(flag.key) === TRUSTED_DEVICE_ANDROID_KEY),
+    [flags]
+  );
+  const trustedDeviceIosFlag = useMemo(
+    () => flags.find((flag) => String(flag.key) === TRUSTED_DEVICE_IOS_KEY),
+    [flags]
+  );
 
   const interTransferFlag = useMemo(
     () => flags.find((flag) => String(flag.key) === INTER_TRANSFER_FLAG_KEY),
@@ -196,6 +211,9 @@ export default function FeatureFlagsPage() {
           String(flag.key) !== CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY &&
           String(flag.key) !== CRYPTO_SPREAD_GLOBAL_KEY &&
           String(flag.key) !== INTER_TRANSFER_FLAG_KEY &&
+          String(flag.key) !== TRUSTED_DEVICE_GLOBAL_KEY &&
+          String(flag.key) !== TRUSTED_DEVICE_ANDROID_KEY &&
+          String(flag.key) !== TRUSTED_DEVICE_IOS_KEY &&
           !isCryptoSpreadActionKey(flag.key)
       ),
     [flags]
@@ -244,11 +262,17 @@ export default function FeatureFlagsPage() {
       const hasPublicEndpointsFlag = list.some((flag) => String(flag?.key) === CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY);
       const hasCryptoSpreadGlobal = list.some((flag) => String(flag?.key) === CRYPTO_SPREAD_GLOBAL_KEY);
       const hasInterTransferFlag = list.some((flag) => String(flag?.key) === INTER_TRANSFER_FLAG_KEY);
+      const hasTrustedGlobalFlag = list.some((flag) => String(flag?.key) === TRUSTED_DEVICE_GLOBAL_KEY);
+      const hasTrustedAndroidFlag = list.some((flag) => String(flag?.key) === TRUSTED_DEVICE_ANDROID_KEY);
+      const hasTrustedIosFlag = list.some((flag) => String(flag?.key) === TRUSTED_DEVICE_IOS_KEY);
       const defaults = [];
       if (!hasCryptoCollectionGate) defaults.push({ key: CRYPTO_COLLECTION_GATE_KEY, enabled: true, isDefault: true });
       if (!hasPublicEndpointsFlag) defaults.push({ key: CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY, enabled: true, isDefault: true });
       if (!hasCryptoSpreadGlobal) defaults.push({ key: CRYPTO_SPREAD_GLOBAL_KEY, enabled: true, isDefault: true });
       if (!hasInterTransferFlag) defaults.push({ key: INTER_TRANSFER_FLAG_KEY, enabled: true, isDefault: true });
+      if (!hasTrustedGlobalFlag) defaults.push({ key: TRUSTED_DEVICE_GLOBAL_KEY, enabled: true, isDefault: true });
+      if (!hasTrustedAndroidFlag) defaults.push({ key: TRUSTED_DEVICE_ANDROID_KEY, enabled: true, isDefault: true });
+      if (!hasTrustedIosFlag) defaults.push({ key: TRUSTED_DEVICE_IOS_KEY, enabled: true, isDefault: true });
       setFlags([...defaults, ...list]);
     } catch (err) {
       setError(err.message);
@@ -786,6 +810,60 @@ export default function FeatureFlagsPage() {
           </div>
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
             Default is <strong>enabled</strong> when no value exists. Disable this flag to block all <code>INTER_TRANSFER</code> requests before transaction creation.
+          </div>
+        </div>
+      )}
+
+      {trustedDeviceGlobalFlag && trustedDeviceAndroidFlag && trustedDeviceIosFlag && (
+        <div className="card" style={{ maxWidth: '720px', display: 'grid', gap: '0.75rem', borderColor: '#f59e0b' }}>
+          <div style={{ fontWeight: 800 }}>Authentication Enforcement</div>
+          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+            If Global is OFF, platform/account settings are ignored.
+          </div>
+          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+            Platform OFF is emergency bypass for that platform.
+          </div>
+
+          <div style={{ display: 'grid', gap: '0.5rem' }}>
+            {[
+              { key: TRUSTED_DEVICE_GLOBAL_KEY, label: 'Global enforcement', flag: trustedDeviceGlobalFlag },
+              { key: TRUSTED_DEVICE_ANDROID_KEY, label: 'Android enforcement', flag: trustedDeviceAndroidFlag },
+              { key: TRUSTED_DEVICE_IOS_KEY, label: 'iOS enforcement', flag: trustedDeviceIosFlag }
+            ].map((item) => (
+              <div
+                key={item.key}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: '1rem',
+                  flexWrap: 'wrap',
+                  border: '1px solid var(--border)',
+                  borderRadius: '10px',
+                  padding: '0.55rem 0.7rem'
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: 700 }}>{item.label}</div>
+                  <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{item.key}</div>
+                </div>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(item.flag?.enabled)}
+                    onChange={() => handleToggle(item.key)}
+                    disabled={loading || savingKey === item.key}
+                  />
+                  {item.flag?.enabled ? 'Enabled' : 'Disabled'}
+                </label>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: 'grid', gap: '0.25rem', color: 'var(--muted)', fontSize: '12px' }}>
+            <div>Android biometric issue: keep Global ON, set Android OFF, keep iOS ON.</div>
+            <div>Full outage: set Global OFF.</div>
+            <div>Recovery: re-enable platform/global toggles progressively and monitor failures.</div>
           </div>
         </div>
       )}

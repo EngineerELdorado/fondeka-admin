@@ -111,6 +111,11 @@ const formatDateTime = (value) => {
   return date.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
 };
 
+const formatAuthState = (value) => {
+  if (value === null || value === undefined || value === '') return '—';
+  return Boolean(value) ? 'ON' : 'OFF';
+};
+
 const formatJsonPreview = (value, maxLen = 120) => {
   if (value === null || value === undefined) return '—';
   let text = '';
@@ -2094,8 +2099,8 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
           { label: 'Balance', value: accountView?.balance },
           { label: 'Eligible loan', value: accountView?.eligibleLoanAmount },
           {
-            label: 'Trusted device override',
-            value: accountView?.enforceTrustedDevice === undefined ? '—' : accountView?.enforceTrustedDevice ? 'Yes' : 'No'
+            label: 'Auth enforcement (effective)',
+            value: formatAuthState(accountView?.enforceAuth ?? accountView?.enforceTrustedDevice)
           }
         ]}
       />
@@ -2298,9 +2303,9 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
       <div className="card" style={{ padding: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-            <div style={{ fontWeight: 800 }}>Trusted Device Override</div>
+            <div style={{ fontWeight: 800 }}>Authentication Enforcement</div>
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-              Enforce trusted device checks for this account even if the global flag is off.
+              Effective auth = global && platform && account. If global/platform is OFF, account-level ON does not enforce.
             </div>
           </div>
           <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -2317,6 +2322,16 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
               {trustedDeviceSaving ? 'Saving…' : 'Save'}
             </button>
           </div>
+        </div>
+        <div style={{ marginTop: '0.75rem' }}>
+          <DetailGrid
+            rows={[
+              { label: 'enforceAuth (effective)', value: formatAuthState(accountView?.enforceAuth ?? accountView?.enforceTrustedDevice) },
+              { label: 'enforceAuthAccount', value: formatAuthState(accountView?.enforceAuthAccount ?? accountView?.enforceTrustedDevice) },
+              { label: 'enforceAuthPlatform', value: formatAuthState(accountView?.enforceAuthPlatform) },
+              { label: 'enforceAuthGlobal', value: formatAuthState(accountView?.enforceAuthGlobal) }
+            ]}
+          />
         </div>
       </div>
 
