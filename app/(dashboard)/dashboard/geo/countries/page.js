@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
-const emptyState = { name: '', alpha2Code: '', alpha3Code: '', defaultKycLevel: '' };
+const emptyState = { name: '', alpha2Code: '', alpha3Code: '', defaultKycLevel: '', registrationBlocked: false };
 
 const toPayload = (state) => {
   const payload = {
@@ -16,6 +16,7 @@ const toPayload = (state) => {
   if (state.defaultKycLevel !== undefined) {
     payload.defaultKycLevel = state.defaultKycLevel === '' ? null : state.defaultKycLevel;
   }
+  payload.registrationBlocked = Boolean(state.registrationBlocked);
   return payload;
 };
 
@@ -95,6 +96,20 @@ export default function CountriesPage() {
       render: (row) => (row?.defaultKycLevel === null || row?.defaultKycLevel === undefined ? 'Global' : row.defaultKycLevel)
     },
     {
+      key: 'registrationBlocked',
+      label: 'Registration',
+      render: (row) =>
+        row?.registrationBlocked ? (
+          <span style={{ display: 'inline-flex', alignItems: 'center', padding: '0.2rem 0.5rem', borderRadius: '999px', fontSize: '12px', fontWeight: 700, background: '#FEF2F2', color: '#B91C1C' }}>
+            Blocked
+          </span>
+        ) : (
+          <span style={{ display: 'inline-flex', alignItems: 'center', padding: '0.2rem 0.5rem', borderRadius: '999px', fontSize: '12px', fontWeight: 700, background: '#ECFDF3', color: '#15803D' }}>
+            Allowed
+          </span>
+        )
+    },
+    {
       key: 'actions',
       label: 'Actions',
       render: (row) => (
@@ -120,7 +135,8 @@ export default function CountriesPage() {
       name: row.name ?? '',
       alpha2Code: row.alpha2Code ?? '',
       alpha3Code: row.alpha3Code ?? '',
-      defaultKycLevel: row.defaultKycLevel ?? ''
+      defaultKycLevel: row.defaultKycLevel ?? '',
+      registrationBlocked: Boolean(row.registrationBlocked)
     });
     setShowEdit(true);
     setInfo(null);
@@ -212,6 +228,15 @@ export default function CountriesPage() {
           placeholder="Uses global default"
         />
       </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <input
+          id="registrationBlocked"
+          type="checkbox"
+          checked={Boolean(draft.registrationBlocked)}
+          onChange={(e) => setDraft((p) => ({ ...p, registrationBlocked: e.target.checked }))}
+        />
+        <label htmlFor="registrationBlocked">Block registration for this country</label>
+      </div>
     </div>
   );
 
@@ -220,7 +245,7 @@ export default function CountriesPage() {
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <div style={{ fontWeight: 800, fontSize: '20px' }}>Countries</div>
-          <div style={{ color: 'var(--muted)' }}>Manage country codes and names.</div>
+          <div style={{ color: 'var(--muted)' }}>Manage country codes, KYC defaults, and registration blocking.</div>
         </div>
         <Link href="/dashboard/geo" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
           ← Geo hub
@@ -277,7 +302,8 @@ export default function CountriesPage() {
               { label: 'Name', value: selected?.name },
               { label: 'Alpha-2', value: selected?.alpha2Code },
               { label: 'Alpha-3', value: selected?.alpha3Code },
-              { label: 'Default KYC', value: selected?.defaultKycLevel ?? 'Global default' }
+              { label: 'Default KYC', value: selected?.defaultKycLevel ?? 'Global default' },
+              { label: 'Registration blocked', value: selected?.registrationBlocked ? 'Yes' : 'No' }
             ]}
           />
         </Modal>
