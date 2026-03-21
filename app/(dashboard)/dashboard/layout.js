@@ -35,6 +35,7 @@ const navItems = [
   { href: '/dashboard/kyc-caps', label: 'KycCaps' },
   { href: '/dashboard/kyc-default-levels', label: 'KYC Defaults' },
   { href: '/dashboard/feature-flags', label: 'Feature Flags' },
+  { href: '/dashboard/wallet-policy-config', label: 'Wallet Policy Config' },
   { href: '/dashboard/app-version', label: 'App Version' },
   { href: '/dashboard/announcements', label: 'Announcements' },
   { href: '/dashboard/notification-providers', label: 'Notification Providers' },
