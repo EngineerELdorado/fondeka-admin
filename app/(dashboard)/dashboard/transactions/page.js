@@ -794,6 +794,11 @@ export default function TransactionsPage() {
         }
       },
       {
+        key: 'accountId',
+        label: 'Account ID',
+        render: (row) => row?.accountId ?? row?.account?.id ?? '—'
+      },
+      {
         key: 'actions',
         label: 'Actions',
         render: (row) => (
