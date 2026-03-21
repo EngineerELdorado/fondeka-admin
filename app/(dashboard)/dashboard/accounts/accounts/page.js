@@ -14,6 +14,8 @@ const initialFilters = {
   email: '',
   phone: '',
   countryId: '',
+  hasWalletBalance: '',
+  hasCryptoWalletBalance: '',
   startDate: '',
   endDate: '',
   blacklisted: ''
@@ -244,7 +246,7 @@ export default function AccountsListPage() {
         } else if (['startDate', 'endDate'].includes(key)) {
           const ts = Date.parse(value);
           if (!Number.isNaN(ts)) params.set(key, String(ts));
-        } else if (key === 'blacklisted') {
+        } else if (['blacklisted', 'hasWalletBalance', 'hasCryptoWalletBalance'].includes(key)) {
           const normalized = typeof value === 'string' ? value.toLowerCase() : value;
           if (normalized === true || normalized === 'true') params.set(key, 'true');
           else if (normalized === false || normalized === 'false') params.set(key, 'false');
@@ -363,6 +365,12 @@ export default function AccountsListPage() {
           break;
         case 'countryId':
           add(`Country ID: ${value}`, key);
+          break;
+        case 'hasWalletBalance':
+          add(`Fiat wallet funded: ${value === true || value === 'true' ? 'Yes' : 'No'}`, key);
+          break;
+        case 'hasCryptoWalletBalance':
+          add(`Crypto wallet funded: ${value === true || value === 'true' ? 'Yes' : 'No'}`, key);
           break;
         case 'startDate':
           add(`From: ${value}`, key);
@@ -996,6 +1004,30 @@ export default function AccountsListPage() {
                   <option value="">All</option>
                   <option value="true">Only blacklisted</option>
                   <option value="false">Only not blacklisted</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="hasWalletBalance">Has fiat wallet balance</label>
+                <select
+                  id="hasWalletBalance"
+                  value={filters.hasWalletBalance}
+                  onChange={(e) => setFilters((p) => ({ ...p, hasWalletBalance: e.target.value }))}
+                >
+                  <option value="">All</option>
+                  <option value="true">Yes (&gt; 0)</option>
+                  <option value="false">No (≤ 0)</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="hasCryptoWalletBalance">Has crypto wallet balance</label>
+                <select
+                  id="hasCryptoWalletBalance"
+                  value={filters.hasCryptoWalletBalance}
+                  onChange={(e) => setFilters((p) => ({ ...p, hasCryptoWalletBalance: e.target.value }))}
+                >
+                  <option value="">All</option>
+                  <option value="true">Yes (&gt; 0)</option>
+                  <option value="false">No (none &gt; 0)</option>
                 </select>
               </div>
             </div>
