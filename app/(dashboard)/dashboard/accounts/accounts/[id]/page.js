@@ -116,6 +116,33 @@ const formatAuthState = (value) => {
   return Boolean(value) ? 'ON' : 'OFF';
 };
 
+const pickFirstDefined = (...values) => values.find((value) => value !== null && value !== undefined && value !== '');
+
+const resolveTransactionAuthValues = (account) => {
+  const effective = pickFirstDefined(
+    account?.enforceAuth,
+    account?.enforceTransactionAuth,
+    account?.enforce_transaction_auth
+  );
+  const accountLevel = pickFirstDefined(
+    account?.enforceAuthAccount,
+    account?.enforceTransactionAuthAccount,
+    account?.enforce_transaction_auth_account,
+    effective
+  );
+  const platform = pickFirstDefined(
+    account?.enforceAuthPlatform,
+    account?.enforceTransactionAuthPlatform,
+    account?.enforce_transaction_auth_platform
+  );
+  const global = pickFirstDefined(
+    account?.enforceAuthGlobal,
+    account?.enforceTransactionAuthGlobal,
+    account?.enforce_transaction_auth_global
+  );
+  return { effective, accountLevel, platform, global };
+};
+
 const formatJsonPreview = (value, maxLen = 120) => {
   if (value === null || value === undefined) return '—';
   let text = '';
@@ -740,11 +767,10 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
   }, [account?.enforceTrustedDevice]);
 
   useEffect(() => {
-    const accountLevel = account?.enforceAuthAccount;
-    const fallback = account?.enforceAuth;
-    if (accountLevel === undefined && fallback === undefined) return;
-    setTransactionAuthOverride(Boolean(accountLevel ?? fallback));
-  }, [account?.enforceAuthAccount, account?.enforceAuth]);
+    const tx = resolveTransactionAuthValues(account);
+    if (tx.accountLevel === undefined) return;
+    setTransactionAuthOverride(Boolean(tx.accountLevel));
+  }, [account, account?.enforceAuth, account?.enforceTransactionAuth, account?.enforce_transaction_auth, account?.enforceAuthAccount, account?.enforceTransactionAuthAccount, account?.enforce_transaction_auth_account]);
 
   useEffect(() => {
     setAppVersionOverride(account?.customAppVersion ?? '');
@@ -1005,13 +1031,16 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     setError(null);
     try {
       const res = await api.accounts.updateAuthEnforcement(resolvedAccountId, { enforceAuth: transactionAuthOverride });
-      const nextAccountValue = res?.enforceAuthAccount ?? res?.enforceAuth ?? transactionAuthOverride;
+      const nextResolved = resolveTransactionAuthValues(res || {});
+      const nextAccountValue = nextResolved.accountLevel ?? transactionAuthOverride;
       setAccount((prev) => (
         prev
           ? {
               ...prev,
               enforceAuthAccount: Boolean(nextAccountValue),
-              enforceAuth: res?.enforceAuth ?? prev?.enforceAuth
+              enforceAuth: pickFirstDefined(res?.enforceAuth, res?.enforceTransactionAuth, res?.enforce_transaction_auth, prev?.enforceAuth),
+              enforceTransactionAuth: pickFirstDefined(res?.enforceTransactionAuth, res?.enforceAuth, prev?.enforceTransactionAuth),
+              enforce_transaction_auth: pickFirstDefined(res?.enforce_transaction_auth, res?.enforceTransactionAuth, res?.enforceAuth, prev?.enforce_transaction_auth)
             }
           : prev
       ));
@@ -2015,6 +2044,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
   };
 
   const accountView = useMemo(() => account || {}, [account]);
+  const authView = useMemo(() => resolveTransactionAuthValues(accountView), [accountView]);
   const txView = transactions || [];
   const cryptoWallets = accountView?.cryptoWallets || [];
   const resolvedAccountId = useMemo(() => {
@@ -2138,15 +2168,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           { label: 'KYC status', value: accountView?.kycStatus },
           { label: 'Blacklist', value: <BlacklistBadge blacklisted={Boolean(accountView?.blacklisted)} /> },
           { label: 'Balance', value: accountView?.balance },
-          { label: 'Eligible loan', value: accountView?.eligibleLoanAmount },
-          { label: 'Transaction auth (effective)', value: formatAuthState(accountView?.enforceAuth) },
-          { label: 'Transaction auth (account)', value: formatAuthState(accountView?.enforceAuthAccount) },
-          { label: 'Trusted device (account)', value: formatAuthState(accountView?.enforceTrustedDevice) },
-          {
-            label: 'Transaction auth (platform)',
-            value: formatAuthState(accountView?.enforceAuthPlatform)
-          },
-          { label: 'Transaction auth (global)', value: formatAuthState(accountView?.enforceAuthGlobal) }
+          { label: 'Eligible loan', value: accountView?.eligibleLoanAmount }
         ]}
       />
 
@@ -2371,10 +2393,10 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         <div style={{ marginTop: '0.75rem' }}>
           <DetailGrid
             rows={[
-              { label: 'enforceAuth (effective)', value: formatAuthState(accountView?.enforceAuth) },
-              { label: 'enforceAuthAccount', value: formatAuthState(accountView?.enforceAuthAccount) },
-              { label: 'enforceAuthPlatform', value: formatAuthState(accountView?.enforceAuthPlatform) },
-              { label: 'enforceAuthGlobal', value: formatAuthState(accountView?.enforceAuthGlobal) }
+              { label: 'enforceAuth (effective)', value: formatAuthState(authView?.effective) },
+              { label: 'enforceAuthAccount', value: formatAuthState(authView?.accountLevel) },
+              { label: 'enforceAuthPlatform', value: formatAuthState(authView?.platform) },
+              { label: 'enforceAuthGlobal', value: formatAuthState(authView?.global) }
             ]}
           />
         </div>
