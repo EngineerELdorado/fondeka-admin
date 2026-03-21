@@ -260,6 +260,7 @@ export default function AccountsListPage() {
       });
       const flattened = (list || []).map((item) => ({
         id: item.accountId ?? item.id,
+        accountId: item.accountId ?? item.id,
         accountReference: item.accountReference ?? item.accountNumber ?? item.accountId,
         countryName: item.countryName || item.countryCode,
         countryCode: item.countryCode,
@@ -383,7 +384,7 @@ export default function AccountsListPage() {
 
   const columns = useMemo(
     () => [
-      { key: 'id', label: 'ID' },
+      { key: 'accountId', label: 'Account ID' },
       { key: 'accountReference', label: 'Account' },
       { key: 'userName', label: 'User' },
       { key: 'countryName', label: 'Country' },

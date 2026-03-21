@@ -1422,6 +1422,7 @@ export default function DashboardPage() {
             columns={[
               { key: 'accountReference', label: 'Account', render: (row) => row.accountReference || row.accountId },
               { key: 'username', label: 'User', render: (row) => row.userFullName || row.username || '—' },
+              { key: 'walletBalance', label: 'Wallet Balance', render: (row) => formatCurrency(row.walletBalance) },
               {
                 key: 'count',
                 label: 'Transactions',
