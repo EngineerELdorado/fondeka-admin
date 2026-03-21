@@ -433,6 +433,8 @@ const [notificationResult, setNotificationResult] = useState(null);
 const [loanEligibility, setLoanEligibility] = useState(null);
 const [loanEligibilityLoading, setLoanEligibilityLoading] = useState(false);
 const [loanEligibilityError, setLoanEligibilityError] = useState(null);
+const [transactionAuthOverride, setTransactionAuthOverride] = useState(false);
+const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
 
   const paymentMethodTypeConflicts = useMemo(
     () => paymentMethodIncludeTypes.filter((type) => paymentMethodExcludeTypes.includes(type)),
@@ -738,6 +740,13 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
   }, [account?.enforceTrustedDevice]);
 
   useEffect(() => {
+    const accountLevel = account?.enforceAuthAccount;
+    const fallback = account?.enforceAuth;
+    if (accountLevel === undefined && fallback === undefined) return;
+    setTransactionAuthOverride(Boolean(accountLevel ?? fallback));
+  }, [account?.enforceAuthAccount, account?.enforceAuth]);
+
+  useEffect(() => {
     setAppVersionOverride(account?.customAppVersion ?? '');
   }, [account?.customAppVersion]);
 
@@ -984,6 +993,38 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
       pushToast({ tone: 'error', message });
     } finally {
       setTrustedDeviceSaving(false);
+    }
+  };
+
+  const saveTransactionAuthOverride = async () => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) {
+      pushToast({ tone: 'error', message: 'No account loaded' });
+      return;
+    }
+    setTransactionAuthSaving(true);
+    setError(null);
+    try {
+      const res = await api.accounts.updateAuthEnforcement(resolvedAccountId, { enforceAuth: transactionAuthOverride });
+      const nextAccountValue = res?.enforceAuthAccount ?? res?.enforceAuth ?? transactionAuthOverride;
+      setAccount((prev) => (
+        prev
+          ? {
+              ...prev,
+              enforceAuthAccount: Boolean(nextAccountValue),
+              enforceAuth: res?.enforceAuth ?? prev?.enforceAuth
+            }
+          : prev
+      ));
+      pushToast({
+        tone: 'success',
+        message: `Transaction auth enforcement ${nextAccountValue ? 'enabled' : 'disabled'} for account`
+      });
+    } catch (err) {
+      const message = err.message || 'Failed to update account transaction auth enforcement';
+      setError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setTransactionAuthSaving(false);
     }
   };
 
@@ -2098,10 +2139,14 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
           { label: 'Blacklist', value: <BlacklistBadge blacklisted={Boolean(accountView?.blacklisted)} /> },
           { label: 'Balance', value: accountView?.balance },
           { label: 'Eligible loan', value: accountView?.eligibleLoanAmount },
+          { label: 'Transaction auth (effective)', value: formatAuthState(accountView?.enforceAuth) },
+          { label: 'Transaction auth (account)', value: formatAuthState(accountView?.enforceAuthAccount) },
+          { label: 'Trusted device (account)', value: formatAuthState(accountView?.enforceTrustedDevice) },
           {
-            label: 'Auth enforcement (effective)',
-            value: formatAuthState(accountView?.enforceAuth ?? accountView?.enforceTrustedDevice)
-          }
+            label: 'Transaction auth (platform)',
+            value: formatAuthState(accountView?.enforceAuthPlatform)
+          },
+          { label: 'Transaction auth (global)', value: formatAuthState(accountView?.enforceAuthGlobal) }
         ]}
       />
 
@@ -2303,9 +2348,44 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
       <div className="card" style={{ padding: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-            <div style={{ fontWeight: 800 }}>Authentication Enforcement</div>
+            <div style={{ fontWeight: 800 }}>Transaction Auth Enforcement</div>
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
               Effective auth = global && platform && account. If global/platform is OFF, account-level ON does not enforce.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+              <input type="checkbox" checked={transactionAuthOverride} onChange={(e) => setTransactionAuthOverride(e.target.checked)} />
+              {transactionAuthOverride ? 'Enabled' : 'Disabled'}
+            </label>
+            <button
+              type="button"
+              className="btn-primary btn-sm"
+              onClick={saveTransactionAuthOverride}
+              disabled={transactionAuthSaving || resolvedAccountId === null || resolvedAccountId === undefined}
+            >
+              {transactionAuthSaving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
+        <div style={{ marginTop: '0.75rem' }}>
+          <DetailGrid
+            rows={[
+              { label: 'enforceAuth (effective)', value: formatAuthState(accountView?.enforceAuth) },
+              { label: 'enforceAuthAccount', value: formatAuthState(accountView?.enforceAuthAccount) },
+              { label: 'enforceAuthPlatform', value: formatAuthState(accountView?.enforceAuthPlatform) },
+              { label: 'enforceAuthGlobal', value: formatAuthState(accountView?.enforceAuthGlobal) }
+            ]}
+          />
+        </div>
+      </div>
+
+      <div className="card" style={{ padding: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+            <div style={{ fontWeight: 800 }}>Trusted Device Security</div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Separate account-level trusted-device policy. This is independent from transaction auth enforcement.
             </div>
           </div>
           <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -2324,14 +2404,7 @@ const [loanEligibilityError, setLoanEligibilityError] = useState(null);
           </div>
         </div>
         <div style={{ marginTop: '0.75rem' }}>
-          <DetailGrid
-            rows={[
-              { label: 'enforceAuth (effective)', value: formatAuthState(accountView?.enforceAuth ?? accountView?.enforceTrustedDevice) },
-              { label: 'enforceAuthAccount', value: formatAuthState(accountView?.enforceAuthAccount ?? accountView?.enforceTrustedDevice) },
-              { label: 'enforceAuthPlatform', value: formatAuthState(accountView?.enforceAuthPlatform) },
-              { label: 'enforceAuthGlobal', value: formatAuthState(accountView?.enforceAuthGlobal) }
-            ]}
-          />
+          <DetailGrid rows={[{ label: 'enforceTrustedDevice', value: formatAuthState(accountView?.enforceTrustedDevice) }]} />
         </div>
       </div>
 
