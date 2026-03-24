@@ -395,6 +395,7 @@ export default function AccountsListPage() {
       { key: 'accountId', label: 'Account ID' },
       { key: 'accountReference', label: 'Account' },
       { key: 'userName', label: 'User' },
+      { key: 'email', label: 'Email' },
       { key: 'countryName', label: 'Country' },
       { key: 'phone', label: 'Phone' },
       { key: 'balance', label: 'Balance' },

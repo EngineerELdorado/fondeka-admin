@@ -159,6 +159,8 @@ export default function FeeConfigsPage() {
   const [filters, setFilters] = useState(initialFilters);
   const [appliedFilters, setAppliedFilters] = useState(initialFilters);
   const [showFilters, setShowFilters] = useState(false);
+  const resolvedDraftAction = resolveAction(draft);
+  const isDraftGiftCardAction = String(resolvedDraftAction || '').toUpperCase() === 'BUY_GIFT_CARD';
 
   const activeFilterChips = useMemo(() => {
     const chips = [];
@@ -311,6 +313,47 @@ export default function FeeConfigsPage() {
     return arr;
   }, [arrangeBy, rows, getCountryLabel, getPmpLabel, getBpbpLabel]);
 
+  const giftCardMappingIds = useMemo(() => {
+    const giftProductIds = new Set(
+      billProducts
+        .filter((product) => Boolean(product?.giftCard))
+        .map((product) => Number(product.id))
+        .filter((id) => !Number.isNaN(id))
+    );
+    return new Set(
+      bpbps
+        .filter((mapping) => giftProductIds.has(Number(mapping?.billProductId)))
+        .map((mapping) => Number(mapping.id))
+        .filter((id) => !Number.isNaN(id))
+    );
+  }, [billProducts, bpbps]);
+
+  const requiredGiftCardStatus = useMemo(() => {
+    const requiredKeys = ['NETFLIX', 'SPOTIFY', 'APP_STORE', 'GOOGLE_PLAY'];
+    return requiredKeys.map((key) => {
+      const product = billProducts.find((p) => String(p?.name || '').toUpperCase() === key || String(p?.code || '').toUpperCase() === key);
+      const productId = Number(product?.id);
+      const productMappings = bpbps.filter((mapping) => Number(mapping?.billProductId) === productId);
+      const activeReloadlyMappings = productMappings.filter((mapping) => {
+        if (mapping?.active === false) return false;
+        const providerName = String(mapping?.billProviderName || '').toUpperCase();
+        return providerName.includes('RELOADLY');
+      });
+      const feeRows = rows.filter((row) => {
+        if (String(row?.action || '').toUpperCase() !== 'BUY_GIFT_CARD') return false;
+        return activeReloadlyMappings.some((mapping) => Number(mapping?.id) === Number(row?.billProductBillProviderId));
+      });
+      return {
+        key,
+        displayName: product?.displayName || key,
+        hasProduct: Boolean(product),
+        hasActiveReloadlyMapping: activeReloadlyMappings.length > 0,
+        activeReloadlyMappingIds: activeReloadlyMappings.map((mapping) => mapping.id),
+        feeConfigCount: feeRows.length
+      };
+    });
+  }, [billProducts, bpbps, rows]);
+
   const columns = useMemo(
     () => [
       { key: 'id', label: 'ID' },
@@ -410,7 +453,7 @@ export default function FeeConfigsPage() {
     setError(null);
   };
 
-  const validateDraft = (state) => {
+  const validateDraft = (state, currentId = null) => {
     const resolved = resolveAction(state);
     if (!resolved) return 'Action is required.';
     if (state.paymentMethodPaymentProviderId !== '' && Number(state.paymentMethodPaymentProviderId) < 0) return 'PMPP ID must be non-negative.';
@@ -425,6 +468,26 @@ export default function FeeConfigsPage() {
     ];
     const invalid = numericFields.find((item) => item.value !== '' && Number(item.value) < 0);
     if (invalid) return 'Fee values cannot be negative.';
+    const normalizedAction = String(resolved || '').toUpperCase();
+    const normalizedPmp = state.paymentMethodPaymentProviderId === '' ? null : Number(state.paymentMethodPaymentProviderId);
+    const normalizedBpbp = state.billProductBillProviderId === '' ? null : Number(state.billProductBillProviderId);
+    if (normalizedAction === 'BUY_GIFT_CARD' && (normalizedBpbp === null || Number.isNaN(normalizedBpbp))) {
+      return 'For BUY_GIFT_CARD, select Bill Product Bill Provider scope (BPBP) so each product can be priced separately.';
+    }
+    if (normalizedAction === 'BUY_GIFT_CARD' && normalizedBpbp !== null && !giftCardMappingIds.has(Number(normalizedBpbp))) {
+      return 'Selected BPBP does not appear to be a gift-card mapping. Use a mapping where bill product has giftCard=true.';
+    }
+    const duplicate = rows.find((row) => {
+      if (currentId && Number(row?.id) === Number(currentId)) return false;
+      const rowAction = String(row?.action || '').toUpperCase();
+      if (rowAction !== normalizedAction) return false;
+      const rowBpbp = row?.billProductBillProviderId === null || row?.billProductBillProviderId === undefined ? null : Number(row.billProductBillProviderId);
+      const rowPmp = row?.paymentMethodPaymentProviderId === null || row?.paymentMethodPaymentProviderId === undefined ? null : Number(row.paymentMethodPaymentProviderId);
+      return rowBpbp === normalizedBpbp && rowPmp === normalizedPmp;
+    });
+    if (duplicate) {
+      return `Duplicate scope detected with fee config #${duplicate.id}. Keep one row per (action + BPBP + PMPP).`;
+    }
     return null;
   };
 
@@ -454,7 +517,7 @@ export default function FeeConfigsPage() {
 
   const handleUpdate = async () => {
     if (!selected?.id) return;
-    const validationError = validateDraft(draft);
+    const validationError = validateDraft(draft, selected.id);
     if (validationError) {
       setError(validationError);
       return;
@@ -557,14 +620,19 @@ export default function FeeConfigsPage() {
           value={draft.billProductBillProviderId}
           onChange={(e) => setDraft((p) => ({ ...p, billProductBillProviderId: e.target.value }))}
         >
-          <option value="">Global (no BPBP)</option>
-          {bpbps.map((bpbp) => (
+          <option value="">{isDraftGiftCardAction ? 'Select gift-card BPBP' : 'Global (no BPBP)'}</option>
+          {(isDraftGiftCardAction ? bpbps.filter((bpbp) => giftCardMappingIds.has(Number(bpbp.id))) : bpbps).map((bpbp) => (
             <option key={bpbp.id} value={bpbp.id}>
               {(bpbp.billProductName || 'Bill Product')} — {(bpbp.billProviderName || 'Bill Provider')}
               {bpbp.id ? ` #${bpbp.id}` : ''}
             </option>
           ))}
         </select>
+        {isDraftGiftCardAction && (
+          <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+            Use product/provider scope for BUY_GIFT_CARD (Netflix, Spotify, App Store, Google Play) to keep separate pricing.
+          </div>
+        )}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="providerFeePercentage">Provider %</label>
@@ -594,6 +662,11 @@ export default function FeeConfigsPage() {
         <label htmlFor="ourFlatFee">Our flat</label>
         <input id="ourFlatFee" type="number" min={0} value={draft.ourFlatFee} onChange={(e) => setDraft((p) => ({ ...p, ourFlatFee: e.target.value }))} />
       </div>
+      {isDraftGiftCardAction && (
+        <div style={{ gridColumn: '1 / -1', fontSize: '12px', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.55rem 0.65rem' }}>
+          Amount model: amount is net gift-card value, fees are added on top, and gross = net + all fees.
+        </div>
+      )}
     </div>
   );
 
@@ -630,6 +703,41 @@ export default function FeeConfigsPage() {
             <option value="pmp">PMPP</option>
             <option value="bpbp">BPBP</option>
           </select>
+        </div>
+      </div>
+
+      <div className="card" style={{ color: 'var(--muted)', fontSize: '13px' }}>
+        Gift cards best practice: keep action as <strong>BUY_GIFT_CARD</strong>, scope by <strong>BPBP</strong>, optionally add <strong>PMPP</strong> for channel pricing, and avoid duplicate rows with same action + BPBP + PMPP. Legacy <strong>PAY_NETFLIX</strong> rows are not the new pricing path. Preview check: <code>/customer-api/fees?action=BUY_GIFT_CARD&amp;paymentMethodId=...&amp;billProductId=...&amp;amount=...</code>.
+      </div>
+
+      <div className="card" style={{ display: 'grid', gap: '0.6rem' }}>
+        <div style={{ fontWeight: 700 }}>Gift Card Pricing Readiness</div>
+        <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+          Global BUY_GIFT_CARD fallback is unsafe. Ensure each required gift card has an active Reloadly mapping and at least one BUY_GIFT_CARD fee row.
+        </div>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+            <thead>
+              <tr>
+                <th style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)' }}>Product</th>
+                <th style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)' }}>Active Reloadly Mapping</th>
+                <th style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)' }}>BUY_GIFT_CARD Fee Rows</th>
+              </tr>
+            </thead>
+            <tbody>
+              {requiredGiftCardStatus.map((item) => (
+                <tr key={item.key}>
+                  <td style={{ padding: '0.45rem', borderBottom: '1px solid var(--border)' }}>{item.displayName}</td>
+                  <td style={{ padding: '0.45rem', borderBottom: '1px solid var(--border)' }}>
+                    {item.hasActiveReloadlyMapping ? `Yes (${item.activeReloadlyMappingIds.join(', ')})` : 'Missing'}
+                  </td>
+                  <td style={{ padding: '0.45rem', borderBottom: '1px solid var(--border)' }}>
+                    {item.feeConfigCount > 0 ? item.feeConfigCount : 'Missing'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 

@@ -19,6 +19,19 @@ const emptyState = {
   cardProductCardProviderId: ''
 };
 
+const emptyIssueState = {
+  accountMode: 'id',
+  accountId: '',
+  accountReference: '',
+  accountEmail: '',
+  cardProductId: '',
+  cardProductCardProviderId: '',
+  chargeAccount: false,
+  internalFeeAmount: '',
+  commissionAmount: '',
+  grossAmount: ''
+};
+
 const emptyFilters = {
   status: '',
   issued: '',
@@ -132,9 +145,12 @@ export default function CardsPage() {
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [showIssue, setShowIssue] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const [draft, setDraft] = useState(emptyState);
+  const [issueDraft, setIssueDraft] = useState(emptyIssueState);
+  const [issueLoading, setIssueLoading] = useState(false);
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [confirmBlock, setConfirmBlock] = useState(null);
@@ -314,6 +330,13 @@ export default function CardsPage() {
     setError(null);
   };
 
+  const openIssue = () => {
+    setIssueDraft(emptyIssueState);
+    setShowIssue(true);
+    setInfo(null);
+    setError(null);
+  };
+
   const openEdit = (row) => {
     setSelected(row);
     setDraft({
@@ -430,6 +453,74 @@ export default function CardsPage() {
       fetchRows();
     } catch (err) {
       setError(err.message);
+    }
+  };
+
+  const validateIssueDraft = (state) => {
+    const mode = String(state.accountMode || 'id');
+    if (mode === 'id') {
+      if (!Number.isInteger(Number(state.accountId)) || Number(state.accountId) <= 0) return 'Account ID is required.';
+    } else if (mode === 'reference') {
+      if (!String(state.accountReference || '').trim()) return 'Account reference is required.';
+    } else if (mode === 'email') {
+      const email = String(state.accountEmail || '').trim();
+      if (!email) return 'Account email is required.';
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Account email format is invalid.';
+    }
+    if (!Number.isInteger(Number(state.cardProductId)) || Number(state.cardProductId) <= 0) return 'Card product id is required.';
+    const optionalMoneyFields = [
+      { key: 'internalFeeAmount', value: state.internalFeeAmount },
+      { key: 'commissionAmount', value: state.commissionAmount },
+      { key: 'grossAmount', value: state.grossAmount }
+    ];
+    for (const field of optionalMoneyFields) {
+      if (field.value === '' || field.value === null || field.value === undefined) continue;
+      if (!Number.isFinite(Number(field.value)) || Number(field.value) < 0) {
+        return `${field.key} must be a non-negative number.`;
+      }
+    }
+    return null;
+  };
+
+  const toIssuePayload = (state) => {
+    const payload = {
+      cardProductId: Number(state.cardProductId),
+      chargeAccount: Boolean(state.chargeAccount)
+    };
+    if (Number.isInteger(Number(state.cardProductCardProviderId)) && Number(state.cardProductCardProviderId) > 0) {
+      payload.cardProductCardProviderId = Number(state.cardProductCardProviderId);
+    }
+    if (state.accountMode === 'id') payload.accountId = Number(state.accountId);
+    if (state.accountMode === 'reference') payload.accountReference = String(state.accountReference).trim();
+    if (state.accountMode === 'email') payload.accountEmail = String(state.accountEmail).trim();
+    if (state.internalFeeAmount !== '') payload.internalFeeAmount = Number(state.internalFeeAmount);
+    if (state.commissionAmount !== '') payload.commissionAmount = Number(state.commissionAmount);
+    if (state.grossAmount !== '') payload.grossAmount = Number(state.grossAmount);
+    return payload;
+  };
+
+  const handleIssue = async () => {
+    const validationError = validateIssueDraft(issueDraft);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+    setIssueLoading(true);
+    setError(null);
+    setInfo(null);
+    try {
+      const res = await api.cards.issue(toIssuePayload(issueDraft));
+      const transactionId = res?.transactionId || res?.id || null;
+      const message = transactionId
+        ? `Card issuance submitted. Transaction ID: ${transactionId}.`
+        : 'Card issuance submitted.';
+      setInfo(message);
+      setShowIssue(false);
+      fetchRows();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIssueLoading(false);
     }
   };
 
@@ -652,6 +743,9 @@ export default function CardsPage() {
               >
                 Reset
               </button>
+              <button type="button" onClick={openIssue} className="btn-primary">
+                Issue card
+              </button>
               <button type="button" onClick={openCreate} className="btn-success">
                 Add card
               </button>
@@ -679,6 +773,145 @@ export default function CardsPage() {
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" onClick={() => setShowCreate(false)} className="btn-neutral">Cancel</button>
             <button type="button" onClick={handleCreate} className="btn-success">Create</button>
+          </div>
+        </Modal>
+      )}
+
+      {showIssue && (
+        <Modal title="Issue Card (Order Flow)" onClose={() => (!issueLoading ? setShowIssue(false) : null)}>
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Uses <code>POST /admin-api/cards/issue</code>.
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="issueAccountMode">Account selector</label>
+                <select
+                  id="issueAccountMode"
+                  value={issueDraft.accountMode}
+                  onChange={(e) => setIssueDraft((p) => ({ ...p, accountMode: e.target.value }))}
+                >
+                  <option value="id">Account ID</option>
+                  <option value="reference">Account reference</option>
+                  <option value="email">Account email</option>
+                </select>
+              </div>
+              {issueDraft.accountMode === 'id' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="issueAccountId">Account ID</label>
+                  <input
+                    id="issueAccountId"
+                    type="number"
+                    min={1}
+                    value={issueDraft.accountId}
+                    onChange={(e) => setIssueDraft((p) => ({ ...p, accountId: e.target.value }))}
+                  />
+                </div>
+              )}
+              {issueDraft.accountMode === 'reference' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="issueAccountReference">Account reference</label>
+                  <input
+                    id="issueAccountReference"
+                    value={issueDraft.accountReference}
+                    onChange={(e) => setIssueDraft((p) => ({ ...p, accountReference: e.target.value }))}
+                  />
+                </div>
+              )}
+              {issueDraft.accountMode === 'email' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="issueAccountEmail">Account email</label>
+                  <input
+                    id="issueAccountEmail"
+                    type="email"
+                    value={issueDraft.accountEmail}
+                    onChange={(e) => setIssueDraft((p) => ({ ...p, accountEmail: e.target.value }))}
+                  />
+                </div>
+              )}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="issueCardProductId">Card product ID</label>
+                <input
+                  id="issueCardProductId"
+                  type="number"
+                  min={1}
+                  value={issueDraft.cardProductId}
+                  onChange={(e) => setIssueDraft((p) => ({ ...p, cardProductId: e.target.value }))}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="issueCardProductProviderId">Card product/provider ID (optional)</label>
+                <input
+                  id="issueCardProductProviderId"
+                  type="number"
+                  min={1}
+                  value={issueDraft.cardProductCardProviderId}
+                  onChange={(e) => setIssueDraft((p) => ({ ...p, cardProductCardProviderId: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <input
+                id="issueChargeAccount"
+                type="checkbox"
+                checked={issueDraft.chargeAccount}
+                onChange={(e) => setIssueDraft((p) => ({ ...p, chargeAccount: e.target.checked }))}
+              />
+              <label htmlFor="issueChargeAccount">Charge account balance</label>
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              If enabled, user is charged from FONDEKA balance. If disabled, admin-sponsored issuance.
+            </div>
+
+            <div style={{ gridColumn: '1 / -1', borderTop: '1px solid var(--border)', paddingTop: '0.6rem', color: 'var(--muted)', fontSize: '13px' }}>
+              Optional transaction financial overrides (BUY_CARD)
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="issueInternalFeeAmount">Internal fee amount (optional)</label>
+                <input
+                  id="issueInternalFeeAmount"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={issueDraft.internalFeeAmount}
+                  onChange={(e) => setIssueDraft((p) => ({ ...p, internalFeeAmount: e.target.value }))}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="issueCommissionAmount">Commission amount (optional)</label>
+                <input
+                  id="issueCommissionAmount"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={issueDraft.commissionAmount}
+                  onChange={(e) => setIssueDraft((p) => ({ ...p, commissionAmount: e.target.value }))}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="issueGrossAmount">Gross amount (optional)</label>
+                <input
+                  id="issueGrossAmount"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={issueDraft.grossAmount}
+                  onChange={(e) => setIssueDraft((p) => ({ ...p, grossAmount: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button type="button" onClick={() => setShowIssue(false)} className="btn-neutral" disabled={issueLoading}>
+                Cancel
+              </button>
+              <button type="button" onClick={handleIssue} className="btn-primary" disabled={issueLoading}>
+                {issueLoading ? 'Issuing…' : 'Issue card'}
+              </button>
+            </div>
           </div>
         </Modal>
       )}

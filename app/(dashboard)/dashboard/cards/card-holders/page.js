@@ -18,6 +18,18 @@ const emptyReconcileDraft = {
   issued: true,
   cardProductCardProviderId: ''
 };
+const emptyIssueDraft = {
+  accountMode: 'id',
+  accountId: '',
+  accountReference: '',
+  accountEmail: '',
+  cardProductId: '',
+  cardProductCardProviderId: '',
+  chargeAccount: false,
+  internalFeeAmount: '',
+  commissionAmount: '',
+  grossAmount: ''
+};
 
 const toPayload = (state) => ({
   internalReference: state.internalReference,
@@ -68,8 +80,11 @@ export default function CardHoldersPage() {
   const [confirmReset, setConfirmReset] = useState(null);
   const [resetLoading, setResetLoading] = useState(false);
   const [showReconcile, setShowReconcile] = useState(false);
+  const [showIssue, setShowIssue] = useState(false);
   const [reconcileDraft, setReconcileDraft] = useState(emptyReconcileDraft);
+  const [issueDraft, setIssueDraft] = useState(emptyIssueDraft);
   const [reconcileLoading, setReconcileLoading] = useState(false);
+  const [issueLoading, setIssueLoading] = useState(false);
   const [mappingOptions, setMappingOptions] = useState([]);
   const [mappingLoading, setMappingLoading] = useState(false);
 
@@ -173,6 +188,7 @@ export default function CardHoldersPage() {
     }
   };
 
+
   const openReconcile = async (row) => {
     if (!row?.id) return;
     const nextName = String(row?.userName || '').trim();
@@ -183,6 +199,19 @@ export default function CardHoldersPage() {
       name: nextName ? `${nextName} Card` : ''
     });
     setShowReconcile(true);
+    await loadCardProductProviderMappings();
+  };
+
+  const openIssue = async (row) => {
+    if (!row?.id) return;
+    setIssueDraft({
+      ...emptyIssueDraft,
+      accountMode: row.accountId ? 'id' : row.accountReference ? 'reference' : row.userEmail ? 'email' : 'id',
+      accountId: row.accountId ? String(row.accountId) : '',
+      accountReference: row.accountReference || '',
+      accountEmail: row.userEmail || ''
+    });
+    setShowIssue(true);
     await loadCardProductProviderMappings();
   };
 
@@ -290,6 +319,70 @@ export default function CardHoldersPage() {
       setError(err?.message || 'Failed to reconcile card.');
     } finally {
       setReconcileLoading(false);
+    }
+  };
+
+  const validateIssueDraft = (state) => {
+    const mode = String(state.accountMode || 'id');
+    if (mode === 'id') {
+      if (!Number.isInteger(Number(state.accountId)) || Number(state.accountId) <= 0) return 'Account ID is required.';
+    } else if (mode === 'reference') {
+      if (!String(state.accountReference || '').trim()) return 'Account reference is required.';
+    } else if (mode === 'email') {
+      const email = String(state.accountEmail || '').trim();
+      if (!email) return 'Account email is required.';
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Account email format is invalid.';
+    }
+    if (!Number.isInteger(Number(state.cardProductId)) || Number(state.cardProductId) <= 0) return 'Card product id is required.';
+    const optionalMoneyFields = [
+      { key: 'internalFeeAmount', value: state.internalFeeAmount },
+      { key: 'commissionAmount', value: state.commissionAmount },
+      { key: 'grossAmount', value: state.grossAmount }
+    ];
+    for (const field of optionalMoneyFields) {
+      if (field.value === '' || field.value === null || field.value === undefined) continue;
+      if (!Number.isFinite(Number(field.value)) || Number(field.value) < 0) {
+        return `${field.key} must be a non-negative number.`;
+      }
+    }
+    return null;
+  };
+
+  const toIssuePayload = (state) => {
+    const payload = {
+      cardProductId: Number(state.cardProductId),
+      chargeAccount: Boolean(state.chargeAccount)
+    };
+    if (Number.isInteger(Number(state.cardProductCardProviderId)) && Number(state.cardProductCardProviderId) > 0) {
+      payload.cardProductCardProviderId = Number(state.cardProductCardProviderId);
+    }
+    if (state.accountMode === 'id') payload.accountId = Number(state.accountId);
+    if (state.accountMode === 'reference') payload.accountReference = String(state.accountReference).trim();
+    if (state.accountMode === 'email') payload.accountEmail = String(state.accountEmail).trim();
+    if (state.internalFeeAmount !== '') payload.internalFeeAmount = Number(state.internalFeeAmount);
+    if (state.commissionAmount !== '') payload.commissionAmount = Number(state.commissionAmount);
+    if (state.grossAmount !== '') payload.grossAmount = Number(state.grossAmount);
+    return payload;
+  };
+
+  const handleIssue = async () => {
+    const validationError = validateIssueDraft(issueDraft);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+    setError(null);
+    setInfo(null);
+    setIssueLoading(true);
+    try {
+      const res = await api.cards.issue(toIssuePayload(issueDraft));
+      const txId = res?.transactionId || res?.id || null;
+      setShowIssue(false);
+      setInfo(txId ? `Card issuance submitted. Transaction ID: ${txId}.` : 'Card issuance submitted.');
+    } catch (err) {
+      setError(err?.message || 'Failed to issue card.');
+    } finally {
+      setIssueLoading(false);
     }
   };
 
@@ -425,6 +518,9 @@ export default function CardHoldersPage() {
             ]}
           />
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.75rem' }}>
+            <button type="button" onClick={() => openIssue(selected)} className="btn-success">
+              Issue card
+            </button>
             <button type="button" onClick={() => openReconcile(selected)} className="btn-primary">
               Reconcile card
             </button>
@@ -529,6 +625,123 @@ export default function CardHoldersPage() {
             </button>
             <button type="button" onClick={handleReconcile} className="btn-primary" disabled={reconcileLoading}>
               {reconcileLoading ? 'Reconciling…' : 'Reconcile card'}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {showIssue && (
+        <Modal title={`Issue card for holder ${selected?.id}`} onClose={() => (!issueLoading ? setShowIssue(false) : null)}>
+          <div style={{ color: 'var(--muted)', marginBottom: '0.75rem' }}>
+            Uses normal card-order flow.
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="issueAccountMode">Account selector</label>
+              <select id="issueAccountMode" value={issueDraft.accountMode} onChange={(e) => setIssueDraft((p) => ({ ...p, accountMode: e.target.value }))}>
+                <option value="id">Account ID</option>
+                <option value="reference">Account reference</option>
+                <option value="email">Account email</option>
+              </select>
+            </div>
+            {issueDraft.accountMode === 'id' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="issueAccountId">Account ID</label>
+                <input id="issueAccountId" type="number" min={1} value={issueDraft.accountId} onChange={(e) => setIssueDraft((p) => ({ ...p, accountId: e.target.value }))} />
+              </div>
+            )}
+            {issueDraft.accountMode === 'reference' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="issueAccountReference">Account reference</label>
+                <input id="issueAccountReference" value={issueDraft.accountReference} onChange={(e) => setIssueDraft((p) => ({ ...p, accountReference: e.target.value }))} />
+              </div>
+            )}
+            {issueDraft.accountMode === 'email' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="issueAccountEmail">Account email</label>
+                <input id="issueAccountEmail" type="email" value={issueDraft.accountEmail} onChange={(e) => setIssueDraft((p) => ({ ...p, accountEmail: e.target.value }))} />
+              </div>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="issueMapping">Product/provider mapping (optional)</label>
+              <select
+                id="issueMapping"
+                value={issueDraft.cardProductCardProviderId}
+                onChange={(e) => {
+                  const mappingId = e.target.value;
+                  const mapping = mappingOptions.find((item) => String(item.id) === String(mappingId));
+                  setIssueDraft((p) => ({
+                    ...p,
+                    cardProductCardProviderId: mappingId,
+                    cardProductId: mapping?.cardProductId ? String(mapping.cardProductId) : p.cardProductId
+                  }));
+                }}
+                disabled={mappingLoading}
+              >
+                <option value="">{mappingLoading ? 'Loading mappings…' : 'Select mapping'}</option>
+                {mappingOptions.map((mapping) => (
+                  <option key={mapping.id} value={mapping.id}>
+                    #{mapping.id} • product {mapping.cardProductId} • provider {mapping.cardProviderId}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="issueCardProductId">Card product ID</label>
+              <input id="issueCardProductId" type="number" min={1} value={issueDraft.cardProductId} onChange={(e) => setIssueDraft((p) => ({ ...p, cardProductId: e.target.value }))} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <input id="issueChargeAccount" type="checkbox" checked={issueDraft.chargeAccount} onChange={(e) => setIssueDraft((p) => ({ ...p, chargeAccount: e.target.checked }))} />
+              <label htmlFor="issueChargeAccount">Charge account balance</label>
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              If enabled, user is charged from FONDEKA balance. If disabled, admin-sponsored issuance.
+            </div>
+            <div style={{ gridColumn: '1 / -1', borderTop: '1px solid var(--border)', paddingTop: '0.6rem', color: 'var(--muted)', fontSize: '13px' }}>
+              Optional transaction financial overrides (BUY_CARD)
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="issueInternalFeeAmount">Internal fee amount (optional)</label>
+                <input
+                  id="issueInternalFeeAmount"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={issueDraft.internalFeeAmount}
+                  onChange={(e) => setIssueDraft((p) => ({ ...p, internalFeeAmount: e.target.value }))}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="issueCommissionAmount">Commission amount (optional)</label>
+                <input
+                  id="issueCommissionAmount"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={issueDraft.commissionAmount}
+                  onChange={(e) => setIssueDraft((p) => ({ ...p, commissionAmount: e.target.value }))}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="issueGrossAmount">Gross amount (optional)</label>
+                <input
+                  id="issueGrossAmount"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={issueDraft.grossAmount}
+                  onChange={(e) => setIssueDraft((p) => ({ ...p, grossAmount: e.target.value }))}
+                />
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.75rem' }}>
+            <button type="button" onClick={() => setShowIssue(false)} className="btn-neutral" disabled={issueLoading}>
+              Cancel
+            </button>
+            <button type="button" onClick={handleIssue} className="btn-primary" disabled={issueLoading}>
+              {issueLoading ? 'Issuing…' : 'Issue card'}
             </button>
           </div>
         </Modal>

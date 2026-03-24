@@ -45,6 +45,7 @@ export default function BillProductProvidersPage() {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [draft, setDraft] = useState(emptyState);
   const [selected, setSelected] = useState(null);
+  const [seedingGiftCards, setSeedingGiftCards] = useState(false);
 
   const fetchRows = async () => {
     setLoading(true);
@@ -190,6 +191,97 @@ export default function BillProductProvidersPage() {
     }
   };
 
+  const selectedProduct = products.find((p) => String(p.id) === String(draft.billProductId));
+  const selectedProvider = providers.find((p) => String(p.id) === String(draft.billProviderId));
+  const selectedProductName = String(selectedProduct?.name || '').toUpperCase();
+  const selectedProductCode = String(selectedProduct?.code || '').toUpperCase();
+  const reloadlyGiftCardProductSelected = ['SPOTIFY', 'APP_STORE', 'GOOGLE_PLAY', 'NETFLIX', 'APPLE'].includes(selectedProductName) || ['SPOTIFY', 'APP_STORE', 'GOOGLE_PLAY', 'NETFLIX', 'APPLE'].includes(selectedProductCode);
+  const selectedProviderName = String(selectedProvider?.name || selectedProvider?.displayName || '').toUpperCase();
+  const reloadlyProvider = providers.find((provider) => {
+    const raw = String(provider?.name || provider?.displayName || '');
+    return raw.toUpperCase().includes('RELOADLY');
+  });
+
+  const handleSeedGiftCards = async () => {
+    setError(null);
+    setInfo(null);
+    setSeedingGiftCards(true);
+    try {
+      const provider = providers.find((p) => String(p?.name || p?.displayName || '').toUpperCase().includes('RELOADLY'));
+      if (!provider) {
+        throw new Error('RELOADLY bill provider is missing. Create/enable RELOADLY provider first.');
+      }
+
+      const targets = [
+        { name: 'NETFLIX', displayName: 'Netflix' },
+        { name: 'SPOTIFY', displayName: 'Spotify' },
+        { name: 'APP_STORE', displayName: 'Apple' },
+        { name: 'GOOGLE_PLAY', displayName: 'Google Play' }
+      ];
+
+      let createdProducts = 0;
+      let createdMappings = 0;
+
+      for (const target of targets) {
+        let product = products.find(
+          (p) => String(p?.name || '').toUpperCase() === target.name || String(p?.code || '').toUpperCase() === target.name
+        );
+        if (!product) {
+          const created = await api.billProducts.create({
+            name: target.name,
+            code: target.name,
+            displayName: target.displayName,
+            type: 'ENTERTAINMENT',
+            giftCard: true,
+            logoUrl: null,
+            countryIds: [],
+            rank: null,
+            active: true,
+            available: true
+          });
+          product = created;
+          createdProducts += 1;
+        }
+
+        const existingMapping = rows.find(
+          (row) => String(row.billProductId) === String(product?.id) && String(row.billProviderId) === String(provider.id)
+        );
+        if (!existingMapping) {
+          try {
+            await api.billProductBillProviders.create({
+              billProductId: Number(product?.id),
+              billProviderId: Number(provider.id),
+              rank: null,
+              commissionPercentage: null,
+              kwhPerUsd: null,
+              active: true,
+              cegawebProfileKey: null
+            });
+            createdMappings += 1;
+          } catch (mappingErr) {
+            const msg = String(mappingErr?.message || '');
+            if (!msg.toLowerCase().includes('already') && !msg.toLowerCase().includes('exists') && !msg.toLowerCase().includes('duplicate')) {
+              throw mappingErr;
+            }
+          }
+        }
+      }
+
+      setInfo(`Gift-card seed complete: ${createdProducts} product(s) created, ${createdMappings} mapping(s) created. NETFLIX, SPOTIFY, APP_STORE, and GOOGLE_PLAY are ready on RELOADLY.`);
+      await fetchRows();
+      const [prodRes, provRes] = await Promise.all([
+        api.billProducts.list(new URLSearchParams({ page: '0', size: '200' })),
+        api.billProviders.list(new URLSearchParams({ page: '0', size: '200' }))
+      ]);
+      setProducts(Array.isArray(prodRes) ? prodRes : prodRes?.content || []);
+      setProviders(Array.isArray(provRes) ? provRes : provRes?.content || []);
+    } catch (err) {
+      setError(err.message || 'Failed to seed gift-card mappings');
+    } finally {
+      setSeedingGiftCards(false);
+    }
+  };
+
   const renderForm = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -221,6 +313,31 @@ export default function BillProductProvidersPage() {
             </option>
           ))}
         </select>
+        {reloadlyGiftCardProductSelected && (
+          <div
+            style={{
+              marginTop: '0.35rem',
+              padding: '0.45rem 0.6rem',
+              borderRadius: '8px',
+              fontSize: '12px',
+              background: selectedProviderName.includes('RELOADLY') ? '#ecfdf3' : '#fff7ed',
+              color: selectedProviderName.includes('RELOADLY') ? '#166534' : '#9a3412',
+              border: `1px solid ${selectedProviderName.includes('RELOADLY') ? '#bbf7d0' : '#fed7aa'}`
+            }}
+          >
+            This gift card product uses the Reloadly flow. Select provider <strong>RELOADLY</strong>.
+            {!selectedProviderName.includes('RELOADLY') && reloadlyProvider && (
+              <button
+                type="button"
+                className="btn-neutral"
+                onClick={() => setDraft((prev) => ({ ...prev, billProviderId: String(reloadlyProvider.id) }))}
+                style={{ marginLeft: '0.5rem', padding: '0.25rem 0.5rem', fontSize: '12px' }}
+              >
+                Use RELOADLY
+              </button>
+            )}
+          </div>
+        )}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="cegawebProfileKey">CegaWeb profile</label>
@@ -307,6 +424,9 @@ export default function BillProductProvidersPage() {
         </button>
         <button type="button" onClick={openCreate} className="btn-success">
           Add mapping
+        </button>
+        <button type="button" onClick={handleSeedGiftCards} className="btn-neutral" disabled={seedingGiftCards}>
+          {seedingGiftCards ? 'Seeding gift cards…' : 'Seed Gift Card Mappings'}
         </button>
       </div>
 

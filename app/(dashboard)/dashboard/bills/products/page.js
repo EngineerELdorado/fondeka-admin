@@ -10,6 +10,7 @@ const emptyState = {
   code: '',
   displayName: '',
   type: '',
+  giftCard: false,
   logoUrl: '',
   rank: '',
   countryIds: [],
@@ -17,8 +18,8 @@ const emptyState = {
   available: true
 };
 
-const typeOptions = ['TELEVISION', 'ELECTRICITY', 'INTERNET', 'WATER', 'STREAMING', 'AIRTIME', 'OTHERS'];
-const nameOptions = ['CANAL_PLUS', 'CANAL_BOX', 'STARLINK', 'LIQUID', 'SOCODEE', 'VIRUNGA', 'SNEL', 'DSTV', 'STARTIMES', 'REGIDESO', 'NETFLIX', 'AIRTIME'];
+const typeOptions = ['TELEVISION', 'ELECTRICITY', 'INTERNET', 'WATER', 'STREAMING', 'ENTERTAINMENT', 'AIRTIME', 'OTHERS'];
+const nameOptions = ['CANAL_PLUS', 'CANAL_BOX', 'STARLINK', 'LIQUID', 'SOCODEE', 'VIRUNGA', 'SNEL', 'DSTV', 'STARTIMES', 'REGIDESO', 'NETFLIX', 'SPOTIFY', 'APP_STORE', 'APPLE', 'GOOGLE_PLAY', 'AIRTIME'];
 const codeOptions = [
   'CANAL_PLUS_RWANDA',
   'CANAL_PLUS_DRC',
@@ -33,6 +34,10 @@ const codeOptions = [
   'STARTIMES',
   'REGIDESO',
   'NETFLIX',
+  'SPOTIFY',
+  'APP_STORE',
+  'APPLE',
+  'GOOGLE_PLAY',
   'AIRTIME'
 ];
 
@@ -41,6 +46,7 @@ const toPayload = (state) => ({
   code: state.code,
   displayName: state.displayName,
   type: state.type,
+  giftCard: Boolean(state.giftCard),
   logoUrl: state.logoUrl || null,
   countryIds: Array.isArray(state.countryIds) ? state.countryIds.map((id) => Number(id)).filter((n) => !Number.isNaN(n)) : [],
   rank: state.rank === '' ? null : Number(state.rank),
@@ -157,6 +163,11 @@ export default function BillProductsPage() {
     },
     { key: 'type', label: 'Type' },
     {
+      key: 'giftCard',
+      label: 'Gift card',
+      render: (row) => (row.giftCard ? 'Yes' : 'No')
+    },
+    {
       key: 'country',
       label: 'Countries',
       render: (row) => {
@@ -208,6 +219,7 @@ export default function BillProductsPage() {
       code: row.code ?? '',
       displayName: row.displayName ?? '',
       type: row.type ?? '',
+      giftCard: Boolean(row.giftCard),
       logoUrl: row.logoUrl ?? '',
       countryIds: row.countryIds || [],
       rank: row.rank ?? '',
@@ -287,7 +299,20 @@ export default function BillProductsPage() {
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="name">Name</label>
-        <select id="name" value={draft.name} onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))}>
+        <select
+          id="name"
+          value={draft.name}
+          onChange={(e) => {
+            const nextName = e.target.value;
+            const autoGiftCard = ['NETFLIX', 'SPOTIFY', 'APP_STORE', 'GOOGLE_PLAY', 'APPLE'].includes(nextName);
+            setDraft((p) => ({
+              ...p,
+              name: nextName,
+              giftCard: autoGiftCard ? true : p.giftCard,
+              type: autoGiftCard && !p.type ? 'ENTERTAINMENT' : p.type
+            }));
+          }}
+        >
           <option value="">Select name</option>
           {nameOptions.map((opt) => (
             <option key={opt} value={opt}>
@@ -298,7 +323,20 @@ export default function BillProductsPage() {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="code">Code</label>
-        <select id="code" value={draft.code} onChange={(e) => setDraft((p) => ({ ...p, code: e.target.value }))}>
+        <select
+          id="code"
+          value={draft.code}
+          onChange={(e) => {
+            const nextCode = e.target.value;
+            const autoGiftCard = ['NETFLIX', 'SPOTIFY', 'APP_STORE', 'GOOGLE_PLAY', 'APPLE'].includes(nextCode);
+            setDraft((p) => ({
+              ...p,
+              code: nextCode,
+              giftCard: autoGiftCard ? true : p.giftCard,
+              type: autoGiftCard && !p.type ? 'ENTERTAINMENT' : p.type
+            }));
+          }}
+        >
           <option value="">Select code</option>
           {codeOptions.map((opt) => (
             <option key={opt} value={opt}>
@@ -321,6 +359,10 @@ export default function BillProductsPage() {
             </option>
           ))}
         </select>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <input id="giftCard" type="checkbox" checked={draft.giftCard} onChange={(e) => setDraft((p) => ({ ...p, giftCard: e.target.checked }))} />
+        <label htmlFor="giftCard">Gift card product</label>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', position: 'relative' }}>
         <label htmlFor="countryIds">Countries (optional)</label>
@@ -528,6 +570,7 @@ export default function BillProductsPage() {
               { label: 'Name', value: selected?.name },
               { label: 'Display', value: selected?.displayName },
               { label: 'Type', value: selected?.type },
+              { label: 'Gift card', value: selected?.giftCard ? 'Yes' : 'No' },
               {
                 label: 'Countries',
                 value:
