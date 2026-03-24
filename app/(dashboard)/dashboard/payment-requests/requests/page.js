@@ -16,6 +16,7 @@ const emptyState = {
   goalAmount: '',
   currency: '',
   allowPartial: false,
+  showRecentPaymentsPublicly: false,
   feeInclusion: '',
   approvalStatus: '',
   lifecycle: '',
@@ -64,6 +65,7 @@ const toPayload = (state) => ({
   goalAmount: state.goalAmount === '' ? null : Number(state.goalAmount),
   currency: state.currency,
   allowPartial: Boolean(state.allowPartial),
+  showRecentPaymentsPublicly: Boolean(state.showRecentPaymentsPublicly),
   feeInclusion: state.feeInclusion || null,
   approvalStatus: state.approvalStatus || null,
   lifecycle: state.lifecycle || null,
@@ -312,6 +314,11 @@ export default function PaymentRequestsPage() {
     { key: 'totalCollected', label: 'Collected' },
     { key: 'currency', label: 'Currency' },
     {
+      key: 'showRecentPaymentsPublicly',
+      label: 'Recent payers visibility',
+      render: (row) => (row.showRecentPaymentsPublicly ? <Badge tone="success">Public</Badge> : <Badge>Private</Badge>)
+    },
+    {
       key: 'approvalStatus',
       label: 'Approval',
       render: (row) => <Badge tone="info">{row.approvalStatus}</Badge>
@@ -386,6 +393,7 @@ export default function PaymentRequestsPage() {
       goalAmount: row.goalAmount ?? '',
       currency: row.currency ?? '',
       allowPartial: Boolean(row.allowPartial),
+      showRecentPaymentsPublicly: Boolean(row.showRecentPaymentsPublicly),
       feeInclusion: row.feeInclusion ?? '',
       approvalStatus: row.approvalStatus ?? '',
       lifecycle: row.lifecycle ?? '',
@@ -491,9 +499,24 @@ export default function PaymentRequestsPage() {
         <label htmlFor="currency">Currency</label>
         <input id="currency" value={draft.currency} onChange={(e) => setDraft((p) => ({ ...p, currency: e.target.value }))} />
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-        <input id="allowPartial" type="checkbox" checked={draft.allowPartial} onChange={(e) => setDraft((p) => ({ ...p, allowPartial: e.target.checked }))} />
-        <label htmlFor="allowPartial">Allow partial</label>
+      <div style={{ gridColumn: '1 / -1', display: 'grid', gap: '0.6rem', padding: '0.65rem', border: '1px solid var(--border)', borderRadius: '10px' }}>
+        <div style={{ fontWeight: 700 }}>Public display settings</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <input id="allowPartial" type="checkbox" checked={draft.allowPartial} onChange={(e) => setDraft((p) => ({ ...p, allowPartial: e.target.checked }))} />
+          <label htmlFor="allowPartial">Allow partial</label>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <input
+            id="showRecentPaymentsPublicly"
+            type="checkbox"
+            checked={draft.showRecentPaymentsPublicly}
+            onChange={(e) => setDraft((p) => ({ ...p, showRecentPaymentsPublicly: e.target.checked }))}
+          />
+          <label htmlFor="showRecentPaymentsPublicly">Show recent payers publicly</label>
+        </div>
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          Field key: <code>showRecentPaymentsPublicly</code>. Recommended: keep this off unless payer visibility is explicitly required.
+        </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="feeInclusion">Fee inclusion</label>
@@ -784,6 +807,7 @@ export default function PaymentRequestsPage() {
               { label: 'Goal amount', value: selected?.goalAmount },
               { label: 'Currency', value: selected?.currency },
               { label: 'Allow partial', value: String(selected?.allowPartial) },
+              { label: 'Recent payers visibility', value: selected?.showRecentPaymentsPublicly ? 'Public' : 'Private' },
               { label: 'Fee inclusion', value: selected?.feeInclusion },
               { label: 'Approval status', value: selected?.approvalStatus },
               { label: 'Lifecycle', value: selected?.lifecycle },

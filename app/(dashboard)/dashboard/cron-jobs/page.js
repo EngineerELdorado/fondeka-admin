@@ -4,6 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DataTable } from '@/components/DataTable';
 import { api } from '@/lib/api';
 
+const cronDescriptions = {
+  'loan.due_reminder': 'Sends loan repayment reminders on D-3, D-2, D-1, and D0 (UTC-day logic). Penalty notifications continue via penalty cron after due date.'
+};
+
 const normalizeList = (res) => {
   if (Array.isArray(res)) return res;
   if (Array.isArray(res?.content)) return res.content;
@@ -48,7 +52,8 @@ export default function CronJobsPage() {
         key: item?.key || '',
         displayName: item?.displayName || item?.key || '—',
         schedule: item?.schedule || '—',
-        enabled: Boolean(item?.enabled)
+        enabled: Boolean(item?.enabled),
+        description: cronDescriptions[item?.key] || '—'
       }));
       setRows(list);
     } catch (err) {
@@ -73,7 +78,18 @@ export default function CronJobsPage() {
       const res = row.enabled ? await api.cronJobs.pause(key) : await api.cronJobs.unpause(key);
       if (res && typeof res === 'object' && (res.key || key)) {
         setRows((prev) =>
-          prev.map((item) => (item.key === key ? { ...item, key: res.key || item.key, displayName: res.displayName || item.displayName, schedule: res.schedule || item.schedule, enabled: Boolean(res.enabled) } : item))
+          prev.map((item) =>
+            item.key === key
+              ? {
+                  ...item,
+                  key: res.key || item.key,
+                  displayName: res.displayName || item.displayName,
+                  schedule: res.schedule || item.schedule,
+                  enabled: Boolean(res.enabled),
+                  description: cronDescriptions[res.key || item.key] || item.description
+                }
+              : item
+          )
         );
       } else {
         await fetchRows();
@@ -91,6 +107,7 @@ export default function CronJobsPage() {
       { key: 'displayName', label: 'Name' },
       { key: 'key', label: 'Key' },
       { key: 'schedule', label: 'Schedule' },
+      { key: 'description', label: 'Description' },
       {
         key: 'enabled',
         label: 'Status',
