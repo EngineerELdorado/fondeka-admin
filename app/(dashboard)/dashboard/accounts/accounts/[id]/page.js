@@ -320,6 +320,7 @@ const [notificationDataModal, setNotificationDataModal] = useState(null);
   const [feeConfigsLoading, setFeeConfigsLoading] = useState(false);
   const [feeConfigsError, setFeeConfigsError] = useState(null);
   const [pmps, setPmps] = useState([]);
+  const [billProducts, setBillProducts] = useState([]);
   const [countries, setCountries] = useState([]);
   const [countryCodeDraft, setCountryCodeDraft] = useState('');
   const [countrySaving, setCountrySaving] = useState(false);
@@ -351,6 +352,14 @@ const [notificationDataModal, setNotificationDataModal] = useState(null);
   const [paymentMethodActionConfigs, setPaymentMethodActionConfigs] = useState([]);
   const [paymentMethodActionConfigsLoading, setPaymentMethodActionConfigsLoading] = useState(false);
   const [paymentMethodActionConfigsError, setPaymentMethodActionConfigsError] = useState(null);
+  const [billProductOverrides, setBillProductOverrides] = useState([]);
+  const [billProductOverridesLoading, setBillProductOverridesLoading] = useState(false);
+  const [billProductOverridesError, setBillProductOverridesError] = useState(null);
+  const [showBillProductOverrideForm, setShowBillProductOverrideForm] = useState(false);
+  const [billProductOverrideProductId, setBillProductOverrideProductId] = useState('');
+  const [billProductOverrideEnabled, setBillProductOverrideEnabled] = useState(true);
+  const [billProductOverrideNote, setBillProductOverrideNote] = useState('');
+  const [billProductOverrideSaving, setBillProductOverrideSaving] = useState(false);
   const [showPaymentMethodActionForm, setShowPaymentMethodActionForm] = useState(false);
   const [paymentMethodActionFormId, setPaymentMethodActionFormId] = useState(null);
   const [paymentMethodAction, setPaymentMethodAction] = useState('');
@@ -534,6 +543,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       await loadKycCap(acc?.kycLevel);
       await loadFeeConfigs(targetId);
       await loadPaymentMethodActionConfigs(targetId);
+      await loadBillProductOverrides(targetId);
       await loadProviderRouting(targetId);
       await loadCardPrices(targetId);
       await loadLoanRates(targetId);
@@ -642,6 +652,22 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       setPaymentMethodActionConfigsError(err.message || 'Failed to load payment method rules');
     } finally {
       setPaymentMethodActionConfigsLoading(false);
+    }
+  };
+
+  const loadBillProductOverrides = async (id) => {
+    if (!id && id !== 0) return;
+    setBillProductOverridesLoading(true);
+    setBillProductOverridesError(null);
+    try {
+      const res = await api.accounts.billProductOverrides.list(id);
+      const list = Array.isArray(res) ? res : res?.content || [];
+      setBillProductOverrides(list || []);
+    } catch (err) {
+      setBillProductOverrides([]);
+      setBillProductOverridesError(err.message || 'Failed to load bill product overrides');
+    } finally {
+      setBillProductOverridesLoading(false);
     }
   };
 
@@ -1315,8 +1341,9 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
   useEffect(() => {
     const fetchOptions = async () => {
       try {
-        const [pmpRes, countryRes, cardProductProvidersRes, loanProductsRes, cryptoProductsRes, cryptoNetworksRes] = await Promise.all([
+        const [pmpRes, billProductsRes, countryRes, cardProductProvidersRes, loanProductsRes, cryptoProductsRes, cryptoNetworksRes] = await Promise.all([
           api.paymentMethodPaymentProviders.list(new URLSearchParams({ page: '0', size: '200' })),
+          api.billProducts.list(new URLSearchParams({ page: '0', size: '500' })),
           api.countries.list(new URLSearchParams({ page: '0', size: '200' })),
           api.cardProductCardProviders.list(new URLSearchParams({ page: '0', size: '200' })),
           api.loanProducts.list(new URLSearchParams({ page: '0', size: '200' })),
@@ -1325,6 +1352,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         ]);
         const toList = (res) => (Array.isArray(res) ? res : res?.content || []);
         setPmps(toList(pmpRes));
+        setBillProducts(toList(billProductsRes));
         setCountries(toList(countryRes));
         setCardProductCardProviders(toList(cardProductProvidersRes));
         setLoanProducts(toList(loanProductsRes));
@@ -1543,6 +1571,83 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     setPaymentMethodRank(0);
   };
 
+  const openBillProductOverrideForm = (override = null) => {
+    setBillProductOverridesError(null);
+    const productId = override?.billProductId ?? override?.billProduct?.id ?? '';
+    setBillProductOverrideProductId(productId === null || productId === undefined ? '' : String(productId));
+    setBillProductOverrideEnabled(Boolean(override?.enabled ?? true));
+    setBillProductOverrideNote(override?.note || '');
+    setShowBillProductOverrideForm(true);
+  };
+
+  const resetBillProductOverrideForm = () => {
+    setBillProductOverrideProductId('');
+    setBillProductOverrideEnabled(true);
+    setBillProductOverrideNote('');
+  };
+
+  const submitBillProductOverrideForm = async () => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) {
+      setBillProductOverridesError('No account loaded');
+      return;
+    }
+    if (!billProductOverrideProductId) {
+      setBillProductOverridesError('Bill product is required');
+      return;
+    }
+    const billProductIdNum = Number(billProductOverrideProductId);
+    if (!Number.isFinite(billProductIdNum)) {
+      setBillProductOverridesError('Bill product ID is invalid');
+      return;
+    }
+    setBillProductOverrideSaving(true);
+    setBillProductOverridesError(null);
+    try {
+      await api.accounts.billProductOverrides.upsert(resolvedAccountId, billProductIdNum, {
+        enabled: Boolean(billProductOverrideEnabled),
+        note: billProductOverrideNote?.trim() ? billProductOverrideNote.trim() : null
+      });
+      pushToast({ tone: 'success', message: 'Bill product override saved' });
+      resetBillProductOverrideForm();
+      setShowBillProductOverrideForm(false);
+      await loadBillProductOverrides(resolvedAccountId);
+    } catch (err) {
+      const message = err.message || 'Failed to save bill product override';
+      setBillProductOverridesError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setBillProductOverrideSaving(false);
+    }
+  };
+
+  const deleteBillProductOverride = (override) => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) return;
+    const billProductId = override?.billProductId ?? override?.billProduct?.id;
+    if (billProductId === null || billProductId === undefined) return;
+    const billProductLabel =
+      override?.billProduct?.displayName ||
+      override?.billProduct?.name ||
+      override?.billProductName ||
+      `bill product ${billProductId}`;
+    openConfirm({
+      title: 'Remove bill product override',
+      message: `Remove override for ${billProductLabel}? This will fallback to the global product status.`,
+      onConfirm: async () => {
+        setBillProductOverridesError(null);
+        try {
+          await api.accounts.billProductOverrides.remove(resolvedAccountId, billProductId);
+          pushToast({ tone: 'success', message: 'Bill product override removed' });
+          await loadBillProductOverrides(resolvedAccountId);
+        } catch (err) {
+          const message = err.message || 'Failed to remove bill product override';
+          setBillProductOverridesError(message);
+          pushToast({ tone: 'error', message });
+          throw err;
+        }
+      }
+    });
+  };
+
   const submitPaymentMethodActionForm = async () => {
     if (resolvedAccountId === null || resolvedAccountId === undefined) {
       setPaymentMethodActionConfigsError('No account loaded');
@@ -1613,6 +1718,15 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     const method = match.paymentMethodName || match.paymentMethodDisplayName || 'Method';
     const provider = match.paymentProviderName || 'Provider';
     return `${method} -> ${provider}`;
+  };
+
+  const getBillProductLabel = (billProductId) => {
+    if (!billProductId && billProductId !== 0) return '—';
+    const match = billProducts.find((p) => String(p.id) === String(billProductId));
+    if (!match) return `Bill product #${billProductId}`;
+    const displayName = match.displayName || match.name || match.title || match.code || `Bill product #${billProductId}`;
+    const code = match.code ? ` (${match.code})` : '';
+    return `${displayName}${code}`;
   };
 
   const openProviderRoutingForm = (row = null) => {
@@ -2732,6 +2846,70 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                       </td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="card" style={{ padding: '1rem', ...fadeInStyle(!billProductOverridesLoading) }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+            <div style={{ fontWeight: 800 }}>Bill Product Overrides</div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Per-account enable/disable override. If removed, product falls back to global `is_active`.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button type="button" className="btn-neutral btn-sm" onClick={() => loadBillProductOverrides(resolvedAccountId)} disabled={billProductOverridesLoading}>
+              {billProductOverridesLoading ? 'Loading…' : 'Reload'}
+            </button>
+            <button type="button" className="btn-primary btn-sm" onClick={() => { resetBillProductOverrideForm(); setShowBillProductOverrideForm(true); }}>
+              Add override
+            </button>
+          </div>
+        </div>
+
+        <div style={{ marginTop: '0.75rem' }}>
+          {billProductOverridesError && <div style={{ color: '#b91c1c', fontWeight: 700, marginBottom: '0.4rem' }}>{billProductOverridesError}</div>}
+          {billProductOverridesLoading && <div style={{ color: 'var(--muted)' }}>Loading bill product overrides…</div>}
+          {!billProductOverridesLoading && billProductOverrides.length === 0 && <div style={{ color: 'var(--muted)' }}>No bill product overrides.</div>}
+          {!billProductOverridesLoading && billProductOverrides.length > 0 && (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '700px' }}>
+                <thead>
+                  <tr>
+                    {['Bill product', 'Enabled', 'Note', 'Updated', ''].map((h) => (
+                      <th key={h} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {billProductOverrides.map((override, index) => {
+                    const billProductId = override?.billProductId ?? override?.billProduct?.id ?? override?.productId ?? null;
+                    const rowKey = override?.id ?? `${billProductId || 'unknown'}-${index}`;
+                    return (
+                      <tr key={rowKey} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '0.45rem' }}>{getBillProductLabel(billProductId)}</td>
+                        <td style={{ padding: '0.45rem' }}>
+                          <Badge>{override?.enabled ? 'Enabled' : 'Disabled'}</Badge>
+                        </td>
+                        <td style={{ padding: '0.45rem' }}>{override?.note || '—'}</td>
+                        <td style={{ padding: '0.45rem' }}>{override?.updatedAt ? formatDateTime(override.updatedAt) : '—'}</td>
+                        <td style={{ padding: '0.45rem', display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                          <button type="button" className="btn-neutral btn-sm" onClick={() => openBillProductOverrideForm(override)}>
+                            Edit
+                          </button>
+                          <button type="button" className="btn-danger btn-sm" onClick={() => deleteBillProductOverride(override)}>
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -4115,6 +4293,70 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               </button>
               <button type="button" className="btn-primary" onClick={submitFeeForm} disabled={feeSaving}>
                 {feeSaving ? 'Saving…' : feeFormId ? 'Update' : 'Add'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showBillProductOverrideForm && (
+        <Modal title="Bill product override" onClose={() => (!billProductOverrideSaving ? setShowBillProductOverrideForm(false) : null)}>
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            {billProductOverridesError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{billProductOverridesError}</div>}
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Override applies only to account <strong>#{resolvedAccountId ?? '—'}</strong>.
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="billProductOverrideId">Bill product *</label>
+                <select
+                  id="billProductOverrideId"
+                  value={billProductOverrideProductId}
+                  onChange={(e) => setBillProductOverrideProductId(e.target.value)}
+                >
+                  <option value="">Select</option>
+                  {billProducts.map((product) => (
+                    <option key={product.id} value={product.id}>
+                      {getBillProductLabel(product.id)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="billProductOverrideNote">Note (optional)</label>
+                <input
+                  id="billProductOverrideNote"
+                  value={billProductOverrideNote}
+                  onChange={(e) => setBillProductOverrideNote(e.target.value)}
+                  placeholder="Reason for account-specific override"
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <input
+                  id="billProductOverrideEnabled"
+                  type="checkbox"
+                  checked={billProductOverrideEnabled}
+                  onChange={(e) => setBillProductOverrideEnabled(e.target.checked)}
+                />
+                <label htmlFor="billProductOverrideEnabled">Enabled for this account</label>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn-neutral"
+                onClick={() => {
+                  if (!billProductOverrideSaving) {
+                    resetBillProductOverrideForm();
+                    setShowBillProductOverrideForm(false);
+                  }
+                }}
+                disabled={billProductOverrideSaving}
+              >
+                Cancel
+              </button>
+              <button type="button" className="btn-primary" onClick={submitBillProductOverrideForm} disabled={billProductOverrideSaving}>
+                {billProductOverrideSaving ? 'Saving…' : 'Save'}
               </button>
             </div>
           </div>
