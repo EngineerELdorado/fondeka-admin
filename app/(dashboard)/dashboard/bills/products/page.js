@@ -9,6 +9,9 @@ const emptyState = {
   name: '',
   code: '',
   displayName: '',
+  description: '',
+  descriptionEn: '',
+  descriptionFr: '',
   type: '',
   giftCard: false,
   logoUrl: '',
@@ -45,6 +48,9 @@ const toPayload = (state) => ({
   name: state.name,
   code: state.code,
   displayName: state.displayName,
+  description: state.description || null,
+  descriptionEn: state.descriptionEn || null,
+  descriptionFr: state.descriptionFr || null,
   type: state.type,
   giftCard: Boolean(state.giftCard),
   logoUrl: state.logoUrl || null,
@@ -218,6 +224,9 @@ export default function BillProductsPage() {
       name: row.name ?? '',
       code: row.code ?? '',
       displayName: row.displayName ?? '',
+      description: row.description ?? '',
+      descriptionEn: row.descriptionEn ?? row.description_en ?? '',
+      descriptionFr: row.descriptionFr ?? row.description_fr ?? '',
       type: row.type ?? '',
       giftCard: Boolean(row.giftCard),
       logoUrl: row.logoUrl ?? '',
@@ -348,6 +357,36 @@ export default function BillProductsPage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="displayName">Display name</label>
         <input id="displayName" value={draft.displayName} onChange={(e) => setDraft((p) => ({ ...p, displayName: e.target.value }))} />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="description">Description (fallback)</label>
+        <textarea
+          id="description"
+          value={draft.description}
+          onChange={(e) => setDraft((p) => ({ ...p, description: e.target.value }))}
+          rows={2}
+          placeholder="Generic fallback description"
+        />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="descriptionEn">Description (EN)</label>
+        <textarea
+          id="descriptionEn"
+          value={draft.descriptionEn}
+          onChange={(e) => setDraft((p) => ({ ...p, descriptionEn: e.target.value }))}
+          rows={2}
+          placeholder="English description"
+        />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="descriptionFr">Description (FR)</label>
+        <textarea
+          id="descriptionFr"
+          value={draft.descriptionFr}
+          onChange={(e) => setDraft((p) => ({ ...p, descriptionFr: e.target.value }))}
+          rows={2}
+          placeholder="Description française"
+        />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="type">Type</label>
@@ -569,6 +608,9 @@ export default function BillProductsPage() {
               { label: 'Code', value: selected?.code },
               { label: 'Name', value: selected?.name },
               { label: 'Display', value: selected?.displayName },
+              { label: 'Description (fallback)', value: selected?.description || '—' },
+              { label: 'Description (EN)', value: selected?.descriptionEn || selected?.description_en || '—' },
+              { label: 'Description (FR)', value: selected?.descriptionFr || selected?.description_fr || '—' },
               { label: 'Type', value: selected?.type },
               { label: 'Gift card', value: selected?.giftCard ? 'Yes' : 'No' },
               {
