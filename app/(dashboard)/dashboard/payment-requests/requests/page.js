@@ -21,7 +21,8 @@ const emptyState = {
   approvalStatus: '',
   lifecycle: '',
   activationAt: '',
-  expiresAt: ''
+  expiresAt: '',
+  payerFields: []
 };
 
 const typeOptions = ['QUICK_CHARGE', 'DONATION', 'INVOICE'];
@@ -29,6 +30,32 @@ const approvalStatusOptions = ['PENDING', 'APPROVED', 'REJECTED'];
 const lifecycleOptions = ['DRAFT', 'NEW', 'ACTIVE', 'SUSPENDED', 'CANCELLED', 'EXPIRED', 'COMPLETED'];
 const feeInclusionOptions = ['ON_TOP', 'ABSORBED'];
 const recomputeEligibleTypes = new Set(['INVOICE', 'QUICK_CHARGE']);
+const emptyPayerField = { label: '', required: false, key: '' };
+
+const normalizePayerFields = (source) => {
+  const list = Array.isArray(source?.payerFields) ? source.payerFields : Array.isArray(source?.payer_fields) ? source.payer_fields : [];
+  return list.map((field) => ({
+    label: field?.label ?? '',
+    required: Boolean(field?.required),
+    key: field?.key ?? ''
+  }));
+};
+
+const toPayerFieldsPayload = (fields) => {
+  if (!Array.isArray(fields)) return [];
+  return fields
+    .map((field) => ({
+      label: String(field?.label || '').trim(),
+      required: Boolean(field?.required),
+      key: String(field?.key || '').trim()
+    }))
+    .filter((field) => field.label)
+    .map((field) => ({
+      label: field.label,
+      required: field.required,
+      ...(field.key ? { key: field.key } : {})
+    }));
+};
 
 const initialFilters = {
   id: '',
@@ -70,7 +97,8 @@ const toPayload = (state) => ({
   approvalStatus: state.approvalStatus || null,
   lifecycle: state.lifecycle || null,
   activationAt: state.activationAt || null,
-  expiresAt: state.expiresAt || null
+  expiresAt: state.expiresAt || null,
+  payerFields: toPayerFieldsPayload(state.payerFields)
 });
 
 const Modal = ({ title, onClose, children }) => (
@@ -166,6 +194,7 @@ export default function PaymentRequestsPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [savingApprovalId, setSavingApprovalId] = useState(null);
   const [recomputingLifecycleId, setRecomputingLifecycleId] = useState(null);
+  const [showPayerFieldAdvanced, setShowPayerFieldAdvanced] = useState(false);
 
   const fetchRows = async () => {
     setLoading(true);
@@ -319,6 +348,14 @@ export default function PaymentRequestsPage() {
       render: (row) => (row.showRecentPaymentsPublicly ? <Badge tone="success">Public</Badge> : <Badge>Private</Badge>)
     },
     {
+      key: 'payerFields',
+      label: 'Payer fields',
+      render: (row) => {
+        const count = normalizePayerFields(row).length;
+        return count > 0 ? <Badge tone="info">{count}</Badge> : '—';
+      }
+    },
+    {
       key: 'approvalStatus',
       label: 'Approval',
       render: (row) => <Badge tone="info">{row.approvalStatus}</Badge>
@@ -375,12 +412,14 @@ export default function PaymentRequestsPage() {
 
   const openCreate = () => {
     setDraft(emptyState);
+    setShowPayerFieldAdvanced(false);
     setShowCreate(true);
     setInfo(null);
     setError(null);
   };
 
   const openEdit = (row) => {
+    const payerFields = normalizePayerFields(row);
     setSelected(row);
     setDraft({
       accountId: row.accountId ?? '',
@@ -398,8 +437,10 @@ export default function PaymentRequestsPage() {
       approvalStatus: row.approvalStatus ?? '',
       lifecycle: row.lifecycle ?? '',
       activationAt: row.activationAt ?? '',
-      expiresAt: row.expiresAt ?? ''
+      expiresAt: row.expiresAt ?? '',
+      payerFields
     });
+    setShowPayerFieldAdvanced(payerFields.some((field) => Boolean(field.key)));
     setShowEdit(true);
     setInfo(null);
     setError(null);
@@ -416,10 +457,22 @@ export default function PaymentRequestsPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.paymentRequests.create(toPayload(draft));
+      const created = await api.paymentRequests.create(toPayload(draft));
+      let refreshed = created || null;
+      if (created?.id) {
+        try {
+          refreshed = await api.paymentRequests.get(created.id);
+        } catch {
+          refreshed = created;
+        }
+      }
       setInfo('Created payment request.');
       setShowCreate(false);
-      fetchRows();
+      if (refreshed) {
+        setSelected(refreshed);
+        setShowDetail(true);
+      }
+      await fetchRows();
     } catch (err) {
       setError(err.message);
     }
@@ -433,7 +486,14 @@ export default function PaymentRequestsPage() {
       await api.paymentRequests.update(selected.id, toPayload(draft));
       setInfo(`Updated payment request ${selected.id}.`);
       setShowEdit(false);
-      fetchRows();
+      try {
+        const refreshed = await api.paymentRequests.get(selected.id);
+        setSelected(refreshed || null);
+        setShowDetail(true);
+      } catch {
+        setSelected((prev) => prev || null);
+      }
+      await fetchRows();
     } catch (err) {
       setError(err.message);
     }
@@ -452,6 +512,28 @@ export default function PaymentRequestsPage() {
     } catch (err) {
       setError(err.message);
     }
+  };
+
+  const addPayerFieldRow = () => {
+    setDraft((prev) => ({
+      ...prev,
+      payerFields: [...(Array.isArray(prev.payerFields) ? prev.payerFields : []), { ...emptyPayerField }]
+    }));
+  };
+
+  const updatePayerFieldRow = (index, patch) => {
+    setDraft((prev) => {
+      const next = Array.isArray(prev.payerFields) ? [...prev.payerFields] : [];
+      next[index] = { ...(next[index] || emptyPayerField), ...patch };
+      return { ...prev, payerFields: next };
+    });
+  };
+
+  const removePayerFieldRow = (index) => {
+    setDraft((prev) => ({
+      ...prev,
+      payerFields: (Array.isArray(prev.payerFields) ? prev.payerFields : []).filter((_, idx) => idx !== index)
+    }));
   };
 
   const renderForm = () => (
@@ -517,6 +599,71 @@ export default function PaymentRequestsPage() {
         <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
           Field key: <code>showRecentPaymentsPublicly</code>. Recommended: keep this off unless payer visibility is explicitly required.
         </div>
+      </div>
+      <div style={{ gridColumn: '1 / -1', display: 'grid', gap: '0.6rem', padding: '0.65rem', border: '1px solid var(--border)', borderRadius: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <div style={{ fontWeight: 700 }}>Extra payer fields</div>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button type="button" className="btn-neutral btn-sm" onClick={() => setShowPayerFieldAdvanced((prev) => !prev)}>
+              {showPayerFieldAdvanced ? 'Hide advanced key' : 'Show advanced key'}
+            </button>
+            <button type="button" className="btn-primary btn-sm" onClick={addPayerFieldRow}>
+              Add field
+            </button>
+          </div>
+        </div>
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          Default UI uses label + required. Optional key is for advanced control; backend will auto-generate and uniquify keys when missing.
+        </div>
+        {(Array.isArray(draft.payerFields) ? draft.payerFields : []).length === 0 ? (
+          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>No extra payer fields configured.</div>
+        ) : (
+          <div style={{ display: 'grid', gap: '0.55rem' }}>
+            {(Array.isArray(draft.payerFields) ? draft.payerFields : []).map((field, index) => (
+              <div
+                key={`${field?.key || 'new'}-${index}`}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: showPayerFieldAdvanced ? 'minmax(200px, 2fr) minmax(160px, 1.2fr) auto auto' : 'minmax(220px, 1fr) auto auto',
+                  gap: '0.55rem',
+                  alignItems: 'end'
+                }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor={`payer-field-label-${index}`}>Label</label>
+                  <input
+                    id={`payer-field-label-${index}`}
+                    value={field?.label || ''}
+                    onChange={(e) => updatePayerFieldRow(index, { label: e.target.value })}
+                    placeholder="Student ID"
+                  />
+                </div>
+                {showPayerFieldAdvanced && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <label htmlFor={`payer-field-key-${index}`}>Key (optional)</label>
+                    <input
+                      id={`payer-field-key-${index}`}
+                      value={field?.key || ''}
+                      onChange={(e) => updatePayerFieldRow(index, { key: e.target.value })}
+                      placeholder="student_id"
+                    />
+                  </div>
+                )}
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(field?.required)}
+                    onChange={(e) => updatePayerFieldRow(index, { required: e.target.checked })}
+                  />
+                  Required
+                </label>
+                <button type="button" className="btn-danger btn-sm" onClick={() => removePayerFieldRow(index)}>
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="feeInclusion">Fee inclusion</label>
@@ -789,33 +936,66 @@ export default function PaymentRequestsPage() {
 
       {showDetail && (
         <Modal title={`Details ${selected?.id}`} onClose={() => setShowDetail(false)}>
-          <DetailGrid
-            rows={[
-              { label: 'ID', value: selected?.id },
-              { label: 'Account ID', value: selected?.accountId },
-              { label: 'Requester', value: selected?.userName },
-              { label: 'Email', value: selected?.email },
-              { label: 'Phone', value: selected?.phone },
-              { label: 'Link code', value: selected?.linkCode },
-              { label: 'Type', value: selected?.type },
-              { label: 'Title', value: selected?.title },
-              { label: 'Description', value: selected?.description },
-              { label: 'Amount', value: selected?.amount },
-              { label: 'Total collected', value: selected?.totalCollected },
-              { label: 'Min amount', value: selected?.minAmount },
-              { label: 'Max amount', value: selected?.maxAmount },
-              { label: 'Goal amount', value: selected?.goalAmount },
-              { label: 'Currency', value: selected?.currency },
-              { label: 'Allow partial', value: String(selected?.allowPartial) },
-              { label: 'Recent payers visibility', value: selected?.showRecentPaymentsPublicly ? 'Public' : 'Private' },
-              { label: 'Fee inclusion', value: selected?.feeInclusion },
-              { label: 'Approval status', value: selected?.approvalStatus },
-              { label: 'Lifecycle', value: selected?.lifecycle },
-              { label: 'Activation at', value: formatDateTime(selected?.activationAt) },
-              { label: 'Expires at', value: formatDateTime(selected?.expiresAt) },
-              { label: 'Created at', value: formatDateTime(selected?.createdAt) }
-            ]}
-          />
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <DetailGrid
+              rows={[
+                { label: 'ID', value: selected?.id },
+                { label: 'Account ID', value: selected?.accountId },
+                { label: 'Requester', value: selected?.userName },
+                { label: 'Email', value: selected?.email },
+                { label: 'Phone', value: selected?.phone },
+                { label: 'Link code', value: selected?.linkCode },
+                { label: 'Type', value: selected?.type },
+                { label: 'Title', value: selected?.title },
+                { label: 'Description', value: selected?.description },
+                { label: 'Amount', value: selected?.amount },
+                { label: 'Total collected', value: selected?.totalCollected },
+                { label: 'Min amount', value: selected?.minAmount },
+                { label: 'Max amount', value: selected?.maxAmount },
+                { label: 'Goal amount', value: selected?.goalAmount },
+                { label: 'Currency', value: selected?.currency },
+                { label: 'Allow partial', value: String(selected?.allowPartial) },
+                { label: 'Recent payers visibility', value: selected?.showRecentPaymentsPublicly ? 'Public' : 'Private' },
+                { label: 'Fee inclusion', value: selected?.feeInclusion },
+                { label: 'Approval status', value: selected?.approvalStatus },
+                { label: 'Lifecycle', value: selected?.lifecycle },
+                { label: 'Activation at', value: formatDateTime(selected?.activationAt) },
+                { label: 'Expires at', value: formatDateTime(selected?.expiresAt) },
+                { label: 'Created at', value: formatDateTime(selected?.createdAt) }
+              ]}
+            />
+            <div style={{ border: '1px solid var(--border)', borderRadius: '10px', padding: '0.65rem', display: 'grid', gap: '0.5rem' }}>
+              <div style={{ fontWeight: 700 }}>Extra payer fields (resolved)</div>
+              {normalizePayerFields(selected).length === 0 ? (
+                <div style={{ color: 'var(--muted)', fontSize: '13px' }}>No extra payer fields configured.</div>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '420px' }}>
+                    <thead>
+                      <tr>
+                        {['Key', 'Label', 'Required'].map((header) => (
+                          <th key={header} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                            {header}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {normalizePayerFields(selected).map((field, index) => (
+                        <tr key={`${field.key || field.label || 'field'}-${index}`} style={{ borderBottom: '1px solid var(--border)' }}>
+                          <td style={{ padding: '0.45rem' }}>
+                            <code>{field.key || '—'}</code>
+                          </td>
+                          <td style={{ padding: '0.45rem' }}>{field.label || '—'}</td>
+                          <td style={{ padding: '0.45rem' }}>{field.required ? 'Yes' : 'No'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
         </Modal>
       )}
 

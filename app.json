@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "aa5c7e14-9a73-4b2b-b493-a8eb0671ddf5"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.dkalenga.fondekaadmin"
+    }
+  }
+}
