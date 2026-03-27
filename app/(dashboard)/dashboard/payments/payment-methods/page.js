@@ -86,6 +86,17 @@ const DetailGrid = ({ rows }) => (
   </div>
 );
 
+const WARNING_ERROR_CODE = 'WARNING_MESSAGE';
+
+const resolveFlagEnabled = (response) => {
+  if (typeof response === 'boolean') return response;
+  if (response && typeof response.enabled === 'boolean') return response.enabled;
+  return true;
+};
+
+const paymentMethodRailFlagKey = (paymentMethodId, flow) => `payment.method.${paymentMethodId}.${flow}.enabled`;
+const paymentMethodRailStateKey = (paymentMethodId, flow) => `${paymentMethodId}:${flow}`;
+
 export default function PaymentMethodsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
@@ -94,6 +105,7 @@ export default function PaymentMethodsPage() {
   const [arrangeBy, setArrangeBy] = useState('id');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [warning, setWarning] = useState(null);
   const [info, setInfo] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
@@ -101,6 +113,195 @@ export default function PaymentMethodsPage() {
   const [draft, setDraft] = useState(emptyState);
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [railFlags, setRailFlags] = useState({});
+  const [railFlagsLoading, setRailFlagsLoading] = useState({});
+  const [railFlagsSaving, setRailFlagsSaving] = useState({});
+  const [overrideModal, setOverrideModal] = useState(null);
+  const [overrideAccountId, setOverrideAccountId] = useState('');
+  const [overrideAccountEnabled, setOverrideAccountEnabled] = useState(true);
+  const [overrideEmail, setOverrideEmail] = useState('');
+  const [overrideEmailEnabled, setOverrideEmailEnabled] = useState(true);
+  const [overrideSaving, setOverrideSaving] = useState(false);
+  const [overrideError, setOverrideError] = useState(null);
+
+  const getRailEnabled = (paymentMethodId, flow) => {
+    const key = paymentMethodRailStateKey(paymentMethodId, flow);
+    const value = railFlags[key];
+    return typeof value === 'boolean' ? value : true;
+  };
+
+  const isRailLoading = (paymentMethodId, flow) => Boolean(railFlagsLoading[paymentMethodRailStateKey(paymentMethodId, flow)]);
+  const isRailSaving = (paymentMethodId, flow) => Boolean(railFlagsSaving[paymentMethodRailStateKey(paymentMethodId, flow)]);
+
+  const loadRailFlags = async (paymentMethods) => {
+    const targets = (paymentMethods || [])
+      .filter((row) => row?.id !== null && row?.id !== undefined)
+      .flatMap((row) => [
+        { paymentMethodId: row.id, flow: 'collection' },
+        { paymentMethodId: row.id, flow: 'payout' }
+      ]);
+    if (targets.length === 0) return;
+
+    setRailFlagsLoading((prev) => {
+      const next = { ...prev };
+      targets.forEach(({ paymentMethodId, flow }) => {
+        next[paymentMethodRailStateKey(paymentMethodId, flow)] = true;
+      });
+      return next;
+    });
+
+    const settled = await Promise.allSettled(
+      targets.map(async ({ paymentMethodId, flow }) => {
+        try {
+          const res = await api.featureFlags.get(paymentMethodRailFlagKey(paymentMethodId, flow));
+          return { paymentMethodId, flow, enabled: resolveFlagEnabled(res) };
+        } catch (err) {
+          if (err?.status === 404) {
+            return { paymentMethodId, flow, enabled: true };
+          }
+          return { paymentMethodId, flow, enabled: true, error: err };
+        }
+      })
+    );
+
+    setRailFlags((prev) => {
+      const next = { ...prev };
+      settled.forEach((result, index) => {
+        const fallback = targets[index];
+        const payload = result.status === 'fulfilled' ? result.value : { ...fallback, enabled: true };
+        next[paymentMethodRailStateKey(payload.paymentMethodId, payload.flow)] = Boolean(payload.enabled);
+      });
+      return next;
+    });
+
+    setRailFlagsLoading((prev) => {
+      const next = { ...prev };
+      targets.forEach(({ paymentMethodId, flow }) => {
+        next[paymentMethodRailStateKey(paymentMethodId, flow)] = false;
+      });
+      return next;
+    });
+  };
+
+  const updateRailFlag = async (row, flow, enabled) => {
+    if (!row?.id) return;
+    const stateKey = paymentMethodRailStateKey(row.id, flow);
+    setError(null);
+    setWarning(null);
+    setInfo(null);
+    setRailFlagsSaving((prev) => ({ ...prev, [stateKey]: true }));
+    try {
+      const key = paymentMethodRailFlagKey(row.id, flow);
+      await api.featureFlags.update(key, { enabled: Boolean(enabled) });
+      setRailFlags((prev) => ({ ...prev, [stateKey]: Boolean(enabled) }));
+      setInfo(`${row.displayName || row.name || `Payment method ${row.id}`} ${flow} ${enabled ? 'enabled' : 'blocked'}.`);
+    } catch (err) {
+      const message = err?.message || `Failed to update ${flow} gate`;
+      if (err?.data?.errorCode === WARNING_ERROR_CODE) {
+        setWarning(message);
+      } else {
+        setError(message);
+      }
+    } finally {
+      setRailFlagsSaving((prev) => ({ ...prev, [stateKey]: false }));
+    }
+  };
+
+  const openRailOverride = (row, flow) => {
+    if (!row?.id) return;
+    const featureFlagKey = paymentMethodRailFlagKey(row.id, flow);
+    setOverrideModal({
+      featureFlagKey,
+      label: `${row.displayName || row.name || `Payment method ${row.id}`} - ${flow}`
+    });
+    setOverrideAccountId('');
+    setOverrideAccountEnabled(true);
+    setOverrideEmail('');
+    setOverrideEmailEnabled(true);
+    setOverrideError(null);
+  };
+
+  const upsertAccountOverride = async () => {
+    const target = String(overrideAccountId || '').trim();
+    if (!overrideModal?.featureFlagKey || !target) {
+      setOverrideError('Account ID is required');
+      return;
+    }
+    setOverrideSaving(true);
+    setOverrideError(null);
+    setError(null);
+    setWarning(null);
+    setInfo(null);
+    try {
+      await api.featureFlags.upsertOverride(overrideModal.featureFlagKey, target, { enabled: Boolean(overrideAccountEnabled) });
+      setInfo(`Account override saved for ${overrideModal.featureFlagKey}.`);
+    } catch (err) {
+      const message = err?.message || 'Failed to save account override';
+      if (err?.data?.errorCode === WARNING_ERROR_CODE) setWarning(message);
+      else setOverrideError(message);
+    } finally {
+      setOverrideSaving(false);
+    }
+  };
+
+  const removeAccountOverride = async () => {
+    const target = String(overrideAccountId || '').trim();
+    if (!overrideModal?.featureFlagKey || !target) {
+      setOverrideError('Account ID is required');
+      return;
+    }
+    setOverrideSaving(true);
+    setOverrideError(null);
+    try {
+      await api.featureFlags.removeOverride(overrideModal.featureFlagKey, target);
+      setInfo(`Account override removed for ${overrideModal.featureFlagKey}.`);
+    } catch (err) {
+      setOverrideError(err?.message || 'Failed to remove account override');
+    } finally {
+      setOverrideSaving(false);
+    }
+  };
+
+  const upsertEmailOverride = async () => {
+    const target = String(overrideEmail || '').trim();
+    if (!overrideModal?.featureFlagKey || !target) {
+      setOverrideError('Email is required');
+      return;
+    }
+    setOverrideSaving(true);
+    setOverrideError(null);
+    setError(null);
+    setWarning(null);
+    setInfo(null);
+    try {
+      await api.featureFlags.upsertOverrideByEmail(overrideModal.featureFlagKey, target, { enabled: Boolean(overrideEmailEnabled) });
+      setInfo(`Email override saved for ${overrideModal.featureFlagKey}.`);
+    } catch (err) {
+      const message = err?.message || 'Failed to save email override';
+      if (err?.data?.errorCode === WARNING_ERROR_CODE) setWarning(message);
+      else setOverrideError(message);
+    } finally {
+      setOverrideSaving(false);
+    }
+  };
+
+  const removeEmailOverride = async () => {
+    const target = String(overrideEmail || '').trim();
+    if (!overrideModal?.featureFlagKey || !target) {
+      setOverrideError('Email is required');
+      return;
+    }
+    setOverrideSaving(true);
+    setOverrideError(null);
+    try {
+      await api.featureFlags.removeOverrideByEmail(overrideModal.featureFlagKey, target);
+      setInfo(`Email override removed for ${overrideModal.featureFlagKey}.`);
+    } catch (err) {
+      setOverrideError(err?.message || 'Failed to remove email override');
+    } finally {
+      setOverrideSaving(false);
+    }
+  };
 
   const unsetOtherDefaults = async (keepId) => {
     try {
@@ -120,6 +321,7 @@ export default function PaymentMethodsPage() {
   const fetchRows = async () => {
     setLoading(true);
     setError(null);
+    setWarning(null);
     try {
       const params = new URLSearchParams();
       params.set('page', String(page));
@@ -127,6 +329,7 @@ export default function PaymentMethodsPage() {
       const res = await api.paymentMethods.list(params);
       const list = Array.isArray(res) ? res : res?.content || [];
       setRows(list || []);
+      await loadRailFlags(list || []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -151,7 +354,7 @@ export default function PaymentMethodsPage() {
     fetchCountries();
   }, []);
 
-  const columns = useMemo(() => [
+  const columns = [
     { key: 'id', label: 'ID' },
     { key: 'displayName', label: 'Display' },
     { key: 'countryName', label: 'Country', render: (row) => row.countryName || 'GLOBAL' },
@@ -159,6 +362,58 @@ export default function PaymentMethodsPage() {
     { key: 'rank', label: 'Rank' },
     { key: 'defaultForFees', label: 'Default for fees', render: (row) => (row.defaultForFees ? 'Yes' : 'No') },
     { key: 'active', label: 'Active' },
+    {
+      key: 'collectionGate',
+      label: 'Collection Enabled',
+      render: (row) => {
+        if (!row?.id) return '—';
+        const loadingRail = isRailLoading(row.id, 'collection');
+        const savingRail = isRailSaving(row.id, 'collection');
+        const enabled = getRailEnabled(row.id, 'collection');
+        return (
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+              <input
+                type="checkbox"
+                checked={enabled}
+                disabled={loadingRail || savingRail}
+                onChange={(e) => updateRailFlag(row, 'collection', e.target.checked)}
+              />
+              <span>{loadingRail || savingRail ? 'Updating…' : enabled ? 'On' : 'Off'}</span>
+            </label>
+            <button type="button" className="btn-neutral btn-sm" onClick={() => openRailOverride(row, 'collection')}>
+              Override
+            </button>
+          </div>
+        );
+      }
+    },
+    {
+      key: 'payoutGate',
+      label: 'Payout Enabled',
+      render: (row) => {
+        if (!row?.id) return '—';
+        const loadingRail = isRailLoading(row.id, 'payout');
+        const savingRail = isRailSaving(row.id, 'payout');
+        const enabled = getRailEnabled(row.id, 'payout');
+        return (
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+              <input
+                type="checkbox"
+                checked={enabled}
+                disabled={loadingRail || savingRail}
+                onChange={(e) => updateRailFlag(row, 'payout', e.target.checked)}
+              />
+              <span>{loadingRail || savingRail ? 'Updating…' : enabled ? 'On' : 'Off'}</span>
+            </label>
+            <button type="button" className="btn-neutral btn-sm" onClick={() => openRailOverride(row, 'payout')}>
+              Override
+            </button>
+          </div>
+        );
+      }
+    },
     {
       key: 'actions',
       label: 'Actions',
@@ -170,7 +425,7 @@ export default function PaymentMethodsPage() {
         </div>
       )
     }
-  ], []);
+  ];
 
   const sortedRows = useMemo(() => {
     const arr = [...rows];
@@ -189,6 +444,7 @@ export default function PaymentMethodsPage() {
     setShowCreate(true);
     setInfo(null);
     setError(null);
+    setWarning(null);
   };
 
   const openEdit = (row) => {
@@ -214,6 +470,7 @@ export default function PaymentMethodsPage() {
     setShowEdit(true);
     setInfo(null);
     setError(null);
+    setWarning(null);
   };
 
   const openDetail = (row) => {
@@ -221,6 +478,7 @@ export default function PaymentMethodsPage() {
     setShowDetail(true);
     setInfo(null);
     setError(null);
+    setWarning(null);
   };
 
   const handleCreate = async () => {
@@ -434,6 +692,7 @@ export default function PaymentMethodsPage() {
       </div>
 
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
+      {warning && <div className="card" style={{ color: '#a16207', background: '#fffbeb', border: '1px solid #fcd34d', fontWeight: 700 }}>{warning}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
       <DataTable columns={columns} rows={sortedRows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No payment methods found" />
@@ -494,6 +753,75 @@ export default function PaymentMethodsPage() {
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" onClick={() => setConfirmDelete(null)} className="btn-neutral">Cancel</button>
             <button type="button" onClick={handleDelete} className="btn-danger">Delete</button>
+          </div>
+        </Modal>
+      )}
+
+      {overrideModal && (
+        <Modal title={`Rail override: ${overrideModal.label}`} onClose={() => (!overrideSaving ? setOverrideModal(null) : null)}>
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Feature flag key: <code>{overrideModal.featureFlagKey}</code>
+            </div>
+
+            <div style={{ display: 'grid', gap: '0.5rem', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.65rem' }}>
+              <div style={{ fontWeight: 700 }}>Override by account ID</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: '0.5rem', alignItems: 'center' }}>
+                <input
+                  type="number"
+                  placeholder="Account ID"
+                  value={overrideAccountId}
+                  onChange={(e) => setOverrideAccountId(e.target.value)}
+                />
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <input
+                    type="checkbox"
+                    checked={overrideAccountEnabled}
+                    onChange={(e) => setOverrideAccountEnabled(e.target.checked)}
+                  />
+                  Enabled
+                </label>
+                <button type="button" className="btn-primary btn-sm" disabled={overrideSaving} onClick={upsertAccountOverride}>
+                  Set
+                </button>
+                <button type="button" className="btn-danger btn-sm" disabled={overrideSaving} onClick={removeAccountOverride}>
+                  Remove
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gap: '0.5rem', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.65rem' }}>
+              <div style={{ fontWeight: 700 }}>Override by email</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: '0.5rem', alignItems: 'center' }}>
+                <input
+                  type="email"
+                  placeholder="user@example.com"
+                  value={overrideEmail}
+                  onChange={(e) => setOverrideEmail(e.target.value)}
+                />
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <input
+                    type="checkbox"
+                    checked={overrideEmailEnabled}
+                    onChange={(e) => setOverrideEmailEnabled(e.target.checked)}
+                  />
+                  Enabled
+                </label>
+                <button type="button" className="btn-primary btn-sm" disabled={overrideSaving} onClick={upsertEmailOverride}>
+                  Set
+                </button>
+                <button type="button" className="btn-danger btn-sm" disabled={overrideSaving} onClick={removeEmailOverride}>
+                  Remove
+                </button>
+              </div>
+            </div>
+
+            {overrideError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{overrideError}</div>}
+            <div className="modal-actions">
+              <button type="button" className="btn-neutral" onClick={() => setOverrideModal(null)} disabled={overrideSaving}>
+                Close
+              </button>
+            </div>
           </div>
         </Modal>
       )}

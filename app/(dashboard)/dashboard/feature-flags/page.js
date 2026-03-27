@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 
 const LABELS = {
@@ -113,7 +113,6 @@ const formatActionLabel = (key) => {
   return ACTION_LABELS[action] || formatKeyPart(action);
 };
 
-const formatDisplayLabel = (key) => (isActionLimitKey(key) ? formatActionLabel(key) : formatLabel(key));
 const isCryptoSpreadActionKey = (key) => String(key || '').startsWith(CRYPTO_SPREAD_ACTION_PREFIX);
 const actionFromCryptoSpreadKey = (key) => String(key || '').replace(CRYPTO_SPREAD_ACTION_PREFIX, '');
 const formatCryptoSpreadActionLabel = (key) => {
@@ -147,6 +146,7 @@ const getOverrideErrorMessage = (err, fallback) => {
 
 export default function FeatureFlagsPage() {
   const [flags, setFlags] = useState([]);
+  const [cryptoProductNamesById, setCryptoProductNamesById] = useState({});
   const [loading, setLoading] = useState(true);
   const [savingKey, setSavingKey] = useState('');
   const [error, setError] = useState(null);
@@ -270,6 +270,19 @@ export default function FeatureFlagsPage() {
     }));
   }, [otherFlags]);
 
+  const formatResolvedLabel = (key) => {
+    const raw = String(key || '');
+    const cryptoProductMatch = raw.match(/^crypto\.product\.([^.]+)\.(collection|payout)\.enabled$/);
+    if (cryptoProductMatch) {
+      const [, cryptoProductId, flow] = cryptoProductMatch;
+      const productName = cryptoProductNamesById[String(cryptoProductId)] || `#${cryptoProductId}`;
+      return `Crypto Product · ${productName} · ${formatKeyPart(flow)} · Enabled`;
+    }
+    return formatLabel(raw);
+  };
+
+  const formatResolvedDisplayLabel = (key) => (isActionLimitKey(key) ? formatActionLabel(key) : formatResolvedLabel(key));
+
   const loadFlags = async () => {
     setLoading(true);
     setError(null);
@@ -310,6 +323,24 @@ export default function FeatureFlagsPage() {
   }, []);
 
   useEffect(() => {
+    const loadCryptoProductNames = async () => {
+      try {
+        const res = await api.cryptoProducts.list(new URLSearchParams({ page: '0', size: '500' }));
+        const list = Array.isArray(res) ? res : res?.content || [];
+        const next = {};
+        list.forEach((item) => {
+          if (item?.id === null || item?.id === undefined) return;
+          next[String(item.id)] = item?.displayName || item?.currency || String(item.id);
+        });
+        setCryptoProductNamesById(next);
+      } catch {
+        setCryptoProductNamesById({});
+      }
+    };
+    loadCryptoProductNames();
+  }, []);
+
+  useEffect(() => {
     if (!info && !error) return;
     const t = setTimeout(() => {
       setInfo(null);
@@ -332,7 +363,7 @@ export default function FeatureFlagsPage() {
     try {
       const res = await api.featureFlags.update(key, { enabled: nextEnabled });
       setFlags((prev) => prev.map((flag) => (flag.key === key ? { ...flag, enabled: Boolean(res?.enabled) } : flag)));
-      setInfo(`${formatDisplayLabel(key)} ${res?.enabled ? 'enabled' : 'disabled'}.`);
+      setInfo(`${formatResolvedDisplayLabel(key)} ${res?.enabled ? 'enabled' : 'disabled'}.`);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -354,7 +385,7 @@ export default function FeatureFlagsPage() {
     try {
       const res = await api.featureFlags.update(key, { enabled: false });
       setFlags((prev) => prev.map((flag) => (flag.key === key ? { ...flag, enabled: Boolean(res?.enabled) } : flag)));
-      setInfo(`${formatDisplayLabel(key)} disabled.`);
+      setInfo(`${formatResolvedDisplayLabel(key)} disabled.`);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -372,7 +403,7 @@ export default function FeatureFlagsPage() {
     try {
       await api.featureFlags.remove(key);
       await loadFlags();
-      setInfo(`${formatDisplayLabel(key)} reset to default.`);
+      setInfo(`${formatResolvedDisplayLabel(key)} reset to default.`);
     } catch (err) {
       setError(err.message || 'Failed to delete feature flag');
     } finally {
@@ -400,7 +431,7 @@ export default function FeatureFlagsPage() {
         }
         return [{ key, enabled: Boolean(res?.enabled) }, ...prev];
       });
-      setInfo(`${formatDisplayLabel(key)} ${res?.enabled ? 'enabled' : 'disabled'}.`);
+      setInfo(`${formatResolvedDisplayLabel(key)} ${res?.enabled ? 'enabled' : 'disabled'}.`);
       setDraftKey('');
       setDraftEnabled(true);
     } catch (err) {
@@ -572,6 +603,133 @@ export default function FeatureFlagsPage() {
     }
   };
 
+  const renderCryptoSpreadSection = () => {
+    if (!cryptoSpreadGlobalFlag) return null;
+    return (
+      <div className="card" style={{ maxWidth: '720px', display: 'grid', gap: '0.75rem', borderColor: '#0ea5e9' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontWeight: 800 }}>Crypto spread</div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{CRYPTO_SPREAD_GLOBAL_KEY}</div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <button
+              type="button"
+              onClick={() => openOverridesDialog(CRYPTO_SPREAD_GLOBAL_KEY)}
+              disabled={savingKey === CRYPTO_SPREAD_GLOBAL_KEY}
+              style={{
+                border: `1px solid var(--border)`,
+                background: 'var(--surface)',
+                padding: '0.45rem 0.7rem',
+                borderRadius: '10px',
+                cursor: 'pointer',
+                color: 'var(--text)'
+              }}
+            >
+              Manage Overrides
+            </button>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+              <input
+                type="checkbox"
+                checked={Boolean(cryptoSpreadGlobalFlag.enabled)}
+                onChange={() => handleToggle(CRYPTO_SPREAD_GLOBAL_KEY)}
+                disabled={loading || savingKey === CRYPTO_SPREAD_GLOBAL_KEY}
+              />
+              {cryptoSpreadGlobalFlag.enabled ? 'ON · enabled globally' : 'OFF · disabled globally'}
+            </label>
+          </div>
+        </div>
+        <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+          Resolution order: action override → action global → global override → global `crypto.spread.enabled` (default true).
+        </div>
+
+        <div className="card" style={{ display: 'grid', gap: '0.65rem' }}>
+          <div style={{ fontWeight: 700 }}>Create or update action key</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: '0.65rem', alignItems: 'end' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="spreadActionDraft">Action (lowercase enum)</label>
+              <input
+                id="spreadActionDraft"
+                placeholder="fund_card"
+                value={spreadActionDraft}
+                onChange={(e) => setSpreadActionDraft(e.target.value)}
+              />
+            </div>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+              <input type="checkbox" checked={spreadActionEnabled} onChange={(e) => setSpreadActionEnabled(e.target.checked)} />
+              {spreadActionEnabled ? 'Enabled' : 'Disabled'}
+            </label>
+            <button
+              type="button"
+              onClick={handleSaveCryptoSpreadAction}
+              disabled={savingKey === `${CRYPTO_SPREAD_ACTION_PREFIX}${normalizeActionToken(spreadActionDraft)}`}
+              style={{
+                border: `1px solid var(--border)`,
+                background: 'var(--surface)',
+                padding: '0.65rem 0.85rem',
+                borderRadius: '10px',
+                cursor: 'pointer',
+                color: 'var(--text)',
+                fontWeight: 600
+              }}
+            >
+              Save action
+            </button>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gap: '0.7rem' }}>
+          <div style={{ fontWeight: 700 }}>Action spread flags</div>
+          {cryptoSpreadActionFlags.length === 0 && <div style={{ color: 'var(--muted)', fontSize: '13px' }}>No action keys yet.</div>}
+          {cryptoSpreadActionFlags.map((flag) => (
+            <div key={flag.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.6rem 0.7rem' }}>
+              <div>
+                <div style={{ fontWeight: 700 }}>{formatCryptoSpreadActionLabel(flag.key)}</div>
+                <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{flag.key}</div>
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => openOverridesDialog(flag.key)}
+                  disabled={savingKey === flag.key}
+                  style={{
+                    border: `1px solid var(--border)`,
+                    background: 'var(--surface)',
+                    padding: '0.45rem 0.7rem',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    color: 'var(--text)'
+                  }}
+                >
+                  Overrides
+                </button>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                  <input type="checkbox" checked={Boolean(flag.enabled)} onChange={() => handleToggle(flag.key)} disabled={loading || savingKey === flag.key} />
+                  {flag.enabled ? 'Enabled' : 'Disabled'}
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirm({ key: flag.key })}
+                  disabled={savingKey === flag.key}
+                  style={{
+                    border: `1px solid var(--border)`,
+                    background: 'var(--surface)',
+                    padding: '0.45rem 0.7rem',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    color: 'var(--text)'
+                  }}
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div>
@@ -687,130 +845,6 @@ export default function FeatureFlagsPage() {
           </div>
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
             Controls crypto collection behavior for payment-request pay links and other public endpoints.
-          </div>
-        </div>
-      )}
-
-      {cryptoSpreadGlobalFlag && (
-        <div className="card" style={{ maxWidth: '720px', display: 'grid', gap: '0.75rem', borderColor: '#0ea5e9' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-            <div>
-              <div style={{ fontWeight: 800 }}>Crypto spread</div>
-              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{CRYPTO_SPREAD_GLOBAL_KEY}</div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <button
-                type="button"
-                onClick={() => openOverridesDialog(CRYPTO_SPREAD_GLOBAL_KEY)}
-                disabled={savingKey === CRYPTO_SPREAD_GLOBAL_KEY}
-                style={{
-                  border: `1px solid var(--border)`,
-                  background: 'var(--surface)',
-                  padding: '0.45rem 0.7rem',
-                  borderRadius: '10px',
-                  cursor: 'pointer',
-                  color: 'var(--text)'
-                }}
-              >
-                Manage Overrides
-              </button>
-              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
-                <input
-                  type="checkbox"
-                  checked={Boolean(cryptoSpreadGlobalFlag.enabled)}
-                  onChange={() => handleToggle(CRYPTO_SPREAD_GLOBAL_KEY)}
-                  disabled={loading || savingKey === CRYPTO_SPREAD_GLOBAL_KEY}
-                />
-                {cryptoSpreadGlobalFlag.enabled ? 'ON · enabled globally' : 'OFF · disabled globally'}
-              </label>
-            </div>
-          </div>
-          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-            Resolution order: action override → action global → global override → global `crypto.spread.enabled` (default true).
-          </div>
-
-          <div className="card" style={{ display: 'grid', gap: '0.65rem' }}>
-            <div style={{ fontWeight: 700 }}>Create or update action key</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: '0.65rem', alignItems: 'end' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="spreadActionDraft">Action (lowercase enum)</label>
-                <input
-                  id="spreadActionDraft"
-                  placeholder="fund_card"
-                  value={spreadActionDraft}
-                  onChange={(e) => setSpreadActionDraft(e.target.value)}
-                />
-              </div>
-              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
-                <input type="checkbox" checked={spreadActionEnabled} onChange={(e) => setSpreadActionEnabled(e.target.checked)} />
-                {spreadActionEnabled ? 'Enabled' : 'Disabled'}
-              </label>
-              <button
-                type="button"
-                onClick={handleSaveCryptoSpreadAction}
-                disabled={savingKey === `${CRYPTO_SPREAD_ACTION_PREFIX}${normalizeActionToken(spreadActionDraft)}`}
-                style={{
-                  border: `1px solid var(--border)`,
-                  background: 'var(--surface)',
-                  padding: '0.65rem 0.85rem',
-                  borderRadius: '10px',
-                  cursor: 'pointer',
-                  color: 'var(--text)',
-                  fontWeight: 600
-                }}
-              >
-                Save action
-              </button>
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gap: '0.7rem' }}>
-            <div style={{ fontWeight: 700 }}>Action spread flags</div>
-            {cryptoSpreadActionFlags.length === 0 && <div style={{ color: 'var(--muted)', fontSize: '13px' }}>No action keys yet.</div>}
-            {cryptoSpreadActionFlags.map((flag) => (
-              <div key={flag.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.6rem 0.7rem' }}>
-                <div>
-                  <div style={{ fontWeight: 700 }}>{formatCryptoSpreadActionLabel(flag.key)}</div>
-                  <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{flag.key}</div>
-                </div>
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <button
-                    type="button"
-                    onClick={() => openOverridesDialog(flag.key)}
-                    disabled={savingKey === flag.key}
-                    style={{
-                      border: `1px solid var(--border)`,
-                      background: 'var(--surface)',
-                      padding: '0.45rem 0.7rem',
-                      borderRadius: '10px',
-                      cursor: 'pointer',
-                      color: 'var(--text)'
-                    }}
-                  >
-                    Overrides
-                  </button>
-                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
-                    <input type="checkbox" checked={Boolean(flag.enabled)} onChange={() => handleToggle(flag.key)} disabled={loading || savingKey === flag.key} />
-                    {flag.enabled ? 'Enabled' : 'Disabled'}
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setDeleteConfirm({ key: flag.key })}
-                    disabled={savingKey === flag.key}
-                    style={{
-                      border: `1px solid var(--border)`,
-                      background: 'var(--surface)',
-                      padding: '0.45rem 0.7rem',
-                      borderRadius: '10px',
-                      cursor: 'pointer',
-                      color: 'var(--text)'
-                    }}
-                  >
-                    Reset
-                  </button>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       )}
@@ -950,65 +984,68 @@ export default function FeatureFlagsPage() {
         {loading && <div className="card">Loading feature flags…</div>}
         {!loading && otherFlags.length === 0 && <div className="card">No feature flags available.</div>}
         {groupedFlags.map((group) => (
-          <div key={group.key} className="card" style={{ display: 'grid', gap: '0.75rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontWeight: 800 }}>{group.label}</div>
-              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{group.flags.length} flags</div>
-            </div>
-            <div style={{ display: 'grid', gap: '0.75rem' }}>
-              {group.flags.map((flag) => {
-                const label = formatLabel(flag.key);
-                const warning = WARNINGS[flag.key];
-                return (
-                  <div key={flag.key} style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
-                      <div>
-                        <div style={{ fontWeight: 700 }}>{label}</div>
-                        <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{flag.key}</div>
+          <Fragment key={group.key}>
+            <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontWeight: 800 }}>{group.label}</div>
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{group.flags.length} flags</div>
+              </div>
+              <div style={{ display: 'grid', gap: '0.75rem' }}>
+                {group.flags.map((flag) => {
+                  const label = formatResolvedLabel(flag.key);
+                  const warning = WARNINGS[flag.key];
+                  return (
+                    <div key={flag.key} style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
+                        <div>
+                          <div style={{ fontWeight: 700 }}>{label}</div>
+                          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{flag.key}</div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => openOverridesDialog(flag.key)}
+                            disabled={savingKey === flag.key}
+                            style={{
+                              border: `1px solid var(--border)`,
+                              background: 'var(--surface)',
+                              padding: '0.45rem 0.7rem',
+                              borderRadius: '10px',
+                              cursor: 'pointer',
+                              color: 'var(--text)'
+                            }}
+                          >
+                            Overrides
+                          </button>
+                          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                            <input type="checkbox" checked={Boolean(flag.enabled)} onChange={() => handleToggle(flag.key)} disabled={loading || savingKey === flag.key} />
+                            {flag.enabled ? 'Enabled' : 'Disabled'}
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteConfirm({ key: flag.key })}
+                            disabled={savingKey === flag.key}
+                            style={{
+                              border: `1px solid var(--border)`,
+                              background: 'var(--surface)',
+                              padding: '0.45rem 0.7rem',
+                              borderRadius: '10px',
+                              cursor: 'pointer',
+                              color: 'var(--text)'
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                        <button
-                          type="button"
-                          onClick={() => openOverridesDialog(flag.key)}
-                          disabled={savingKey === flag.key}
-                          style={{
-                            border: `1px solid var(--border)`,
-                            background: 'var(--surface)',
-                            padding: '0.45rem 0.7rem',
-                            borderRadius: '10px',
-                            cursor: 'pointer',
-                            color: 'var(--text)'
-                          }}
-                        >
-                          Overrides
-                        </button>
-                        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
-                          <input type="checkbox" checked={Boolean(flag.enabled)} onChange={() => handleToggle(flag.key)} disabled={loading || savingKey === flag.key} />
-                          {flag.enabled ? 'Enabled' : 'Disabled'}
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => setDeleteConfirm({ key: flag.key })}
-                          disabled={savingKey === flag.key}
-                          style={{
-                            border: `1px solid var(--border)`,
-                            background: 'var(--surface)',
-                            padding: '0.45rem 0.7rem',
-                            borderRadius: '10px',
-                            cursor: 'pointer',
-                            color: 'var(--text)'
-                          }}
-                        >
-                          Delete
-                        </button>
-                      </div>
+                      {!flag.enabled && warning && <div style={{ color: '#b45309', fontWeight: 600 }}>{warning}</div>}
                     </div>
-                    {!flag.enabled && warning && <div style={{ color: '#b45309', fontWeight: 600 }}>{warning}</div>}
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
+            {group.key === 'crypto' && renderCryptoSpreadSection()}
+          </Fragment>
         ))}
 
         {!loading && actionLimitFlags.length > 0 && (
@@ -1081,7 +1118,7 @@ export default function FeatureFlagsPage() {
               </button>
             </div>
             <div style={{ color: 'var(--muted)' }}>
-              This will disable <strong>{formatDisplayLabel(confirm.key)}</strong> and may reduce security or change system behavior.
+              This will disable <strong>{formatResolvedDisplayLabel(confirm.key)}</strong> and may reduce security or change system behavior.
             </div>
             {isActionLimitKey(confirm.key) && <div style={{ color: '#b45309', fontWeight: 600 }}>{ACTION_LIMIT_WARNING}</div>}
             <div className="modal-actions">
@@ -1300,7 +1337,7 @@ export default function FeatureFlagsPage() {
               </button>
             </div>
             <div style={{ color: 'var(--muted)' }}>
-              Deleting <strong>{formatDisplayLabel(deleteConfirm.key)}</strong> resets it to the default behavior.
+              Deleting <strong>{formatResolvedDisplayLabel(deleteConfirm.key)}</strong> resets it to the default behavior.
             </div>
             <div className="modal-actions">
               <button
