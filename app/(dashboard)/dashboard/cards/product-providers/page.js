@@ -13,6 +13,7 @@ const emptyState = {
   price: '',
   monthlyMaintenanceCost: '',
   verificationCost: '',
+  unloadFee: '',
   transactionFeePercentage: '',
   interchangeFeePercentage: '',
   minInterchangeFeeAmount: '',
@@ -36,6 +37,7 @@ const toPayload = (state) => ({
   price: state.price === '' ? null : Number(state.price),
   monthlyMaintenanceCost: state.monthlyMaintenanceCost === '' ? null : Number(state.monthlyMaintenanceCost),
   verificationCost: state.verificationCost === '' ? 0 : Number(state.verificationCost),
+  unloadFee: state.unloadFee === '' ? null : Number(state.unloadFee),
   transactionFeePercentage: state.transactionFeePercentage === '' ? null : Number(state.transactionFeePercentage),
   interchangeFeePercentage: state.interchangeFeePercentage === '' ? null : Number(state.interchangeFeePercentage),
   minInterchangeFeeAmount: state.minInterchangeFeeAmount === '' ? null : Number(state.minInterchangeFeeAmount),
@@ -160,6 +162,11 @@ export default function CardProductProvidersPage() {
         render: (row) => (row.verificationCost === null || row.verificationCost === undefined ? '—' : row.verificationCost)
       },
       {
+        key: 'unloadFee',
+        label: 'Unload fee (USD)',
+        render: (row) => (row.unloadFee === null || row.unloadFee === undefined ? '—' : row.unloadFee)
+      },
+      {
         key: 'minFirstTopup',
         label: 'Min first top-up',
         render: (row) => fmtAmount(row, 'minFirstTopup')
@@ -250,6 +257,7 @@ export default function CardProductProvidersPage() {
       price: row.price ?? '',
       monthlyMaintenanceCost: row.monthlyMaintenanceCost ?? '',
       verificationCost: row.verificationCost ?? 0,
+      unloadFee: row.unloadFee ?? '',
       transactionFeePercentage: row.transactionFeePercentage ?? '',
       interchangeFeePercentage: row.interchangeFeePercentage ?? '',
       minInterchangeFeeAmount: row.minInterchangeFeeAmount ?? '',
@@ -372,6 +380,18 @@ export default function CardProductProvidersPage() {
           step="0.01"
           value={draft.verificationCost}
           onChange={(e) => setDraft((p) => ({ ...p, verificationCost: e.target.value }))}
+        />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="unloadFee">Unload fee (USD)</label>
+        <input
+          id="unloadFee"
+          type="number"
+          min={0}
+          step="0.01"
+          value={draft.unloadFee}
+          onChange={(e) => setDraft((p) => ({ ...p, unloadFee: e.target.value }))}
+          placeholder="1.00"
         />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -584,6 +604,7 @@ export default function CardProductProvidersPage() {
               { label: 'Purchase cost', value: selected?.purchaseCost ?? '—' },
               { label: 'Monthly maintenance', value: selected?.monthlyMaintenanceCost ?? '—' },
               { label: 'Verification cost (USD)', value: selected?.verificationCost ?? '—' },
+              { label: 'Unload fee (USD)', value: selected?.unloadFee ?? '—' },
               { label: 'Max daily limit', value: selected?.maxDailyLimit ?? '—' },
               { label: 'Min first top-up', value: selected?.minFirstTopup ?? '—' },
               { label: 'Min txn fee', value: selected?.minTransactionFeeAmount ?? '—' },

@@ -6,6 +6,11 @@ import { api } from '@/lib/api';
 const MIN_COOLDOWN = 1;
 const MAX_COOLDOWN = 1440;
 const ALLOWED_PAYOUT_ACTIONS = ['WITHDRAW_FROM_WALLET', 'WITHDRAW_FROM_CARD', 'SELL_CRYPTO'];
+const formatUsdValue = (value) => {
+  if (value === null || value === undefined || value === '') return '';
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed.toFixed(2) : String(value);
+};
 
 export default function WalletPolicyConfigPage() {
   const [loading, setLoading] = useState(false);
@@ -14,6 +19,8 @@ export default function WalletPolicyConfigPage() {
   const [info, setInfo] = useState(null);
   const [cooldown, setCooldown] = useState('');
   const [payoutRateLimitActions, setPayoutRateLimitActions] = useState([]);
+  const [cryptoProviderCollectionMinimumUsd, setCryptoProviderCollectionMinimumUsd] = useState('');
+  const [cryptoProviderCollectionMaximumUsd, setCryptoProviderCollectionMaximumUsd] = useState('');
 
   const loadConfig = async () => {
     setLoading(true);
@@ -25,6 +32,8 @@ export default function WalletPolicyConfigPage() {
       setCooldown(value === null || value === undefined ? '' : String(value));
       const incomingActions = Array.isArray(res?.payoutRateLimitActions) ? res.payoutRateLimitActions : [];
       setPayoutRateLimitActions(incomingActions.filter((action) => ALLOWED_PAYOUT_ACTIONS.includes(String(action))));
+      setCryptoProviderCollectionMinimumUsd(formatUsdValue(res?.cryptoProviderCollectionMinimumUsd));
+      setCryptoProviderCollectionMaximumUsd(formatUsdValue(res?.cryptoProviderCollectionMaximumUsd));
     } catch (err) {
       setError(err?.message || 'Failed to load wallet policy config');
     } finally {
@@ -49,13 +58,31 @@ export default function WalletPolicyConfigPage() {
           .filter((action) => ALLOWED_PAYOUT_ACTIONS.includes(action))
       )
     );
+    const minRaw = String(cryptoProviderCollectionMinimumUsd || '').trim();
+    const maxRaw = String(cryptoProviderCollectionMaximumUsd || '').trim();
+    const minParsed = minRaw === '' ? null : Number(minRaw);
+    const maxParsed = maxRaw === '' ? null : Number(maxRaw);
+    if (minRaw !== '' && (!Number.isFinite(minParsed) || minParsed <= 0)) {
+      setError('Minimum amount must be greater than 0.');
+      return;
+    }
+    if (maxRaw !== '' && (!Number.isFinite(maxParsed) || maxParsed <= 0)) {
+      setError('Maximum amount must be greater than 0.');
+      return;
+    }
+    if (minParsed !== null && maxParsed !== null && minParsed > maxParsed) {
+      setError('Minimum amount must be less than or equal to maximum amount.');
+      return;
+    }
     setSaving(true);
     setError(null);
     setInfo(null);
     try {
       await api.walletPolicyConfig.update({
         interTransferCooldownMinutes: parsed,
-        payoutRateLimitActions: normalizedActions
+        payoutRateLimitActions: normalizedActions,
+        cryptoProviderCollectionMinimumUsd: minRaw === '' ? '' : minParsed.toFixed(2),
+        cryptoProviderCollectionMaximumUsd: maxRaw === '' ? '' : maxParsed.toFixed(2)
       });
       setInfo('Wallet policy config updated.');
       await loadConfig();
@@ -128,6 +155,52 @@ export default function WalletPolicyConfigPage() {
                 </label>
               );
             })}
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <div style={{ fontWeight: 700 }}>Crypto Provider Collection Limits</div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              These limits apply only when we create or submit an external crypto provider collection. Internal wallet-funded crypto flows are not affected.
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Applies only when the flow sends the user to an external crypto provider. Leave blank for no minimum. Leave blank for no maximum.
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="cryptoProviderCollectionMinimumUsd">Minimum amount (USD)</label>
+              <input
+                id="cryptoProviderCollectionMinimumUsd"
+                type="number"
+                min="0.01"
+                step="0.01"
+                inputMode="decimal"
+                value={cryptoProviderCollectionMinimumUsd}
+                onChange={(e) => setCryptoProviderCollectionMinimumUsd(e.target.value)}
+                onBlur={() => setCryptoProviderCollectionMinimumUsd((prev) => formatUsdValue(String(prev || '').trim()))}
+                placeholder="10.00"
+                disabled={loading || saving}
+              />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="cryptoProviderCollectionMaximumUsd">Maximum amount (USD)</label>
+              <input
+                id="cryptoProviderCollectionMaximumUsd"
+                type="number"
+                min="0.01"
+                step="0.01"
+                inputMode="decimal"
+                value={cryptoProviderCollectionMaximumUsd}
+                onChange={(e) => setCryptoProviderCollectionMaximumUsd(e.target.value)}
+                onBlur={() => setCryptoProviderCollectionMaximumUsd((prev) => formatUsdValue(String(prev || '').trim()))}
+                placeholder="500.00"
+                disabled={loading || saving}
+              />
+            </div>
           </div>
         </div>
 

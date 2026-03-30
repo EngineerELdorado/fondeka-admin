@@ -104,6 +104,38 @@ const BlacklistBadge = ({ blacklisted }) => (
   </span>
 );
 
+const RecoveryStatusBadge = ({ value }) => {
+  const normalized = String(value || 'NONE').toUpperCase();
+  const tone =
+    normalized === 'READY_TO_VERIFY_DEVICE'
+      ? { bg: '#ecfdf3', fg: '#166534' }
+      : normalized === 'WAITING_SUPPORT_APPROVAL'
+        ? { bg: '#eff6ff', fg: '#1d4ed8' }
+        : normalized === 'PENDING_FACTOR_VERIFICATION'
+          ? { bg: '#fefce8', fg: '#a16207' }
+          : normalized === 'BLOCKED'
+            ? { bg: '#fef2f2', fg: '#b91c1c' }
+            : normalized === 'EXPIRED'
+              ? { bg: '#fff7ed', fg: '#c2410c' }
+              : { bg: '#f3f4f6', fg: '#374151' };
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: '0.2rem 0.5rem',
+        borderRadius: '999px',
+        fontSize: '12px',
+        fontWeight: 700,
+        background: tone.bg,
+        color: tone.fg
+      }}
+    >
+      {normalized}
+    </span>
+  );
+};
+
 const formatDateTime = (value) => {
   if (!value) return '—';
   const date = new Date(value);
@@ -173,6 +205,54 @@ const fadeInStyle = (ready) => ({
   opacity: ready ? 1 : 0,
   transform: ready ? 'translateY(0px)' : 'translateY(6px)',
   transition: 'opacity 0.35s ease, transform 0.35s ease'
+});
+
+const normalizeFactorList = (value) => (Array.isArray(value) ? value.filter(Boolean) : []);
+const humanizeEnum = (value) =>
+  String(value || '')
+    .toLowerCase()
+    .split('_')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+const formatPlatformLabel = (value) => {
+  const normalized = String(value || '').toLowerCase();
+  if (normalized === 'ios') return 'iPhone';
+  if (normalized === 'android') return 'Android';
+  return value ? String(value).toUpperCase() : '—';
+};
+const normalizeTrustedDevicePolicy = (value) => ({
+  maxTrustedDevicesOverride:
+    value?.maxTrustedDevicesOverride === null || value?.maxTrustedDevicesOverride === undefined || value?.maxTrustedDevicesOverride === ''
+      ? ''
+      : String(value.maxTrustedDevicesOverride),
+  effectiveMaxTrustedDevices:
+    value?.effectiveMaxTrustedDevices === null || value?.effectiveMaxTrustedDevices === undefined ? null : value.effectiveMaxTrustedDevices,
+  recoverySelfServiceEnabledOverride:
+    value?.recoverySelfServiceEnabledOverride === null || value?.recoverySelfServiceEnabledOverride === undefined ? 'GLOBAL' : value.recoverySelfServiceEnabledOverride ? 'ENABLED' : 'DISABLED',
+  effectiveRecoverySelfServiceEnabled:
+    value?.effectiveRecoverySelfServiceEnabled === null || value?.effectiveRecoverySelfServiceEnabled === undefined ? null : Boolean(value.effectiveRecoverySelfServiceEnabled)
+});
+const normalizeRecoveryStatus = (value) => ({
+  ...value,
+  requiredFactors: normalizeFactorList(value?.requiredFactors),
+  completedFactors: normalizeFactorList(value?.completedFactors),
+  pendingFactors: normalizeFactorList(value?.pendingFactors),
+  unavailableFactors: normalizeFactorList(value?.unavailableFactors),
+  status: String(value?.status || 'NONE').toUpperCase()
+});
+const normalizeRecoveryHistoryItem = (value) => ({
+  ...value,
+  requiredFactors: normalizeFactorList(value?.metadata?.requiredFactors ?? value?.requiredFactors),
+  completedFactors: normalizeFactorList(value?.metadata?.completedFactors ?? value?.completedFactors),
+  pendingFactors: normalizeFactorList(value?.metadata?.pendingFactors ?? value?.pendingFactors),
+  unavailableFactors: normalizeFactorList(value?.metadata?.unavailableFactors ?? value?.unavailableFactors),
+  status: String(value?.status || '').toUpperCase(),
+  eventType: String(value?.eventType || '').toUpperCase(),
+  actorType: String(value?.actorType || '').toUpperCase(),
+  factor: value?.factor ? String(value.factor).toUpperCase() : '',
+  supportDecision: value?.supportDecision ? String(value.supportDecision).toUpperCase() : '',
+  supportDecisionReason: value?.metadata?.supportDecisionReason ?? value?.supportDecisionReason ?? null
 });
 
 const createEmptyCardholderForm = () => ({
@@ -293,6 +373,24 @@ const [account, setAccount] = useState(null);
   const [error, setError] = useState(null);
   const [trustedDeviceOverride, setTrustedDeviceOverride] = useState(false);
   const [trustedDeviceSaving, setTrustedDeviceSaving] = useState(false);
+  const [trustedDevicePolicy, setTrustedDevicePolicy] = useState({
+    maxTrustedDevicesOverride: '',
+    effectiveMaxTrustedDevices: null,
+    recoverySelfServiceEnabledOverride: 'GLOBAL',
+    effectiveRecoverySelfServiceEnabled: null
+  });
+  const [trustedDevicePolicyLoading, setTrustedDevicePolicyLoading] = useState(false);
+  const [trustedDevicePolicySaving, setTrustedDevicePolicySaving] = useState(false);
+  const [recoveryStatus, setRecoveryStatus] = useState(null);
+  const [recoveryLoading, setRecoveryLoading] = useState(false);
+  const [recoveryError, setRecoveryError] = useState(null);
+  const [recoveryApproving, setRecoveryApproving] = useState(false);
+  const [recoveryRejecting, setRecoveryRejecting] = useState(false);
+  const [recoveryHistory, setRecoveryHistory] = useState([]);
+  const [recoveryHistoryLoading, setRecoveryHistoryLoading] = useState(false);
+  const [recoveryRejectModalOpen, setRecoveryRejectModalOpen] = useState(false);
+  const [recoveryRejectReason, setRecoveryRejectReason] = useState('');
+  const [expandedRecoveryHistory, setExpandedRecoveryHistory] = useState(new Set());
   const [appVersionOverride, setAppVersionOverride] = useState('');
   const [appVersionSaving, setAppVersionSaving] = useState(false);
   const [appVersionError, setAppVersionError] = useState(null);
@@ -538,6 +636,9 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         const list = Array.isArray(txRes) ? txRes : txRes?.content || [];
         setTransactions(list || []);
       }
+      await loadTrustedDevicePolicy(targetId);
+      await loadRecovery(targetId);
+      await loadRecoveryHistory(targetId);
       await loadCustomPricing(targetId);
       await loadLoanEligibility(targetId);
       await loadKycCap(acc?.kycLevel);
@@ -555,6 +656,85 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadTrustedDevicePolicy = async (id) => {
+    if (!id && id !== 0) {
+      setTrustedDevicePolicy({
+        maxTrustedDevicesOverride: '',
+        effectiveMaxTrustedDevices: null,
+        recoverySelfServiceEnabledOverride: 'GLOBAL',
+        effectiveRecoverySelfServiceEnabled: null
+      });
+      return;
+    }
+    setTrustedDevicePolicyLoading(true);
+    try {
+      const res = await api.devices.accountPolicy.get(id);
+      setTrustedDevicePolicy(normalizeTrustedDevicePolicy(res || {}));
+    } catch (err) {
+      if (err?.status === 404) {
+        setTrustedDevicePolicy({
+          maxTrustedDevicesOverride: '',
+          effectiveMaxTrustedDevices: null,
+          recoverySelfServiceEnabledOverride: 'GLOBAL',
+          effectiveRecoverySelfServiceEnabled: null
+        });
+      } else {
+        throw err;
+      }
+    } finally {
+      setTrustedDevicePolicyLoading(false);
+    }
+  };
+
+  const loadRecovery = async (id) => {
+    if (!id && id !== 0) {
+      setRecoveryStatus(null);
+      return;
+    }
+    setRecoveryLoading(true);
+    setRecoveryError(null);
+    try {
+      const res = await api.devices.recovery.getByAccount(id);
+      setRecoveryStatus(normalizeRecoveryStatus(res || {}));
+    } catch (err) {
+      if (err?.status === 404) {
+        setRecoveryStatus({ status: 'NONE' });
+        setRecoveryError(null);
+      } else {
+        setRecoveryStatus(null);
+        setRecoveryError(err.message || 'Failed to load device recovery status');
+      }
+    } finally {
+      setRecoveryLoading(false);
+    }
+  };
+
+  const loadRecoveryHistory = async (id) => {
+    if (!id && id !== 0) {
+      setRecoveryHistory([]);
+      return;
+    }
+    setRecoveryHistoryLoading(true);
+    try {
+      const params = new URLSearchParams({ size: '50' });
+      const res = await api.devices.recovery.historyByAccount(id, params);
+      const list = Array.isArray(res) ? res : res?.content || res?.items || [];
+      setRecoveryHistory((list || []).map((item) => normalizeRecoveryHistoryItem(item)));
+    } catch (err) {
+      if (err?.status === 404) {
+        setRecoveryHistory([]);
+      } else {
+        setRecoveryError(err.message || 'Failed to load recovery history');
+      }
+    } finally {
+      setRecoveryHistoryLoading(false);
+    }
+  };
+
+  const refreshRecoveryState = async (id) => {
+    await Promise.all([loadRecovery(id), loadRecoveryHistory(id)]);
   };
 
   const saveAccountCountry = async () => {
@@ -1045,6 +1225,86 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       pushToast({ tone: 'error', message });
     } finally {
       setTrustedDeviceSaving(false);
+    }
+  };
+
+  const saveTrustedDevicePolicy = async () => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) {
+      pushToast({ tone: 'error', message: 'No account loaded' });
+      return;
+    }
+    const override = trustedDevicePolicy.maxTrustedDevicesOverride === '' ? null : Number(trustedDevicePolicy.maxTrustedDevicesOverride);
+    const recoveryOverride =
+      trustedDevicePolicy.recoverySelfServiceEnabledOverride === 'GLOBAL'
+        ? null
+        : trustedDevicePolicy.recoverySelfServiceEnabledOverride === 'ENABLED';
+    if (override !== null && (!Number.isInteger(override) || override < 1 || override > 50)) {
+      const message = 'Max trusted devices override must be an integer between 1 and 50, or blank to use the global value.';
+      setError(message);
+      pushToast({ tone: 'error', message });
+      return;
+    }
+    setTrustedDevicePolicySaving(true);
+    setError(null);
+    try {
+      const res = await api.devices.accountPolicy.update(resolvedAccountId, {
+        maxTrustedDevicesOverride: override,
+        recoverySelfServiceEnabledOverride: recoveryOverride
+      });
+      setTrustedDevicePolicy(normalizeTrustedDevicePolicy(res || {}));
+      pushToast({
+        tone: 'success',
+        message: override === null ? 'Trusted device limit override cleared' : 'Trusted device limit override updated'
+      });
+    } catch (err) {
+      const message = err.message || 'Failed to update trusted device limit override';
+      setError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setTrustedDevicePolicySaving(false);
+    }
+  };
+
+  const approveRecovery = async () => {
+    if (!recoveryStatus?.recoveryId) {
+      pushToast({ tone: 'error', message: 'No active recovery request to approve' });
+      return;
+    }
+    setRecoveryApproving(true);
+    setRecoveryError(null);
+    try {
+      await api.devices.recovery.supportApprove(recoveryStatus.recoveryId);
+      await refreshRecoveryState(resolvedAccountId);
+      pushToast({ tone: 'success', message: 'Recovery support approval recorded' });
+    } catch (err) {
+      const message = err.message || 'Failed to approve recovery';
+      setRecoveryError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setRecoveryApproving(false);
+    }
+  };
+
+  const rejectRecovery = async () => {
+    if (!recoveryStatus?.recoveryId) {
+      pushToast({ tone: 'error', message: 'No active recovery request to reject' });
+      return;
+    }
+    setRecoveryRejecting(true);
+    setRecoveryError(null);
+    try {
+      const payload = recoveryRejectReason.trim() ? { reason: recoveryRejectReason.trim() } : undefined;
+      await api.devices.recovery.supportReject(recoveryStatus.recoveryId, payload);
+      setRecoveryRejectModalOpen(false);
+      setRecoveryRejectReason('');
+      await refreshRecoveryState(resolvedAccountId);
+      pushToast({ tone: 'success', message: 'Recovery rejected' });
+    } catch (err) {
+      const message = err.message || 'Failed to reject recovery';
+      setRecoveryError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setRecoveryRejecting(false);
     }
   };
 
@@ -2540,7 +2800,300 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           </div>
         </div>
         <div style={{ marginTop: '0.75rem' }}>
-          <DetailGrid rows={[{ label: 'enforceTrustedDevice', value: formatAuthState(accountView?.enforceTrustedDevice) }]} />
+          <DetailGrid
+            rows={[
+              { label: 'enforceTrustedDevice', value: formatAuthState(accountView?.enforceTrustedDevice) },
+              {
+                label: 'effectiveMaxTrustedDevices',
+                value:
+                  trustedDevicePolicy.effectiveMaxTrustedDevices === null || trustedDevicePolicy.effectiveMaxTrustedDevices === undefined
+                    ? '—'
+                    : String(trustedDevicePolicy.effectiveMaxTrustedDevices)
+              },
+              {
+                label: 'maxTrustedDevicesOverride',
+                value: trustedDevicePolicy.maxTrustedDevicesOverride === '' ? 'Global default' : trustedDevicePolicy.maxTrustedDevicesOverride
+              },
+              {
+                label: 'recoverySelfServiceEnabledOverride',
+                value:
+                  trustedDevicePolicy.recoverySelfServiceEnabledOverride === 'GLOBAL'
+                    ? 'Use global policy'
+                    : trustedDevicePolicy.recoverySelfServiceEnabledOverride === 'ENABLED'
+                      ? 'Enabled for this account'
+                      : 'Disabled for this account'
+              },
+              {
+                label: 'effectiveRecoverySelfServiceEnabled',
+                value:
+                  trustedDevicePolicy.effectiveRecoverySelfServiceEnabled === null
+                    ? '—'
+                    : trustedDevicePolicy.effectiveRecoverySelfServiceEnabled
+                      ? 'Enabled'
+                      : 'Disabled'
+              }
+            ]}
+          />
+        </div>
+        <div style={{ marginTop: '0.75rem', display: 'grid', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxWidth: '320px' }}>
+            <label htmlFor="maxTrustedDevicesOverride">Max trusted devices override</label>
+            <input
+              id="maxTrustedDevicesOverride"
+              type="number"
+              min={1}
+              max={50}
+              step={1}
+              value={trustedDevicePolicy.maxTrustedDevicesOverride}
+              onChange={(e) => setTrustedDevicePolicy((prev) => ({ ...prev, maxTrustedDevicesOverride: e.target.value }))}
+              placeholder="Leave blank to use global value"
+              disabled={trustedDevicePolicyLoading || trustedDevicePolicySaving || resolvedAccountId === null || resolvedAccountId === undefined}
+            />
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Blank means no override, so the account uses the global trusted-device limit again.
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxWidth: '320px' }}>
+            <label htmlFor="recoverySelfServiceEnabledOverride">Self-service recovery override</label>
+            <select
+              id="recoverySelfServiceEnabledOverride"
+              value={trustedDevicePolicy.recoverySelfServiceEnabledOverride}
+              onChange={(e) => setTrustedDevicePolicy((prev) => ({ ...prev, recoverySelfServiceEnabledOverride: e.target.value }))}
+              disabled={trustedDevicePolicyLoading || trustedDevicePolicySaving || resolvedAccountId === null || resolvedAccountId === undefined}
+            >
+              <option value="GLOBAL">Use global policy</option>
+              <option value="ENABLED">Enabled for this account</option>
+              <option value="DISABLED">Disabled for this account</option>
+            </select>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Use this override when a specific account should be allowed or blocked from in-app recovery regardless of the global policy.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn-neutral btn-sm"
+              onClick={() => loadTrustedDevicePolicy(resolvedAccountId)}
+              disabled={trustedDevicePolicyLoading || trustedDevicePolicySaving || resolvedAccountId === null || resolvedAccountId === undefined}
+            >
+              {trustedDevicePolicyLoading ? 'Refreshing…' : 'Refresh limit'}
+            </button>
+            <button
+              type="button"
+              className="btn-primary btn-sm"
+              onClick={saveTrustedDevicePolicy}
+              disabled={trustedDevicePolicyLoading || trustedDevicePolicySaving || resolvedAccountId === null || resolvedAccountId === undefined}
+            >
+              {trustedDevicePolicySaving ? 'Saving…' : 'Save policy'}
+            </button>
+            <button
+              type="button"
+              className="btn-neutral btn-sm"
+              onClick={() => setTrustedDevicePolicy((prev) => ({ ...prev, maxTrustedDevicesOverride: '', recoverySelfServiceEnabledOverride: 'GLOBAL' }))}
+              disabled={trustedDevicePolicyLoading || trustedDevicePolicySaving}
+            >
+              Clear override
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="card" style={{ padding: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+            <div style={{ fontWeight: 800 }}>Trusted Device Recovery</div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Admin only completes the <code>SUPPORT_APPROVAL</code> factor here. The client device must still finish challenge and verify after recovery is ready.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn-neutral btn-sm"
+              onClick={() => refreshRecoveryState(resolvedAccountId)}
+              disabled={recoveryLoading || resolvedAccountId === null || resolvedAccountId === undefined}
+            >
+              {recoveryLoading ? 'Refreshing…' : 'Refresh'}
+            </button>
+            {recoveryStatus?.status === 'WAITING_SUPPORT_APPROVAL' && (
+              <button
+                type="button"
+                className="btn-primary btn-sm"
+                onClick={approveRecovery}
+                disabled={recoveryApproving || recoveryLoading || !recoveryStatus?.recoveryId}
+              >
+                {recoveryApproving ? 'Approving…' : 'Approve recovery'}
+              </button>
+            )}
+            {recoveryStatus?.status === 'WAITING_SUPPORT_APPROVAL' && (
+              <button
+                type="button"
+                className="btn-danger btn-sm"
+                onClick={() => setRecoveryRejectModalOpen(true)}
+                disabled={recoveryRejecting || recoveryLoading || !recoveryStatus?.recoveryId}
+              >
+                {recoveryRejecting ? 'Rejecting…' : 'Reject recovery'}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {recoveryError ? (
+          <div style={{ marginTop: '0.75rem', color: '#b91c1c', fontWeight: 700 }}>{recoveryError}</div>
+        ) : null}
+
+        {recoveryLoading ? (
+          <div style={{ marginTop: '0.75rem', color: 'var(--muted)' }}>Loading recovery status…</div>
+        ) : recoveryStatus?.status === 'NONE' || !recoveryStatus ? (
+          <div style={{ marginTop: '0.75rem', color: 'var(--muted)' }}>No active recovery request.</div>
+        ) : (
+          <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <RecoveryStatusBadge value={recoveryStatus?.status} />
+              {recoveryStatus?.nextAction ? <Badge>{humanizeEnum(recoveryStatus.nextAction)}</Badge> : null}
+              {recoveryStatus?.deviceTrusted !== undefined ? <Badge>{recoveryStatus.deviceTrusted ? 'Device trusted' : 'Device not yet trusted'}</Badge> : null}
+              {recoveryStatus?.supportDecision ? <Badge>{humanizeEnum(recoveryStatus.supportDecision)}</Badge> : null}
+            </div>
+
+            <DetailGrid
+              rows={[
+                { label: 'Current recovery status', value: recoveryStatus?.status || '—' },
+                { label: 'Recovery ID', value: recoveryStatus?.recoveryId || '—' },
+                { label: 'Requested device', value: recoveryStatus?.deviceId || '—' },
+                { label: 'Device name', value: recoveryStatus?.deviceName || '—' },
+                { label: 'Platform', value: formatPlatformLabel(recoveryStatus?.platform) },
+                { label: 'Started at', value: formatDateTime(recoveryStatus?.startedAt) },
+                { label: 'Expires at', value: formatDateTime(recoveryStatus?.expiresAt) },
+                { label: 'Support decision', value: recoveryStatus?.supportDecision ? humanizeEnum(recoveryStatus.supportDecision) : '—' },
+                { label: 'Support decision reason', value: recoveryStatus?.supportDecisionReason || '—' },
+                { label: 'Masked email', value: recoveryStatus?.maskedEmail || '—' },
+                { label: 'Masked phone', value: recoveryStatus?.maskedPhoneNumber || '—' }
+              ]}
+            />
+
+            <DetailGrid
+              rows={[
+                { label: 'Required checks', value: recoveryStatus?.requiredFactors?.length ? recoveryStatus.requiredFactors.join(', ') : '—' },
+                { label: 'Completed checks', value: recoveryStatus?.completedFactors?.length ? recoveryStatus.completedFactors.join(', ') : '—' },
+                { label: 'Pending checks', value: recoveryStatus?.pendingFactors?.length ? recoveryStatus.pendingFactors.join(', ') : '—' },
+                { label: 'Unavailable checks', value: recoveryStatus?.unavailableFactors?.length ? recoveryStatus.unavailableFactors.join(', ') : '—' }
+              ]}
+            />
+
+            {recoveryStatus?.status === 'PENDING_FACTOR_VERIFICATION' ? (
+              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Waiting on the user to complete OTP or KYC prerequisites.</div>
+            ) : null}
+            {recoveryStatus?.status === 'REJECTED' ? (
+              <div style={{ color: '#b91c1c', fontSize: '13px', fontWeight: 600 }}>
+                Recovery was rejected{recoveryStatus?.supportDecisionReason ? `: ${recoveryStatus.supportDecisionReason}` : '.'} The user must restart recovery if another attempt is needed.
+              </div>
+            ) : null}
+            {recoveryStatus?.status === 'READY_TO_VERIFY_DEVICE' ? (
+              <div style={{ color: '#166534', fontSize: '13px', fontWeight: 600 }}>Recovery checks are complete. The new device is trusted and waiting for the client to verify the device session.</div>
+            ) : null}
+            {recoveryStatus?.status === 'BLOCKED' ? (
+              <div style={{ color: '#b91c1c', fontSize: '13px', fontWeight: 600 }}>Recovery is blocked. Review unavailable factors and adjust policy or use a different recovery path.</div>
+            ) : null}
+            {recoveryStatus?.status === 'EXPIRED' ? (
+              <div style={{ color: '#9a3412', fontSize: '13px', fontWeight: 600 }}>This recovery request expired. Ask the user to restart recovery from their device.</div>
+            ) : null}
+          </div>
+        )}
+
+        <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div style={{ fontWeight: 800 }}>Recovery history</div>
+            <button
+              type="button"
+              className="btn-neutral btn-sm"
+              onClick={() => loadRecoveryHistory(resolvedAccountId)}
+              disabled={recoveryHistoryLoading || resolvedAccountId === null || resolvedAccountId === undefined}
+            >
+              {recoveryHistoryLoading ? 'Refreshing…' : 'Refresh history'}
+            </button>
+          </div>
+
+          {recoveryHistoryLoading ? (
+            <div style={{ color: 'var(--muted)' }}>Loading recovery history…</div>
+          ) : recoveryHistory.length === 0 ? (
+            <div style={{ color: 'var(--muted)' }}>No recovery history.</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              {recoveryHistory.map((item) => {
+                const itemKey = item.id || `${item.recoveryId}-${item.createdAt}-${item.eventType}`;
+                const isExpanded = expandedRecoveryHistory.has(itemKey);
+                return (
+                  <div key={itemKey} style={{ border: '1px solid var(--border)', borderRadius: '12px', padding: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                        <div style={{ fontWeight: 800 }}>{humanizeEnum(item.eventType || 'UNKNOWN_EVENT')}</div>
+                        <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                          {[item.deviceName || item.deviceId || 'Unknown device', formatPlatformLabel(item.platform), formatDateTime(item.createdAt)].join(' • ')}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-neutral btn-sm"
+                        onClick={() =>
+                          setExpandedRecoveryHistory((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(itemKey)) next.delete(itemKey);
+                            else next.add(itemKey);
+                            return next;
+                          })
+                        }
+                      >
+                        {isExpanded ? 'Hide details' : 'Show details'}
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                      {item.status ? <RecoveryStatusBadge value={item.status} /> : null}
+                      {item.factor ? <Badge>{item.factor}</Badge> : null}
+                      {item.actorType ? <Badge>{humanizeEnum(item.actorType)}</Badge> : null}
+                    </div>
+
+                    {isExpanded && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                        <DetailGrid
+                          rows={[
+                            { label: 'ID', value: item.id || '—' },
+                            { label: 'Recovery ID', value: item.recoveryId || '—' },
+                            { label: 'Account ID', value: item.accountId || '—' },
+                            { label: 'Device ID', value: item.deviceId || '—' },
+                            { label: 'Next action', value: item.nextAction ? humanizeEnum(item.nextAction) : '—' },
+                            { label: 'Started at', value: formatDateTime(item.startedAt) },
+                            { label: 'Expires at', value: formatDateTime(item.expiresAt) },
+                            { label: 'Support decision', value: item.supportDecision ? humanizeEnum(item.supportDecision) : '—' },
+                            { label: 'Trusted device', value: item.deviceTrusted === undefined ? '—' : item.deviceTrusted ? 'Yes' : 'No' }
+                          ]}
+                        />
+                        <DetailGrid
+                          rows={[
+                            { label: 'Reason', value: item.reason || '—' },
+                            {
+                              label: 'Support decision reason',
+                              value: item.supportDecisionReason || '—'
+                            },
+                            { label: 'Required checks', value: item.requiredFactors?.length ? item.requiredFactors.join(', ') : '—' },
+                            { label: 'Completed checks', value: item.completedFactors?.length ? item.completedFactors.join(', ') : '—' },
+                            { label: 'Pending checks', value: item.pendingFactors?.length ? item.pendingFactors.join(', ') : '—' },
+                            { label: 'Unavailable checks', value: item.unavailableFactors?.length ? item.unavailableFactors.join(', ') : '—' }
+                          ]}
+                        />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                          <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>Metadata</div>
+                          <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '10px', background: 'var(--panel, transparent)' }}>
+                            {formatJsonFull(item.metadata)}
+                          </pre>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
@@ -4854,6 +5407,35 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               </button>
               <button type="button" className="btn-primary" onClick={submitCryptoLimitForm} disabled={cryptoLimitSaving}>
                 {cryptoLimitSaving ? 'Saving…' : cryptoLimitFormId ? 'Update' : 'Add'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {recoveryRejectModalOpen && (
+        <Modal title="Reject recovery" onClose={() => (!recoveryRejecting ? setRecoveryRejectModalOpen(false) : null)}>
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              This reason is stored in recovery history and may be used by support later.
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="recoveryRejectReason">Reason</label>
+              <textarea
+                id="recoveryRejectReason"
+                value={recoveryRejectReason}
+                onChange={(e) => setRecoveryRejectReason(e.target.value)}
+                rows={4}
+                placeholder="Document mismatch during support review"
+                disabled={recoveryRejecting}
+              />
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn-neutral" onClick={() => setRecoveryRejectModalOpen(false)} disabled={recoveryRejecting}>
+                Cancel
+              </button>
+              <button type="button" className="btn-danger" onClick={rejectRecovery} disabled={recoveryRejecting}>
+                {recoveryRejecting ? 'Rejecting…' : 'Reject recovery'}
               </button>
             </div>
           </div>

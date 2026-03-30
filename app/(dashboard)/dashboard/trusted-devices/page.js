@@ -3,12 +3,24 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { DataTable } from '@/components/DataTable';
 
 const statusOptions = ['TRUSTED', 'PENDING_REPLACEMENT', 'REVOKED', 'REJECTED'];
 const platformOptions = ['ios', 'android'];
 const sortByOptions = ['createdAt', 'lastSeenAt', 'status', 'deviceId', 'platform'];
 const languageOptions = ['en', 'fr'];
+const recoveryFactorOptions = ['EMAIL_OTP', 'SMS_OTP', 'KYC_APPROVED', 'SUPPORT_APPROVAL'];
+const recoveryPolicyPresets = [
+  { key: 'low', label: 'Low', factors: ['EMAIL_OTP'] },
+  { key: 'medium', label: 'Medium', factors: ['EMAIL_OTP', 'SMS_OTP'] },
+  { key: 'high', label: 'High', factors: ['EMAIL_OTP', 'SMS_OTP', 'KYC_APPROVED'] },
+  { key: 'manual-review', label: 'Manual review', factors: ['EMAIL_OTP', 'SUPPORT_APPROVAL'] }
+];
+const recoveryFactorHelperText = {
+  EMAIL_OTP: 'User proves access to verified email.',
+  SMS_OTP: 'User proves access to verified phone.',
+  KYC_APPROVED: 'Account must already have approved KYC.',
+  SUPPORT_APPROVAL: 'Admin or support must manually approve recovery.'
+};
 
 const emptyFilters = {
   accountId: '',
@@ -82,10 +94,21 @@ const formatDateTime = (value) => {
 
 export default function TrustedDevicesPage() {
   const [rows, setRows] = useState([]);
+  const [policy, setPolicy] = useState({
+    maxTrustedDevicesGlobal: '',
+    recoverySelfServiceEnabled: false,
+    recoveryRequiredFactors: [],
+    recoveryOtpTtlMinutes: '',
+    recoverySessionTtlMinutes: ''
+  });
+  const [policyLoading, setPolicyLoading] = useState(false);
+  const [policySaving, setPolicySaving] = useState(false);
+  const [policyError, setPolicyError] = useState(null);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
   const [filters, setFilters] = useState(emptyFilters);
   const [appliedFilters, setAppliedFilters] = useState(emptyFilters);
+  const [showPolicy, setShowPolicy] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -108,6 +131,36 @@ export default function TrustedDevicesPage() {
       setDetailsRow((prev) => (prev?.deviceId === row.deviceId ? { ...prev, ...res } : prev));
     } catch {
       // Fall back to list payload if the details endpoint isn't available.
+    }
+  };
+
+  const normalizePolicy = (value) => ({
+    maxTrustedDevicesGlobal:
+      value?.maxTrustedDevicesGlobal === null || value?.maxTrustedDevicesGlobal === undefined || value?.maxTrustedDevicesGlobal === ''
+        ? ''
+        : String(value.maxTrustedDevicesGlobal),
+    recoverySelfServiceEnabled: Boolean(value?.recoverySelfServiceEnabled),
+    recoveryRequiredFactors: recoveryFactorOptions.filter((factor) => Array.isArray(value?.recoveryRequiredFactors) && value.recoveryRequiredFactors.includes(factor)),
+    recoveryOtpTtlMinutes:
+      value?.recoveryOtpTtlMinutes === null || value?.recoveryOtpTtlMinutes === undefined || value?.recoveryOtpTtlMinutes === ''
+        ? ''
+        : String(value.recoveryOtpTtlMinutes),
+    recoverySessionTtlMinutes:
+      value?.recoverySessionTtlMinutes === null || value?.recoverySessionTtlMinutes === undefined || value?.recoverySessionTtlMinutes === ''
+        ? ''
+        : String(value.recoverySessionTtlMinutes)
+  });
+
+  const loadPolicy = async () => {
+    setPolicyLoading(true);
+    setPolicyError(null);
+    try {
+      const res = await api.devices.policy.get();
+      setPolicy(normalizePolicy(res || {}));
+    } catch (err) {
+      setPolicyError(err.message || 'Failed to load device recovery policy.');
+    } finally {
+      setPolicyLoading(false);
     }
   };
 
@@ -138,6 +191,10 @@ export default function TrustedDevicesPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadPolicy();
+  }, []);
 
   useEffect(() => {
     fetchRows();
@@ -251,18 +308,6 @@ export default function TrustedDevicesPage() {
     }
   };
 
-  const toggleSelection = (deviceId) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(deviceId)) {
-        next.delete(deviceId);
-      } else {
-        next.add(deviceId);
-      }
-      return next;
-    });
-  };
-
   const selectAllOnPage = () => {
     if (!rows || rows.length === 0) return;
     setSelectedIds((prev) => {
@@ -278,118 +323,124 @@ export default function TrustedDevicesPage() {
     setSelectedIds(new Set());
   };
 
-  const columns = useMemo(
-    () => [
-      {
-        key: 'select',
-        label: '',
-        render: (row) => (
-          <input
-            type="checkbox"
-            aria-label={`Select device ${row.deviceId}`}
-            checked={selectedIds.has(row.deviceId)}
-            onChange={() => toggleSelection(row.deviceId)}
-          />
-        )
-      },
-      {
-        key: 'deviceId',
-        label: 'Device',
-        render: (row) => (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-            <div style={{ fontWeight: 700 }}>{row.deviceName || 'Unnamed device'}</div>
-          </div>
-        )
-      },
-      {
-        key: 'accountId',
-        label: 'Owner',
-        render: (row) => (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-            <div>
-              {row.userFullName || `${row.userFirstName || ''} ${row.userLastName || ''}`.trim() || '—'}
-            </div>
-            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-              {row.accountReference ? row.accountReference : row.accountId !== undefined && row.accountId !== null ? `Account #${row.accountId}` : 'No account'}
-            </div>
-          </div>
-        )
-      },
-      {
-        key: 'userPhoneNumber',
-        label: 'Phone',
-        render: (row) => row.userPhoneNumber || row.phoneNumber || '—'
-      },
-      {
-        key: 'status',
-        label: 'Status',
-        render: (row) => <StatusBadge value={row.status} />
-      },
-      {
-        key: 'platform',
-        label: 'Platform',
-        render: (row) => (row.platform ? row.platform.toUpperCase() : '—')
-      },
-      {
-        key: 'lastSeenAt',
-        label: 'Last seen',
-        render: (row) => formatDateTime(row.lastSeenAt)
-      },
-      {
-        key: 'preferredLanguage',
-        label: 'Language',
-        render: (row) => {
-          const current = String(row.preferredLanguage || '').toLowerCase();
-          return (
-            <select
-              aria-label={`Preferred language for device ${row.deviceId}`}
-              value={languageOptions.includes(current) ? current : ''}
-              onChange={(e) => handleLanguageSelect(row, e.target.value)}
-              disabled={actionLoading === `lang-${row.deviceId}`}
-            >
-              <option value="">—</option>
-              {languageOptions.map((lang) => (
-                <option key={lang} value={lang}>
-                  {lang.toUpperCase()}
-                </option>
-              ))}
-            </select>
-          );
-        }
-      },
-      {
-        key: 'actions',
-        label: 'Actions',
-        render: (row) => (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minWidth: '220px' }}>
-            <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-              <button type="button" onClick={() => openDetails(row)} className="btn-ghost btn-sm">
-                Details
-              </button>
-              <button type="button" onClick={() => setConfirmRevoke(row)} className="btn-danger btn-sm" disabled={actionLoading === `revoke-${row.deviceId}`}>
-                {actionLoading === `revoke-${row.deviceId}` ? 'Revoking…' : 'Revoke'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setConfirmDelete({ deviceIds: [row.deviceId] })}
-                className="btn-danger btn-sm"
-                disabled={actionLoading === `delete-${row.deviceId}`}
-              >
-                {actionLoading === `delete-${row.deviceId}` ? 'Deleting…' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        )
-      }
-    ],
-    [actionLoading, selectedIds]
-  );
+  const toggleRecoveryFactor = (factor) => {
+    setPolicy((prev) => ({
+      ...prev,
+      recoveryRequiredFactors: prev.recoveryRequiredFactors.includes(factor)
+        ? prev.recoveryRequiredFactors.filter((item) => item !== factor)
+        : recoveryFactorOptions.filter((item) => item === factor || prev.recoveryRequiredFactors.includes(item))
+    }));
+  };
+
+  const applyRecoveryPreset = (factors) => {
+    setPolicy((prev) => ({
+      ...prev,
+      recoveryRequiredFactors: recoveryFactorOptions.filter((factor) => factors.includes(factor))
+    }));
+  };
+
+  const savePolicy = async () => {
+    const maxTrustedDevicesGlobal = policy.maxTrustedDevicesGlobal === '' ? null : Number(policy.maxTrustedDevicesGlobal);
+    const otpTtl = policy.recoveryOtpTtlMinutes === '' ? null : Number(policy.recoveryOtpTtlMinutes);
+    const sessionTtl = policy.recoverySessionTtlMinutes === '' ? null : Number(policy.recoverySessionTtlMinutes);
+    if (maxTrustedDevicesGlobal !== null && (!Number.isInteger(maxTrustedDevicesGlobal) || maxTrustedDevicesGlobal < 1 || maxTrustedDevicesGlobal > 50)) {
+      setPolicyError('Max trusted devices (global) must be an integer between 1 and 50.');
+      return;
+    }
+    if (!policy.recoveryRequiredFactors.length) {
+      setPolicyError('Select at least one recovery factor.');
+      return;
+    }
+    if (otpTtl !== null && (!Number.isFinite(otpTtl) || otpTtl <= 0)) {
+      setPolicyError('Recovery OTP TTL must be a positive number of minutes.');
+      return;
+    }
+    if (sessionTtl !== null && (!Number.isFinite(sessionTtl) || sessionTtl <= 0)) {
+      setPolicyError('Recovery session TTL must be a positive number of minutes.');
+      return;
+    }
+    setPolicySaving(true);
+    setPolicyError(null);
+    setError(null);
+    setInfo(null);
+    try {
+      const res = await api.devices.policy.update({
+        ...(maxTrustedDevicesGlobal !== null ? { maxTrustedDevicesGlobal } : {}),
+        recoverySelfServiceEnabled: Boolean(policy.recoverySelfServiceEnabled),
+        recoveryRequiredFactors: policy.recoveryRequiredFactors,
+        ...(otpTtl !== null ? { recoveryOtpTtlMinutes: otpTtl } : {}),
+        ...(sessionTtl !== null ? { recoverySessionTtlMinutes: sessionTtl } : {})
+      });
+      setPolicy(normalizePolicy(res || policy));
+      setInfo('Trusted-device recovery policy updated.');
+    } catch (err) {
+      setPolicyError(err.message || 'Failed to update device recovery policy.');
+    } finally {
+      setPolicySaving(false);
+    }
+  };
+
+  const policyWarnings = useMemo(() => {
+    const warnings = [];
+    if (policy.recoveryRequiredFactors.includes('SMS_OTP')) {
+      warnings.push('SMS_OTP can block recovery for users without verified phone coverage or reliable SMS delivery.');
+    }
+    if (policy.recoveryRequiredFactors.includes('KYC_APPROVED')) {
+      warnings.push('KYC_APPROVED limits recovery to users who already passed KYC.');
+    }
+    if (policy.recoveryRequiredFactors.includes('SUPPORT_APPROVAL')) {
+      warnings.push('SUPPORT_APPROVAL adds manual ops work and can slow recovery until a support agent approves it.');
+    }
+    return warnings;
+  }, [policy.recoveryRequiredFactors]);
 
   const parseTimestamp = (value) => {
     if (!value) return 0;
     const ts = new Date(value).getTime();
     return Number.isNaN(ts) ? 0 : ts;
   };
+
+  const getUserName = (row) => row?.userFullName || `${row?.userFirstName || ''} ${row?.userLastName || ''}`.trim() || '—';
+  const getUserEmail = (row) => row?.userEmail || row?.email || '—';
+  const getUserPhone = (row) => row?.userPhoneNumber || row?.phoneNumber || '—';
+  const getPlatformLabel = (platform) =>
+    String(platform || '').toLowerCase() === 'ios'
+      ? 'iPhone'
+      : String(platform || '').toLowerCase() === 'android'
+        ? 'Android'
+        : platform
+          ? String(platform).toUpperCase()
+          : '—';
+  const renderDeviceSummary = (row) =>
+    row ? (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
+        <div>{row.deviceName || row.deviceId || '—'}</div>
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{formatDateTime(row.lastSeenAt || row.createdAt)}</div>
+      </div>
+    ) : (
+      '—'
+    );
+  const renderDeviceActions = (row) =>
+    row ? (
+      <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+        <button type="button" onClick={() => openDetails(row)} className="btn-ghost btn-sm">
+          Details
+        </button>
+        <button type="button" onClick={() => setConfirmRevoke(row)} className="btn-danger btn-sm" disabled={actionLoading === `revoke-${row.deviceId}`}>
+          {actionLoading === `revoke-${row.deviceId}` ? 'Revoking…' : 'Revoke'}
+        </button>
+        <button
+          type="button"
+          onClick={() => setConfirmDelete({ deviceIds: [row.deviceId] })}
+          className="btn-danger btn-sm"
+          disabled={actionLoading === `delete-${row.deviceId}`}
+        >
+          {actionLoading === `delete-${row.deviceId}` ? 'Deleting…' : 'Delete'}
+        </button>
+      </div>
+    ) : (
+      '—'
+    );
 
   const groupedRows = useMemo(() => {
     const groups = new Map();
@@ -415,22 +466,23 @@ export default function TrustedDevicesPage() {
           const bTs = parseTimestamp(b.lastSeenAt || b.createdAt);
           return bTs - aTs;
         });
-        const latestDevice = sortedDevices[0] || null;
+        const trustedDevices = sortedDevices.filter((item) => String(item.status || '').toUpperCase() === 'TRUSTED');
+        const parentDevice = trustedDevices[0] || sortedDevices[0] || null;
         const profileSource =
           sortedDevices.find((item) => item.userFullName || item.userFirstName || item.userLastName || item.userEmail || item.email || item.userPhoneNumber || item.phoneNumber) ||
-          latestDevice ||
+          parentDevice ||
           {};
         return {
           ...group,
           rows: sortedDevices,
-          latestDevice,
-          otherDevices: sortedDevices.slice(1),
+          parentDevice,
+          otherDevices: sortedDevices.filter((item) => item !== parentDevice),
           userName: profileSource.userFullName || `${profileSource.userFirstName || ''} ${profileSource.userLastName || ''}`.trim() || '—',
           userEmail: profileSource.userEmail || profileSource.email || '—',
           userPhone: profileSource.userPhoneNumber || profileSource.phoneNumber || '—'
         };
       })
-      .sort((a, b) => parseTimestamp(b.latestDevice?.lastSeenAt || b.latestDevice?.createdAt) - parseTimestamp(a.latestDevice?.lastSeenAt || a.latestDevice?.createdAt));
+      .sort((a, b) => parseTimestamp(b.parentDevice?.lastSeenAt || b.parentDevice?.createdAt) - parseTimestamp(a.parentDevice?.lastSeenAt || a.parentDevice?.createdAt));
   }, [rows]);
 
   useEffect(() => {
@@ -490,6 +542,166 @@ export default function TrustedDevicesPage() {
           {error}
         </div>
       )}
+
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+            <div style={{ fontWeight: 800, fontSize: '16px' }}>Recovery policy</div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Recovery requires all selected checks to pass before the new device is marked trusted.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button type="button" onClick={() => setShowPolicy((prev) => !prev)} className="btn-neutral btn-sm">
+              {showPolicy ? 'Hide policy' : 'Show policy'}
+            </button>
+            <button type="button" onClick={loadPolicy} className="btn-neutral btn-sm" disabled={policyLoading || policySaving}>
+              {policyLoading ? 'Refreshing…' : 'Refresh'}
+            </button>
+            <button type="button" onClick={savePolicy} className="btn-primary btn-sm" disabled={policyLoading || policySaving}>
+              {policySaving ? 'Saving…' : 'Save policy'}
+            </button>
+          </div>
+        </div>
+
+        {showPolicy && (
+          <>
+            {policyError && (
+              <div style={{ color: '#b91c1c', fontWeight: 700, border: '1px solid #fecdd3', background: '#fef2f2', borderRadius: '12px', padding: '0.75rem' }}>
+                {policyError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+              <div style={{ fontWeight: 700 }}>Presets</div>
+              <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap' }}>
+                {recoveryPolicyPresets.map((preset) => (
+                  <button
+                    key={preset.key}
+                    type="button"
+                    className="btn-neutral btn-sm"
+                    onClick={() => applyRecoveryPreset(preset.factors)}
+                    disabled={policyLoading || policySaving}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <div style={{ fontWeight: 700 }}>Recovery factors</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '12px' }}>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+                  <input
+                    type="checkbox"
+                    checked={policy.recoverySelfServiceEnabled}
+                    onChange={(e) => setPolicy((prev) => ({ ...prev, recoverySelfServiceEnabled: e.target.checked }))}
+                    disabled={policyLoading || policySaving}
+                  />
+                  Allow self-service recovery
+                </label>
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                  If enabled, users who lost all trusted devices can start recovery themselves in the app. If disabled, they must contact customer service and recovery can only proceed through support/admin.
+                </div>
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                  {policy.recoverySelfServiceEnabled
+                    ? 'Enabled: Users can recover access themselves after completing the configured verification steps.'
+                    : 'Disabled: Only support-assisted recovery is allowed.'}
+                </div>
+                {!policy.recoverySelfServiceEnabled && (
+                  <div style={{ color: '#9a3412', fontSize: '12px', fontWeight: 700 }}>
+                    Users without a trusted device will not be able to start recovery from the app and will need customer support.
+                  </div>
+                )}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.6rem' }}>
+                {recoveryFactorOptions.map((factor) => (
+                  <label
+                    key={factor}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.3rem',
+                      padding: '0.75rem',
+                      border: '1px solid var(--border)',
+                      borderRadius: '12px'
+                    }}
+                  >
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+                      <input
+                        type="checkbox"
+                        checked={policy.recoveryRequiredFactors.includes(factor)}
+                        onChange={() => toggleRecoveryFactor(factor)}
+                        disabled={policyLoading || policySaving}
+                      />
+                      {factor}
+                    </span>
+                    <span style={{ color: 'var(--muted)', fontSize: '12px' }}>{recoveryFactorHelperText[factor]}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="maxTrustedDevicesGlobal">Max trusted devices (global)</label>
+                <input
+                  id="maxTrustedDevicesGlobal"
+                  type="number"
+                  min={1}
+                  max={50}
+                  step={1}
+                  value={policy.maxTrustedDevicesGlobal}
+                  onChange={(e) => setPolicy((prev) => ({ ...prev, maxTrustedDevicesGlobal: e.target.value }))}
+                  disabled={policyLoading || policySaving}
+                  placeholder="5"
+                />
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                  Global limit for trusted devices per account. Backend normalizes values to 1..50 and defaults to 5.
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="recoveryOtpTtlMinutes">Recovery OTP TTL (minutes)</label>
+                <input
+                  id="recoveryOtpTtlMinutes"
+                  type="number"
+                  min={1}
+                  value={policy.recoveryOtpTtlMinutes}
+                  onChange={(e) => setPolicy((prev) => ({ ...prev, recoveryOtpTtlMinutes: e.target.value }))}
+                  disabled={policyLoading || policySaving}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="recoverySessionTtlMinutes">Recovery session TTL (minutes)</label>
+                <input
+                  id="recoverySessionTtlMinutes"
+                  type="number"
+                  min={1}
+                  value={policy.recoverySessionTtlMinutes}
+                  onChange={(e) => setPolicy((prev) => ({ ...prev, recoverySessionTtlMinutes: e.target.value }))}
+                  disabled={policyLoading || policySaving}
+                />
+              </div>
+            </div>
+
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Selected checks: {policy.recoveryRequiredFactors.length ? policy.recoveryRequiredFactors.join(', ') : 'none'}
+            </div>
+
+            {policyWarnings.length > 0 && (
+              <div style={{ border: '1px solid #fed7aa', background: '#fff7ed', color: '#9a3412', borderRadius: '12px', padding: '0.75rem' }}>
+                <div style={{ fontWeight: 800, marginBottom: '0.35rem' }}>Policy warning</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '13px' }}>
+                  {policyWarnings.map((warning) => (
+                    <div key={warning}>{warning}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -634,7 +846,10 @@ export default function TrustedDevicesPage() {
                 Phone
               </th>
               <th className="data-table__cell" style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
-                Last device
+                Trusted device
+              </th>
+              <th className="data-table__cell" style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                Status
               </th>
               <th className="data-table__cell" style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
                 Platform
@@ -653,14 +868,14 @@ export default function TrustedDevicesPage() {
           <tbody>
             {groupedRows.length === 0 && (
               <tr>
-                <td colSpan={9} style={{ padding: '1rem', textAlign: 'center', color: 'var(--muted)' }}>
+                <td colSpan={10} style={{ padding: '1rem', textAlign: 'center', color: 'var(--muted)' }}>
                   No devices found
                 </td>
               </tr>
             )}
             {groupedRows.map((group) => {
               const isExpanded = expandedGroups.has(group.key);
-              const latest = group.latestDevice;
+              const latest = group.parentDevice;
               return (
                 <Fragment key={group.key}>
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
@@ -679,25 +894,13 @@ export default function TrustedDevicesPage() {
                       {group.userPhone}
                     </td>
                     <td className="data-table__cell" style={{ padding: '0.75rem' }}>
-                      {latest ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
-                          <div>{latest.deviceName || latest.deviceId || '—'}</div>
-                          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{formatDateTime(latest.lastSeenAt || latest.createdAt)}</div>
-                        </div>
-                      ) : (
-                        '—'
-                      )}
+                      {renderDeviceSummary(latest)}
                     </td>
                     <td className="data-table__cell" style={{ padding: '0.75rem' }}>
-                      {latest
-                        ? String(latest.platform || '').toLowerCase() === 'ios'
-                          ? 'iPhone'
-                          : String(latest.platform || '').toLowerCase() === 'android'
-                            ? 'Android'
-                            : latest.platform
-                              ? String(latest.platform).toUpperCase()
-                              : '—'
-                        : '—'}
+                      {latest ? <StatusBadge value={latest.status} /> : '—'}
+                    </td>
+                    <td className="data-table__cell" style={{ padding: '0.75rem' }}>
+                      {getPlatformLabel(latest?.platform)}
                     </td>
                     <td className="data-table__cell" style={{ padding: '0.75rem' }}>
                       {latest?.preferredLanguage ? String(latest.preferredLanguage).toUpperCase() : '—'}
@@ -706,40 +909,67 @@ export default function TrustedDevicesPage() {
                       {group.otherDevices.length}
                     </td>
                     <td className="data-table__cell" style={{ padding: '0.75rem' }}>
-                      {latest ? (
-                        <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-                          <button type="button" onClick={() => openDetails(latest)} className="btn-ghost btn-sm">
-                            Details
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setConfirmRevoke(latest)}
-                            className="btn-danger btn-sm"
-                            disabled={actionLoading === `revoke-${latest.deviceId}`}
-                          >
-                            {actionLoading === `revoke-${latest.deviceId}` ? 'Revoking…' : 'Revoke'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setConfirmDelete({ deviceIds: [latest.deviceId] })}
-                            className="btn-danger btn-sm"
-                            disabled={actionLoading === `delete-${latest.deviceId}`}
-                          >
-                            {actionLoading === `delete-${latest.deviceId}` ? 'Deleting…' : 'Delete'}
-                          </button>
-                        </div>
-                      ) : (
-                        '—'
-                      )}
+                      {renderDeviceActions(latest)}
                     </td>
                   </tr>
                   {isExpanded && (
                     <tr>
-                      <td colSpan={9} style={{ padding: '0.75rem', background: 'var(--card-subtle)' }}>
+                      <td colSpan={10} style={{ padding: '0.75rem', background: 'var(--card-subtle)' }}>
                         {group.otherDevices.length === 0 ? (
                           <div style={{ color: 'var(--muted)' }}>No other devices for this account.</div>
                         ) : (
-                          <DataTable columns={columns} rows={group.otherDevices} emptyLabel="No other devices" />
+                          <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <tbody>
+                              {group.otherDevices.map((device) => (
+                                <tr key={device.deviceId} style={{ borderBottom: '1px solid var(--border)' }}>
+                                  <td className="data-table__cell" style={{ padding: '0.75rem' }}>
+                                    <span
+                                      aria-hidden="true"
+                                      style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        minWidth: '60px',
+                                        color: 'var(--muted)'
+                                      }}
+                                    >
+                                      <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M4 10h12" />
+                                        <path d="m10 4 6 6-6 6" />
+                                      </svg>
+                                    </span>
+                                  </td>
+                                  <td className="data-table__cell" style={{ padding: '0.75rem' }}>
+                                    {getUserName(device)}
+                                  </td>
+                                  <td className="data-table__cell" style={{ padding: '0.75rem' }}>
+                                    {getUserEmail(device)}
+                                  </td>
+                                  <td className="data-table__cell" style={{ padding: '0.75rem' }}>
+                                    {getUserPhone(device)}
+                                  </td>
+                                  <td className="data-table__cell" style={{ padding: '0.75rem' }}>
+                                    {renderDeviceSummary(device)}
+                                  </td>
+                                  <td className="data-table__cell" style={{ padding: '0.75rem' }}>
+                                    <StatusBadge value={device.status} />
+                                  </td>
+                                  <td className="data-table__cell" style={{ padding: '0.75rem' }}>
+                                    {getPlatformLabel(device.platform)}
+                                  </td>
+                                  <td className="data-table__cell" style={{ padding: '0.75rem' }}>
+                                    {device.preferredLanguage ? String(device.preferredLanguage).toUpperCase() : '—'}
+                                  </td>
+                                  <td className="data-table__cell" style={{ padding: '0.75rem' }}>
+                                    0
+                                  </td>
+                                  <td className="data-table__cell" style={{ padding: '0.75rem' }}>
+                                    {renderDeviceActions(device)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
                         )}
                       </td>
                     </tr>
