@@ -21,6 +21,8 @@ export default function WalletPolicyConfigPage() {
   const [payoutRateLimitActions, setPayoutRateLimitActions] = useState([]);
   const [cryptoProviderCollectionMinimumUsd, setCryptoProviderCollectionMinimumUsd] = useState('');
   const [cryptoProviderCollectionMaximumUsd, setCryptoProviderCollectionMaximumUsd] = useState('');
+  const [payoutKycThresholdUsd, setPayoutKycThresholdUsd] = useState('');
+  const [forcePayoutKycUnlessApproved, setForcePayoutKycUnlessApproved] = useState(false);
 
   const loadConfig = async () => {
     setLoading(true);
@@ -34,6 +36,8 @@ export default function WalletPolicyConfigPage() {
       setPayoutRateLimitActions(incomingActions.filter((action) => ALLOWED_PAYOUT_ACTIONS.includes(String(action))));
       setCryptoProviderCollectionMinimumUsd(formatUsdValue(res?.cryptoProviderCollectionMinimumUsd));
       setCryptoProviderCollectionMaximumUsd(formatUsdValue(res?.cryptoProviderCollectionMaximumUsd));
+      setPayoutKycThresholdUsd(formatUsdValue(res?.payoutKycThresholdUsd));
+      setForcePayoutKycUnlessApproved(Boolean(res?.forcePayoutKycUnlessApproved));
     } catch (err) {
       setError(err?.message || 'Failed to load wallet policy config');
     } finally {
@@ -60,8 +64,10 @@ export default function WalletPolicyConfigPage() {
     );
     const minRaw = String(cryptoProviderCollectionMinimumUsd || '').trim();
     const maxRaw = String(cryptoProviderCollectionMaximumUsd || '').trim();
+    const payoutKycThresholdRaw = String(payoutKycThresholdUsd || '').trim();
     const minParsed = minRaw === '' ? null : Number(minRaw);
     const maxParsed = maxRaw === '' ? null : Number(maxRaw);
+    const payoutKycThresholdParsed = payoutKycThresholdRaw === '' ? null : Number(payoutKycThresholdRaw);
     if (minRaw !== '' && (!Number.isFinite(minParsed) || minParsed <= 0)) {
       setError('Minimum amount must be greater than 0.');
       return;
@@ -74,6 +80,10 @@ export default function WalletPolicyConfigPage() {
       setError('Minimum amount must be less than or equal to maximum amount.');
       return;
     }
+    if (payoutKycThresholdRaw !== '' && (!Number.isFinite(payoutKycThresholdParsed) || payoutKycThresholdParsed <= 0)) {
+      setError('Payout KYC threshold must be a positive amount.');
+      return;
+    }
     setSaving(true);
     setError(null);
     setInfo(null);
@@ -82,7 +92,9 @@ export default function WalletPolicyConfigPage() {
         interTransferCooldownMinutes: parsed,
         payoutRateLimitActions: normalizedActions,
         cryptoProviderCollectionMinimumUsd: minRaw === '' ? '' : minParsed.toFixed(2),
-        cryptoProviderCollectionMaximumUsd: maxRaw === '' ? '' : maxParsed.toFixed(2)
+        cryptoProviderCollectionMaximumUsd: maxRaw === '' ? '' : maxParsed.toFixed(2),
+        payoutKycThresholdUsd: payoutKycThresholdRaw === '' ? '' : payoutKycThresholdParsed.toFixed(2),
+        forcePayoutKycUnlessApproved: Boolean(forcePayoutKycUnlessApproved)
       });
       setInfo('Wallet policy config updated.');
       await loadConfig();
@@ -201,6 +213,58 @@ export default function WalletPolicyConfigPage() {
                 disabled={loading || saving}
               />
             </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <div style={{ fontWeight: 700 }}>Payout KYC</div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Users with KYC status NONE must complete KYC when their payout amount or completed transaction volume exceeds this threshold.
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Applies only when the user's current KYC status is NONE.
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              KYC is required when the payout amount or total completed transaction volume exceeds this threshold. Leave blank to use the system default.
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              If force KYC is enabled, the threshold is ignored for users whose KYC status is NONE.
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '12px' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+              <input
+                type="checkbox"
+                checked={forcePayoutKycUnlessApproved}
+                onChange={(e) => setForcePayoutKycUnlessApproved(e.target.checked)}
+                disabled={loading || saving}
+              />
+              Force KYC for payouts when KYC status is NONE
+            </label>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              If enabled, users with KYC status NONE must complete KYC before any covered payout, regardless of payout amount or completed transaction volume.
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Use this for regulatory or audit controls when no payout should be allowed before KYC is completed.
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxWidth: '280px' }}>
+            <label htmlFor="payoutKycThresholdUsd">Payout KYC threshold (USD)</label>
+            <input
+              id="payoutKycThresholdUsd"
+              type="number"
+              min="0.01"
+              step="0.01"
+              inputMode="decimal"
+              value={payoutKycThresholdUsd}
+              onChange={(e) => setPayoutKycThresholdUsd(e.target.value)}
+              onBlur={() => setPayoutKycThresholdUsd((prev) => formatUsdValue(String(prev || '').trim()))}
+              placeholder="75.00"
+              disabled={loading || saving}
+            />
           </div>
         </div>
 
