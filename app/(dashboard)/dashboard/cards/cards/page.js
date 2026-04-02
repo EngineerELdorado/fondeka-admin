@@ -36,6 +36,7 @@ const emptyFilters = {
   status: '',
   issued: '',
   accountId: '',
+  email: '',
   cardHolderId: '',
   internalReference: '',
   externalReference: '',
@@ -707,6 +708,16 @@ export default function CardsPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="accountId">Account ID</label>
                 <input id="accountId" type="number" value={filters.accountId} onChange={(e) => setFilters((p) => ({ ...p, accountId: e.target.value }))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="emailFilter">Email</label>
+                <input
+                  id="emailFilter"
+                  type="email"
+                  value={filters.email}
+                  placeholder="jane@example.com"
+                  onChange={(e) => setFilters((p) => ({ ...p, email: e.target.value }))}
+                />
               </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.5rem' }}>

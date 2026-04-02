@@ -135,6 +135,7 @@ export default function AccountsListPage() {
     'FUND_CARD',
     'FUND_WALLET',
     'LOAN_DISBURSEMENT',
+    'CARD_PAYMENT_REVERSAL',
     'PAY_BILL',
     'PAY_ELECTRICITY_BILL',
     'PAY_INTERNET_BILL',
