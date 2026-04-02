@@ -21,6 +21,7 @@ export default function WalletPolicyConfigPage() {
   const [payoutRateLimitActions, setPayoutRateLimitActions] = useState([]);
   const [cryptoProviderCollectionMinimumUsd, setCryptoProviderCollectionMinimumUsd] = useState('');
   const [cryptoProviderCollectionMaximumUsd, setCryptoProviderCollectionMaximumUsd] = useState('');
+  const [sendAirtimeMinimumUsd, setSendAirtimeMinimumUsd] = useState('');
   const [payoutKycThresholdUsd, setPayoutKycThresholdUsd] = useState('');
   const [forcePayoutKycUnlessApproved, setForcePayoutKycUnlessApproved] = useState(false);
 
@@ -36,6 +37,7 @@ export default function WalletPolicyConfigPage() {
       setPayoutRateLimitActions(incomingActions.filter((action) => ALLOWED_PAYOUT_ACTIONS.includes(String(action))));
       setCryptoProviderCollectionMinimumUsd(formatUsdValue(res?.cryptoProviderCollectionMinimumUsd));
       setCryptoProviderCollectionMaximumUsd(formatUsdValue(res?.cryptoProviderCollectionMaximumUsd));
+      setSendAirtimeMinimumUsd(formatUsdValue(res?.sendAirtimeMinimumUsd));
       setPayoutKycThresholdUsd(formatUsdValue(res?.payoutKycThresholdUsd));
       setForcePayoutKycUnlessApproved(Boolean(res?.forcePayoutKycUnlessApproved));
     } catch (err) {
@@ -64,9 +66,11 @@ export default function WalletPolicyConfigPage() {
     );
     const minRaw = String(cryptoProviderCollectionMinimumUsd || '').trim();
     const maxRaw = String(cryptoProviderCollectionMaximumUsd || '').trim();
+    const sendAirtimeMinimumRaw = String(sendAirtimeMinimumUsd || '').trim();
     const payoutKycThresholdRaw = String(payoutKycThresholdUsd || '').trim();
     const minParsed = minRaw === '' ? null : Number(minRaw);
     const maxParsed = maxRaw === '' ? null : Number(maxRaw);
+    const sendAirtimeMinimumParsed = sendAirtimeMinimumRaw === '' ? null : Number(sendAirtimeMinimumRaw);
     const payoutKycThresholdParsed = payoutKycThresholdRaw === '' ? null : Number(payoutKycThresholdRaw);
     if (minRaw !== '' && (!Number.isFinite(minParsed) || minParsed <= 0)) {
       setError('Minimum amount must be greater than 0.');
@@ -78,6 +82,10 @@ export default function WalletPolicyConfigPage() {
     }
     if (minParsed !== null && maxParsed !== null && minParsed > maxParsed) {
       setError('Minimum amount must be less than or equal to maximum amount.');
+      return;
+    }
+    if (sendAirtimeMinimumRaw !== '' && (!Number.isFinite(sendAirtimeMinimumParsed) || sendAirtimeMinimumParsed <= 0)) {
+      setError('Minimum send airtime amount must be a positive amount.');
       return;
     }
     if (payoutKycThresholdRaw !== '' && (!Number.isFinite(payoutKycThresholdParsed) || payoutKycThresholdParsed <= 0)) {
@@ -93,6 +101,7 @@ export default function WalletPolicyConfigPage() {
         payoutRateLimitActions: normalizedActions,
         cryptoProviderCollectionMinimumUsd: minRaw === '' ? '' : minParsed.toFixed(2),
         cryptoProviderCollectionMaximumUsd: maxRaw === '' ? '' : maxParsed.toFixed(2),
+        sendAirtimeMinimumUsd: sendAirtimeMinimumRaw === '' ? '' : sendAirtimeMinimumParsed.toFixed(2),
         payoutKycThresholdUsd: payoutKycThresholdRaw === '' ? '' : payoutKycThresholdParsed.toFixed(2),
         forcePayoutKycUnlessApproved: Boolean(forcePayoutKycUnlessApproved)
       });
@@ -263,6 +272,37 @@ export default function WalletPolicyConfigPage() {
               onChange={(e) => setPayoutKycThresholdUsd(e.target.value)}
               onBlur={() => setPayoutKycThresholdUsd((prev) => formatUsdValue(String(prev || '').trim()))}
               placeholder="75.00"
+              disabled={loading || saving}
+            />
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <div style={{ fontWeight: 700 }}>Airtime Limits</div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Applies to airtime purchases sent by users. Leave blank for no minimum.
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              If this field is empty, users can send airtime for any allowed amount.
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              If this field is set, airtime below this amount will be rejected.
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxWidth: '280px' }}>
+            <label htmlFor="sendAirtimeMinimumUsd">Minimum send airtime amount (USD)</label>
+            <input
+              id="sendAirtimeMinimumUsd"
+              type="number"
+              min="0.01"
+              step="0.01"
+              inputMode="decimal"
+              value={sendAirtimeMinimumUsd}
+              onChange={(e) => setSendAirtimeMinimumUsd(e.target.value)}
+              onBlur={() => setSendAirtimeMinimumUsd((prev) => formatUsdValue(String(prev || '').trim()))}
+              placeholder="2.00"
               disabled={loading || saving}
             />
           </div>
