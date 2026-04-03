@@ -446,7 +446,12 @@ export default function TrustedDevicesPage() {
   const renderDeviceSummary = (row) =>
     row ? (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
-        <div>{row.deviceName || row.deviceId || '—'}</div>
+        <div>
+          {(() => {
+            const label = row.deviceName || row.deviceId || '—';
+            return label.length > 20 ? `${label.slice(0, 20)}…` : label;
+          })()}
+        </div>
         <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{formatDateTime(row.lastSeenAt || row.createdAt)}</div>
       </div>
     ) : (
