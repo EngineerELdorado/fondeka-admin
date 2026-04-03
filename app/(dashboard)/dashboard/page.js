@@ -46,6 +46,15 @@ const formatEnumLabel = (value) => {
     .join(' ');
 };
 
+const getReferralCostValue = (row) => Number(row?.referralCost) || 0;
+const getRevenueValue = (row) => {
+  if (row?.revenue !== undefined && row?.revenue !== null) return Number(row.revenue) || 0;
+  const fee = Number(row?.fee ?? row?.feeRevenue) || 0;
+  const commission = Number(row?.commission ?? row?.commissionRevenue) || 0;
+  return fee + commission;
+};
+const getNetProfitValue = (row) => getRevenueValue(row) - getReferralCostValue(row);
+
 const InlineStat = ({ value, percentage }) => {
   const main = value ?? '—';
   const percentLabel = formatPercentage(percentage);
@@ -519,6 +528,8 @@ export default function DashboardPage() {
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
         .map((p) => ({
           ...p,
+          referralCost: getReferralCostValue(p),
+          netProfit: getNetProfitValue(p),
           label: p.date
         })),
     [timeseries]
@@ -596,11 +607,11 @@ export default function DashboardPage() {
   );
 
   const totalRevenue = useMemo(() => {
-    if (totals.revenue !== undefined && totals.revenue !== null) return Number(totals.revenue) || 0;
-    const fee = Number(totals.fee ?? totals.feeRevenue) || 0;
-    const commission = Number(totals.commission ?? totals.commissionRevenue) || 0;
-    return fee + commission;
+    return getRevenueValue(totals);
   }, [totals]);
+
+  const totalReferralCost = useMemo(() => getReferralCostValue(totals), [totals]);
+  const totalNetProfit = useMemo(() => totalRevenue - totalReferralCost, [totalRevenue, totalReferralCost]);
 
   const providerFeesTotal = useMemo(() => {
     const list = Array.isArray(timeseries) ? timeseries : [];
@@ -746,6 +757,18 @@ export default function DashboardPage() {
       value: formatCurrency(totalRevenue),
       sub: 'Total revenue',
       tone: '#7c3aed'
+    },
+    {
+      label: 'Referral cost',
+      value: formatCurrency(totalReferralCost),
+      sub: 'Referral rewards paid out for transactions that generated revenue',
+      tone: '#ea580c'
+    },
+    {
+      label: 'Net profit',
+      value: formatCurrency(totalNetProfit),
+      sub: 'Revenue minus referral cost',
+      tone: '#15803d'
     }
   ];
 
@@ -1092,6 +1115,8 @@ export default function DashboardPage() {
                       formatter={(value, name) => {
                         if (name === 'volume') return [formatCurrency(value), 'Volume'];
                         if (name === 'revenue') return [formatCurrency(value), 'Total revenue'];
+                        if (name === 'referralCost') return [formatCurrency(value), 'Referral cost'];
+                        if (name === 'netProfit') return [formatCurrency(value), 'Net profit'];
                         return [value, name];
                       }}
                       labelFormatter={(label) => `Date: ${label}`}
@@ -1099,6 +1124,8 @@ export default function DashboardPage() {
                     <Legend />
                     <Line type="monotone" dataKey="volume" name="Volume" stroke="#0f172a" strokeWidth={2.5} dot={false} yAxisId="left" />
                     <Line type="monotone" dataKey="revenue" name="Total revenue" stroke="#16a34a" strokeWidth={2} dot={false} yAxisId="left" />
+                    <Line type="monotone" dataKey="referralCost" name="Referral cost" stroke="#ea580c" strokeWidth={2} dot={false} yAxisId="left" />
+                    <Line type="monotone" dataKey="netProfit" name="Net profit" stroke="#7c3aed" strokeWidth={2} dot={false} yAxisId="left" />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -1313,7 +1340,9 @@ export default function DashboardPage() {
                 bold: true
               },
               { key: 'volume', label: 'Volume', render: (row) => <InlineStat value={formatCurrency(row.volume)} percentage={row.volumePercentage} /> },
-              { key: 'revenue', label: 'Revenue', render: (row) => <InlineStat value={formatCurrency(row.revenue)} percentage={row.revenuePercentage} /> }
+              { key: 'revenue', label: 'Revenue', render: (row) => <InlineStat value={formatCurrency(getRevenueValue(row))} percentage={row.revenuePercentage} /> },
+              { key: 'referralCost', label: 'Referral cost', render: (row) => formatCurrency(getReferralCostValue(row)) },
+              { key: 'netProfit', label: 'Net profit', render: (row) => formatCurrency(getNetProfitValue(row)) }
             ]}
             rows={data?.services}
           />
@@ -1330,7 +1359,9 @@ export default function DashboardPage() {
                 bold: true
               },
               { key: 'volume', label: 'Volume', render: (row) => <InlineStat value={formatCurrency(row.volume)} percentage={row.volumePercentage} /> },
-              { key: 'revenue', label: 'Revenue', render: (row) => <InlineStat value={formatCurrency(row.revenue)} percentage={row.revenuePercentage} /> }
+              { key: 'revenue', label: 'Revenue', render: (row) => <InlineStat value={formatCurrency(getRevenueValue(row))} percentage={row.revenuePercentage} /> },
+              { key: 'referralCost', label: 'Referral cost', render: (row) => formatCurrency(getReferralCostValue(row)) },
+              { key: 'netProfit', label: 'Net profit', render: (row) => formatCurrency(getNetProfitValue(row)) }
             ]}
             rows={data?.actions}
           />
@@ -1347,7 +1378,9 @@ export default function DashboardPage() {
                 bold: true
               },
               { key: 'volume', label: 'Volume', render: (row) => <InlineStat value={formatCurrency(row.volume)} percentage={row.volumePercentage} /> },
-              { key: 'revenue', label: 'Revenue', render: (row) => <InlineStat value={formatCurrency(row.revenue)} percentage={row.revenuePercentage} /> }
+              { key: 'revenue', label: 'Revenue', render: (row) => <InlineStat value={formatCurrency(getRevenueValue(row))} percentage={row.revenuePercentage} /> },
+              { key: 'referralCost', label: 'Referral cost', render: (row) => formatCurrency(getReferralCostValue(row)) },
+              { key: 'netProfit', label: 'Net profit', render: (row) => formatCurrency(getNetProfitValue(row)) }
             ]}
             rows={data?.paymentMethods}
           />
@@ -1366,11 +1399,13 @@ export default function DashboardPage() {
               { key: 'volume', label: 'Volume', render: (row) => <InlineStat value={formatCurrency(row.volume)} percentage={row.volumePercentage} /> },
               { key: 'fee', label: 'Our fees', render: (row) => formatCurrency(row.fee) },
               { key: 'commission', label: 'Commission', render: (row) => formatCurrency(row.commission) },
+              { key: 'referralCost', label: 'Referral cost', render: (row) => formatCurrency(getReferralCostValue(row)) },
               {
                 key: 'revenue',
                 label: 'Total revenue',
-                render: (row) => <InlineStat value={formatCurrency(row.revenue)} percentage={row.revenuePercentage} />
-              }
+                render: (row) => <InlineStat value={formatCurrency(getRevenueValue(row))} percentage={row.revenuePercentage} />
+              },
+              { key: 'netProfit', label: 'Net profit', render: (row) => formatCurrency(getNetProfitValue(row)) }
             ]}
             rows={data?.billProducts}
           />
@@ -1389,11 +1424,13 @@ export default function DashboardPage() {
               { key: 'volume', label: 'Volume', render: (row) => <InlineStat value={formatCurrency(row.volume)} percentage={row.volumePercentage} /> },
               { key: 'fee', label: 'Our fees', render: (row) => formatCurrency(row.fee) },
               { key: 'commission', label: 'Commission', render: (row) => formatCurrency(row.commission) },
+              { key: 'referralCost', label: 'Referral cost', render: (row) => formatCurrency(getReferralCostValue(row)) },
               {
                 key: 'revenue',
                 label: 'Total revenue',
-                render: (row) => <InlineStat value={formatCurrency(row.revenue)} percentage={row.revenuePercentage} />
-              }
+                render: (row) => <InlineStat value={formatCurrency(getRevenueValue(row))} percentage={row.revenuePercentage} />
+              },
+              { key: 'netProfit', label: 'Net profit', render: (row) => formatCurrency(getNetProfitValue(row)) }
             ]}
             rows={data?.billProviders}
           />
@@ -1410,7 +1447,9 @@ export default function DashboardPage() {
                 bold: true
               },
               { key: 'volume', label: 'Volume', render: (row) => <InlineStat value={formatCurrency(row.volume)} percentage={row.volumePercentage} /> },
-              { key: 'revenue', label: 'Revenue', render: (row) => <InlineStat value={formatCurrency(row.revenue)} percentage={row.revenuePercentage} /> }
+              { key: 'revenue', label: 'Revenue', render: (row) => <InlineStat value={formatCurrency(getRevenueValue(row))} percentage={row.revenuePercentage} /> },
+              { key: 'referralCost', label: 'Referral cost', render: (row) => formatCurrency(getReferralCostValue(row)) },
+              { key: 'netProfit', label: 'Net profit', render: (row) => formatCurrency(getNetProfitValue(row)) }
             ]}
             rows={data?.countries}
           />
@@ -1431,7 +1470,9 @@ export default function DashboardPage() {
                 bold: true
               },
               { key: 'volume', label: 'Volume', render: (row) => <InlineStat value={formatCurrency(row.volume)} percentage={row.volumePercentage} /> },
-              { key: 'revenue', label: 'Revenue', render: (row) => <InlineStat value={formatCurrency(row.revenue)} percentage={row.revenuePercentage} /> }
+              { key: 'revenue', label: 'Revenue', render: (row) => <InlineStat value={formatCurrency(getRevenueValue(row))} percentage={row.revenuePercentage} /> },
+              { key: 'referralCost', label: 'Referral cost', render: (row) => formatCurrency(getReferralCostValue(row)) },
+              { key: 'netProfit', label: 'Net profit', render: (row) => formatCurrency(getNetProfitValue(row)) }
             ]}
             rows={data?.topAccounts}
             emptyLabel="No accounts in this window"
@@ -1449,7 +1490,9 @@ export default function DashboardPage() {
                 bold: true
               },
               { key: 'volume', label: 'Volume', render: (row) => <InlineStat value={formatCurrency(row.volume)} percentage={row.volumePercentage} /> },
-              { key: 'revenue', label: 'Revenue', render: (row) => <InlineStat value={formatCurrency(row.revenue)} percentage={row.revenuePercentage} /> }
+              { key: 'revenue', label: 'Revenue', render: (row) => <InlineStat value={formatCurrency(getRevenueValue(row))} percentage={row.revenuePercentage} /> },
+              { key: 'referralCost', label: 'Referral cost', render: (row) => formatCurrency(getReferralCostValue(row)) },
+              { key: 'netProfit', label: 'Net profit', render: (row) => formatCurrency(getNetProfitValue(row)) }
             ]}
             rows={data?.statuses}
           />

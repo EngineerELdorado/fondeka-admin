@@ -391,6 +391,7 @@ const [account, setAccount] = useState(null);
   const [recoveryHistoryLoading, setRecoveryHistoryLoading] = useState(false);
   const [recoveryRejectModalOpen, setRecoveryRejectModalOpen] = useState(false);
   const [recoveryRejectReason, setRecoveryRejectReason] = useState('');
+  const [showRecoverySection, setShowRecoverySection] = useState(false);
   const [expandedRecoveryHistory, setExpandedRecoveryHistory] = useState(new Set());
   const [appVersionOverride, setAppVersionOverride] = useState('');
   const [appVersionSaving, setAppVersionSaving] = useState(false);
@@ -436,6 +437,10 @@ const [notificationDataModal, setNotificationDataModal] = useState(null);
   const [pricingSaving, setPricingSaving] = useState(false);
   const [showPricingRemove, setShowPricingRemove] = useState(false);
   const [pricingRemoving, setPricingRemoving] = useState(false);
+  const [cryptoCollectionMinimumOverride, setCryptoCollectionMinimumOverride] = useState('');
+  const [cryptoCollectionMinimumSaving, setCryptoCollectionMinimumSaving] = useState(false);
+  const [cryptoCollectionMinimumError, setCryptoCollectionMinimumError] = useState(null);
+  const [cryptoCollectionMinimumInfo, setCryptoCollectionMinimumInfo] = useState(null);
 
   const [showFeeForm, setShowFeeForm] = useState(false);
   const [feeFormId, setFeeFormId] = useState(null);
@@ -987,6 +992,14 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
   useEffect(() => {
     setPhoneNumberDraft(account?.phoneNumber || account?.phone || '');
   }, [account?.phoneNumber, account?.phone]);
+
+  useEffect(() => {
+    setCryptoCollectionMinimumOverride(
+      customPricing?.cryptoProviderCollectionMinimumUsd !== undefined && customPricing?.cryptoProviderCollectionMinimumUsd !== null
+        ? String(customPricing.cryptoProviderCollectionMinimumUsd)
+        : ''
+    );
+  }, [customPricing?.cryptoProviderCollectionMinimumUsd]);
 
   const updateCardholderField = (field, value) => {
     setCardholderForm((prev) => ({ ...prev, [field]: value }));
@@ -1675,7 +1688,6 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       setPricingError('Max payout amount must be a number (or empty)');
       return;
     }
-
     setPricingSaving(true);
     try {
       const payload = {
@@ -1716,6 +1728,52 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       pushToast({ tone: 'error', message });
     } finally {
       setPricingRemoving(false);
+    }
+  };
+
+  const saveCryptoCollectionMinimumOverride = async (nextValue) => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) {
+      pushToast({ tone: 'error', message: 'No account loaded' });
+      return;
+    }
+    const rawValue = typeof nextValue === 'string' ? nextValue : cryptoCollectionMinimumOverride;
+    const trimmed = String(rawValue ?? '').trim();
+    if (trimmed) {
+      const parsed = Number(trimmed);
+      if (!Number.isFinite(parsed) || parsed <= 0) {
+        const message = 'Minimum amount override must be greater than 0, or blank to use the global minimum.';
+        setCryptoCollectionMinimumError(message);
+        setCryptoCollectionMinimumInfo(null);
+        pushToast({ tone: 'error', message });
+        return;
+      }
+    }
+
+    setCryptoCollectionMinimumSaving(true);
+    setCryptoCollectionMinimumError(null);
+    setCryptoCollectionMinimumInfo(null);
+    try {
+      const payload = {
+        baseLoanEligibilityPercent: customPricing?.baseLoanEligibilityPercent ?? null,
+        extraLoanEligibilityAmount: customPricing?.extraLoanEligibilityAmount ?? 0,
+        maxCollectionAmount: customPricing?.maxCollectionAmount ?? null,
+        maxPayoutAmount: customPricing?.maxPayoutAmount ?? null,
+        cryptoProviderCollectionMinimumUsd: trimmed ? Number(trimmed) : null,
+        note: customPricing?.note ?? null
+      };
+      await api.accounts.updateCustomPricing(resolvedAccountId, payload);
+      await loadCustomPricing(resolvedAccountId);
+      setCryptoCollectionMinimumInfo(trimmed ? `Override set to ${trimmed}.` : 'Override cleared; using the global minimum.');
+      pushToast({
+        tone: 'success',
+        message: trimmed ? 'Crypto collection minimum override saved' : 'Crypto collection minimum override cleared'
+      });
+    } catch (err) {
+      const message = err.message || 'Failed to update crypto collection minimum override';
+      setCryptoCollectionMinimumError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setCryptoCollectionMinimumSaving(false);
     }
   };
 
@@ -2909,194 +2967,204 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             </div>
           </div>
           <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              className="btn-neutral btn-sm"
-              onClick={() => refreshRecoveryState(resolvedAccountId)}
-              disabled={recoveryLoading || resolvedAccountId === null || resolvedAccountId === undefined}
-            >
-              {recoveryLoading ? 'Refreshing…' : 'Refresh'}
+            <button type="button" className="btn-neutral btn-sm" onClick={() => setShowRecoverySection((prev) => !prev)}>
+              {showRecoverySection ? 'Hide recovery' : 'Show recovery'}
             </button>
-            {recoveryStatus?.status === 'WAITING_SUPPORT_APPROVAL' && (
-              <button
-                type="button"
-                className="btn-primary btn-sm"
-                onClick={approveRecovery}
-                disabled={recoveryApproving || recoveryLoading || !recoveryStatus?.recoveryId}
-              >
-                {recoveryApproving ? 'Approving…' : 'Approve recovery'}
-              </button>
-            )}
-            {recoveryStatus?.status === 'WAITING_SUPPORT_APPROVAL' && (
-              <button
-                type="button"
-                className="btn-danger btn-sm"
-                onClick={() => setRecoveryRejectModalOpen(true)}
-                disabled={recoveryRejecting || recoveryLoading || !recoveryStatus?.recoveryId}
-              >
-                {recoveryRejecting ? 'Rejecting…' : 'Reject recovery'}
-              </button>
-            )}
           </div>
         </div>
 
-        {recoveryError ? (
-          <div style={{ marginTop: '0.75rem', color: '#b91c1c', fontWeight: 700 }}>{recoveryError}</div>
-        ) : null}
-
-        {recoveryLoading ? (
-          <div style={{ marginTop: '0.75rem', color: 'var(--muted)' }}>Loading recovery status…</div>
-        ) : recoveryStatus?.status === 'NONE' || !recoveryStatus ? (
-          <div style={{ marginTop: '0.75rem', color: 'var(--muted)' }}>No active recovery request.</div>
-        ) : (
-          <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <RecoveryStatusBadge value={recoveryStatus?.status} />
-              {recoveryStatus?.nextAction ? <Badge>{humanizeEnum(recoveryStatus.nextAction)}</Badge> : null}
-              {recoveryStatus?.deviceTrusted !== undefined ? <Badge>{recoveryStatus.deviceTrusted ? 'Device trusted' : 'Device not yet trusted'}</Badge> : null}
-              {recoveryStatus?.supportDecision ? <Badge>{humanizeEnum(recoveryStatus.supportDecision)}</Badge> : null}
+        {showRecoverySection && (
+          <>
+            <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn-neutral btn-sm"
+                onClick={() => refreshRecoveryState(resolvedAccountId)}
+                disabled={recoveryLoading || resolvedAccountId === null || resolvedAccountId === undefined}
+              >
+                {recoveryLoading ? 'Refreshing…' : 'Refresh'}
+              </button>
+              {recoveryStatus?.status === 'WAITING_SUPPORT_APPROVAL' && (
+                <button
+                  type="button"
+                  className="btn-primary btn-sm"
+                  onClick={approveRecovery}
+                  disabled={recoveryApproving || recoveryLoading || !recoveryStatus?.recoveryId}
+                >
+                  {recoveryApproving ? 'Approving…' : 'Approve recovery'}
+                </button>
+              )}
+              {recoveryStatus?.status === 'WAITING_SUPPORT_APPROVAL' && (
+                <button
+                  type="button"
+                  className="btn-danger btn-sm"
+                  onClick={() => setRecoveryRejectModalOpen(true)}
+                  disabled={recoveryRejecting || recoveryLoading || !recoveryStatus?.recoveryId}
+                >
+                  {recoveryRejecting ? 'Rejecting…' : 'Reject recovery'}
+                </button>
+              )}
             </div>
 
-            <DetailGrid
-              rows={[
-                { label: 'Current recovery status', value: recoveryStatus?.status || '—' },
-                { label: 'Recovery ID', value: recoveryStatus?.recoveryId || '—' },
-                { label: 'Requested device', value: recoveryStatus?.deviceId || '—' },
-                { label: 'Device name', value: recoveryStatus?.deviceName || '—' },
-                { label: 'Platform', value: formatPlatformLabel(recoveryStatus?.platform) },
-                { label: 'Started at', value: formatDateTime(recoveryStatus?.startedAt) },
-                { label: 'Expires at', value: formatDateTime(recoveryStatus?.expiresAt) },
-                { label: 'Support decision', value: recoveryStatus?.supportDecision ? humanizeEnum(recoveryStatus.supportDecision) : '—' },
-                { label: 'Support decision reason', value: recoveryStatus?.supportDecisionReason || '—' },
-                { label: 'Masked email', value: recoveryStatus?.maskedEmail || '—' },
-                { label: 'Masked phone', value: recoveryStatus?.maskedPhoneNumber || '—' }
-              ]}
-            />
-
-            <DetailGrid
-              rows={[
-                { label: 'Required checks', value: recoveryStatus?.requiredFactors?.length ? recoveryStatus.requiredFactors.join(', ') : '—' },
-                { label: 'Completed checks', value: recoveryStatus?.completedFactors?.length ? recoveryStatus.completedFactors.join(', ') : '—' },
-                { label: 'Pending checks', value: recoveryStatus?.pendingFactors?.length ? recoveryStatus.pendingFactors.join(', ') : '—' },
-                { label: 'Unavailable checks', value: recoveryStatus?.unavailableFactors?.length ? recoveryStatus.unavailableFactors.join(', ') : '—' }
-              ]}
-            />
-
-            {recoveryStatus?.status === 'PENDING_FACTOR_VERIFICATION' ? (
-              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Waiting on the user to complete OTP or KYC prerequisites.</div>
+            {recoveryError ? (
+              <div style={{ marginTop: '0.75rem', color: '#b91c1c', fontWeight: 700 }}>{recoveryError}</div>
             ) : null}
-            {recoveryStatus?.status === 'REJECTED' ? (
-              <div style={{ color: '#b91c1c', fontSize: '13px', fontWeight: 600 }}>
-                Recovery was rejected{recoveryStatus?.supportDecisionReason ? `: ${recoveryStatus.supportDecisionReason}` : '.'} The user must restart recovery if another attempt is needed.
-              </div>
-            ) : null}
-            {recoveryStatus?.status === 'READY_TO_VERIFY_DEVICE' ? (
-              <div style={{ color: '#166534', fontSize: '13px', fontWeight: 600 }}>Recovery checks are complete. The new device is trusted and waiting for the client to verify the device session.</div>
-            ) : null}
-            {recoveryStatus?.status === 'BLOCKED' ? (
-              <div style={{ color: '#b91c1c', fontSize: '13px', fontWeight: 600 }}>Recovery is blocked. Review unavailable factors and adjust policy or use a different recovery path.</div>
-            ) : null}
-            {recoveryStatus?.status === 'EXPIRED' ? (
-              <div style={{ color: '#9a3412', fontSize: '13px', fontWeight: 600 }}>This recovery request expired. Ask the user to restart recovery from their device.</div>
-            ) : null}
-          </div>
-        )}
 
-        <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <div style={{ fontWeight: 800 }}>Recovery history</div>
-            <button
-              type="button"
-              className="btn-neutral btn-sm"
-              onClick={() => loadRecoveryHistory(resolvedAccountId)}
-              disabled={recoveryHistoryLoading || resolvedAccountId === null || resolvedAccountId === undefined}
-            >
-              {recoveryHistoryLoading ? 'Refreshing…' : 'Refresh history'}
-            </button>
-          </div>
+            {recoveryLoading ? (
+              <div style={{ marginTop: '0.75rem', color: 'var(--muted)' }}>Loading recovery status…</div>
+            ) : recoveryStatus?.status === 'NONE' || !recoveryStatus ? (
+              <div style={{ marginTop: '0.75rem', color: 'var(--muted)' }}>No active recovery request.</div>
+            ) : (
+              <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <RecoveryStatusBadge value={recoveryStatus?.status} />
+                  {recoveryStatus?.nextAction ? <Badge>{humanizeEnum(recoveryStatus.nextAction)}</Badge> : null}
+                  {recoveryStatus?.deviceTrusted !== undefined ? <Badge>{recoveryStatus.deviceTrusted ? 'Device trusted' : 'Device not yet trusted'}</Badge> : null}
+                  {recoveryStatus?.supportDecision ? <Badge>{humanizeEnum(recoveryStatus.supportDecision)}</Badge> : null}
+                </div>
 
-          {recoveryHistoryLoading ? (
-            <div style={{ color: 'var(--muted)' }}>Loading recovery history…</div>
-          ) : recoveryHistory.length === 0 ? (
-            <div style={{ color: 'var(--muted)' }}>No recovery history.</div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-              {recoveryHistory.map((item) => {
-                const itemKey = item.id || `${item.recoveryId}-${item.createdAt}-${item.eventType}`;
-                const isExpanded = expandedRecoveryHistory.has(itemKey);
-                return (
-                  <div key={itemKey} style={{ border: '1px solid var(--border)', borderRadius: '12px', padding: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                        <div style={{ fontWeight: 800 }}>{humanizeEnum(item.eventType || 'UNKNOWN_EVENT')}</div>
-                        <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-                          {[item.deviceName || item.deviceId || 'Unknown device', formatPlatformLabel(item.platform), formatDateTime(item.createdAt)].join(' • ')}
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        className="btn-neutral btn-sm"
-                        onClick={() =>
-                          setExpandedRecoveryHistory((prev) => {
-                            const next = new Set(prev);
-                            if (next.has(itemKey)) next.delete(itemKey);
-                            else next.add(itemKey);
-                            return next;
-                          })
-                        }
-                      >
-                        {isExpanded ? 'Hide details' : 'Show details'}
-                      </button>
-                    </div>
+                <DetailGrid
+                  rows={[
+                    { label: 'Current recovery status', value: recoveryStatus?.status || '—' },
+                    { label: 'Recovery ID', value: recoveryStatus?.recoveryId || '—' },
+                    { label: 'Requested device', value: recoveryStatus?.deviceId || '—' },
+                    { label: 'Device name', value: recoveryStatus?.deviceName || '—' },
+                    { label: 'Platform', value: formatPlatformLabel(recoveryStatus?.platform) },
+                    { label: 'Started at', value: formatDateTime(recoveryStatus?.startedAt) },
+                    { label: 'Expires at', value: formatDateTime(recoveryStatus?.expiresAt) },
+                    { label: 'Support decision', value: recoveryStatus?.supportDecision ? humanizeEnum(recoveryStatus.supportDecision) : '—' },
+                    { label: 'Support decision reason', value: recoveryStatus?.supportDecisionReason || '—' },
+                    { label: 'Masked email', value: recoveryStatus?.maskedEmail || '—' },
+                    { label: 'Masked phone', value: recoveryStatus?.maskedPhoneNumber || '—' }
+                  ]}
+                />
 
-                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                      {item.status ? <RecoveryStatusBadge value={item.status} /> : null}
-                      {item.factor ? <Badge>{item.factor}</Badge> : null}
-                      {item.actorType ? <Badge>{humanizeEnum(item.actorType)}</Badge> : null}
-                    </div>
+                <DetailGrid
+                  rows={[
+                    { label: 'Required checks', value: recoveryStatus?.requiredFactors?.length ? recoveryStatus.requiredFactors.join(', ') : '—' },
+                    { label: 'Completed checks', value: recoveryStatus?.completedFactors?.length ? recoveryStatus.completedFactors.join(', ') : '—' },
+                    { label: 'Pending checks', value: recoveryStatus?.pendingFactors?.length ? recoveryStatus.pendingFactors.join(', ') : '—' },
+                    { label: 'Unavailable checks', value: recoveryStatus?.unavailableFactors?.length ? recoveryStatus.unavailableFactors.join(', ') : '—' }
+                  ]}
+                />
 
-                    {isExpanded && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                        <DetailGrid
-                          rows={[
-                            { label: 'ID', value: item.id || '—' },
-                            { label: 'Recovery ID', value: item.recoveryId || '—' },
-                            { label: 'Account ID', value: item.accountId || '—' },
-                            { label: 'Device ID', value: item.deviceId || '—' },
-                            { label: 'Next action', value: item.nextAction ? humanizeEnum(item.nextAction) : '—' },
-                            { label: 'Started at', value: formatDateTime(item.startedAt) },
-                            { label: 'Expires at', value: formatDateTime(item.expiresAt) },
-                            { label: 'Support decision', value: item.supportDecision ? humanizeEnum(item.supportDecision) : '—' },
-                            { label: 'Trusted device', value: item.deviceTrusted === undefined ? '—' : item.deviceTrusted ? 'Yes' : 'No' }
-                          ]}
-                        />
-                        <DetailGrid
-                          rows={[
-                            { label: 'Reason', value: item.reason || '—' },
-                            {
-                              label: 'Support decision reason',
-                              value: item.supportDecisionReason || '—'
-                            },
-                            { label: 'Required checks', value: item.requiredFactors?.length ? item.requiredFactors.join(', ') : '—' },
-                            { label: 'Completed checks', value: item.completedFactors?.length ? item.completedFactors.join(', ') : '—' },
-                            { label: 'Pending checks', value: item.pendingFactors?.length ? item.pendingFactors.join(', ') : '—' },
-                            { label: 'Unavailable checks', value: item.unavailableFactors?.length ? item.unavailableFactors.join(', ') : '—' }
-                          ]}
-                        />
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                          <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>Metadata</div>
-                          <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '10px', background: 'var(--panel, transparent)' }}>
-                            {formatJsonFull(item.metadata)}
-                          </pre>
-                        </div>
-                      </div>
-                    )}
+                {recoveryStatus?.status === 'PENDING_FACTOR_VERIFICATION' ? (
+                  <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Waiting on the user to complete OTP or KYC prerequisites.</div>
+                ) : null}
+                {recoveryStatus?.status === 'REJECTED' ? (
+                  <div style={{ color: '#b91c1c', fontSize: '13px', fontWeight: 600 }}>
+                    Recovery was rejected{recoveryStatus?.supportDecisionReason ? `: ${recoveryStatus.supportDecisionReason}` : '.'} The user must restart recovery if another attempt is needed.
                   </div>
-                );
-              })}
+                ) : null}
+                {recoveryStatus?.status === 'READY_TO_VERIFY_DEVICE' ? (
+                  <div style={{ color: '#166534', fontSize: '13px', fontWeight: 600 }}>Recovery checks are complete. The new device is trusted and waiting for the client to verify the device session.</div>
+                ) : null}
+                {recoveryStatus?.status === 'BLOCKED' ? (
+                  <div style={{ color: '#b91c1c', fontSize: '13px', fontWeight: 600 }}>Recovery is blocked. Review unavailable factors and adjust policy or use a different recovery path.</div>
+                ) : null}
+                {recoveryStatus?.status === 'EXPIRED' ? (
+                  <div style={{ color: '#9a3412', fontSize: '13px', fontWeight: 600 }}>This recovery request expired. Ask the user to restart recovery from their device.</div>
+                ) : null}
+              </div>
+            )}
+
+            <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <div style={{ fontWeight: 800 }}>Recovery history</div>
+                <button
+                  type="button"
+                  className="btn-neutral btn-sm"
+                  onClick={() => loadRecoveryHistory(resolvedAccountId)}
+                  disabled={recoveryHistoryLoading || resolvedAccountId === null || resolvedAccountId === undefined}
+                >
+                  {recoveryHistoryLoading ? 'Refreshing…' : 'Refresh history'}
+                </button>
+              </div>
+
+              {recoveryHistoryLoading ? (
+                <div style={{ color: 'var(--muted)' }}>Loading recovery history…</div>
+              ) : recoveryHistory.length === 0 ? (
+                <div style={{ color: 'var(--muted)' }}>No recovery history.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                  {recoveryHistory.map((item) => {
+                    const itemKey = item.id || `${item.recoveryId}-${item.createdAt}-${item.eventType}`;
+                    const isExpanded = expandedRecoveryHistory.has(itemKey);
+                    return (
+                      <div key={itemKey} style={{ border: '1px solid var(--border)', borderRadius: '12px', padding: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                            <div style={{ fontWeight: 800 }}>{humanizeEnum(item.eventType || 'UNKNOWN_EVENT')}</div>
+                            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                              {[item.deviceName || item.deviceId || 'Unknown device', formatPlatformLabel(item.platform), formatDateTime(item.createdAt)].join(' • ')}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn-neutral btn-sm"
+                            onClick={() =>
+                              setExpandedRecoveryHistory((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(itemKey)) next.delete(itemKey);
+                                else next.add(itemKey);
+                                return next;
+                              })
+                            }
+                          >
+                            {isExpanded ? 'Hide details' : 'Show details'}
+                          </button>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                          {item.status ? <RecoveryStatusBadge value={item.status} /> : null}
+                          {item.factor ? <Badge>{item.factor}</Badge> : null}
+                          {item.actorType ? <Badge>{humanizeEnum(item.actorType)}</Badge> : null}
+                        </div>
+
+                        {isExpanded && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                            <DetailGrid
+                              rows={[
+                                { label: 'ID', value: item.id || '—' },
+                                { label: 'Recovery ID', value: item.recoveryId || '—' },
+                                { label: 'Account ID', value: item.accountId || '—' },
+                                { label: 'Device ID', value: item.deviceId || '—' },
+                                { label: 'Next action', value: item.nextAction ? humanizeEnum(item.nextAction) : '—' },
+                                { label: 'Started at', value: formatDateTime(item.startedAt) },
+                                { label: 'Expires at', value: formatDateTime(item.expiresAt) },
+                                { label: 'Support decision', value: item.supportDecision ? humanizeEnum(item.supportDecision) : '—' },
+                                { label: 'Trusted device', value: item.deviceTrusted === undefined ? '—' : item.deviceTrusted ? 'Yes' : 'No' }
+                              ]}
+                            />
+                            <DetailGrid
+                              rows={[
+                                { label: 'Reason', value: item.reason || '—' },
+                                {
+                                  label: 'Support decision reason',
+                                  value: item.supportDecisionReason || '—'
+                                },
+                                { label: 'Required checks', value: item.requiredFactors?.length ? item.requiredFactors.join(', ') : '—' },
+                                { label: 'Completed checks', value: item.completedFactors?.length ? item.completedFactors.join(', ') : '—' },
+                                { label: 'Pending checks', value: item.pendingFactors?.length ? item.pendingFactors.join(', ') : '—' },
+                                { label: 'Unavailable checks', value: item.unavailableFactors?.length ? item.unavailableFactors.join(', ') : '—' }
+                              ]}
+                            />
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                              <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>Metadata</div>
+                              <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '10px', background: 'var(--panel, transparent)' }}>
+                                {formatJsonFull(item.metadata)}
+                              </pre>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
 
       <div className="card" style={{ padding: '1rem', ...fadeInStyle(!customPricingLoading) }}>
@@ -3248,6 +3316,82 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           </div>
 
           {pricingError && <div style={{ marginTop: '0.6rem', color: '#b91c1c', fontWeight: 700 }}>{pricingError}</div>}
+        </div>
+      </div>
+
+      <div className="card" style={{ padding: '1rem', ...fadeInStyle(!customPricingLoading) }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+            <div style={{ fontWeight: 800 }}>Crypto Provider Collection Limits</div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Account-level override for the global crypto collection minimum.
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn-neutral btn-sm"
+            onClick={() => loadCustomPricing(resolvedAccountId)}
+            disabled={customPricingLoading || cryptoCollectionMinimumSaving || resolvedAccountId === null || resolvedAccountId === undefined}
+          >
+            {customPricingLoading ? 'Refreshing…' : 'Refresh'}
+          </button>
+        </div>
+
+        {(cryptoCollectionMinimumError || cryptoCollectionMinimumInfo) && (
+          <div style={{ marginTop: '0.5rem', color: cryptoCollectionMinimumError ? '#b91c1c' : '#15803d', fontWeight: 700 }}>
+            {cryptoCollectionMinimumError || cryptoCollectionMinimumInfo}
+          </div>
+        )}
+
+        <div style={{ marginTop: '0.75rem' }}>
+          <DetailGrid
+            rows={[
+              {
+                label: 'Account crypto collection minimum override (USD)',
+                value: customPricing?.cryptoProviderCollectionMinimumUsd ?? 'Use global minimum'
+              }
+            ]}
+          />
+        </div>
+
+        <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'end' }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minWidth: '260px', flex: 1 }}>
+            <span>Minimum amount override (USD)</span>
+            <input
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={cryptoCollectionMinimumOverride}
+              onChange={(e) => setCryptoCollectionMinimumOverride(e.target.value)}
+              placeholder="Leave blank to use the global minimum"
+              disabled={customPricingLoading || cryptoCollectionMinimumSaving || resolvedAccountId === null || resolvedAccountId === undefined}
+            />
+            <span style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Overrides the global crypto collection minimum for this account only. Leave blank to use the global minimum.
+            </span>
+          </label>
+          <button
+            type="button"
+            className="btn-primary btn-sm"
+            onClick={() => saveCryptoCollectionMinimumOverride()}
+            disabled={customPricingLoading || cryptoCollectionMinimumSaving || resolvedAccountId === null || resolvedAccountId === undefined}
+          >
+            {cryptoCollectionMinimumSaving ? 'Saving…' : 'Save override'}
+          </button>
+          <button
+            type="button"
+            className="btn-neutral btn-sm"
+            onClick={() => saveCryptoCollectionMinimumOverride('')}
+            disabled={
+              customPricingLoading ||
+              cryptoCollectionMinimumSaving ||
+              resolvedAccountId === null ||
+              resolvedAccountId === undefined ||
+              (customPricing?.cryptoProviderCollectionMinimumUsd === null || customPricing?.cryptoProviderCollectionMinimumUsd === undefined)
+            }
+          >
+            Clear override
+          </button>
         </div>
       </div>
 

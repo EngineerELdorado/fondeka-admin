@@ -748,6 +748,11 @@ export default function TransactionsPage() {
         render: (row) => `${row.amount ?? '—'} ${row.currency || ''}`.trim()
       },
       {
+        key: 'referralCostAmount',
+        label: 'Referral cost',
+        render: (row) => (row.referralCostAmount === null || row.referralCostAmount === undefined ? '—' : `${row.referralCostAmount} ${row.currency || ''}`.trim())
+      },
+      {
         key: 'paymentMethodName',
         label: 'Method',
         render: (row) => row.paymentMethodName || row.paymentMethodId || '—'
@@ -1594,6 +1599,13 @@ export default function TransactionsPage() {
                 { label: 'Other fees', value: selected?.otherFeesAmount },
                 { label: 'All fees', value: selected?.allFees },
                 { label: 'Commission amount', value: selected?.commissionAmount },
+                {
+                  label: 'Referral cost',
+                  value:
+                    selected?.referralCostAmount === null || selected?.referralCostAmount === undefined
+                      ? '—'
+                      : `${selected.referralCostAmount} ${selected?.currency || ''}`.trim()
+                },
                 { label: 'Customer', value: selected?.customer || '—' },
                 { label: 'Username', value: selected?.username || '—' },
                 { label: 'Customer email', value: selected?.customerEmail || '—' },

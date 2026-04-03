@@ -32,7 +32,7 @@ const emptyFilters = {
   userId: '',
   userEmail: '',
   userPhone: '',
-  sortBy: 'createdAt',
+  sortBy: 'lastSeenAt',
   sortDir: 'desc'
 };
 
@@ -411,6 +411,38 @@ export default function TrustedDevicesPage() {
         : platform
           ? String(platform).toUpperCase()
           : '—';
+  const renderUserCell = (row, fallbackName) => {
+    const accountId = row?.accountId;
+    const name = fallbackName || getUserName(row);
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+        <span>{name}</span>
+        {accountId !== null && accountId !== undefined && accountId !== '' ? (
+          <Link
+            href={`/dashboard/accounts/accounts/${accountId}`}
+            aria-label={`Open account ${accountId}`}
+            title="Open account details"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '28px',
+              height: '28px',
+              borderRadius: '999px',
+              border: '1px solid var(--border)',
+              color: 'var(--text)',
+              textDecoration: 'none'
+            }}
+          >
+            <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10 10a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" />
+              <path d="M3.5 16.5a6.5 6.5 0 0 1 13 0" />
+            </svg>
+          </Link>
+        ) : null}
+      </div>
+    );
+  };
   const renderDeviceSummary = (row) =>
     row ? (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
@@ -885,7 +917,7 @@ export default function TrustedDevicesPage() {
                       </button>
                     </td>
                     <td className="data-table__cell" style={{ padding: '0.75rem' }}>
-                      {group.userName}
+                      {renderUserCell(latest || { accountId: group.accountId }, group.userName)}
                     </td>
                     <td className="data-table__cell" style={{ padding: '0.75rem' }}>
                       {group.userEmail}
@@ -940,7 +972,7 @@ export default function TrustedDevicesPage() {
                                     </span>
                                   </td>
                                   <td className="data-table__cell" style={{ padding: '0.75rem' }}>
-                                    {getUserName(device)}
+                                    {renderUserCell(device)}
                                   </td>
                                   <td className="data-table__cell" style={{ padding: '0.75rem' }}>
                                     {getUserEmail(device)}
