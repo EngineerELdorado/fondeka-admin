@@ -22,6 +22,7 @@ export default function WalletPolicyConfigPage() {
   const [cryptoProviderCollectionMinimumUsd, setCryptoProviderCollectionMinimumUsd] = useState('');
   const [cryptoProviderCollectionMaximumUsd, setCryptoProviderCollectionMaximumUsd] = useState('');
   const [sendAirtimeMinimumUsd, setSendAirtimeMinimumUsd] = useState('');
+  const [paypalMinimumPayoutUsd, setPaypalMinimumPayoutUsd] = useState('');
   const [payoutKycThresholdUsd, setPayoutKycThresholdUsd] = useState('');
   const [forcePayoutKycUnlessApproved, setForcePayoutKycUnlessApproved] = useState(false);
 
@@ -38,6 +39,7 @@ export default function WalletPolicyConfigPage() {
       setCryptoProviderCollectionMinimumUsd(formatUsdValue(res?.cryptoProviderCollectionMinimumUsd));
       setCryptoProviderCollectionMaximumUsd(formatUsdValue(res?.cryptoProviderCollectionMaximumUsd));
       setSendAirtimeMinimumUsd(formatUsdValue(res?.sendAirtimeMinimumUsd));
+      setPaypalMinimumPayoutUsd(formatUsdValue(res?.paypalMinimumPayoutUsd));
       setPayoutKycThresholdUsd(formatUsdValue(res?.payoutKycThresholdUsd));
       setForcePayoutKycUnlessApproved(Boolean(res?.forcePayoutKycUnlessApproved));
     } catch (err) {
@@ -67,10 +69,12 @@ export default function WalletPolicyConfigPage() {
     const minRaw = String(cryptoProviderCollectionMinimumUsd || '').trim();
     const maxRaw = String(cryptoProviderCollectionMaximumUsd || '').trim();
     const sendAirtimeMinimumRaw = String(sendAirtimeMinimumUsd || '').trim();
+    const paypalMinimumPayoutRaw = String(paypalMinimumPayoutUsd || '').trim();
     const payoutKycThresholdRaw = String(payoutKycThresholdUsd || '').trim();
     const minParsed = minRaw === '' ? null : Number(minRaw);
     const maxParsed = maxRaw === '' ? null : Number(maxRaw);
     const sendAirtimeMinimumParsed = sendAirtimeMinimumRaw === '' ? null : Number(sendAirtimeMinimumRaw);
+    const paypalMinimumPayoutParsed = paypalMinimumPayoutRaw === '' ? null : Number(paypalMinimumPayoutRaw);
     const payoutKycThresholdParsed = payoutKycThresholdRaw === '' ? null : Number(payoutKycThresholdRaw);
     if (minRaw !== '' && (!Number.isFinite(minParsed) || minParsed <= 0)) {
       setError('Minimum amount must be greater than 0.');
@@ -88,6 +92,10 @@ export default function WalletPolicyConfigPage() {
       setError('Minimum send airtime amount must be a positive amount.');
       return;
     }
+    if (paypalMinimumPayoutRaw !== '' && (!Number.isFinite(paypalMinimumPayoutParsed) || paypalMinimumPayoutParsed <= 0)) {
+      setError('Minimum PayPal payout amount must be a positive amount.');
+      return;
+    }
     if (payoutKycThresholdRaw !== '' && (!Number.isFinite(payoutKycThresholdParsed) || payoutKycThresholdParsed <= 0)) {
       setError('Payout KYC threshold must be a positive amount.');
       return;
@@ -102,6 +110,7 @@ export default function WalletPolicyConfigPage() {
         cryptoProviderCollectionMinimumUsd: minRaw === '' ? '' : minParsed.toFixed(2),
         cryptoProviderCollectionMaximumUsd: maxRaw === '' ? '' : maxParsed.toFixed(2),
         sendAirtimeMinimumUsd: sendAirtimeMinimumRaw === '' ? '' : sendAirtimeMinimumParsed.toFixed(2),
+        paypalMinimumPayoutUsd: paypalMinimumPayoutRaw === '' ? '' : paypalMinimumPayoutParsed.toFixed(2),
         payoutKycThresholdUsd: payoutKycThresholdRaw === '' ? '' : payoutKycThresholdParsed.toFixed(2),
         forcePayoutKycUnlessApproved: Boolean(forcePayoutKycUnlessApproved)
       });
@@ -227,12 +236,40 @@ export default function WalletPolicyConfigPage() {
 
         <div style={{ display: 'grid', gap: '0.75rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <div style={{ fontWeight: 700 }}>Payout Limits</div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Applies to all PayPal payout flows.
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Leave blank to use the default minimum of 100.00 USD.
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxWidth: '280px' }}>
+            <label htmlFor="paypalMinimumPayoutUsd">Minimum PayPal payout amount (USD)</label>
+            <input
+              id="paypalMinimumPayoutUsd"
+              type="number"
+              min="0.01"
+              step="0.01"
+              inputMode="decimal"
+              value={paypalMinimumPayoutUsd}
+              onChange={(e) => setPaypalMinimumPayoutUsd(e.target.value)}
+              onBlur={() => setPaypalMinimumPayoutUsd((prev) => formatUsdValue(String(prev || '').trim()))}
+              placeholder="100.00"
+              disabled={loading || saving}
+            />
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <div style={{ fontWeight: 700 }}>Payout KYC</div>
             <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
               Users with KYC status NONE must complete KYC when their payout amount or completed transaction volume exceeds this threshold.
             </div>
             <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-              Applies only when the user's current KYC status is NONE.
+              Applies only when the user&apos;s current KYC status is NONE.
             </div>
             <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
               KYC is required when the payout amount or total completed transaction volume exceeds this threshold. Leave blank to use the system default.
