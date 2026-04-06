@@ -353,10 +353,13 @@ export default function TransactionsPage() {
   const [bankPayoutMessage, setBankPayoutMessage] = useState('');
   const [bankPayoutError, setBankPayoutError] = useState(null);
   const [bankPayoutLoading, setBankPayoutLoading] = useState(false);
+  const [showPublishHashConfirm, setShowPublishHashConfirm] = useState(false);
+  const [publishHashValue, setPublishHashValue] = useState('');
+  const [publishHashError, setPublishHashError] = useState(null);
+  const [publishHashLoading, setPublishHashLoading] = useState(false);
   const [showManualReconciliationConfirm, setShowManualReconciliationConfirm] = useState(false);
   const [manualReconciliationAction, setManualReconciliationAction] = useState(null);
   const [manualReconciliationMessage, setManualReconciliationMessage] = useState('');
-  const [manualReconciliationTrxHash, setManualReconciliationTrxHash] = useState('');
   const [manualReconciliationSubmitError, setManualReconciliationSubmitError] = useState(null);
   const [manualReconciliationSubmitLoading, setManualReconciliationSubmitLoading] = useState(false);
   const webhookEvents = Array.isArray(selected?.webhookEvents) ? selected.webhookEvents : [];
@@ -366,13 +369,21 @@ export default function TransactionsPage() {
   const showErrorMessage = ['FAILED', 'CANCELED', 'CANCELLED'].includes(normalizedStatus);
   const canCompleteOrFailSelected = !isTerminalForManualReconciliation;
   const canCancelSelected = !isTerminalForManualReconciliation;
-  const showManualReconciliationTrxHash =
-    showManualReconciliationConfirm && manualReconciliationAction === 'complete' && normalizedSelectedAction === 'SEND_CRYPTO';
   const receiptPayloadData = receipt?.payload && typeof receipt.payload === 'object' ? receipt.payload : null;
+  const sendCryptoPublishedHash =
+    receiptPayloadData?.trxHash ||
+    receiptPayloadData?.txHash ||
+    receiptPayloadData?.cryptoOperationDetails?.trxHash ||
+    null;
+  const sendCryptoExplorerUrl =
+    receiptPayloadData?.explorerUrl ||
+    receiptPayloadData?.cryptoOperationDetails?.explorerUrl ||
+    null;
   const bankRefValue = receiptPayloadData?.bankRef || selected?.externalReference || null;
   const latestAdminMessage = pickLatestAdminMessage(selected);
   const noteFromSender =
     receiptPayloadData?.adminNote || receiptPayloadData?.noteFromSender || receiptPayloadData?.note || null;
+  const canPublishSendCryptoHash = normalizedSelectedAction === 'SEND_CRYPTO' && !isTerminalForManualReconciliation;
 
   const formatDateTime = (value) => {
     if (!value) return '—';
@@ -854,6 +865,9 @@ export default function TransactionsPage() {
     setShowBankPayoutComplete(false);
     setBankPayoutMessage('');
     setBankPayoutError(null);
+    setShowPublishHashConfirm(false);
+    setPublishHashValue('');
+    setPublishHashError(null);
     setShowManualReconciliationConfirm(false);
     setManualReconciliationAction(null);
     setManualReconciliationMessage('');
@@ -1008,9 +1022,18 @@ export default function TransactionsPage() {
     }
     setManualReconciliationSubmitError(null);
     setManualReconciliationMessage('');
-    setManualReconciliationTrxHash('');
     setManualReconciliationAction(action);
     setShowManualReconciliationConfirm(true);
+  };
+
+  const openPublishHashConfirm = () => {
+    if (!canPublishSendCryptoHash) {
+      setPublishHashError('Hash publishing is only available for non-terminal SEND_CRYPTO transactions.');
+      return;
+    }
+    setPublishHashError(null);
+    setPublishHashValue(sendCryptoPublishedHash || '');
+    setShowPublishHashConfirm(true);
   };
 
   const refreshSelectedTransaction = async (transactionId) => {
@@ -1034,10 +1057,8 @@ export default function TransactionsPage() {
     setManualReconciliationSubmitError(null);
     try {
       const message = manualReconciliationMessage.trim();
-      const trxHash = manualReconciliationTrxHash.trim();
       const payload = {
-        ...(message ? { message } : {}),
-        ...(manualReconciliationAction === 'complete' && normalizedSelectedAction === 'SEND_CRYPTO' && trxHash ? { trxHash } : {})
+        ...(message ? { message } : {})
       };
       const requestPayload = Object.keys(payload).length ? payload : undefined;
       if (manualReconciliationAction === 'complete') {
@@ -1057,7 +1078,6 @@ export default function TransactionsPage() {
       setShowManualReconciliationConfirm(false);
       setManualReconciliationAction(null);
       setManualReconciliationMessage('');
-      setManualReconciliationTrxHash('');
       await refreshSelectedTransaction(transactionId);
       await loadReceipt(transactionId);
     } catch (err) {
@@ -1066,6 +1086,38 @@ export default function TransactionsPage() {
       pushToast({ tone: 'error', message });
     } finally {
       setManualReconciliationSubmitLoading(false);
+    }
+  };
+
+  const submitPublishHash = async () => {
+    const transactionId = selected?.transactionId || selected?.id;
+    if (!transactionId) {
+      setPublishHashError('Missing transaction id');
+      return;
+    }
+    const trxHash = publishHashValue.trim();
+    if (!trxHash) {
+      setPublishHashError('Transaction hash is required.');
+      return;
+    }
+    setPublishHashLoading(true);
+    setPublishHashError(null);
+    try {
+      await api.transactions.publishManualReconciliationHash(transactionId, { trxHash });
+      pushToast({ tone: 'success', message: 'On-chain hash published.' });
+      setShowPublishHashConfirm(false);
+      await refreshSelectedTransaction(transactionId);
+      await loadReceipt(transactionId);
+    } catch (err) {
+      const message = err?.status === 400
+        ? 'Hash publishing is only available for non-terminal SEND_CRYPTO transactions.'
+        : err?.status === 404
+          ? 'Transaction not found.'
+          : 'Something went wrong. Please retry.';
+      setPublishHashError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setPublishHashLoading(false);
     }
   };
 
@@ -1597,6 +1649,7 @@ export default function TransactionsPage() {
                 { label: 'Bank ref', value: bankRefValue || '—' },
                 { label: 'Operator ref', value: selected?.operatorReference },
                 { label: 'Internal ref', value: selected?.internalReference || '—' },
+                { label: 'Device ID', value: selected?.deviceId || '—' },
                 { label: 'Service', value: formatEnumLabel(selected?.service, serviceLabels) },
                 { label: 'Action', value: formatEnumLabel(selected?.action, actionLabels) },
                 { label: 'Effect', value: selected?.balanceEffect },
@@ -1733,6 +1786,42 @@ export default function TransactionsPage() {
                 />
               </div>
             </div>
+
+            {normalizedSelectedAction === 'SEND_CRYPTO' && (
+              <div className="card" style={{ padding: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                    <div style={{ fontWeight: 800 }}>On-chain hash</div>
+                    <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                      Publish the blockchain hash before manual completion so the user can be notified immediately.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-neutral btn-sm"
+                    onClick={openPublishHashConfirm}
+                    disabled={!canPublishSendCryptoHash || publishHashLoading}
+                  >
+                    {sendCryptoPublishedHash ? 'Update hash' : 'Publish hash'}
+                  </button>
+                </div>
+
+                <div style={{ marginTop: '0.75rem', display: 'grid', gap: '0.6rem' }}>
+                  <DetailGrid
+                    rows={[
+                      { label: 'Published hash', value: sendCryptoPublishedHash || '—' },
+                      { label: 'Explorer URL', value: sendCryptoExplorerUrl || '—' }
+                    ]}
+                  />
+                  {!canPublishSendCryptoHash && (
+                    <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                      Hash publishing is available only before the transaction reaches a terminal status.
+                    </div>
+                  )}
+                  {publishHashError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{publishHashError}</div>}
+                </div>
+              </div>
+            )}
 
             <div className="card" style={{ padding: '1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
@@ -2205,7 +2294,6 @@ export default function TransactionsPage() {
             if (manualReconciliationSubmitLoading) return;
             setShowManualReconciliationConfirm(false);
             setManualReconciliationAction(null);
-            setManualReconciliationTrxHash('');
           }}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -2240,20 +2328,6 @@ export default function TransactionsPage() {
                 rows={4}
               />
             </div>
-            {showManualReconciliationTrxHash && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="manualReconciliationTrxHash">Transaction hash (optional)</label>
-                <input
-                  id="manualReconciliationTrxHash"
-                  value={manualReconciliationTrxHash}
-                  onChange={(e) => setManualReconciliationTrxHash(e.target.value)}
-                  placeholder="0xabc123"
-                />
-                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-                  For SEND_CRYPTO, this hash is stored on the receipt when marking the transaction as completed.
-                </div>
-              </div>
-            )}
             {manualReconciliationSubmitError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{manualReconciliationSubmitError}</div>}
             <div className="modal-actions">
               <button
@@ -2262,7 +2336,6 @@ export default function TransactionsPage() {
                 onClick={() => {
                   setShowManualReconciliationConfirm(false);
                   setManualReconciliationAction(null);
-                  setManualReconciliationTrxHash('');
                 }}
                 disabled={manualReconciliationSubmitLoading}
               >
@@ -2281,6 +2354,48 @@ export default function TransactionsPage() {
                     : manualReconciliationAction === 'cancel'
                       ? 'Confirm cancel'
                       : 'Confirm completion'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showPublishHashConfirm && (
+        <Modal
+          title="Publish on-chain hash"
+          onClose={() => {
+            if (publishHashLoading) return;
+            setShowPublishHashConfirm(false);
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ color: 'var(--muted)' }}>
+              This stores the hash on the SEND_CRYPTO receipt and notifies the user that the transfer is already on-chain.
+            </div>
+            <DetailGrid
+              rows={[
+                { label: 'Transaction ID', value: selected?.transactionId || selected?.id },
+                { label: 'Reference', value: selected?.reference || '—' },
+                { label: 'Status', value: selected?.status || '—' },
+                { label: 'Action', value: formatEnumLabel(selected?.action, actionLabels) }
+              ]}
+            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="publishHashValue">Transaction hash</label>
+              <input
+                id="publishHashValue"
+                value={publishHashValue}
+                onChange={(e) => setPublishHashValue(e.target.value)}
+                placeholder="0xabc123"
+              />
+            </div>
+            {publishHashError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{publishHashError}</div>}
+            <div className="modal-actions">
+              <button type="button" className="btn-neutral" disabled={publishHashLoading} onClick={() => setShowPublishHashConfirm(false)}>
+                Cancel
+              </button>
+              <button type="button" className="btn-primary" disabled={publishHashLoading} onClick={submitPublishHash}>
+                {publishHashLoading ? 'Publishing…' : 'Publish hash'}
               </button>
             </div>
           </div>
