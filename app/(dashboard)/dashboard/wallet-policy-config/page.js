@@ -25,6 +25,7 @@ export default function WalletPolicyConfigPage() {
   const [paypalMinimumPayoutUsd, setPaypalMinimumPayoutUsd] = useState('');
   const [payoutKycThresholdUsd, setPayoutKycThresholdUsd] = useState('');
   const [forcePayoutKycUnlessApproved, setForcePayoutKycUnlessApproved] = useState(false);
+  const [sendCryptoExternalProviderEnabled, setSendCryptoExternalProviderEnabled] = useState(false);
 
   const loadConfig = async () => {
     setLoading(true);
@@ -42,6 +43,7 @@ export default function WalletPolicyConfigPage() {
       setPaypalMinimumPayoutUsd(formatUsdValue(res?.paypalMinimumPayoutUsd));
       setPayoutKycThresholdUsd(formatUsdValue(res?.payoutKycThresholdUsd));
       setForcePayoutKycUnlessApproved(Boolean(res?.forcePayoutKycUnlessApproved));
+      setSendCryptoExternalProviderEnabled(Boolean(res?.sendCryptoExternalProviderEnabled));
     } catch (err) {
       setError(err?.message || 'Failed to load wallet policy config');
     } finally {
@@ -112,7 +114,8 @@ export default function WalletPolicyConfigPage() {
         sendAirtimeMinimumUsd: sendAirtimeMinimumRaw === '' ? '' : sendAirtimeMinimumParsed.toFixed(2),
         paypalMinimumPayoutUsd: paypalMinimumPayoutRaw === '' ? '' : paypalMinimumPayoutParsed.toFixed(2),
         payoutKycThresholdUsd: payoutKycThresholdRaw === '' ? '' : payoutKycThresholdParsed.toFixed(2),
-        forcePayoutKycUnlessApproved: Boolean(forcePayoutKycUnlessApproved)
+        forcePayoutKycUnlessApproved: Boolean(forcePayoutKycUnlessApproved),
+        sendCryptoExternalProviderEnabled: Boolean(sendCryptoExternalProviderEnabled)
       });
       setInfo('Wallet policy config updated.');
       await loadConfig();
@@ -259,6 +262,36 @@ export default function WalletPolicyConfigPage() {
               placeholder="100.00"
               disabled={loading || saving}
             />
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <div style={{ fontWeight: 700 }}>Crypto Send</div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Turn off to route send-crypto transactions to manual intervention instead of external provider execution.
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '12px' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+              <input
+                type="checkbox"
+                checked={sendCryptoExternalProviderEnabled}
+                onChange={(e) => setSendCryptoExternalProviderEnabled(e.target.checked)}
+                disabled={loading || saving}
+              />
+              Enable external provider for send crypto
+            </label>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              If disabled, send crypto transactions will not be sent through the provider.
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              They will remain in manual intervention for ops to fulfill manually.
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              If later failed or canceled, the customer&apos;s crypto wallet is refunded.
+            </div>
           </div>
         </div>
 

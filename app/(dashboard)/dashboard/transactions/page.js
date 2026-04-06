@@ -356,14 +356,18 @@ export default function TransactionsPage() {
   const [showManualReconciliationConfirm, setShowManualReconciliationConfirm] = useState(false);
   const [manualReconciliationAction, setManualReconciliationAction] = useState(null);
   const [manualReconciliationMessage, setManualReconciliationMessage] = useState('');
+  const [manualReconciliationTrxHash, setManualReconciliationTrxHash] = useState('');
   const [manualReconciliationSubmitError, setManualReconciliationSubmitError] = useState(null);
   const [manualReconciliationSubmitLoading, setManualReconciliationSubmitLoading] = useState(false);
   const webhookEvents = Array.isArray(selected?.webhookEvents) ? selected.webhookEvents : [];
   const normalizedStatus = selected?.status?.toUpperCase?.() || '';
+  const normalizedSelectedAction = normalizeEnumKey(selected?.action);
   const isTerminalForManualReconciliation = ['COMPLETED', 'FAILED', 'CANCELED', 'CANCELLED'].includes(normalizedStatus);
   const showErrorMessage = ['FAILED', 'CANCELED', 'CANCELLED'].includes(normalizedStatus);
   const canCompleteOrFailSelected = !isTerminalForManualReconciliation;
   const canCancelSelected = !isTerminalForManualReconciliation;
+  const showManualReconciliationTrxHash =
+    showManualReconciliationConfirm && manualReconciliationAction === 'complete' && normalizedSelectedAction === 'SEND_CRYPTO';
   const receiptPayloadData = receipt?.payload && typeof receipt.payload === 'object' ? receipt.payload : null;
   const bankRefValue = receiptPayloadData?.bankRef || selected?.externalReference || null;
   const latestAdminMessage = pickLatestAdminMessage(selected);
@@ -1004,6 +1008,7 @@ export default function TransactionsPage() {
     }
     setManualReconciliationSubmitError(null);
     setManualReconciliationMessage('');
+    setManualReconciliationTrxHash('');
     setManualReconciliationAction(action);
     setShowManualReconciliationConfirm(true);
   };
@@ -1028,13 +1033,19 @@ export default function TransactionsPage() {
     setManualReconciliationSubmitLoading(true);
     setManualReconciliationSubmitError(null);
     try {
-      const payload = manualReconciliationMessage.trim() ? { message: manualReconciliationMessage.trim() } : undefined;
+      const message = manualReconciliationMessage.trim();
+      const trxHash = manualReconciliationTrxHash.trim();
+      const payload = {
+        ...(message ? { message } : {}),
+        ...(manualReconciliationAction === 'complete' && normalizedSelectedAction === 'SEND_CRYPTO' && trxHash ? { trxHash } : {})
+      };
+      const requestPayload = Object.keys(payload).length ? payload : undefined;
       if (manualReconciliationAction === 'complete') {
-        await api.transactions.completeManualReconciliation(transactionId, payload);
+        await api.transactions.completeManualReconciliation(transactionId, requestPayload);
       } else if (manualReconciliationAction === 'cancel') {
-        await api.transactions.cancelManualReconciliation(transactionId, payload);
+        await api.transactions.cancelManualReconciliation(transactionId, requestPayload);
       } else {
-        await api.transactions.failManualReconciliation(transactionId, payload);
+        await api.transactions.failManualReconciliation(transactionId, requestPayload);
       }
       const successMessage =
         manualReconciliationAction === 'complete'
@@ -1046,6 +1057,7 @@ export default function TransactionsPage() {
       setShowManualReconciliationConfirm(false);
       setManualReconciliationAction(null);
       setManualReconciliationMessage('');
+      setManualReconciliationTrxHash('');
       await refreshSelectedTransaction(transactionId);
       await loadReceipt(transactionId);
     } catch (err) {
@@ -1719,11 +1731,6 @@ export default function TransactionsPage() {
                     { label: 'Latest admin note', value: latestAdminMessage || '—' }
                   ]}
                 />
-                {!canCompleteOrFailSelected && !canCancelSelected && (
-                  <div style={{ color: '#92400e', fontWeight: 700 }}>
-                    No manual reconciliation actions available for this status. CANCELED is terminal.
-                  </div>
-                )}
               </div>
             </div>
 
@@ -2198,6 +2205,7 @@ export default function TransactionsPage() {
             if (manualReconciliationSubmitLoading) return;
             setShowManualReconciliationConfirm(false);
             setManualReconciliationAction(null);
+            setManualReconciliationTrxHash('');
           }}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -2232,6 +2240,20 @@ export default function TransactionsPage() {
                 rows={4}
               />
             </div>
+            {showManualReconciliationTrxHash && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="manualReconciliationTrxHash">Transaction hash (optional)</label>
+                <input
+                  id="manualReconciliationTrxHash"
+                  value={manualReconciliationTrxHash}
+                  onChange={(e) => setManualReconciliationTrxHash(e.target.value)}
+                  placeholder="0xabc123"
+                />
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                  For SEND_CRYPTO, this hash is stored on the receipt when marking the transaction as completed.
+                </div>
+              </div>
+            )}
             {manualReconciliationSubmitError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{manualReconciliationSubmitError}</div>}
             <div className="modal-actions">
               <button
@@ -2240,6 +2262,7 @@ export default function TransactionsPage() {
                 onClick={() => {
                   setShowManualReconciliationConfirm(false);
                   setManualReconciliationAction(null);
+                  setManualReconciliationTrxHash('');
                 }}
                 disabled={manualReconciliationSubmitLoading}
               >
