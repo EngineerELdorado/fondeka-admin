@@ -733,34 +733,21 @@ export default function DashboardPage() {
       onClick: () => goToTransactions('COMPLETED')
     },
     {
-      label: 'Processing',
-      value: formatNumber(totals.processingCount),
-      sub: `Volume ${formatCurrency(totals.processingVolume)}`,
-      tone: '#1d4ed8',
-      onClick: () => goToTransactions('PROCESSING')
-    },
-    {
       label: 'Provider fees',
       value: formatCurrency(providerFeesTotal),
       sub: 'Total provider fees',
       tone: '#f97316'
     },
     {
-      label: 'Revenue',
-      value: formatCurrency(totalRevenue),
-      sub: 'Total revenue',
-      tone: '#7c3aed'
-    },
-    {
       label: 'Referral cost',
       value: formatCurrency(totalReferralCost),
-      sub: 'Referral rewards paid out for transactions that generated revenue',
+      sub: 'Referral rewards paid',
       tone: '#ea580c'
     },
     {
       label: 'Net profit',
       value: formatCurrency(totalNetProfit),
-      sub: 'Revenue minus referral cost',
+      sub: 'After referral cost',
       tone: '#15803d'
     }
   ];
