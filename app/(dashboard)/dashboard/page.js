@@ -739,12 +739,6 @@ export default function DashboardPage() {
       tone: '#f97316'
     },
     {
-      label: 'Referral cost',
-      value: formatCurrency(totalReferralCost),
-      sub: 'Referral rewards paid',
-      tone: '#ea580c'
-    },
-    {
       label: 'Net profit',
       value: formatCurrency(totalNetProfit),
       sub: 'After referral cost',
