@@ -330,7 +330,7 @@ export default function FeeConfigsPage() {
   }, [billProducts, bpbps]);
 
   const requiredGiftCardStatus = useMemo(() => {
-    const requiredKeys = ['NETFLIX', 'SPOTIFY', 'APP_STORE', 'GOOGLE_PLAY'];
+    const requiredKeys = ['NETFLIX', 'SPOTIFY', 'APP_STORE', 'GOOGLE_PLAY', 'AIRBNB', 'UBER'];
     return requiredKeys.map((key) => {
       const product = billProducts.find((p) => String(p?.name || '').toUpperCase() === key || String(p?.code || '').toUpperCase() === key);
       const productId = Number(product?.id);
@@ -631,7 +631,7 @@ export default function FeeConfigsPage() {
         </select>
         {isDraftGiftCardAction && (
           <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
-            Use product/provider scope for BUY_GIFT_CARD (Netflix, Spotify, App Store, Google Play) to keep separate pricing.
+            Use product/provider scope for BUY_GIFT_CARD (Netflix, Spotify, App Store, Google Play, Airbnb, Uber) to keep separate pricing.
           </div>
         )}
       </div>
@@ -708,7 +708,7 @@ export default function FeeConfigsPage() {
       </div>
 
       <div className="card" style={{ color: 'var(--muted)', fontSize: '13px' }}>
-        Gift cards best practice: keep action as <strong>BUY_GIFT_CARD</strong>, scope by <strong>BPBP</strong>, optionally add <strong>PMPP</strong> for channel pricing, and avoid duplicate rows with same action + BPBP + PMPP. Legacy <strong>PAY_NETFLIX</strong> rows are not the new pricing path. Preview check: <code>/customer-api/fees?action=BUY_GIFT_CARD&amp;paymentMethodId=...&amp;billProductId=...&amp;amount=...</code>.
+        Gift cards best practice: keep action as <strong>BUY_GIFT_CARD</strong>, scope by <strong>BPBP</strong>, optionally add <strong>PMPP</strong> for channel pricing, and avoid duplicate rows with same action + BPBP + PMPP. Use the same pattern for Netflix, Spotify, App Store, Google Play, Airbnb, and Uber. Legacy <strong>PAY_NETFLIX</strong> rows are not the new pricing path. Preview check: <code>/customer-api/fees?action=BUY_GIFT_CARD&amp;paymentMethodId=...&amp;billProductId=...&amp;amount=...</code>.
       </div>
 
       <div className="card" style={{ display: 'grid', gap: '0.6rem' }}>

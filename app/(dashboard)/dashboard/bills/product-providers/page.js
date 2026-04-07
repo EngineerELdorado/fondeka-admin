@@ -195,7 +195,7 @@ export default function BillProductProvidersPage() {
   const selectedProvider = providers.find((p) => String(p.id) === String(draft.billProviderId));
   const selectedProductName = String(selectedProduct?.name || '').toUpperCase();
   const selectedProductCode = String(selectedProduct?.code || '').toUpperCase();
-  const reloadlyGiftCardProductSelected = ['SPOTIFY', 'APP_STORE', 'GOOGLE_PLAY', 'NETFLIX', 'APPLE'].includes(selectedProductName) || ['SPOTIFY', 'APP_STORE', 'GOOGLE_PLAY', 'NETFLIX', 'APPLE'].includes(selectedProductCode);
+  const reloadlyGiftCardProductSelected = ['SPOTIFY', 'APP_STORE', 'GOOGLE_PLAY', 'NETFLIX', 'APPLE', 'AIRBNB', 'UBER'].includes(selectedProductName) || ['SPOTIFY', 'APP_STORE', 'GOOGLE_PLAY', 'NETFLIX', 'APPLE', 'AIRBNB', 'UBER'].includes(selectedProductCode);
   const selectedProviderName = String(selectedProvider?.name || selectedProvider?.displayName || '').toUpperCase();
   const reloadlyProvider = providers.find((provider) => {
     const raw = String(provider?.name || provider?.displayName || '');
@@ -216,7 +216,9 @@ export default function BillProductProvidersPage() {
         { name: 'NETFLIX', displayName: 'Netflix' },
         { name: 'SPOTIFY', displayName: 'Spotify' },
         { name: 'APP_STORE', displayName: 'Apple' },
-        { name: 'GOOGLE_PLAY', displayName: 'Google Play' }
+        { name: 'GOOGLE_PLAY', displayName: 'Google Play' },
+        { name: 'AIRBNB', displayName: 'Airbnb' },
+        { name: 'UBER', displayName: 'Uber' }
       ];
 
       let createdProducts = 0;
@@ -227,11 +229,12 @@ export default function BillProductProvidersPage() {
           (p) => String(p?.name || '').toUpperCase() === target.name || String(p?.code || '').toUpperCase() === target.name
         );
         if (!product) {
+          const productType = ['AIRBNB', 'UBER'].includes(target.name) ? 'TRAVELLING' : 'ENTERTAINMENT';
           const created = await api.billProducts.create({
             name: target.name,
             code: target.name,
             displayName: target.displayName,
-            type: 'ENTERTAINMENT',
+            type: productType,
             giftCard: true,
             logoUrl: null,
             countryIds: [],
@@ -267,7 +270,7 @@ export default function BillProductProvidersPage() {
         }
       }
 
-      setInfo(`Gift-card seed complete: ${createdProducts} product(s) created, ${createdMappings} mapping(s) created. NETFLIX, SPOTIFY, APP_STORE, and GOOGLE_PLAY are ready on RELOADLY.`);
+      setInfo(`Gift-card seed complete: ${createdProducts} product(s) created, ${createdMappings} mapping(s) created. NETFLIX, SPOTIFY, APP_STORE, GOOGLE_PLAY, AIRBNB, and UBER are ready on RELOADLY.`);
       await fetchRows();
       const [prodRes, provRes] = await Promise.all([
         api.billProducts.list(new URLSearchParams({ page: '0', size: '200' })),

@@ -21,8 +21,8 @@ const emptyState = {
   available: true
 };
 
-const typeOptions = ['TELEVISION', 'ELECTRICITY', 'INTERNET', 'WATER', 'STREAMING', 'ENTERTAINMENT', 'AIRTIME', 'OTHERS'];
-const nameOptions = ['CANAL_PLUS', 'CANAL_BOX', 'STARLINK', 'LIQUID', 'SOCODEE', 'VIRUNGA', 'SNEL', 'DSTV', 'STARTIMES', 'REGIDESO', 'NETFLIX', 'SPOTIFY', 'APP_STORE', 'APPLE', 'GOOGLE_PLAY', 'AIRTIME'];
+const typeOptions = ['TELEVISION', 'ELECTRICITY', 'INTERNET', 'WATER', 'STREAMING', 'ENTERTAINMENT', 'TRAVELLING', 'AIRTIME', 'OTHERS'];
+const nameOptions = ['CANAL_PLUS', 'CANAL_BOX', 'STARLINK', 'LIQUID', 'SOCODEE', 'VIRUNGA', 'SNEL', 'DSTV', 'STARTIMES', 'REGIDESO', 'NETFLIX', 'SPOTIFY', 'APP_STORE', 'APPLE', 'GOOGLE_PLAY', 'AIRBNB', 'UBER', 'AIRTIME'];
 const codeOptions = [
   'CANAL_PLUS_RWANDA',
   'CANAL_PLUS_DRC',
@@ -41,6 +41,8 @@ const codeOptions = [
   'APP_STORE',
   'APPLE',
   'GOOGLE_PLAY',
+  'AIRBNB',
+  'UBER',
   'AIRTIME'
 ];
 
@@ -313,12 +315,13 @@ export default function BillProductsPage() {
           value={draft.name}
           onChange={(e) => {
             const nextName = e.target.value;
-            const autoGiftCard = ['NETFLIX', 'SPOTIFY', 'APP_STORE', 'GOOGLE_PLAY', 'APPLE'].includes(nextName);
+            const autoGiftCard = ['NETFLIX', 'SPOTIFY', 'APP_STORE', 'GOOGLE_PLAY', 'APPLE', 'AIRBNB', 'UBER'].includes(nextName);
+            const autoType = ['AIRBNB', 'UBER'].includes(nextName) ? 'TRAVELLING' : 'ENTERTAINMENT';
             setDraft((p) => ({
               ...p,
               name: nextName,
               giftCard: autoGiftCard ? true : p.giftCard,
-              type: autoGiftCard && !p.type ? 'ENTERTAINMENT' : p.type
+              type: autoGiftCard && !p.type ? autoType : p.type
             }));
           }}
         >
@@ -337,12 +340,13 @@ export default function BillProductsPage() {
           value={draft.code}
           onChange={(e) => {
             const nextCode = e.target.value;
-            const autoGiftCard = ['NETFLIX', 'SPOTIFY', 'APP_STORE', 'GOOGLE_PLAY', 'APPLE'].includes(nextCode);
+            const autoGiftCard = ['NETFLIX', 'SPOTIFY', 'APP_STORE', 'GOOGLE_PLAY', 'APPLE', 'AIRBNB', 'UBER'].includes(nextCode);
+            const autoType = ['AIRBNB', 'UBER'].includes(nextCode) ? 'TRAVELLING' : 'ENTERTAINMENT';
             setDraft((p) => ({
               ...p,
               code: nextCode,
               giftCard: autoGiftCard ? true : p.giftCard,
-              type: autoGiftCard && !p.type ? 'ENTERTAINMENT' : p.type
+              type: autoGiftCard && !p.type ? autoType : p.type
             }));
           }}
         >
