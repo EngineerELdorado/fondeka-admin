@@ -5,7 +5,39 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
-const emptyState = { billProductId: '', billProviderId: '', rank: '', active: true, commissionPercentage: '', kwhPerUsd: '', cegawebProfileKey: '' };
+const giftCardKeys = ['SPOTIFY', 'APP_STORE', 'GOOGLE_PLAY', 'NETFLIX', 'APPLE', 'AIRBNB', 'UBER'];
+
+const emptyState = {
+  billProductId: '',
+  billProviderId: '',
+  rank: '',
+  active: true,
+  commissionPercentage: '',
+  kwhPerUsd: '',
+  cegawebProfileKey: '',
+  reloadlyBillerId: '',
+  reloadlyServiceType: '',
+  reloadlyDenominationType: '',
+  reloadlyRequiresInvoice: false
+};
+
+const emptyReloadlySearch = {
+  id: '',
+  name: '',
+  type: '',
+  serviceType: '',
+  countryISOCode: ''
+};
+
+const normalizeProviderLabel = (provider) => String(provider?.name || provider?.displayName || '').toUpperCase();
+const isReloadlyUtilitiesProviderLabel = (label) => label.includes('RELOADLY') && label.includes('UTIL');
+const isReloadlyGiftCardProviderLabel = (label) => label.includes('RELOADLY') && !label.includes('UTIL');
+
+const toNumberOrNull = (value) => {
+  if (value === '' || value === null || value === undefined) return null;
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? null : parsed;
+};
 
 const toPayload = (state) => ({
   billProductId: Number(state.billProductId) || 0,
@@ -14,7 +46,11 @@ const toPayload = (state) => ({
   commissionPercentage: state.commissionPercentage === '' ? null : Number(state.commissionPercentage),
   kwhPerUsd: state.kwhPerUsd === '' ? null : Number(state.kwhPerUsd),
   active: Boolean(state.active),
-  cegawebProfileKey: state.cegawebProfileKey ? String(state.cegawebProfileKey) : null
+  cegawebProfileKey: state.cegawebProfileKey ? String(state.cegawebProfileKey) : null,
+  reloadlyBillerId: toNumberOrNull(state.reloadlyBillerId),
+  reloadlyServiceType: state.reloadlyServiceType ? String(state.reloadlyServiceType) : null,
+  reloadlyDenominationType: state.reloadlyDenominationType ? String(state.reloadlyDenominationType) : null,
+  reloadlyRequiresInvoice: state.reloadlyBillerId === '' ? null : Boolean(state.reloadlyRequiresInvoice)
 });
 
 const DetailGrid = ({ rows }) => (
@@ -27,6 +63,23 @@ const DetailGrid = ({ rows }) => (
     ))}
   </div>
 );
+
+const formatMoneyRange = (min, max) => {
+  const minValue = min === null || min === undefined || min === '' ? null : min;
+  const maxValue = max === null || max === undefined || max === '' ? null : max;
+  if (minValue !== null && maxValue !== null) return `${minValue} - ${maxValue}`;
+  if (minValue !== null) return `From ${minValue}`;
+  if (maxValue !== null) return `Up to ${maxValue}`;
+  return '—';
+};
+
+const formatFixedAmounts = (biller) => {
+  const list = Array.isArray(biller?.fixedAmounts) ? biller.fixedAmounts : [];
+  if (list.length === 0) return '—';
+  return list
+    .map((item) => item?.amount ?? item?.value ?? item?.providerAmountId ?? item?.id ?? item)
+    .join(', ');
+};
 
 export default function BillProductProvidersPage() {
   const [rows, setRows] = useState([]);
@@ -46,6 +99,10 @@ export default function BillProductProvidersPage() {
   const [draft, setDraft] = useState(emptyState);
   const [selected, setSelected] = useState(null);
   const [seedingGiftCards, setSeedingGiftCards] = useState(false);
+  const [reloadlyBillerSearch, setReloadlyBillerSearch] = useState(emptyReloadlySearch);
+  const [reloadlyBillers, setReloadlyBillers] = useState([]);
+  const [reloadlyBillersLoading, setReloadlyBillersLoading] = useState(false);
+  const [selectedReloadlyBiller, setSelectedReloadlyBiller] = useState(null);
 
   const fetchRows = async () => {
     setLoading(true);
@@ -89,10 +146,28 @@ export default function BillProductProvidersPage() {
     loadOptions();
   }, []);
 
+  const selectedProduct = products.find((p) => String(p.id) === String(draft.billProductId));
+  const selectedProvider = providers.find((p) => String(p.id) === String(draft.billProviderId));
+  const selectedProductName = String(selectedProduct?.name || '').toUpperCase();
+  const selectedProductCode = String(selectedProduct?.code || '').toUpperCase();
+  const selectedProviderName = normalizeProviderLabel(selectedProvider);
+  const reloadlyGiftCardProductSelected = giftCardKeys.includes(selectedProductName) || giftCardKeys.includes(selectedProductCode);
+  const reloadlyUtilitiesProviderSelected = isReloadlyUtilitiesProviderLabel(selectedProviderName);
+  const reloadlyProvider = providers.find((provider) => isReloadlyGiftCardProviderLabel(normalizeProviderLabel(provider)));
+  const reloadlyUtilitiesProvider = providers.find((provider) => isReloadlyUtilitiesProviderLabel(normalizeProviderLabel(provider)));
+
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
     { key: 'billProductName', label: 'Product' },
     { key: 'billProviderName', label: 'Provider' },
+    {
+      key: 'reloadlyBillerId',
+      label: 'Reloadly Utility',
+      render: (row) => {
+        if (!row?.reloadlyBillerId) return '—';
+        return `${row.reloadlyBillerId} • ${row.reloadlyServiceType || '—'} • ${row.reloadlyDenominationType || '—'}`;
+      }
+    },
     { key: 'cegawebProfileKey', label: 'CegaWeb profile' },
     { key: 'rank', label: 'Rank' },
     {
@@ -119,11 +194,31 @@ export default function BillProductProvidersPage() {
     }
   ], []);
 
+  const resetReloadlyUtilitiesState = () => {
+    setReloadlyBillerSearch(emptyReloadlySearch);
+    setReloadlyBillers([]);
+    setSelectedReloadlyBiller(null);
+  };
+
+  const closeCreate = () => {
+    setShowCreate(false);
+    setDraft(emptyState);
+    resetReloadlyUtilitiesState();
+  };
+
+  const closeEdit = () => {
+    setShowEdit(false);
+    setDraft(emptyState);
+    setSelected(null);
+    resetReloadlyUtilitiesState();
+  };
+
   const openCreate = () => {
     setDraft(emptyState);
     setShowCreate(true);
     setInfo(null);
     setError(null);
+    resetReloadlyUtilitiesState();
   };
 
   const openEdit = (row) => {
@@ -135,11 +230,36 @@ export default function BillProductProvidersPage() {
       commissionPercentage: row.commissionPercentage ?? '',
       kwhPerUsd: row.kwhPerUsd ?? '',
       active: Boolean(row.active),
-      cegawebProfileKey: row.cegawebProfileKey ?? ''
+      cegawebProfileKey: row.cegawebProfileKey ?? '',
+      reloadlyBillerId: row.reloadlyBillerId ?? '',
+      reloadlyServiceType: row.reloadlyServiceType ?? '',
+      reloadlyDenominationType: row.reloadlyDenominationType ?? '',
+      reloadlyRequiresInvoice: Boolean(row.reloadlyRequiresInvoice)
     });
     setShowEdit(true);
     setInfo(null);
     setError(null);
+    setReloadlyBillerSearch(emptyReloadlySearch);
+    setReloadlyBillers([]);
+    setSelectedReloadlyBiller(
+      row.reloadlyBillerId
+        ? {
+            id: row.reloadlyBillerId,
+            name: row.reloadlyBillerName || 'Mapped biller',
+            countryCode: row.reloadlyCountryCode || '',
+            countryName: row.reloadlyCountryName || '',
+            type: row.reloadlyBillerType || '',
+            serviceType: row.reloadlyServiceType || '',
+            denominationType: row.reloadlyDenominationType || '',
+            requiresInvoice: row.reloadlyRequiresInvoice,
+            localMinAmount: row.reloadlyLocalMinAmount,
+            localMaxAmount: row.reloadlyLocalMaxAmount,
+            internationalMinAmount: row.reloadlyInternationalMinAmount,
+            internationalMaxAmount: row.reloadlyInternationalMaxAmount,
+            fixedAmounts: row.reloadlyFixedAmounts || []
+          }
+        : null
+    );
   };
 
   const openDetail = (row) => {
@@ -149,13 +269,28 @@ export default function BillProductProvidersPage() {
     setError(null);
   };
 
+  const validateDraft = () => {
+    if (!draft.billProductId) return 'Select a bill product.';
+    if (!draft.billProviderId) return 'Select a bill provider.';
+    if (reloadlyUtilitiesProviderSelected) {
+      if (!draft.reloadlyBillerId) return 'Select a Reloadly utility biller before saving this mapping.';
+      if (!draft.reloadlyServiceType || !draft.reloadlyDenominationType) return 'Reloadly utility fields must come from the selected biller.';
+    }
+    return null;
+  };
+
   const handleCreate = async () => {
+    const validationError = validateDraft();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
     setError(null);
     setInfo(null);
     try {
       await api.billProductBillProviders.create(toPayload(draft));
       setInfo('Created mapping.');
-      setShowCreate(false);
+      closeCreate();
       fetchRows();
     } catch (err) {
       setError(err.message);
@@ -164,12 +299,17 @@ export default function BillProductProvidersPage() {
 
   const handleUpdate = async () => {
     if (!selected?.id) return;
+    const validationError = validateDraft();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
     setError(null);
     setInfo(null);
     try {
       await api.billProductBillProviders.update(selected.id, toPayload(draft));
       setInfo(`Updated mapping ${selected.id}.`);
-      setShowEdit(false);
+      closeEdit();
       fetchRows();
     } catch (err) {
       setError(err.message);
@@ -191,23 +331,46 @@ export default function BillProductProvidersPage() {
     }
   };
 
-  const selectedProduct = products.find((p) => String(p.id) === String(draft.billProductId));
-  const selectedProvider = providers.find((p) => String(p.id) === String(draft.billProviderId));
-  const selectedProductName = String(selectedProduct?.name || '').toUpperCase();
-  const selectedProductCode = String(selectedProduct?.code || '').toUpperCase();
-  const reloadlyGiftCardProductSelected = ['SPOTIFY', 'APP_STORE', 'GOOGLE_PLAY', 'NETFLIX', 'APPLE', 'AIRBNB', 'UBER'].includes(selectedProductName) || ['SPOTIFY', 'APP_STORE', 'GOOGLE_PLAY', 'NETFLIX', 'APPLE', 'AIRBNB', 'UBER'].includes(selectedProductCode);
-  const selectedProviderName = String(selectedProvider?.name || selectedProvider?.displayName || '').toUpperCase();
-  const reloadlyProvider = providers.find((provider) => {
-    const raw = String(provider?.name || provider?.displayName || '');
-    return raw.toUpperCase().includes('RELOADLY');
-  });
+  const searchReloadlyBillers = async () => {
+    setReloadlyBillersLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      Object.entries(reloadlyBillerSearch).forEach(([key, value]) => {
+        if (value !== '' && value !== null && value !== undefined) {
+          params.set(key, String(value));
+        }
+      });
+      const res = await api.billProductBillProviders.searchReloadlyUtilitiesBillers(params);
+      const list = Array.isArray(res) ? res : res?.content || [];
+      setReloadlyBillers(list || []);
+    } catch (err) {
+      setReloadlyBillers([]);
+      setError(err.message || 'Failed to search Reloadly billers');
+    } finally {
+      setReloadlyBillersLoading(false);
+    }
+  };
+
+  const handleSelectReloadlyBiller = (biller) => {
+    setSelectedReloadlyBiller(biller);
+    setDraft((prev) => ({
+      ...prev,
+      billProviderId: reloadlyUtilitiesProvider ? String(reloadlyUtilitiesProvider.id) : prev.billProviderId,
+      reloadlyBillerId: biller?.id ?? '',
+      reloadlyServiceType: biller?.serviceType || '',
+      reloadlyDenominationType: biller?.denominationType || '',
+      reloadlyRequiresInvoice: Boolean(biller?.requiresInvoice)
+    }));
+    setInfo(`Selected Reloadly biller ${biller?.name || biller?.id}. Mapping fields were prefilled from backend metadata.`);
+  };
 
   const handleSeedGiftCards = async () => {
     setError(null);
     setInfo(null);
     setSeedingGiftCards(true);
     try {
-      const provider = providers.find((p) => String(p?.name || p?.displayName || '').toUpperCase().includes('RELOADLY'));
+      const provider = providers.find((p) => isReloadlyGiftCardProviderLabel(normalizeProviderLabel(p)));
       if (!provider) {
         throw new Error('RELOADLY bill provider is missing. Create/enable RELOADLY provider first.');
       }
@@ -285,15 +448,109 @@ export default function BillProductProvidersPage() {
     }
   };
 
+  const renderReloadlyUtilitiesSearch = () => (
+    <>
+      <div style={{ gridColumn: '1 / -1', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.8rem', display: 'grid', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ fontWeight: 700 }}>Search Reloadly biller</div>
+          <button type="button" className="btn-neutral btn-sm" onClick={searchReloadlyBillers} disabled={reloadlyBillersLoading}>
+            {reloadlyBillersLoading ? 'Searching…' : 'Search billers'}
+          </button>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="reloadlyBillerIdSearch">Biller ID</label>
+            <input id="reloadlyBillerIdSearch" value={reloadlyBillerSearch.id} onChange={(e) => setReloadlyBillerSearch((prev) => ({ ...prev, id: e.target.value }))} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="reloadlyBillerNameSearch">Name</label>
+            <input id="reloadlyBillerNameSearch" value={reloadlyBillerSearch.name} onChange={(e) => setReloadlyBillerSearch((prev) => ({ ...prev, name: e.target.value }))} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="reloadlyBillerTypeSearch">Type</label>
+            <input id="reloadlyBillerTypeSearch" value={reloadlyBillerSearch.type} onChange={(e) => setReloadlyBillerSearch((prev) => ({ ...prev, type: e.target.value }))} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="reloadlyServiceTypeSearch">Service Type</label>
+            <input id="reloadlyServiceTypeSearch" value={reloadlyBillerSearch.serviceType} onChange={(e) => setReloadlyBillerSearch((prev) => ({ ...prev, serviceType: e.target.value }))} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="reloadlyCountrySearch">Country ISO</label>
+            <input id="reloadlyCountrySearch" value={reloadlyBillerSearch.countryISOCode} onChange={(e) => setReloadlyBillerSearch((prev) => ({ ...prev, countryISOCode: e.target.value }))} />
+          </div>
+        </div>
+        {reloadlyBillers.length > 0 && (
+          <div style={{ display: 'grid', gap: '0.5rem', maxHeight: '240px', overflowY: 'auto' }}>
+            {reloadlyBillers.map((biller) => {
+              const isSelected = String(selectedReloadlyBiller?.id) === String(biller?.id);
+              return (
+                <button
+                  key={biller.id}
+                  type="button"
+                  onClick={() => handleSelectReloadlyBiller(biller)}
+                  style={{
+                    display: 'grid',
+                    gap: '0.25rem',
+                    textAlign: 'left',
+                    padding: '0.7rem',
+                    borderRadius: '10px',
+                    border: `1px solid ${isSelected ? '#60a5fa' : 'var(--border)'}`,
+                    background: isSelected ? '#eff6ff' : 'var(--surface)',
+                    color: 'var(--text)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <div style={{ fontWeight: 700 }}>{biller.name || `Biller #${biller.id}`}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+                    #{biller.id} {biller.countryName ? `• ${biller.countryName}` : ''} {biller.serviceType ? `• ${biller.serviceType}` : ''} {biller.denominationType ? `• ${biller.denominationType}` : ''}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+        {reloadlyBillers.length === 0 && !reloadlyBillersLoading && (
+          <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Search by name, country, type, service type, or exact biller id.</div>
+        )}
+      </div>
+
+      <div style={{ gridColumn: '1 / -1', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.8rem', display: 'grid', gap: '0.75rem' }}>
+        <div style={{ fontWeight: 700 }}>Reloadly biller preview</div>
+        <DetailGrid
+          rows={[
+            { label: 'Biller', value: selectedReloadlyBiller?.name || '—' },
+            { label: 'Biller ID', value: draft.reloadlyBillerId || '—' },
+            { label: 'Country', value: [selectedReloadlyBiller?.countryName, selectedReloadlyBiller?.countryCode].filter(Boolean).join(' ') || '—' },
+            { label: 'Type', value: selectedReloadlyBiller?.type || '—' },
+            { label: 'Service type', value: draft.reloadlyServiceType || '—' },
+            { label: 'Denomination', value: draft.reloadlyDenominationType || '—' },
+            { label: 'Requires invoice', value: draft.reloadlyBillerId === '' ? '—' : draft.reloadlyRequiresInvoice ? 'Yes' : 'No' },
+            { label: 'Local amount range', value: formatMoneyRange(selectedReloadlyBiller?.localMinAmount, selectedReloadlyBiller?.localMaxAmount) },
+            { label: 'International amount range', value: formatMoneyRange(selectedReloadlyBiller?.internationalMinAmount, selectedReloadlyBiller?.internationalMaxAmount) }
+          ]}
+        />
+        <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+          Fixed amounts: {formatFixedAmounts(selectedReloadlyBiller)}
+        </div>
+        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+          {draft.reloadlyDenominationType && <span style={{ padding: '0.2rem 0.55rem', borderRadius: '999px', border: '1px solid var(--border)', fontSize: '12px', fontWeight: 700 }}>{draft.reloadlyDenominationType}</span>}
+          {draft.reloadlyServiceType && <span style={{ padding: '0.2rem 0.55rem', borderRadius: '999px', border: '1px solid var(--border)', fontSize: '12px', fontWeight: 700 }}>{draft.reloadlyServiceType}</span>}
+          {draft.reloadlyRequiresInvoice && <span style={{ padding: '0.2rem 0.55rem', borderRadius: '999px', border: '1px solid #fecaca', background: '#fef2f2', color: '#b91c1c', fontSize: '12px', fontWeight: 700 }}>INVOICE REQUIRED</span>}
+        </div>
+        <div style={{ display: 'grid', gap: '0.35rem', fontSize: '12px', color: 'var(--muted)' }}>
+          {draft.reloadlyDenominationType === 'FIXED' && <div>Client payments for this biller must use `amountId` from backend offers.</div>}
+          {draft.reloadlyDenominationType === 'RANGE' && <div>Client payments for this biller require manual amount entry.</div>}
+          {draft.reloadlyRequiresInvoice && <div>Client payments for this biller must include `invoiceId`.</div>}
+        </div>
+      </div>
+    </>
+  );
+
   const renderForm = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="billProductId">Bill Product</label>
-        <select
-          id="billProductId"
-          value={draft.billProductId}
-          onChange={(e) => setDraft((prev) => ({ ...prev, billProductId: e.target.value }))}
-        >
+        <select id="billProductId" value={draft.billProductId} onChange={(e) => setDraft((prev) => ({ ...prev, billProductId: e.target.value }))}>
           <option value="">Select product</option>
           {products.map((p) => (
             <option key={p.id} value={p.id}>
@@ -307,7 +564,26 @@ export default function BillProductProvidersPage() {
         <select
           id="billProviderId"
           value={draft.billProviderId}
-          onChange={(e) => setDraft((prev) => ({ ...prev, billProviderId: e.target.value }))}
+          onChange={(e) => {
+            const nextProviderId = e.target.value;
+            const nextProvider = providers.find((prov) => String(prov.id) === String(nextProviderId));
+            const nextLabel = normalizeProviderLabel(nextProvider);
+            setDraft((prev) => ({
+              ...prev,
+              billProviderId: nextProviderId,
+              ...(isReloadlyUtilitiesProviderLabel(nextLabel)
+                ? {}
+                : {
+                    reloadlyBillerId: '',
+                    reloadlyServiceType: '',
+                    reloadlyDenominationType: '',
+                    reloadlyRequiresInvoice: false
+                  })
+            }));
+            if (!isReloadlyUtilitiesProviderLabel(nextLabel)) {
+              resetReloadlyUtilitiesState();
+            }
+          }}
         >
           <option value="">Select provider</option>
           {providers.map((prov) => (
@@ -323,13 +599,13 @@ export default function BillProductProvidersPage() {
               padding: '0.45rem 0.6rem',
               borderRadius: '8px',
               fontSize: '12px',
-              background: selectedProviderName.includes('RELOADLY') ? '#ecfdf3' : '#fff7ed',
-              color: selectedProviderName.includes('RELOADLY') ? '#166534' : '#9a3412',
-              border: `1px solid ${selectedProviderName.includes('RELOADLY') ? '#bbf7d0' : '#fed7aa'}`
+              background: isReloadlyGiftCardProviderLabel(selectedProviderName) ? '#ecfdf3' : '#fff7ed',
+              color: isReloadlyGiftCardProviderLabel(selectedProviderName) ? '#166534' : '#9a3412',
+              border: `1px solid ${isReloadlyGiftCardProviderLabel(selectedProviderName) ? '#bbf7d0' : '#fed7aa'}`
             }}
           >
-            This gift card product uses the Reloadly flow. Select provider <strong>RELOADLY</strong>.
-            {!selectedProviderName.includes('RELOADLY') && reloadlyProvider && (
+            This gift card product uses the Reloadly gift-card flow. Select provider <strong>RELOADLY</strong>.
+            {!isReloadlyGiftCardProviderLabel(selectedProviderName) && reloadlyProvider && (
               <button
                 type="button"
                 className="btn-neutral"
@@ -341,14 +617,15 @@ export default function BillProductProvidersPage() {
             )}
           </div>
         )}
+        {reloadlyUtilitiesProviderSelected && (
+          <div style={{ marginTop: '0.35rem', padding: '0.45rem 0.6rem', borderRadius: '8px', fontSize: '12px', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }}>
+            Reloadly utility mappings must come from a searched biller. Do not type biller metadata manually.
+          </div>
+        )}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="cegawebProfileKey">CegaWeb profile</label>
-        <select
-          id="cegawebProfileKey"
-          value={draft.cegawebProfileKey}
-          onChange={(e) => setDraft((prev) => ({ ...prev, cegawebProfileKey: e.target.value }))}
-        >
+        <select id="cegawebProfileKey" value={draft.cegawebProfileKey} onChange={(e) => setDraft((prev) => ({ ...prev, cegawebProfileKey: e.target.value }))}>
           <option value="">Inherit provider</option>
           {cegawebProfiles.map((profile) => (
             <option key={profile.id ?? profile.profileKey} value={profile.profileKey}>
@@ -359,42 +636,21 @@ export default function BillProductProvidersPage() {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="rank">Rank</label>
-        <input
-          id="rank"
-          type="number"
-          value={draft.rank}
-          onChange={(e) => setDraft((prev) => ({ ...prev, rank: e.target.value }))}
-        />
+        <input id="rank" type="number" value={draft.rank} onChange={(e) => setDraft((prev) => ({ ...prev, rank: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="commissionPercentage">Commission (%)</label>
-        <input
-          id="commissionPercentage"
-          type="number"
-          step="0.01"
-          value={draft.commissionPercentage}
-          onChange={(e) => setDraft((prev) => ({ ...prev, commissionPercentage: e.target.value }))}
-        />
+        <input id="commissionPercentage" type="number" step="0.01" value={draft.commissionPercentage} onChange={(e) => setDraft((prev) => ({ ...prev, commissionPercentage: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="kwhPerUsd">kWh per USD</label>
-        <input
-          id="kwhPerUsd"
-          type="number"
-          step="0.0001"
-          value={draft.kwhPerUsd}
-          onChange={(e) => setDraft((prev) => ({ ...prev, kwhPerUsd: e.target.value }))}
-        />
+        <input id="kwhPerUsd" type="number" step="0.0001" value={draft.kwhPerUsd} onChange={(e) => setDraft((prev) => ({ ...prev, kwhPerUsd: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-        <input
-          id="active"
-          type="checkbox"
-          checked={draft.active}
-          onChange={(e) => setDraft((prev) => ({ ...prev, active: e.target.checked }))}
-        />
+        <input id="active" type="checkbox" checked={draft.active} onChange={(e) => setDraft((prev) => ({ ...prev, active: e.target.checked }))} />
         <label htmlFor="active">Active</label>
       </div>
+      {reloadlyUtilitiesProviderSelected && renderReloadlyUtilitiesSearch()}
     </div>
   );
 
@@ -403,12 +659,9 @@ export default function BillProductProvidersPage() {
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <div style={{ fontWeight: 800, fontSize: '20px' }}>Bill Product ↔ Provider</div>
-          <div style={{ color: '#6b7280' }}>Manage mapping with rank and active flag.</div>
+          <div style={{ color: '#6b7280' }}>Manage mapping with rank, active flag, and provider-specific metadata.</div>
         </div>
-        <Link
-          href="/dashboard/bills"
-          style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid #e5e7eb', textDecoration: 'none', color: '#0f172a' }}
-        >
+        <Link href="/dashboard/bills" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid #e5e7eb', textDecoration: 'none', color: '#0f172a' }}>
           ← Bills hub
         </Link>
       </div>
@@ -433,6 +686,10 @@ export default function BillProductProvidersPage() {
         </button>
       </div>
 
+      <div className="card" style={{ color: 'var(--muted)', fontSize: '13px' }}>
+        Reloadly Utilities is a separate mapping flow from Reloadly gift cards. Search the backend biller catalog, review denomination and invoice constraints, then save the internal bill product against provider <strong>RELOADLY_UTILITIES</strong>.
+      </div>
+
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
@@ -443,11 +700,11 @@ export default function BillProductProvidersPage() {
           <div className="modal-surface" style={{ gap: '0.75rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontWeight: 700 }}>Add mapping</div>
-              <button type="button" onClick={() => setShowCreate(false)} style={{ border: 'none', background: 'transparent', fontSize: '18px', cursor: 'pointer', color: 'var(--text)' }}>×</button>
+              <button type="button" onClick={closeCreate} style={{ border: 'none', background: 'transparent', fontSize: '18px', cursor: 'pointer', color: 'var(--text)' }}>×</button>
             </div>
             {renderForm()}
             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-              <button type="button" onClick={() => setShowCreate(false)} style={{ padding: '0.65rem 0.95rem', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}>
+              <button type="button" onClick={closeCreate} style={{ padding: '0.65rem 0.95rem', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}>
                 Cancel
               </button>
               <button type="button" onClick={handleCreate} style={{ padding: '0.65rem 0.95rem', borderRadius: '10px', border: '1px solid var(--border)', background: '#22c55e', color: '#fff' }}>
@@ -463,11 +720,11 @@ export default function BillProductProvidersPage() {
           <div className="modal-surface" style={{ gap: '0.75rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontWeight: 700 }}>Edit mapping {selected?.id}</div>
-              <button type="button" onClick={() => setShowEdit(false)} style={{ border: 'none', background: 'transparent', fontSize: '18px', cursor: 'pointer', color: 'var(--text)' }}>×</button>
+              <button type="button" onClick={closeEdit} style={{ border: 'none', background: 'transparent', fontSize: '18px', cursor: 'pointer', color: 'var(--text)' }}>×</button>
             </div>
             {renderForm()}
             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-              <button type="button" onClick={() => setShowEdit(false)} style={{ padding: '0.65rem 0.95rem', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}>
+              <button type="button" onClick={closeEdit} style={{ padding: '0.65rem 0.95rem', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}>
                 Cancel
               </button>
               <button type="button" onClick={handleUpdate} style={{ padding: '0.65rem 0.95rem', borderRadius: '10px', border: '1px solid var(--border)', background: '#f97316', color: '#fff' }}>
@@ -490,6 +747,10 @@ export default function BillProductProvidersPage() {
                 { label: 'ID', value: selected?.id },
                 { label: 'Product', value: selected?.billProductName || selected?.billProductId },
                 { label: 'Provider', value: selected?.billProviderName || selected?.billProviderId },
+                { label: 'Reloadly biller ID', value: selected?.reloadlyBillerId ?? '—' },
+                { label: 'Reloadly service type', value: selected?.reloadlyServiceType ?? '—' },
+                { label: 'Reloadly denomination', value: selected?.reloadlyDenominationType ?? '—' },
+                { label: 'Reloadly requires invoice', value: selected?.reloadlyRequiresInvoice === null || selected?.reloadlyRequiresInvoice === undefined ? '—' : selected?.reloadlyRequiresInvoice ? 'Yes' : 'No' },
                 { label: 'CegaWeb profile', value: selected?.cegawebProfileKey || '—' },
                 { label: 'Rank', value: selected?.rank },
                 { label: 'Commission (%)', value: selected?.commissionPercentage ?? '—' },
