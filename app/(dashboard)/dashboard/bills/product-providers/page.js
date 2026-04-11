@@ -15,6 +15,9 @@ const emptyState = {
   commissionPercentage: '',
   kwhPerUsd: '',
   cegawebProfileKey: '',
+  zenditBrand: '',
+  zenditCountry: '',
+  zenditSubType: '',
   reloadlyBillerId: '',
   reloadlyServiceType: '',
   reloadlyDenominationType: '',
@@ -29,9 +32,16 @@ const emptyReloadlySearch = {
   countryISOCode: ''
 };
 
+const emptyZenditSearch = {
+  brand: '',
+  country: '',
+  subType: ''
+};
+
 const normalizeProviderLabel = (provider) => String(provider?.name || provider?.displayName || '').toUpperCase();
 const isReloadlyUtilitiesProviderLabel = (label) => label.includes('RELOADLY') && label.includes('UTIL');
 const isReloadlyGiftCardProviderLabel = (label) => label.includes('RELOADLY') && !label.includes('UTIL');
+const isZenditProviderLabel = (label) => label.includes('ZENDIT');
 
 const toNumberOrNull = (value) => {
   if (value === '' || value === null || value === undefined) return null;
@@ -47,6 +57,9 @@ const toPayload = (state) => ({
   kwhPerUsd: state.kwhPerUsd === '' ? null : Number(state.kwhPerUsd),
   active: Boolean(state.active),
   cegawebProfileKey: state.cegawebProfileKey ? String(state.cegawebProfileKey) : null,
+  zenditBrand: state.zenditBrand ? String(state.zenditBrand) : null,
+  zenditCountry: state.zenditCountry ? String(state.zenditCountry) : null,
+  zenditSubType: state.zenditSubType ? String(state.zenditSubType) : null,
   reloadlyBillerId: toNumberOrNull(state.reloadlyBillerId),
   reloadlyServiceType: state.reloadlyServiceType ? String(state.reloadlyServiceType) : null,
   reloadlyDenominationType: state.reloadlyDenominationType ? String(state.reloadlyDenominationType) : null,
@@ -103,6 +116,10 @@ export default function BillProductProvidersPage() {
   const [reloadlyBillers, setReloadlyBillers] = useState([]);
   const [reloadlyBillersLoading, setReloadlyBillersLoading] = useState(false);
   const [selectedReloadlyBiller, setSelectedReloadlyBiller] = useState(null);
+  const [zenditSearch, setZenditSearch] = useState(emptyZenditSearch);
+  const [zenditGroupedBillers, setZenditGroupedBillers] = useState([]);
+  const [zenditGroupedBillersLoading, setZenditGroupedBillersLoading] = useState(false);
+  const [selectedZenditBiller, setSelectedZenditBiller] = useState(null);
 
   const fetchRows = async () => {
     setLoading(true);
@@ -153,13 +170,23 @@ export default function BillProductProvidersPage() {
   const selectedProviderName = normalizeProviderLabel(selectedProvider);
   const reloadlyGiftCardProductSelected = giftCardKeys.includes(selectedProductName) || giftCardKeys.includes(selectedProductCode);
   const reloadlyUtilitiesProviderSelected = isReloadlyUtilitiesProviderLabel(selectedProviderName);
+  const zenditProviderSelected = isZenditProviderLabel(selectedProviderName);
   const reloadlyProvider = providers.find((provider) => isReloadlyGiftCardProviderLabel(normalizeProviderLabel(provider)));
   const reloadlyUtilitiesProvider = providers.find((provider) => isReloadlyUtilitiesProviderLabel(normalizeProviderLabel(provider)));
+  const zenditProvider = providers.find((provider) => isZenditProviderLabel(normalizeProviderLabel(provider)));
 
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
     { key: 'billProductName', label: 'Product' },
     { key: 'billProviderName', label: 'Provider' },
+    {
+      key: 'zenditBrand',
+      label: 'Zendit Group',
+      render: (row) => {
+        if (!row?.zenditBrand) return '—';
+        return `${row.zenditBrand}${row?.zenditCountry ? ` (${row.zenditCountry})` : ''}${row?.zenditSubType ? ` • ${row.zenditSubType}` : ''}`;
+      }
+    },
     {
       key: 'reloadlyBillerId',
       label: 'Reloadly Utility',
@@ -200,10 +227,17 @@ export default function BillProductProvidersPage() {
     setSelectedReloadlyBiller(null);
   };
 
+  const resetZenditState = () => {
+    setZenditSearch(emptyZenditSearch);
+    setZenditGroupedBillers([]);
+    setSelectedZenditBiller(null);
+  };
+
   const closeCreate = () => {
     setShowCreate(false);
     setDraft(emptyState);
     resetReloadlyUtilitiesState();
+    resetZenditState();
   };
 
   const closeEdit = () => {
@@ -211,6 +245,7 @@ export default function BillProductProvidersPage() {
     setDraft(emptyState);
     setSelected(null);
     resetReloadlyUtilitiesState();
+    resetZenditState();
   };
 
   const openCreate = () => {
@@ -219,6 +254,7 @@ export default function BillProductProvidersPage() {
     setInfo(null);
     setError(null);
     resetReloadlyUtilitiesState();
+    resetZenditState();
   };
 
   const openEdit = (row) => {
@@ -231,6 +267,9 @@ export default function BillProductProvidersPage() {
       kwhPerUsd: row.kwhPerUsd ?? '',
       active: Boolean(row.active),
       cegawebProfileKey: row.cegawebProfileKey ?? '',
+      zenditBrand: row.zenditBrand ?? '',
+      zenditCountry: row.zenditCountry ?? '',
+      zenditSubType: row.zenditSubType ?? '',
       reloadlyBillerId: row.reloadlyBillerId ?? '',
       reloadlyServiceType: row.reloadlyServiceType ?? '',
       reloadlyDenominationType: row.reloadlyDenominationType ?? '',
@@ -241,6 +280,19 @@ export default function BillProductProvidersPage() {
     setError(null);
     setReloadlyBillerSearch(emptyReloadlySearch);
     setReloadlyBillers([]);
+    setZenditSearch(emptyZenditSearch);
+    setZenditGroupedBillers([]);
+    setSelectedZenditBiller(
+      row.zenditBrand
+        ? {
+            brand: row.zenditBrand,
+            country: row.zenditCountry || '',
+            subType: row.zenditSubType || '',
+            displayName: row.zenditCountry ? `${row.zenditBrand} (${row.zenditCountry})` : row.zenditBrand,
+            setupHint: row.zenditSetupHint || ''
+          }
+        : null
+    );
     setSelectedReloadlyBiller(
       row.reloadlyBillerId
         ? {
@@ -272,6 +324,11 @@ export default function BillProductProvidersPage() {
   const validateDraft = () => {
     if (!draft.billProductId) return 'Select a bill product.';
     if (!draft.billProviderId) return 'Select a bill provider.';
+    if (zenditProviderSelected) {
+      if (!draft.zenditBrand || !draft.zenditCountry || !draft.zenditSubType) {
+        return 'Select a grouped Zendit biller before saving a ZENDIT mapping.';
+      }
+    }
     if (reloadlyUtilitiesProviderSelected) {
       if (!draft.reloadlyBillerId) return 'Select a Reloadly utility biller before saving this mapping.';
       if (!draft.reloadlyServiceType || !draft.reloadlyDenominationType) return 'Reloadly utility fields must come from the selected biller.';
@@ -350,6 +407,39 @@ export default function BillProductProvidersPage() {
     } finally {
       setReloadlyBillersLoading(false);
     }
+  };
+
+  const searchZenditGroupedBillers = async () => {
+    setZenditGroupedBillersLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      Object.entries(zenditSearch).forEach(([key, value]) => {
+        if (value !== '' && value !== null && value !== undefined) {
+          params.set(key, String(value));
+        }
+      });
+      const res = await api.billProductBillProviders.searchZenditGroupedBillers(params);
+      const list = Array.isArray(res) ? res : res?.content || [];
+      setZenditGroupedBillers(list || []);
+    } catch (err) {
+      setZenditGroupedBillers([]);
+      setError(err.message || 'Failed to search grouped Zendit billers');
+    } finally {
+      setZenditGroupedBillersLoading(false);
+    }
+  };
+
+  const handleSelectZenditBiller = (biller) => {
+    setSelectedZenditBiller(biller);
+    setDraft((prev) => ({
+      ...prev,
+      billProviderId: zenditProvider ? String(zenditProvider.id) : prev.billProviderId,
+      zenditBrand: biller?.brand || '',
+      zenditCountry: biller?.country || '',
+      zenditSubType: biller?.subType || ''
+    }));
+    setInfo(`Selected grouped Zendit biller ${biller?.displayName || biller?.brand}. Map it once as a single bill product.`);
   };
 
   const handleSelectReloadlyBiller = (biller) => {
@@ -546,6 +636,89 @@ export default function BillProductProvidersPage() {
     </>
   );
 
+  const renderZenditGroupedSearch = () => (
+    <>
+      <div style={{ gridColumn: '1 / -1', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.8rem', display: 'grid', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ fontWeight: 700 }}>Search grouped Zendit biller</div>
+          <button type="button" className="btn-neutral btn-sm" onClick={searchZenditGroupedBillers} disabled={zenditGroupedBillersLoading}>
+            {zenditGroupedBillersLoading ? 'Searching…' : 'Search grouped billers'}
+          </button>
+        </div>
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          Select a grouped Zendit biller result and map it once. Fixed amounts and open-amount variants will be handled automatically under the same bill product.
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="zenditBrandSearch">Brand</label>
+            <input id="zenditBrandSearch" value={zenditSearch.brand} onChange={(e) => setZenditSearch((prev) => ({ ...prev, brand: e.target.value }))} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="zenditCountrySearch">Country</label>
+            <input id="zenditCountrySearch" value={zenditSearch.country} onChange={(e) => setZenditSearch((prev) => ({ ...prev, country: e.target.value }))} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="zenditSubTypeSearch">Subtype</label>
+            <input id="zenditSubTypeSearch" value={zenditSearch.subType} onChange={(e) => setZenditSearch((prev) => ({ ...prev, subType: e.target.value }))} />
+          </div>
+        </div>
+        {zenditGroupedBillers.length > 0 && (
+          <div style={{ display: 'grid', gap: '0.5rem', maxHeight: '260px', overflowY: 'auto' }}>
+            {zenditGroupedBillers.map((biller, index) => {
+              const key = `${biller?.brand || 'brand'}-${biller?.country || 'country'}-${biller?.subType || 'subtype'}-${index}`;
+              const isSelected = selectedZenditBiller?.brand === biller?.brand
+                && selectedZenditBiller?.country === biller?.country
+                && selectedZenditBiller?.subType === biller?.subType;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => handleSelectZenditBiller(biller)}
+                  style={{
+                    display: 'grid',
+                    gap: '0.25rem',
+                    textAlign: 'left',
+                    padding: '0.7rem',
+                    borderRadius: '10px',
+                    border: `1px solid ${isSelected ? '#60a5fa' : 'var(--border)'}`,
+                    background: isSelected ? '#eff6ff' : 'var(--surface)',
+                    color: 'var(--text)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <div style={{ fontWeight: 700 }}>{biller.displayName || `${biller.brand || 'Brand'}${biller.country ? ` (${biller.country})` : ''}`}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+                    {[biller.summary, biller.setupHint || 'Map this once as one bill product'].filter(Boolean).join(' • ')}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+        {zenditGroupedBillers.length === 0 && !zenditGroupedBillersLoading && (
+          <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Search by brand, country, or subtype. Each result represents one grouped Zendit biller setup.</div>
+        )}
+      </div>
+
+      <div style={{ gridColumn: '1 / -1', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.8rem', display: 'grid', gap: '0.75rem' }}>
+        <div style={{ fontWeight: 700 }}>Grouped Zendit biller preview</div>
+        <DetailGrid
+          rows={[
+            { label: 'Display', value: selectedZenditBiller?.displayName || '—' },
+            { label: 'Brand', value: draft.zenditBrand || '—' },
+            { label: 'Country', value: draft.zenditCountry || '—' },
+            { label: 'Subtype', value: draft.zenditSubType || '—' },
+            { label: 'Offer summary', value: selectedZenditBiller?.summary || '—' },
+            { label: 'Setup hint', value: selectedZenditBiller?.setupHint || 'Map it once as one bill product.' }
+          ]}
+        />
+        <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+          Do not create one bill product per Zendit offer variant. The backend keeps fixed amounts and open-range variants under this single mapped product.
+        </div>
+      </div>
+    </>
+  );
+
   const renderForm = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -582,6 +755,10 @@ export default function BillProductProvidersPage() {
             }));
             if (!isReloadlyUtilitiesProviderLabel(nextLabel)) {
               resetReloadlyUtilitiesState();
+            }
+            if (!isZenditProviderLabel(nextLabel)) {
+              setDraft((prev) => ({ ...prev, zenditBrand: '', zenditCountry: '', zenditSubType: '' }));
+              resetZenditState();
             }
           }}
         >
@@ -622,6 +799,11 @@ export default function BillProductProvidersPage() {
             Reloadly utility mappings must come from a searched biller. Do not type biller metadata manually.
           </div>
         )}
+        {zenditProviderSelected && (
+          <div style={{ marginTop: '0.35rem', padding: '0.45rem 0.6rem', borderRadius: '8px', fontSize: '12px', background: '#f8fafc', color: '#0f172a', border: '1px solid #cbd5e1' }}>
+            Zendit utilities are grouped billers. Map one user-facing bill product once, then let the backend handle the underlying fixed and open variants.
+          </div>
+        )}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="cegawebProfileKey">CegaWeb profile</label>
@@ -650,6 +832,7 @@ export default function BillProductProvidersPage() {
         <input id="active" type="checkbox" checked={draft.active} onChange={(e) => setDraft((prev) => ({ ...prev, active: e.target.checked }))} />
         <label htmlFor="active">Active</label>
       </div>
+      {zenditProviderSelected && renderZenditGroupedSearch()}
       {reloadlyUtilitiesProviderSelected && renderReloadlyUtilitiesSearch()}
     </div>
   );
@@ -688,6 +871,10 @@ export default function BillProductProvidersPage() {
 
       <div className="card" style={{ color: 'var(--muted)', fontSize: '13px' }}>
         Reloadly Utilities is a separate mapping flow from Reloadly gift cards. Search the backend biller catalog, review denomination and invoice constraints, then save the internal bill product against provider <strong>RELOADLY_UTILITIES</strong>.
+      </div>
+
+      <div className="card" style={{ color: 'var(--muted)', fontSize: '13px' }}>
+        Zendit utilities should be mapped as grouped billers, not one product per catalog row. Pick one grouped Zendit result by brand, country, and subtype, then save one <strong>Bill Product ↔ ZENDIT</strong> mapping. Fixed amounts and open-range variants stay underneath that one product.
       </div>
 
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
@@ -747,6 +934,9 @@ export default function BillProductProvidersPage() {
                 { label: 'ID', value: selected?.id },
                 { label: 'Product', value: selected?.billProductName || selected?.billProductId },
                 { label: 'Provider', value: selected?.billProviderName || selected?.billProviderId },
+                { label: 'Zendit brand', value: selected?.zenditBrand ?? '—' },
+                { label: 'Zendit country', value: selected?.zenditCountry ?? '—' },
+                { label: 'Zendit subtype', value: selected?.zenditSubType ?? '—' },
                 { label: 'Reloadly biller ID', value: selected?.reloadlyBillerId ?? '—' },
                 { label: 'Reloadly service type', value: selected?.reloadlyServiceType ?? '—' },
                 { label: 'Reloadly denomination', value: selected?.reloadlyDenominationType ?? '—' },

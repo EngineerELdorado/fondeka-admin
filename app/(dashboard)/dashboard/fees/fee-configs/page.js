@@ -47,12 +47,15 @@ const initialFilters = {
 };
 
 const emptyState = {
+  paymentProviderId: '',
+  billProviderId: '',
   paymentMethodPaymentProviderId: '',
   billProductBillProviderId: '',
   countryId: '',
   service: '',
   action: '',
   customAction: '',
+  overrideSpecificFees: false,
   providerFeePercentage: '',
   providerFlatFee: '',
   ourFeePercentage: '',
@@ -68,11 +71,14 @@ const normalizeOptionalIdForForm = (value) => {
 };
 
 const toPayload = (state) => ({
+  paymentProviderId: state.paymentProviderId === '' ? null : Number(state.paymentProviderId),
+  billProviderId: state.billProviderId === '' ? null : Number(state.billProviderId),
   paymentMethodPaymentProviderId: state.paymentMethodPaymentProviderId === '' ? null : Number(state.paymentMethodPaymentProviderId),
   billProductBillProviderId: state.billProductBillProviderId === '' ? null : Number(state.billProductBillProviderId),
   countryId: state.countryId === '' ? null : Number(state.countryId),
   service: state.service || null,
   action: resolveAction(state),
+  overrideSpecificFees: Boolean(state.overrideSpecificFees),
   providerFeePercentage: state.providerFeePercentage === '' ? null : Number(state.providerFeePercentage),
   providerFlatFee: state.providerFlatFee === '' ? null : Number(state.providerFlatFee),
   ourFeePercentage: state.ourFeePercentage === '' ? null : Number(state.ourFeePercentage),
@@ -283,6 +289,20 @@ export default function FeeConfigsPage() {
     return fallbackLabel ? `${fallbackLabel} (#${row.paymentMethodPaymentProviderId})` : `PMPP #${row.paymentMethodPaymentProviderId}`;
   }, [pmps]);
 
+  const getPaymentProviderLabel = useCallback((row) => {
+    if (!row?.paymentProviderId) return 'ALL';
+    const match = paymentProviders.find((item) => Number(item.id) === Number(row.paymentProviderId));
+    if (match) return match.displayName || match.name || `Provider #${row.paymentProviderId}`;
+    return row.paymentProviderName ? `${row.paymentProviderName} (#${row.paymentProviderId})` : `Provider #${row.paymentProviderId}`;
+  }, [paymentProviders]);
+
+  const getBillProviderLabel = useCallback((row) => {
+    if (!row?.billProviderId) return 'ALL';
+    const match = billProviders.find((item) => Number(item.id) === Number(row.billProviderId));
+    if (match) return match.displayName || match.name || `Bill Provider #${row.billProviderId}`;
+    return row.billProviderName ? `${row.billProviderName} (#${row.billProviderId})` : `Bill Provider #${row.billProviderId}`;
+  }, [billProviders]);
+
   const getBpbpLabel = useCallback((row) => {
     if (!row?.billProductBillProviderId) return 'GLOBAL';
     const match = bpbps.find((item) => Number(item.id) === Number(row.billProductBillProviderId));
@@ -370,6 +390,16 @@ export default function FeeConfigsPage() {
         render: (row) => getCountryLabel(row)
       },
       {
+        key: 'paymentProviderId',
+        label: 'Payment Provider',
+        render: (row) => getPaymentProviderLabel(row)
+      },
+      {
+        key: 'billProviderId',
+        label: 'Bill Provider',
+        render: (row) => getBillProviderLabel(row)
+      },
+      {
         key: 'paymentMethodPaymentProviderId',
         label: 'PMPP scope',
         render: (row) => (
@@ -400,6 +430,11 @@ export default function FeeConfigsPage() {
       { key: 'ourFeePercentage', label: 'Our %' },
       { key: 'ourFlatFee', label: 'Our flat' },
       {
+        key: 'overrideSpecificFees',
+        label: 'Override Specific',
+        render: (row) => (row.overrideSpecificFees ? 'Yes' : 'No')
+      },
+      {
         key: 'actions',
         label: 'Actions',
         render: (row) => (
@@ -417,7 +452,7 @@ export default function FeeConfigsPage() {
         )
       }
     ],
-    [getCountryLabel, getPmpLabel, getBpbpLabel]
+    [getCountryLabel, getPaymentProviderLabel, getBillProviderLabel, getPmpLabel, getBpbpLabel]
   );
 
   const openCreate = () => {
@@ -431,12 +466,15 @@ export default function FeeConfigsPage() {
     const actionChoice = actionOptions.includes(row.action) ? row.action : row.action ? '__custom' : '';
     setSelected(row);
     setDraft({
+      paymentProviderId: normalizeOptionalIdForForm(row.paymentProviderId),
+      billProviderId: normalizeOptionalIdForForm(row.billProviderId),
       paymentMethodPaymentProviderId: normalizeOptionalIdForForm(row.paymentMethodPaymentProviderId),
       billProductBillProviderId: normalizeOptionalIdForForm(row.billProductBillProviderId),
       countryId: row.countryId ?? '',
       service: row.service ?? '',
       action: actionChoice,
       customAction: actionChoice === '__custom' ? row.action || '' : '',
+      overrideSpecificFees: Boolean(row.overrideSpecificFees),
       providerFeePercentage: row.providerFeePercentage ?? '',
       providerFlatFee: row.providerFlatFee ?? '',
       ourFeePercentage: row.ourFeePercentage ?? '',
@@ -457,6 +495,8 @@ export default function FeeConfigsPage() {
   const validateDraft = (state, currentId = null) => {
     const resolved = resolveAction(state);
     if (!resolved) return 'Action is required.';
+    if (state.paymentProviderId !== '' && Number(state.paymentProviderId) < 0) return 'Payment provider must be non-negative.';
+    if (state.billProviderId !== '' && Number(state.billProviderId) < 0) return 'Bill provider must be non-negative.';
     if (state.paymentMethodPaymentProviderId !== '' && Number(state.paymentMethodPaymentProviderId) < 0) return 'PMPP ID must be non-negative.';
     if (state.billProductBillProviderId !== '' && Number(state.billProductBillProviderId) < 0) return 'BPBP ID must be non-negative.';
     if (state.countryId !== '' && Number(state.countryId) < 0) return 'Country ID must be non-negative.';
@@ -470,8 +510,16 @@ export default function FeeConfigsPage() {
     const invalid = numericFields.find((item) => item.value !== '' && Number(item.value) < 0);
     if (invalid) return 'Fee values cannot be negative.';
     const normalizedAction = String(resolved || '').toUpperCase();
+    const normalizedPaymentProvider = state.paymentProviderId === '' ? null : Number(state.paymentProviderId);
+    const normalizedBillProvider = state.billProviderId === '' ? null : Number(state.billProviderId);
     const normalizedPmp = state.paymentMethodPaymentProviderId === '' ? null : Number(state.paymentMethodPaymentProviderId);
     const normalizedBpbp = state.billProductBillProviderId === '' ? null : Number(state.billProductBillProviderId);
+    if (normalizedPmp !== null && normalizedPaymentProvider !== null) {
+      return 'Choose either Payment Provider or the exact Payment Method Route. Do not set both on the same fee config.';
+    }
+    if (normalizedBpbp !== null && normalizedBillProvider !== null) {
+      return 'Choose either Bill Provider or the exact Bill Product Route. Do not set both on the same fee config.';
+    }
     if (normalizedAction === 'BUY_GIFT_CARD' && (normalizedBpbp === null || Number.isNaN(normalizedBpbp))) {
       return 'For BUY_GIFT_CARD, select Bill Product Bill Provider scope (BPBP) so each product can be priced separately.';
     }
@@ -482,12 +530,17 @@ export default function FeeConfigsPage() {
       if (currentId && Number(row?.id) === Number(currentId)) return false;
       const rowAction = String(row?.action || '').toUpperCase();
       if (rowAction !== normalizedAction) return false;
+      const rowPaymentProvider = row?.paymentProviderId === null || row?.paymentProviderId === undefined ? null : Number(row.paymentProviderId);
+      const rowBillProvider = row?.billProviderId === null || row?.billProviderId === undefined ? null : Number(row.billProviderId);
       const rowBpbp = row?.billProductBillProviderId === null || row?.billProductBillProviderId === undefined ? null : Number(row.billProductBillProviderId);
       const rowPmp = row?.paymentMethodPaymentProviderId === null || row?.paymentMethodPaymentProviderId === undefined ? null : Number(row.paymentMethodPaymentProviderId);
-      return rowBpbp === normalizedBpbp && rowPmp === normalizedPmp;
+      return rowPaymentProvider === normalizedPaymentProvider
+        && rowBillProvider === normalizedBillProvider
+        && rowBpbp === normalizedBpbp
+        && rowPmp === normalizedPmp;
     });
     if (duplicate) {
-      return `Duplicate scope detected with fee config #${duplicate.id}. Keep one row per (action + BPBP + PMPP).`;
+      return `Duplicate scope detected with fee config #${duplicate.id}. Keep one row per layered scope for the same action.`;
     }
     return null;
   };
@@ -553,6 +606,36 @@ export default function FeeConfigsPage() {
   const renderForm = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="paymentProviderId">Payment Provider</label>
+        <select id="paymentProviderId" value={draft.paymentProviderId} onChange={(e) => setDraft((p) => ({ ...p, paymentProviderId: e.target.value }))}>
+          <option value="">All payment providers</option>
+          {paymentProviders.map((provider) => (
+            <option key={provider.id} value={provider.id}>
+              {provider.name || provider.displayName || provider.id}
+              {provider.id ? ` #${provider.id}` : ''}
+            </option>
+          ))}
+        </select>
+        <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+          Choose the provider by name. Use this for broad defaults across routes handled by that provider.
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="billProviderId">Bill Provider</label>
+        <select id="billProviderId" value={draft.billProviderId} onChange={(e) => setDraft((p) => ({ ...p, billProviderId: e.target.value }))}>
+          <option value="">All bill providers</option>
+          {billProviders.map((provider) => (
+            <option key={provider.id} value={provider.id}>
+              {provider.name || provider.displayName || provider.id}
+              {provider.id ? ` #${provider.id}` : ''}
+            </option>
+          ))}
+        </select>
+        <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+          Choose the bill provider by name. Use this for broad defaults across bill products under that provider.
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="service">Service</label>
         <select id="service" value={draft.service} onChange={(e) => setDraft((p) => ({ ...p, service: e.target.value }))}>
           <option value="">All services</option>
@@ -599,7 +682,7 @@ export default function FeeConfigsPage() {
         </select>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="paymentMethodPaymentProviderId">Method/Provider ID</label>
+        <label htmlFor="paymentMethodPaymentProviderId">Payment Method Route</label>
         <select
           id="paymentMethodPaymentProviderId"
           value={draft.paymentMethodPaymentProviderId}
@@ -613,9 +696,12 @@ export default function FeeConfigsPage() {
             </option>
           ))}
         </select>
+        <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+          Use this only when the fee must target one exact payment method route.
+        </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="billProductBillProviderId">Bill Product Bill Provider</label>
+        <label htmlFor="billProductBillProviderId">Bill Product Route</label>
         <select
           id="billProductBillProviderId"
           value={draft.billProductBillProviderId}
@@ -632,6 +718,11 @@ export default function FeeConfigsPage() {
         {isDraftGiftCardAction && (
           <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
             Use product/provider scope for BUY_GIFT_CARD (Netflix, Spotify, App Store, Google Play, Airbnb, Uber) to keep separate pricing.
+          </div>
+        )}
+        {!isDraftGiftCardAction && (
+          <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+            Use this only when the fee must target one exact bill product mapping.
           </div>
         )}
       </div>
@@ -663,6 +754,18 @@ export default function FeeConfigsPage() {
         <label htmlFor="ourFlatFee">Our flat</label>
         <input id="ourFlatFee" type="number" min={0} value={draft.ourFlatFee} onChange={(e) => setDraft((p) => ({ ...p, ourFlatFee: e.target.value }))} />
       </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <input
+          id="overrideSpecificFees"
+          type="checkbox"
+          checked={draft.overrideSpecificFees}
+          onChange={(e) => setDraft((p) => ({ ...p, overrideSpecificFees: e.target.checked }))}
+        />
+        <label htmlFor="overrideSpecificFees">Override Specific Fees</label>
+      </div>
+      <div style={{ gridColumn: '1 / -1', fontSize: '12px', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.55rem 0.65rem' }}>
+        If enabled, this general fee can override ordinary more specific system fee configs. Use sparingly for temporary policy changes or fast rollouts.
+      </div>
       {isDraftGiftCardAction && (
         <div style={{ gridColumn: '1 / -1', fontSize: '12px', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.55rem 0.65rem' }}>
           Amount model: amount is net gift-card value, fees are added on top, and gross = net + all fees.
@@ -676,7 +779,7 @@ export default function FeeConfigsPage() {
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <div style={{ fontWeight: 800, fontSize: '20px' }}>Fee Configs</div>
-          <div style={{ color: 'var(--muted)' }}>Configure fees per action with PMPP or Bill Product/Provider mapping scope.</div>
+          <div style={{ color: 'var(--muted)' }}>Configure layered fees by provider names first, then add exact route exceptions only when needed.</div>
         </div>
         <Link href="/dashboard/payments" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
           ← Payments hub
@@ -707,8 +810,21 @@ export default function FeeConfigsPage() {
         </div>
       </div>
 
+      <div className="card" style={{ display: 'grid', gap: '0.45rem', color: 'var(--muted)', fontSize: '13px' }}>
+        <div>Configure fees using provider and product names in the UI. The system sends IDs underneath, but names are the source of truth for admin decisions.</div>
+        <div>
+          Layering workflow: start broad with <strong>Payment Provider</strong>, <strong>Bill Provider</strong>, or both. Add <strong>Payment Method Route</strong> or <strong>Bill Product Route</strong> only for exceptions.
+        </div>
+        <div>
+          Priority: account custom fees win first. After that, more specific system fees normally beat broader ones. If <strong>Override Specific Fees</strong> is on, a broad config can intentionally beat ordinary specific system fee configs.
+        </div>
+        <div>
+          Example: for all Reloadly Utilities bills funded by one provider, set <strong>Payment Provider</strong> + <strong>Bill Provider</strong> and leave exact routes blank.
+        </div>
+      </div>
+
       <div className="card" style={{ color: 'var(--muted)', fontSize: '13px' }}>
-        Gift cards best practice: keep action as <strong>BUY_GIFT_CARD</strong>, scope by <strong>BPBP</strong>, optionally add <strong>PMPP</strong> for channel pricing, and avoid duplicate rows with same action + BPBP + PMPP. Use the same pattern for Netflix, Spotify, App Store, Google Play, Airbnb, and Uber. Legacy <strong>PAY_NETFLIX</strong> rows are not the new pricing path. Preview check: <code>/customer-api/fees?action=BUY_GIFT_CARD&amp;paymentMethodId=...&amp;billProductId=...&amp;amount=...</code>.
+        Gift cards best practice: keep action as <strong>BUY_GIFT_CARD</strong>, scope by <strong>Bill Product Route</strong>, optionally add <strong>Payment Method Route</strong> for channel pricing, and avoid duplicate rows with the same layered scope. Use the same pattern for Netflix, Spotify, App Store, Google Play, Airbnb, and Uber. Legacy <strong>PAY_NETFLIX</strong> rows are not the new pricing path. Preview check: <code>/customer-api/fees?action=BUY_GIFT_CARD&amp;paymentMethodId=...&amp;billProductId=...&amp;amount=...</code>.
       </div>
 
       <div className="card" style={{ display: 'grid', gap: '0.6rem' }}>
@@ -957,11 +1073,14 @@ export default function FeeConfigsPage() {
           <DetailGrid
             rows={[
               { label: 'ID', value: selected?.id },
+              { label: 'Payment provider', value: getPaymentProviderLabel(selected || {}) },
+              { label: 'Bill provider', value: getBillProviderLabel(selected || {}) },
               { label: 'Method/Provider', value: getPmpLabel(selected || {}) },
               { label: 'Bill Product/Provider', value: getBpbpLabel(selected || {}) },
               { label: 'Country', value: getCountryLabel(selected || {}) },
               { label: 'Service', value: selected?.service || 'ALL' },
               { label: 'Action', value: selected?.action },
+              { label: 'Override specific fees', value: selected?.overrideSpecificFees ? 'Yes' : 'No' },
               { label: 'Provider %', value: selected?.providerFeePercentage },
               { label: 'Provider flat', value: selected?.providerFlatFee },
               { label: 'Our %', value: selected?.ourFeePercentage },
