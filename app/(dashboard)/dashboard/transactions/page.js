@@ -72,7 +72,7 @@ const receiptTypes = [
 ];
 const receiptStatusOptions = ['PROCESSING', 'COMPLETED', 'FAILED'];
 const receiptPayloadTemplates = {
-  BILL_PAYMENT: { providerReference: '', token: '', meterNumber: '', billerName: '', valueReceived: '', metadata: {} },
+  BILL_PAYMENT: { providerReference: '', token: '', meterNumber: '', billerName: '', senderMsisdn: '', recipientMsisdn: '', valueReceived: '', metadata: {} },
   GIFT_CARD: {
     giftCard: { cardNumber: '', pinCode: '', shortInstructions: '', longInstructions: '' },
     providerReference: '',
@@ -236,6 +236,41 @@ const formatWebhookPayload = (payload) => {
   }
 };
 
+const RECENT_BILL_MSISDN_STORAGE_KEY = 'fondeka-admin:recent-bill-msisdn';
+const MAX_RECENT_MSISDN = 5;
+
+const getBillProductMsisdnKey = (txn) => {
+  const raw = txn?.billProductName || txn?.billProductDisplayName || txn?.billProductCode || txn?.billProductId;
+  return String(raw || '').trim().toUpperCase();
+};
+
+const readRecentBillMsisdnStore = () => {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.localStorage.getItem(RECENT_BILL_MSISDN_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+const writeRecentBillMsisdnStore = (value) => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(RECENT_BILL_MSISDN_STORAGE_KEY, JSON.stringify(value));
+  } catch {
+    // ignore storage failures
+  }
+};
+
+const mergeRecentMsisdnValues = (existing, nextValue) => {
+  const trimmed = String(nextValue || '').trim();
+  if (!trimmed) return existing || [];
+  return [trimmed, ...(existing || []).filter((item) => item !== trimmed)].slice(0, MAX_RECENT_MSISDN);
+};
+
 const formatDateTimeLocalInput = (value) => {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return '';
@@ -323,6 +358,9 @@ export default function TransactionsPage() {
   const [receiptHumanMessage, setReceiptHumanMessage] = useState('');
   const [receiptPayload, setReceiptPayload] = useState('{}');
   const [receiptTemplateKey, setReceiptTemplateKey] = useState('');
+  const [billSenderMsisdn, setBillSenderMsisdn] = useState('');
+  const [billRecipientMsisdn, setBillRecipientMsisdn] = useState('');
+  const [recentBillMsisdn, setRecentBillMsisdn] = useState({ sender: [], recipient: [] });
   const [auditLogs, setAuditLogs] = useState([]);
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditError, setAuditError] = useState(null);
@@ -348,6 +386,10 @@ export default function TransactionsPage() {
   const [postWebhookRailLabel, setPostWebhookRailLabel] = useState('');
   const [postWebhookExternalReference, setPostWebhookExternalReference] = useState('');
   const [postWebhookForce, setPostWebhookForce] = useState(false);
+  const isBillReceiptContext =
+    receiptType === 'BILL_PAYMENT' ||
+    receiptTemplateKey === 'BILL_PAYMENT' ||
+    selected?.service === 'BILL_PAYMENTS';
   const [refetchBillStatusLoading, setRefetchBillStatusLoading] = useState(false);
   const [showBankPayoutComplete, setShowBankPayoutComplete] = useState(false);
   const [bankPayoutMessage, setBankPayoutMessage] = useState('');
@@ -1209,9 +1251,19 @@ export default function TransactionsPage() {
     setReceiptType(receipt?.type || selected?.service || '');
     setReceiptStatus(receipt?.status || selected?.status || '');
     setReceiptHumanMessage(receipt?.humanMessage || '');
+    const payload = receipt?.payload && typeof receipt.payload === 'object' ? receipt.payload : {};
     const payloadText = receipt?.payload ? JSON.stringify(receipt.payload, null, 2) : '{}';
+    const billProductKey = getBillProductMsisdnKey(selected);
+    const recentStore = readRecentBillMsisdnStore();
+    const recentEntry = billProductKey ? recentStore?.[billProductKey] || {} : {};
     setReceiptPayload(payloadText);
     setReceiptTemplateKey('');
+    setBillSenderMsisdn(String(payload?.senderMsisdn || ''));
+    setBillRecipientMsisdn(String(payload?.recipientMsisdn || ''));
+    setRecentBillMsisdn({
+      sender: Array.isArray(recentEntry?.sender) ? recentEntry.sender : [],
+      recipient: Array.isArray(recentEntry?.recipient) ? recentEntry.recipient : []
+    });
   };
 
   const submitReceipt = async () => {
@@ -1232,6 +1284,18 @@ export default function TransactionsPage() {
       }
     }
 
+    const nextSenderMsisdn = billSenderMsisdn.trim();
+    const nextRecipientMsisdn = billRecipientMsisdn.trim();
+    if (isBillReceiptContext || nextSenderMsisdn || nextRecipientMsisdn) {
+      const payloadObject =
+        parsedPayload && typeof parsedPayload === 'object' && !Array.isArray(parsedPayload) ? parsedPayload : {};
+      if (nextSenderMsisdn) payloadObject.senderMsisdn = nextSenderMsisdn;
+      else delete payloadObject.senderMsisdn;
+      if (nextRecipientMsisdn) payloadObject.recipientMsisdn = nextRecipientMsisdn;
+      else delete payloadObject.recipientMsisdn;
+      parsedPayload = Object.keys(payloadObject).length > 0 ? payloadObject : undefined;
+    }
+
     const body = {
       ...(receiptType ? { type: receiptType } : {}),
       ...(receiptStatus ? { status: receiptStatus } : {}),
@@ -1242,6 +1306,20 @@ export default function TransactionsPage() {
     setReceiptSaving(true);
     try {
       const res = await api.transactions.upsertReceipt(transactionId, body);
+      const billProductKey = getBillProductMsisdnKey(selected);
+      if (billProductKey && (nextSenderMsisdn || nextRecipientMsisdn)) {
+        const recentStore = readRecentBillMsisdnStore();
+        const existingEntry = recentStore?.[billProductKey] || {};
+        const updatedStore = {
+          ...recentStore,
+          [billProductKey]: {
+            sender: mergeRecentMsisdnValues(existingEntry?.sender, nextSenderMsisdn),
+            recipient: mergeRecentMsisdnValues(existingEntry?.recipient, nextRecipientMsisdn)
+          }
+        };
+        writeRecentBillMsisdnStore(updatedStore);
+        setRecentBillMsisdn(updatedStore[billProductKey]);
+      }
       setReceipt(res || body || {});
       setShowReceiptForm(false);
       pushToast({ tone: 'success', message: 'Receipt saved' });
@@ -2469,6 +2547,59 @@ export default function TransactionsPage() {
                 Include keys like codes, tokens, hashes, last4, receipt numbers, or instructions. Leave empty to keep existing payload.
               </div>
             </div>
+
+            {isBillReceiptContext && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label htmlFor="billSenderMsisdn">Sender MSISDN</label>
+                  <input
+                    id="billSenderMsisdn"
+                    value={billSenderMsisdn}
+                    onChange={(e) => setBillSenderMsisdn(e.target.value)}
+                    placeholder="e.g. 2567..."
+                  />
+                  {recentBillMsisdn.sender.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                      {recentBillMsisdn.sender.map((value) => (
+                        <button
+                          key={`sender-${value}`}
+                          type="button"
+                          className="btn-neutral"
+                          onClick={() => setBillSenderMsisdn(value)}
+                          style={{ padding: '0.3rem 0.55rem' }}
+                        >
+                          {value}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label htmlFor="billRecipientMsisdn">Recipient MSISDN</label>
+                  <input
+                    id="billRecipientMsisdn"
+                    value={billRecipientMsisdn}
+                    onChange={(e) => setBillRecipientMsisdn(e.target.value)}
+                    placeholder="e.g. 2567..."
+                  />
+                  {recentBillMsisdn.recipient.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                      {recentBillMsisdn.recipient.map((value) => (
+                        <button
+                          key={`recipient-${value}`}
+                          type="button"
+                          className="btn-neutral"
+                          onClick={() => setBillRecipientMsisdn(value)}
+                          style={{ padding: '0.3rem 0.55rem' }}
+                        >
+                          {value}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {receiptError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{receiptError}</div>}
 

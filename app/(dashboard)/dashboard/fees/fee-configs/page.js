@@ -494,7 +494,6 @@ export default function FeeConfigsPage() {
 
   const validateDraft = (state, currentId = null) => {
     const resolved = resolveAction(state);
-    if (!resolved) return 'Action is required.';
     if (state.paymentProviderId !== '' && Number(state.paymentProviderId) < 0) return 'Payment provider must be non-negative.';
     if (state.billProviderId !== '' && Number(state.billProviderId) < 0) return 'Bill provider must be non-negative.';
     if (state.paymentMethodPaymentProviderId !== '' && Number(state.paymentMethodPaymentProviderId) < 0) return 'PMPP ID must be non-negative.';
@@ -540,7 +539,7 @@ export default function FeeConfigsPage() {
         && rowPmp === normalizedPmp;
     });
     if (duplicate) {
-      return `Duplicate scope detected with fee config #${duplicate.id}. Keep one row per layered scope for the same action.`;
+      return `Duplicate scope detected with fee config #${duplicate.id}. Keep one row per layered scope for the same action or actionless default.`;
     }
     return null;
   };
@@ -653,7 +652,7 @@ export default function FeeConfigsPage() {
           value={draft.action}
           onChange={(e) => setDraft((p) => ({ ...p, action: e.target.value, customAction: e.target.value === '__custom' ? p.customAction : '' }))}
         >
-          <option value="">Select action</option>
+          <option value="">All actions / no action default</option>
           {actionOptions.map((opt) => (
             <option key={opt} value={opt}>
               {opt}
@@ -669,6 +668,9 @@ export default function FeeConfigsPage() {
             onChange={(e) => setDraft((p) => ({ ...p, customAction: e.target.value }))}
           />
         )}
+        <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+          Leave action blank to create the default fee for this scope. If both exist, action-specific fees beat `OTHER`, and `OTHER` beats the blank-action default.
+        </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="countryId">Country</label>
@@ -764,7 +766,7 @@ export default function FeeConfigsPage() {
         <label htmlFor="overrideSpecificFees">Override Specific Fees</label>
       </div>
       <div style={{ gridColumn: '1 / -1', fontSize: '12px', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.55rem 0.65rem' }}>
-        If enabled, this general fee can override ordinary more specific system fee configs. Use sparingly for temporary policy changes or fast rollouts.
+        If enabled, a broader matching fee can intentionally beat narrower system fee configs. Use this only for explicit business exceptions, temporary campaigns, or fast top-down rollouts.
       </div>
       {isDraftGiftCardAction && (
         <div style={{ gridColumn: '1 / -1', fontSize: '12px', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.55rem 0.65rem' }}>
@@ -813,13 +815,19 @@ export default function FeeConfigsPage() {
       <div className="card" style={{ display: 'grid', gap: '0.45rem', color: 'var(--muted)', fontSize: '13px' }}>
         <div>Configure fees using provider and product names in the UI. The system sends IDs underneath, but names are the source of truth for admin decisions.</div>
         <div>
-          Layering workflow: start broad with <strong>Payment Provider</strong>, <strong>Bill Provider</strong>, or both. Add <strong>Payment Method Route</strong> or <strong>Bill Product Route</strong> only for exceptions.
+          Available scopes, from most specific to most general: <strong>Exact Route</strong> (Payment Method Route + Bill Product Route), <strong>Payment Route Only</strong>, <strong>Bill Route Only</strong>, <strong>Provider Pair</strong> (Payment Provider + Bill Provider), <strong>Bill Provider Default</strong>, <strong>Payment Provider Default</strong>, and <strong>Global Action Default</strong>.
         </div>
         <div>
-          Priority: account custom fees win first. After that, more specific system fees normally beat broader ones. If <strong>Override Specific Fees</strong> is on, a broad config can intentionally beat ordinary specific system fee configs.
+          Action resolution at each matching scope is: <strong>exact action</strong>, then <strong>OTHER</strong>, then <strong>blank action</strong>. Blank action is a valid default fee for that scope, not a bad request.
         </div>
         <div>
-          Example: for all Reloadly Utilities bills funded by one provider, set <strong>Payment Provider</strong> + <strong>Bill Provider</strong> and leave exact routes blank.
+          Precedence: account custom fees win first. After that, narrower system configs normally beat broader ones, while broader configs act as fallback defaults. If <strong>Override Specific Fees</strong> is on, a broader matching fee can intentionally beat ordinary narrower system configs.
+        </div>
+        <div>
+          Recommended workflow: create blank-action provider defaults first, then add action-specific or exact-route exceptions only where needed. Avoid multiple active fee configs at the same exact scope for the same action state.
+        </div>
+        <div>
+          Example: set <strong>Bill Provider = ZENDIT</strong> with blank action for a default Zendit fee, then add <strong>Bill Product Route = SONABEL</strong> with <strong>PAY_ELECTRICITY_BILL</strong> for a targeted exception. The specific action fee wins automatically unless a broader config is marked <strong>Override Specific Fees</strong>.
         </div>
       </div>
 
