@@ -149,6 +149,8 @@ const initialFilters = {
   paymentMethodId: '',
   paymentProviderId: '',
   paymentMethodPaymentProviderId: '',
+  billProductId: '',
+  billProviderId: '',
   userNameContains: '',
   refunded: '',
   needsManualRefund: '',
@@ -338,6 +340,8 @@ export default function TransactionsPage() {
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [paymentProviders, setPaymentProviders] = useState([]);
   const [pmps, setPmps] = useState([]);
+  const [billProducts, setBillProducts] = useState([]);
+  const [billProviders, setBillProviders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
@@ -444,7 +448,7 @@ export default function TransactionsPage() {
       };
       Object.entries(targetFilters).forEach(([key, value]) => {
         if (value === '' || value === null || value === undefined) return;
-        if (['paymentMethodId', 'paymentProviderId', 'paymentMethodPaymentProviderId'].includes(key)) {
+        if (['paymentMethodId', 'paymentProviderId', 'paymentMethodPaymentProviderId', 'billProductId', 'billProviderId'].includes(key)) {
           const num = Number(value);
           if (!Number.isNaN(num)) addIf(key, num);
         } else if (key === 'transactionId') {
@@ -629,15 +633,19 @@ export default function TransactionsPage() {
   useEffect(() => {
     const fetchOptions = async () => {
       try {
-        const [pmRes, provRes, pmpRes] = await Promise.all([
+        const [pmRes, provRes, pmpRes, billProductsRes, billProvidersRes] = await Promise.all([
           api.paymentMethods.list(new URLSearchParams({ page: '0', size: '200' })),
           api.paymentProviders.list(new URLSearchParams({ page: '0', size: '200' })),
-          api.paymentMethodPaymentProviders.list(new URLSearchParams({ page: '0', size: '200' }))
+          api.paymentMethodPaymentProviders.list(new URLSearchParams({ page: '0', size: '200' })),
+          api.billProducts.list(new URLSearchParams({ page: '0', size: '200' })),
+          api.billProviders.list(new URLSearchParams({ page: '0', size: '200' }))
         ]);
         const toList = (res) => (Array.isArray(res) ? res : res?.content || []);
         setPaymentMethods(toList(pmRes));
         setPaymentProviders(toList(provRes));
         setPmps(toList(pmpRes));
+        setBillProducts(toList(billProductsRes));
+        setBillProviders(toList(billProvidersRes));
       } catch {
         // soft fail on options fetch
       }
@@ -706,10 +714,16 @@ export default function TransactionsPage() {
           add(`Payment method: ${value}`, key);
           break;
         case 'paymentProviderId':
-          add(`Payment provider #${value}`, key);
+          add(`Payment provider: ${paymentProviders.find((item) => String(item.id) === String(value))?.name || paymentProviders.find((item) => String(item.id) === String(value))?.displayName || `#${value}`}`, key);
           break;
         case 'paymentMethodPaymentProviderId':
           add(`PMPP #${value}`, key);
+          break;
+        case 'billProductId':
+          add(`Bill product: ${billProducts.find((item) => String(item.id) === String(value))?.name || billProducts.find((item) => String(item.id) === String(value))?.displayName || billProducts.find((item) => String(item.id) === String(value))?.code || `#${value}`}`, key);
+          break;
+        case 'billProviderId':
+          add(`Bill provider: ${billProviders.find((item) => String(item.id) === String(value))?.name || billProviders.find((item) => String(item.id) === String(value))?.displayName || `#${value}`}`, key);
           break;
         case 'userNameContains':
           add(`Username contains: ${value}`, key);
@@ -731,7 +745,7 @@ export default function TransactionsPage() {
       }
     });
     return entries;
-  }, [appliedFilters]);
+  }, [appliedFilters, billProducts, billProviders, paymentProviders]);
 
   const openTransactionOwnerAccount = useCallback(async (row) => {
     const directAccountId = row?.accountId ?? row?.account?.id;
@@ -1597,6 +1611,28 @@ export default function TransactionsPage() {
               {pmps.map((pmp) => (
                 <option key={pmp.id} value={pmp.id}>
                   {(pmp.paymentMethodName || pmp.paymentMethodDisplayName || 'Method') + ' → ' + (pmp.paymentProviderName || 'Provider')}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="billProductId">Bill product</label>
+            <select id="billProductId" value={filters.billProductId} onChange={(e) => setFilters((p) => ({ ...p, billProductId: e.target.value }))}>
+              <option value="">Any</option>
+              {billProducts.map((product) => (
+                <option key={product.id} value={product.id}>
+                  {product.name || product.displayName || product.code || product.id}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="billProviderId">Bill provider</label>
+            <select id="billProviderId" value={filters.billProviderId} onChange={(e) => setFilters((p) => ({ ...p, billProviderId: e.target.value }))}>
+              <option value="">Any</option>
+              {billProviders.map((provider) => (
+                <option key={provider.id} value={provider.id}>
+                  {provider.name || provider.displayName || provider.id}
                 </option>
               ))}
             </select>
