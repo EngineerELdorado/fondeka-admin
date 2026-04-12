@@ -25,6 +25,7 @@ export default function WalletPolicyConfigPage() {
   const [paypalMinimumPayoutUsd, setPaypalMinimumPayoutUsd] = useState('');
   const [payoutKycThresholdUsd, setPayoutKycThresholdUsd] = useState('');
   const [forcePayoutKycUnlessApproved, setForcePayoutKycUnlessApproved] = useState(false);
+  const [forceKycBeforeAppUse, setForceKycBeforeAppUse] = useState(false);
   const [sendCryptoExternalProviderEnabled, setSendCryptoExternalProviderEnabled] = useState(false);
 
   const loadConfig = async () => {
@@ -43,6 +44,7 @@ export default function WalletPolicyConfigPage() {
       setPaypalMinimumPayoutUsd(formatUsdValue(res?.paypalMinimumPayoutUsd));
       setPayoutKycThresholdUsd(formatUsdValue(res?.payoutKycThresholdUsd));
       setForcePayoutKycUnlessApproved(Boolean(res?.forcePayoutKycUnlessApproved));
+      setForceKycBeforeAppUse(Boolean(res?.forceKycBeforeAppUse));
       setSendCryptoExternalProviderEnabled(Boolean(res?.sendCryptoExternalProviderEnabled));
     } catch (err) {
       setError(err?.message || 'Failed to load wallet policy config');
@@ -115,6 +117,7 @@ export default function WalletPolicyConfigPage() {
         paypalMinimumPayoutUsd: paypalMinimumPayoutRaw === '' ? '' : paypalMinimumPayoutParsed.toFixed(2),
         payoutKycThresholdUsd: payoutKycThresholdRaw === '' ? '' : payoutKycThresholdParsed.toFixed(2),
         forcePayoutKycUnlessApproved: Boolean(forcePayoutKycUnlessApproved),
+        forceKycBeforeAppUse: Boolean(forceKycBeforeAppUse),
         sendCryptoExternalProviderEnabled: Boolean(sendCryptoExternalProviderEnabled)
       });
       setInfo('Wallet policy config updated.');
@@ -291,6 +294,39 @@ export default function WalletPolicyConfigPage() {
             </div>
             <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
               If later failed or canceled, the customer&apos;s crypto wallet is refunded.
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <div style={{ fontWeight: 700 }}>Global KYC Gate</div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Controls whether the mobile app should force KYC before normal app usage.
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              When enabled, `/customer-api/accounts/my-account` returns `forceKycBeforeAppUse = true` and the app should send the user into KYC before they continue.
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              This is a global switch for now. It does not yet vary by country, account, or route.
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '12px' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+              <input
+                type="checkbox"
+                checked={forceKycBeforeAppUse}
+                onChange={(e) => setForceKycBeforeAppUse(e.target.checked)}
+                disabled={loading || saving}
+              />
+              Force KYC before app use
+            </label>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Enable this when business or compliance wants KYC required before the user can access the app normally.
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Leave it off to continue using only the existing action-based KYC enforcement.
             </div>
           </div>
         </div>
