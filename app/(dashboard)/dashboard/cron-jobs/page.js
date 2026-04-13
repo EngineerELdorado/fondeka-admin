@@ -5,7 +5,18 @@ import { DataTable } from '@/components/DataTable';
 import { api } from '@/lib/api';
 
 const cronDescriptions = {
-  'loan.due_reminder': 'Sends loan repayment reminders on D-3, D-2, D-1, and D0 (UTC-day logic). Penalty notifications continue via penalty cron after due date.'
+  'loan.due_reminder': 'Sends loan repayment reminders on D-3, D-2, D-1, and D0 (UTC-day logic). Penalty notifications continue via penalty cron after due date.',
+  'reloadly_recharge_catalog.sync': 'Worker-side scheduler that enqueues Reloadly mobile recharge catalog refresh events. Pausing it leaves cached recharge data in place but it will become stale over time.',
+  'zendit_recharge_catalog.sync': 'Worker-side scheduler that enqueues Zendit mobile recharge catalog refresh events. Use manual sync on the Recharge Catalog Sync page if you need an immediate refresh.',
+  'reloadly_utilities_catalog.sync': 'Worker-side scheduler that enqueues Reloadly Utilities catalog refresh events. It controls cache freshness, not customer-facing bill product visibility.',
+  'zendit_utilities_catalog.sync': 'Worker-side scheduler that enqueues Zendit utility voucher catalog refresh events. Use Utility Bill Catalog Sync to enqueue an immediate refresh when needed.'
+};
+
+const getCronGroup = (key) => {
+  const value = String(key || '').trim();
+  if (['reloadly_recharge_catalog.sync', 'zendit_recharge_catalog.sync'].includes(value)) return 'Mobile Recharge Catalog Sync';
+  if (['reloadly_utilities_catalog.sync', 'zendit_utilities_catalog.sync'].includes(value)) return 'Utility Bill Catalog Sync';
+  return 'Other';
 };
 
 const normalizeList = (res) => {
@@ -51,6 +62,7 @@ export default function CronJobsPage() {
       const list = normalizeList(res).map((item) => ({
         key: item?.key || '',
         displayName: item?.displayName || item?.key || '—',
+        group: getCronGroup(item?.key),
         schedule: item?.schedule || '—',
         enabled: Boolean(item?.enabled),
         description: cronDescriptions[item?.key] || '—'
@@ -84,6 +96,7 @@ export default function CronJobsPage() {
                   ...item,
                   key: res.key || item.key,
                   displayName: res.displayName || item.displayName,
+                  group: getCronGroup(res.key || item.key),
                   schedule: res.schedule || item.schedule,
                   enabled: Boolean(res.enabled),
                   description: cronDescriptions[res.key || item.key] || item.description
@@ -105,6 +118,7 @@ export default function CronJobsPage() {
   const columns = useMemo(
     () => [
       { key: 'displayName', label: 'Name' },
+      { key: 'group', label: 'Group' },
       { key: 'key', label: 'Key' },
       { key: 'schedule', label: 'Schedule' },
       { key: 'description', label: 'Description' },
@@ -132,6 +146,9 @@ export default function CronJobsPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
           <div style={{ fontWeight: 800, fontSize: '20px' }}>Cron Jobs</div>
           <div style={{ color: 'var(--muted)' }}>Monitor and control scheduled background jobs.</div>
+          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+            Catalog sync jobs are maintenance schedulers. Pause or unpause them here, and use the dedicated sync pages when you need an immediate manual refresh.
+          </div>
         </div>
         <button type="button" className="btn-neutral" onClick={fetchRows} disabled={loading}>
           {loading ? 'Refreshing…' : 'Refresh'}

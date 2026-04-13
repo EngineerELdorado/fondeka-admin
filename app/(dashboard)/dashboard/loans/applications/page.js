@@ -233,6 +233,8 @@ export default function LoanApplicationsPage() {
         amount: item.loan?.amount ?? item.amount,
         paidAmount: item.loan?.paidAmount ?? item.paidAmount,
         remainingBalance: item.loan?.remainingBalance ?? item.remainingBalance,
+        fineAmount: item.loan?.fineAmount ?? item.fineAmount,
+        outstandingFineAmount: item.loan?.outstandingFineAmount ?? item.outstandingFineAmount,
         givenAmount: item.loan?.givenAmount ?? item.givenAmount,
         interestAmount: item.loan?.interestAmount ?? item.interestAmount,
         currency: item.loan?.currency || item.currency,
@@ -424,6 +426,16 @@ export default function LoanApplicationsPage() {
         key: 'remainingBalance',
         label: 'Remaining',
         render: (row) => `${formatAmount(row.remainingBalance)} ${row.currency || ''}`.trim()
+      },
+      {
+        key: 'fineAmount',
+        label: 'Total Fines',
+        render: (row) => `${formatAmount(row.fineAmount)} ${row.currency || ''}`.trim()
+      },
+      {
+        key: 'outstandingFineAmount',
+        label: 'Outstanding Fines',
+        render: (row) => `${formatAmount(row.outstandingFineAmount)} ${row.currency || ''}`.trim()
       },
       {
         key: 'nextDueInstallment',
@@ -700,6 +712,8 @@ export default function LoanApplicationsPage() {
               { label: 'Due amount', value: `${formatAmount(selected?.amount)} ${selected?.currency || ''}`.trim() },
               { label: 'Paid amount', value: `${formatAmount(selected?.paidAmount)} ${selected?.currency || ''}`.trim() },
               { label: 'Remaining balance', value: `${formatAmount(selected?.remainingBalance)} ${selected?.currency || ''}`.trim() },
+              { label: 'Total Fines', value: `${formatAmount(selected?.fineAmount)} ${selected?.currency || ''}`.trim() },
+              { label: 'Outstanding Fines', value: `${formatAmount(selected?.outstandingFineAmount)} ${selected?.currency || ''}`.trim() },
               { label: 'Type', value: selected?.loanType },
               { label: 'Status', value: selected?.applicationStatus },
               {

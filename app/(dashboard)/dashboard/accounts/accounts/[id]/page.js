@@ -2599,6 +2599,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           { label: 'Account reference', value: accountView?.accountReference },
           { label: 'User', value: accountView?.username },
           { label: 'Phone', value: accountView?.phoneNumber || accountView?.phone },
+          { label: 'Created at', value: formatDateTime(accountView?.createdAt) },
           { label: 'KYC status', value: accountView?.kycStatus },
           { label: 'Blacklist', value: <BlacklistBadge blacklisted={Boolean(accountView?.blacklisted)} /> },
           { label: 'Balance', value: accountView?.balance },

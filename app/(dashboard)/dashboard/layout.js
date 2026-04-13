@@ -23,6 +23,11 @@ const navItems = [
   { href: '/dashboard/esim-products', label: 'eSIM Products' },
   { href: '/dashboard/savings', label: 'Savings & Products' },
   { href: '/dashboard/payment-requests', label: 'Payment Requests' },
+  { href: '/dashboard/recharge-catalog', label: 'Recharge Catalog' },
+  { href: '/dashboard/bills/utility-catalog', label: 'Utility Bill Catalog' },
+  { href: '/dashboard/recharge-provider-routing', label: 'Recharge Provider Routing' },
+  { href: '/dashboard/recharge-catalog-sync', label: 'Recharge Catalog Sync' },
+  { href: '/dashboard/bills/utility-catalog-sync', label: 'Utility Bill Catalog Sync' },
   // Other menus
   { href: '/dashboard/trusted-devices', label: 'Trusted Devices' },
   { href: '/dashboard/transactions', label: 'Transactions' },

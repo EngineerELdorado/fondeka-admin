@@ -156,6 +156,7 @@ export default function CardsPage() {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [confirmBlock, setConfirmBlock] = useState(null);
   const [confirmUnblock, setConfirmUnblock] = useState(null);
+  const [cardActionLoading, setCardActionLoading] = useState(false);
   const [providerDetailLoading, setProviderDetailLoading] = useState(false);
   const [providerDetailError, setProviderDetailError] = useState(null);
   const [providerDetailData, setProviderDetailData] = useState(null);
@@ -254,6 +255,17 @@ export default function CardsPage() {
     }
   };
 
+  const canAdminBlock = (card) => String(card?.status || '').toUpperCase() === 'ACTIVE';
+  const canAdminUnblock = (card) => String(card?.status || '').toUpperCase() === 'BLOCKED_BY_ADMIN';
+
+  const syncCardRecord = (card) => {
+    if (!card?.id) return;
+    setRows((prev) => prev.map((row) => (row?.id === card.id ? { ...row, ...card } : row)));
+    setSelected((prev) => (prev?.id === card.id ? { ...prev, ...card } : prev));
+    setConfirmBlock((prev) => (prev?.id === card.id ? { ...prev, ...card } : prev));
+    setConfirmUnblock((prev) => (prev?.id === card.id ? { ...prev, ...card } : prev));
+  };
+
   useEffect(() => {
     fetchRows();
   }, [page, size, appliedFilters]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -313,11 +325,12 @@ export default function CardsPage() {
         <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
           <button type="button" onClick={() => openDetail(row)} className="btn-neutral">View</button>
           <button type="button" onClick={() => openEdit(row)} className="btn-neutral">Edit</button>
-          {row.status === 'BLOCKED_BY_ADMIN' ? (
+          {canAdminUnblock(row) ? (
             <button type="button" onClick={() => setConfirmUnblock(row)} className="btn-success">Unblock</button>
-          ) : (
+          ) : null}
+          {canAdminBlock(row) ? (
             <button type="button" onClick={() => setConfirmBlock(row)} className="btn-danger">Block</button>
-          )}
+          ) : null}
           <button type="button" onClick={() => setConfirmDelete(row)} className="btn-danger">Delete</button>
         </div>
       )
@@ -558,13 +571,16 @@ export default function CardsPage() {
     if (!confirmBlock?.id) return;
     setError(null);
     setInfo(null);
+    setCardActionLoading(true);
     try {
-      await api.cards.block(confirmBlock.id);
+      const updated = await api.cards.block(confirmBlock.id);
+      if (updated) syncCardRecord(updated);
       setInfo(`Blocked card ${confirmBlock.id}.`);
       setConfirmBlock(null);
-      fetchRows();
     } catch (err) {
       setError(err.message);
+    } finally {
+      setCardActionLoading(false);
     }
   };
 
@@ -572,13 +588,16 @@ export default function CardsPage() {
     if (!confirmUnblock?.id) return;
     setError(null);
     setInfo(null);
+    setCardActionLoading(true);
     try {
-      await api.cards.unblock(confirmUnblock.id);
+      const updated = await api.cards.unblock(confirmUnblock.id);
+      if (updated) syncCardRecord(updated);
       setInfo(`Unblocked card ${confirmUnblock.id}.`);
       setConfirmUnblock(null);
-      fetchRows();
     } catch (err) {
       setError(err.message);
+    } finally {
+      setCardActionLoading(false);
     }
   };
 
@@ -957,6 +976,26 @@ export default function CardsPage() {
                 <span style={{ color: 'var(--muted)', fontSize: '12px' }}>•••• {selected?.last4 || '—'}</span>
               </div>
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                {canAdminBlock(selected) ? (
+                  <button
+                    type="button"
+                    className="btn-danger btn-sm"
+                    onClick={() => setConfirmBlock(selected)}
+                    disabled={cardActionLoading}
+                  >
+                    Block card
+                  </button>
+                ) : null}
+                {canAdminUnblock(selected) ? (
+                  <button
+                    type="button"
+                    className="btn-success btn-sm"
+                    onClick={() => setConfirmUnblock(selected)}
+                    disabled={cardActionLoading}
+                  >
+                    Unblock card
+                  </button>
+                ) : null}
                 <button type="button" className="btn-neutral btn-sm" onClick={() => loadProviderDetails(selected?.id)} disabled={providerDetailLoading || !selected?.id}>
                   {providerDetailLoading ? 'Refreshing details…' : 'Refresh live details'}
                 </button>
@@ -1198,11 +1237,13 @@ export default function CardsPage() {
       {confirmBlock && (
         <Modal title="Block card" onClose={() => setConfirmBlock(null)}>
           <div style={{ color: 'var(--muted)' }}>
-            Block card <strong>{confirmBlock.name || confirmBlock.id}</strong>? Users will not be able to use it.
+            Block card <strong>{confirmBlock.name || confirmBlock.id}</strong>? The provider will be synchronized before local status moves to <strong>BLOCKED_BY_ADMIN</strong>.
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-            <button type="button" onClick={() => setConfirmBlock(null)} className="btn-neutral">Cancel</button>
-            <button type="button" onClick={handleBlock} className="btn-danger">Block</button>
+            <button type="button" onClick={() => setConfirmBlock(null)} className="btn-neutral" disabled={cardActionLoading}>Cancel</button>
+            <button type="button" onClick={handleBlock} className="btn-danger" disabled={cardActionLoading}>
+              {cardActionLoading ? 'Blocking…' : 'Block'}
+            </button>
           </div>
         </Modal>
       )}
@@ -1210,11 +1251,13 @@ export default function CardsPage() {
       {confirmUnblock && (
         <Modal title="Unblock card" onClose={() => setConfirmUnblock(null)}>
           <div style={{ color: 'var(--muted)' }}>
-            Unblock card <strong>{confirmUnblock.name || confirmUnblock.id}</strong>? Status will move to ACTIVE.
+            Unblock card <strong>{confirmUnblock.name || confirmUnblock.id}</strong>? The provider will be synchronized before local status moves back to <strong>ACTIVE</strong>.
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-            <button type="button" onClick={() => setConfirmUnblock(null)} className="btn-neutral">Cancel</button>
-            <button type="button" onClick={handleUnblock} className="btn-success">Unblock</button>
+            <button type="button" onClick={() => setConfirmUnblock(null)} className="btn-neutral" disabled={cardActionLoading}>Cancel</button>
+            <button type="button" onClick={handleUnblock} className="btn-success" disabled={cardActionLoading}>
+              {cardActionLoading ? 'Unblocking…' : 'Unblock'}
+            </button>
           </div>
         </Modal>
       )}

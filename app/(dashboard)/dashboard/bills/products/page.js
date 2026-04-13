@@ -21,8 +21,8 @@ const emptyState = {
   available: true
 };
 
-const typeOptions = ['TELEVISION', 'ELECTRICITY', 'INTERNET', 'WATER', 'STREAMING', 'ENTERTAINMENT', 'TRAVELLING', 'AIRTIME', 'OTHERS'];
-const nameOptions = ['CANAL_PLUS', 'CANAL_BOX', 'STARLINK', 'LIQUID', 'SOCODEE', 'VIRUNGA', 'SNEL', 'DSTV', 'STARTIMES', 'REGIDESO', 'NETFLIX', 'SPOTIFY', 'APP_STORE', 'APPLE', 'GOOGLE_PLAY', 'AIRBNB', 'UBER', 'AIRTIME'];
+const typeOptions = ['TELEVISION', 'ELECTRICITY', 'INTERNET', 'WATER', 'STREAMING', 'ENTERTAINMENT', 'TRAVELLING', 'AIRTIME', 'DATA', 'BUNDLES', 'OTHERS'];
+const nameOptions = ['CANAL_PLUS', 'CANAL_BOX', 'STARLINK', 'LIQUID', 'SOCODEE', 'VIRUNGA', 'SNEL', 'DSTV', 'STARTIMES', 'REGIDESO', 'NETFLIX', 'SPOTIFY', 'APP_STORE', 'APPLE', 'GOOGLE_PLAY', 'AIRBNB', 'UBER', 'AIRTIME', 'DATA', 'BUNDLES'];
 const codeOptions = [
   'CANAL_PLUS_RWANDA',
   'CANAL_PLUS_DRC',
@@ -43,7 +43,9 @@ const codeOptions = [
   'GOOGLE_PLAY',
   'AIRBNB',
   'UBER',
-  'AIRTIME'
+  'AIRTIME',
+  'DATA',
+  'BUNDLES'
 ];
 
 const toPayload = (state) => ({
@@ -543,6 +545,16 @@ export default function BillProductsPage() {
         <Link href="/dashboard/bills" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
           ← Bills hub
         </Link>
+      </div>
+
+      <div className="card" style={{ display: 'grid', gap: '0.25rem' }}>
+        <div style={{ fontWeight: 700 }}>Recharge product categories</div>
+        <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+          `AIRTIME`, `DATA`, and `BUNDLES` are now separate bill-product categories. Use this page for product presence, ordering, and visibility.
+        </div>
+        <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+          Provider fulfillment still routes separately through Recharge Provider Routing. `BUNDLES` here maps to the same business concept as recharge type `BUNDLE`.
+        </div>
       </div>
 
       <div className="card" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>

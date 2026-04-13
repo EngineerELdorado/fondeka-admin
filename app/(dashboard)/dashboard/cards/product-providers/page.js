@@ -18,6 +18,9 @@ const emptyState = {
   interchangeFeePercentage: '',
   minInterchangeFeeAmount: '',
   maxInterchangeFeeAmount: '',
+  providerTransactionFeePercentage: '',
+  minProviderTransactionFeeAmount: '',
+  maxProviderTransactionFeeAmount: '',
   rank: '',
   maxDailyLimit: '',
   minFirstTopup: '',
@@ -42,6 +45,9 @@ const toPayload = (state) => ({
   interchangeFeePercentage: state.interchangeFeePercentage === '' ? null : Number(state.interchangeFeePercentage),
   minInterchangeFeeAmount: state.minInterchangeFeeAmount === '' ? null : Number(state.minInterchangeFeeAmount),
   maxInterchangeFeeAmount: state.maxInterchangeFeeAmount === '' ? null : Number(state.maxInterchangeFeeAmount),
+  providerTransactionFeePercentage: state.providerTransactionFeePercentage === '' ? null : Number(state.providerTransactionFeePercentage),
+  minProviderTransactionFeeAmount: state.minProviderTransactionFeeAmount === '' ? null : Number(state.minProviderTransactionFeeAmount),
+  maxProviderTransactionFeeAmount: state.maxProviderTransactionFeeAmount === '' ? null : Number(state.maxProviderTransactionFeeAmount),
   rank: state.rank === '' ? null : Number(state.rank),
   maxDailyLimit: state.maxDailyLimit === '' ? null : Number(state.maxDailyLimit),
   minFirstTopup: state.minFirstTopup === '' ? null : Number(state.minFirstTopup),
@@ -201,6 +207,27 @@ export default function CardProductProvidersPage() {
         }
       },
       {
+        key: 'providerFeeFallback',
+        label: 'Provider fee fallback',
+        render: (row) => {
+          const percentage = row.providerTransactionFeePercentage;
+          const min = row.minProviderTransactionFeeAmount;
+          const max = row.maxProviderTransactionFeeAmount;
+          if (
+            (percentage === null || percentage === undefined || percentage === '') &&
+            (min === null || min === undefined || min === '') &&
+            (max === null || max === undefined || max === '')
+          ) {
+            return '—';
+          }
+          const parts = [];
+          if (percentage !== null && percentage !== undefined && percentage !== '') parts.push(`${percentage}%`);
+          if (min !== null && min !== undefined && min !== '') parts.push(`min ${min}`);
+          if (max !== null && max !== undefined && max !== '') parts.push(`max ${max}`);
+          return parts.join(' | ');
+        }
+      },
+      {
         key: 'rank',
         label: 'Rank',
         render: (row) => (row.rank === null || row.rank === undefined ? '—' : row.rank)
@@ -262,6 +289,9 @@ export default function CardProductProvidersPage() {
       interchangeFeePercentage: row.interchangeFeePercentage ?? '',
       minInterchangeFeeAmount: row.minInterchangeFeeAmount ?? '',
       maxInterchangeFeeAmount: row.maxInterchangeFeeAmount ?? '',
+      providerTransactionFeePercentage: row.providerTransactionFeePercentage ?? '',
+      minProviderTransactionFeeAmount: row.minProviderTransactionFeeAmount ?? '',
+      maxProviderTransactionFeeAmount: row.maxProviderTransactionFeeAmount ?? '',
       rank: row.rank ?? '',
       maxDailyLimit: row.maxDailyLimit ?? '',
       minFirstTopup: row.minFirstTopup ?? '',
@@ -405,7 +435,13 @@ export default function CardProductProvidersPage() {
           onChange={(e) => setDraft((p) => ({ ...p, transactionFeePercentage: e.target.value }))}
         />
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
+      <div style={{ gridColumn: '1 / -1', display: 'grid', gap: '0.35rem' }}>
+        <div style={{ fontWeight: 700 }}>Fondeka Fees</div>
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          Internal fee and interchange configuration used by Fondeka pricing.
+        </div>
+      </div>
+      <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="interchangeFeePercentage">Interchange fee %</label>
           <input
@@ -443,8 +479,61 @@ export default function CardProductProvidersPage() {
           />
         </div>
       </div>
-      <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+      <div style={{ gridColumn: '1 / -1', color: 'var(--muted)', fontSize: '12px' }}>
         Leave all interchange fields empty for no interchange earnings; set percentage only for pure percent; set percentage + min/max for bounded earnings.
+      </div>
+      <div style={{ gridColumn: '1 / -1', display: 'grid', gap: '0.35rem' }}>
+        <div style={{ fontWeight: 700 }}>Provider Fees</div>
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          Provider-side fallback fee estimate used for declined card-payment notifications when the webhook does not send explicit provider fee amounts.
+        </div>
+      </div>
+      <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <label htmlFor="providerTransactionFeePercentage">Provider transaction fee %</label>
+          <input
+            id="providerTransactionFeePercentage"
+            type="number"
+            min={0}
+            step="0.01"
+            value={draft.providerTransactionFeePercentage}
+            onChange={(e) => setDraft((p) => ({ ...p, providerTransactionFeePercentage: e.target.value }))}
+            placeholder="1.00"
+          />
+          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+            Percentage charged by the provider on card payments.
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <label htmlFor="minProviderTransactionFeeAmount">Min provider transaction fee ({draft.currency || 'USD'})</label>
+          <input
+            id="minProviderTransactionFeeAmount"
+            type="number"
+            min={0}
+            step="0.01"
+            value={draft.minProviderTransactionFeeAmount}
+            onChange={(e) => setDraft((p) => ({ ...p, minProviderTransactionFeeAmount: e.target.value }))}
+            placeholder="1.00"
+          />
+          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+            Minimum provider fee amount charged per transaction.
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <label htmlFor="maxProviderTransactionFeeAmount">Max provider transaction fee ({draft.currency || 'USD'})</label>
+          <input
+            id="maxProviderTransactionFeeAmount"
+            type="number"
+            min={0}
+            step="0.01"
+            value={draft.maxProviderTransactionFeeAmount}
+            onChange={(e) => setDraft((p) => ({ ...p, maxProviderTransactionFeeAmount: e.target.value }))}
+            placeholder="10.00"
+          />
+          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+            Optional cap on provider fee amount.
+          </div>
+        </div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -612,6 +701,9 @@ export default function CardProductProvidersPage() {
               { label: 'Interchange fee %', value: selected?.interchangeFeePercentage ?? '—' },
               { label: 'Min interchange fee (USD)', value: selected?.minInterchangeFeeAmount ?? '—' },
               { label: 'Max interchange fee (USD)', value: selected?.maxInterchangeFeeAmount ?? '—' },
+              { label: 'Provider transaction fee %', value: selected?.providerTransactionFeePercentage ?? '—' },
+              { label: 'Min provider transaction fee', value: selected?.minProviderTransactionFeeAmount ?? '—' },
+              { label: 'Max provider transaction fee', value: selected?.maxProviderTransactionFeeAmount ?? '—' },
               { label: 'Validity length', value: selected?.validityLength ?? '—' },
               { label: 'Validity type', value: selected?.validityType ?? '—' },
               { label: 'Rank', value: selected?.rank ?? '—' },

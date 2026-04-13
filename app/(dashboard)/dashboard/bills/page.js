@@ -5,6 +5,8 @@ import Link from 'next/link';
 const sections = [
   { href: '/dashboard/bills/products', title: 'Bill Products', blurb: 'Catalog of billable products (code, name, rank, active).' },
   { href: '/dashboard/bills/providers', title: 'Bill Providers', blurb: 'Manage bill providers and ranking.' },
+  { href: '/dashboard/bills/utility-catalog', title: 'Utility Bill Catalog', blurb: 'Explore cached Reloadly Utilities and Zendit utility catalog items.' },
+  { href: '/dashboard/bills/utility-catalog-sync', title: 'Utility Bill Catalog Sync', blurb: 'Monitor cache freshness and enqueue manual utility catalog syncs.' },
   { href: '/dashboard/bills/cegaweb-profiles', title: 'CegaWeb Profiles', blurb: 'Manage Canal+ credentials per country.' },
   { href: '/dashboard/bills/product-providers', title: 'Product ↔ Provider', blurb: 'Map bill products to providers with rank/active.' },
   { href: '/dashboard/bills/offers', title: 'Product/Provider Offers', blurb: 'Offers per product/provider mapping.' },
