@@ -428,6 +428,14 @@ export default function TransactionsPage() {
     null;
   const bankRefValue = receiptPayloadData?.bankRef || selected?.externalReference || null;
   const fundFinalDestinationValue = selected?.fundFinalDestination || selected?.transactionRecipient || null;
+  const cryptoOperationDetails = selected?.cryptoOperationDetails && typeof selected.cryptoOperationDetails === 'object'
+    ? selected.cryptoOperationDetails
+    : null;
+  const sendCryptoAddressValue =
+    selected?.recipient ||
+    cryptoOperationDetails?.address ||
+    fundFinalDestinationValue ||
+    null;
   const latestAdminMessage = pickLatestAdminMessage(selected);
   const noteFromSender =
     receiptPayloadData?.adminNote || receiptPayloadData?.noteFromSender || receiptPayloadData?.note || null;
@@ -1809,6 +1817,15 @@ export default function TransactionsPage() {
                 { label: 'Customer phone', value: selected?.customerPhone || '—' },
                 { label: 'Recipient', value: selected?.recipient },
                 ...(fundFinalDestinationValue ? [{ label: 'Fund final destination', value: fundFinalDestinationValue }] : []),
+                ...(normalizedSelectedAction === 'SEND_CRYPTO'
+                  ? [
+                      { label: 'Crypto destination address', value: sendCryptoAddressValue || '—' },
+                      { label: 'Crypto amount', value: cryptoOperationDetails?.cryptoAmount ?? '—' },
+                      { label: 'Crypto asset', value: cryptoOperationDetails?.cryptoCurrency || '—' },
+                      { label: 'Crypto network', value: cryptoOperationDetails?.network || '—' },
+                      { label: 'Crypto tx hash', value: cryptoOperationDetails?.trxHash || '—' }
+                    ]
+                  : []),
                 { label: 'Payment method', value: selected?.paymentMethodName || selected?.paymentMethodId },
                 ...(selected?.paymentMethodType ? [{ label: 'Payment method type', value: selected?.paymentMethodType }] : []),
                 { label: 'Payment provider', value: selected?.paymentProviderName || selected?.paymentProviderId },
