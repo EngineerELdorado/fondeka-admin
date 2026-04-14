@@ -175,13 +175,31 @@ const Modal = ({ title, onClose, children }) => (
 const DetailGrid = ({ rows }) => (
   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
     {rows.map((row) => (
-      <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px' }}>
+      <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px', minWidth: 0 }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
-        <div style={{ fontWeight: 700 }}>{row.value ?? '—'}</div>
+        <div style={{ fontWeight: 700, minWidth: 0, overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{row.value ?? '—'}</div>
       </div>
     ))}
   </div>
 );
+
+const CopyableValue = ({ value, label, onCopy }) => {
+  const text = value === null || value === undefined || value === '' ? '' : String(value);
+  if (!text) return '—';
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'flex-start', gap: '0.4rem', flexWrap: 'wrap', minWidth: 0 }}>
+      <span style={{ minWidth: 0, overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{text}</span>
+      <button
+        type="button"
+        className="btn-neutral btn-sm"
+        onClick={() => onCopy(text, label)}
+        style={{ padding: '0.1rem 0.45rem', flexShrink: 0 }}
+      >
+        Copy
+      </button>
+    </span>
+  );
+};
 
 const FilterChip = ({ label, onClear }) => (
   <span
@@ -446,6 +464,24 @@ export default function TransactionsPage() {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
     return date.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+  };
+
+  const formatCryptoAmount = (value) => {
+    if (value === null || value === undefined || value === '') return '—';
+    const num = Number(value);
+    if (!Number.isFinite(num)) return value;
+    return num.toFixed(8).replace(/\.?0+$/, '');
+  };
+
+  const copyToClipboard = async (value, label = 'Value') => {
+    const text = value === null || value === undefined ? '' : String(value);
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      pushToast({ tone: 'success', message: `${label} copied.` });
+    } catch {
+      pushToast({ tone: 'error', message: `Failed to copy ${label.toLowerCase()}.` });
+    }
   };
 
   const fetchRowsFor = async ({ targetPage, targetSize, targetFilters }) => {
@@ -1784,11 +1820,11 @@ export default function TransactionsPage() {
               rows={[
                 { label: 'Transaction ID', value: selected?.transactionId || selected?.id },
                 { label: 'Created', value: formatDateTime(selected?.createdAt) },
-                { label: 'Reference', value: selected?.reference },
-                { label: 'External ref', value: selected?.externalReference },
-                { label: 'Bank ref', value: bankRefValue || '—' },
-                { label: 'Operator ref', value: selected?.operatorReference },
-                { label: 'Internal ref', value: selected?.internalReference || '—' },
+                { label: 'Reference', value: <CopyableValue value={selected?.reference} label="Reference" onCopy={copyToClipboard} /> },
+                { label: 'External ref', value: <CopyableValue value={selected?.externalReference} label="External ref" onCopy={copyToClipboard} /> },
+                { label: 'Bank ref', value: <CopyableValue value={bankRefValue} label="Bank ref" onCopy={copyToClipboard} /> },
+                { label: 'Operator ref', value: <CopyableValue value={selected?.operatorReference} label="Operator ref" onCopy={copyToClipboard} /> },
+                { label: 'Internal ref', value: <CopyableValue value={selected?.internalReference} label="Internal ref" onCopy={copyToClipboard} /> },
                 { label: 'Device ID', value: selected?.deviceId || '—' },
                 { label: 'Service', value: formatEnumLabel(selected?.service, serviceLabels) },
                 { label: 'Action', value: formatEnumLabel(selected?.action, actionLabels) },
@@ -1796,7 +1832,7 @@ export default function TransactionsPage() {
                 { label: 'Status', value: selected?.status },
                 { label: 'Updated at', value: formatDateTime(selected?.updatedAt) },
                 { label: 'Amount', value: `${selected?.amount ?? '—'} ${selected?.currency || ''}`.trim() },
-                { label: 'Account ref', value: selected?.accountReference || '—' },
+                { label: 'Account ref', value: <CopyableValue value={selected?.accountReference} label="Account ref" onCopy={copyToClipboard} /> },
                 { label: 'Account balance', value: accountLoading ? 'Loading…' : accountSummary?.balance ?? '—' },
                 { label: 'Gross amount', value: selected?.grossAmount },
                 { label: 'External fee', value: selected?.externalFeeAmount },
@@ -1815,15 +1851,23 @@ export default function TransactionsPage() {
                 { label: 'Username', value: selected?.username || '—' },
                 { label: 'Customer email', value: selected?.customerEmail || '—' },
                 { label: 'Customer phone', value: selected?.customerPhone || '—' },
-                { label: 'Recipient', value: selected?.recipient },
-                ...(fundFinalDestinationValue ? [{ label: 'Fund final destination', value: fundFinalDestinationValue }] : []),
+                { label: 'Recipient', value: <CopyableValue value={selected?.recipient} label="Recipient" onCopy={copyToClipboard} /> },
+                ...(fundFinalDestinationValue
+                  ? [{ label: 'Fund final destination', value: <CopyableValue value={fundFinalDestinationValue} label="Fund final destination" onCopy={copyToClipboard} /> }]
+                  : []),
                 ...(normalizedSelectedAction === 'SEND_CRYPTO'
                   ? [
-                      { label: 'Crypto destination address', value: sendCryptoAddressValue || '—' },
-                      { label: 'Crypto amount', value: cryptoOperationDetails?.cryptoAmount ?? '—' },
+                      {
+                        label: 'Crypto destination address',
+                        value: <CopyableValue value={sendCryptoAddressValue} label="Crypto destination address" onCopy={copyToClipboard} />
+                      },
+                      { label: 'Crypto amount', value: formatCryptoAmount(cryptoOperationDetails?.cryptoAmount) },
                       { label: 'Crypto asset', value: cryptoOperationDetails?.cryptoCurrency || '—' },
                       { label: 'Crypto network', value: cryptoOperationDetails?.network || '—' },
-                      { label: 'Crypto tx hash', value: cryptoOperationDetails?.trxHash || '—' }
+                      {
+                        label: 'Crypto tx hash',
+                        value: <CopyableValue value={cryptoOperationDetails?.trxHash} label="Crypto tx hash" onCopy={copyToClipboard} />
+                      }
                     ]
                   : []),
                 { label: 'Payment method', value: selected?.paymentMethodName || selected?.paymentMethodId },
