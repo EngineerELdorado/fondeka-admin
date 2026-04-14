@@ -270,7 +270,7 @@ export default function WalletPolicyConfigPage() {
 
         <div style={{ display: 'grid', gap: '0.75rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <div style={{ fontWeight: 700 }}>Crypto Send</div>
+            <div style={{ fontWeight: 700 }}>Send crypto via external provider</div>
             <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
               Turn off to route send-crypto transactions to manual intervention instead of external provider execution.
             </div>

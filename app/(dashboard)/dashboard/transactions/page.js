@@ -347,6 +347,7 @@ export default function TransactionsPage() {
   const [info, setInfo] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
   const [selected, setSelected] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [accountSummary, setAccountSummary] = useState(null);
   const [accountLoading, setAccountLoading] = useState(false);
 
@@ -426,6 +427,7 @@ export default function TransactionsPage() {
     receiptPayloadData?.cryptoOperationDetails?.explorerUrl ||
     null;
   const bankRefValue = receiptPayloadData?.bankRef || selected?.externalReference || null;
+  const fundFinalDestinationValue = selected?.fundFinalDestination || selected?.transactionRecipient || null;
   const latestAdminMessage = pickLatestAdminMessage(selected);
   const noteFromSender =
     receiptPayloadData?.adminNote || receiptPayloadData?.noteFromSender || receiptPayloadData?.note || null;
@@ -976,10 +978,24 @@ export default function TransactionsPage() {
     }
   };
 
+  const loadTransactionDetails = async (transactionId) => {
+    if (!transactionId) return;
+    setDetailLoading(true);
+    try {
+      const res = await api.transactions.get(transactionId);
+      if (res) setSelected((prev) => ({ ...(prev || {}), ...(res || {}) }));
+    } catch (err) {
+      pushToast({ tone: 'error', message: err?.message || 'Failed to load transaction details' });
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!showDetail || !selected) return;
     loadAccountSummary(selected);
     const transactionId = selected?.transactionId || selected?.id;
+    loadTransactionDetails(transactionId);
     loadReceipt(transactionId);
     loadReceiptAuditLogs(transactionId);
     const service = String(selected?.service || '').toUpperCase();
@@ -1094,8 +1110,7 @@ export default function TransactionsPage() {
 
   const refreshSelectedTransaction = async (transactionId) => {
     await fetchRows();
-    const fresh = await api.transactions.list(new URLSearchParams({ page: '0', size: '1', transactionId: String(transactionId) }));
-    const latest = Array.isArray(fresh) ? fresh?.[0] : fresh?.content?.[0];
+    const latest = await api.transactions.get(transactionId);
     if (latest) setSelected(latest);
   };
 
@@ -1754,6 +1769,9 @@ export default function TransactionsPage() {
       {showDetail && (
         <Modal title={`Transaction ${selected?.reference || selected?.id}`} onClose={() => setShowDetail(false)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+            {detailLoading ? (
+              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Refreshing transaction details…</div>
+            ) : null}
             <DetailGrid
               rows={[
                 { label: 'Transaction ID', value: selected?.transactionId || selected?.id },
@@ -1790,6 +1808,7 @@ export default function TransactionsPage() {
                 { label: 'Customer email', value: selected?.customerEmail || '—' },
                 { label: 'Customer phone', value: selected?.customerPhone || '—' },
                 { label: 'Recipient', value: selected?.recipient },
+                ...(fundFinalDestinationValue ? [{ label: 'Fund final destination', value: fundFinalDestinationValue }] : []),
                 { label: 'Payment method', value: selected?.paymentMethodName || selected?.paymentMethodId },
                 ...(selected?.paymentMethodType ? [{ label: 'Payment method type', value: selected?.paymentMethodType }] : []),
                 { label: 'Payment provider', value: selected?.paymentProviderName || selected?.paymentProviderId },
