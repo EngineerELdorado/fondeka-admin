@@ -1,16 +1,56 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 
 const MIN_COOLDOWN = 1;
 const MAX_COOLDOWN = 1440;
 const ALLOWED_PAYOUT_ACTIONS = ['WITHDRAW_FROM_WALLET', 'WITHDRAW_FROM_CARD', 'SELL_CRYPTO'];
+const ACTION_OPTIONS = [
+  'FUND_WALLET',
+  'WITHDRAW_FROM_WALLET',
+  'REFUND_TO_WALLET',
+  'BONUS',
+  'PAY_INTERNET_BILL',
+  'PAY_TV_SUBSCRIPTION',
+  'PAY_ELECTRICITY_BILL',
+  'PAY_WATER_BILL',
+  'LOAN_REQUEST',
+  'LOAN_DISBURSEMENT',
+  'REPAY_LOAN',
+  'FUND_CARD',
+  'WITHDRAW_FROM_CARD',
+  'BUY_CARD',
+  'CARD_ONLINE_PAYMENT',
+  'CARD_PAYMENT_REVERSAL',
+  'BUY_CRYPTO',
+  'SELL_CRYPTO',
+  'RECEIVE_CRYPTO',
+  'SEND_CRYPTO',
+  'SWAP_CRYPTO',
+  'REQUEST_PAYMENT',
+  'PAY_REQUEST',
+  'E_SIM_PURCHASE',
+  'E_SIM_TOPUP',
+  'SEND_AIRTIME',
+  'SEND_DATA_BUNDLES',
+  'BUY_GIFT_CARD',
+  'PAY_NETFLIX',
+  'INTER_TRANSFER',
+  'OTHER'
+].sort();
 const formatUsdValue = (value) => {
   if (value === null || value === undefined || value === '') return '';
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed.toFixed(2) : String(value);
 };
+const humanizeEnum = (value) =>
+  String(value || '')
+    .toLowerCase()
+    .split('_')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 
 export default function WalletPolicyConfigPage() {
   const [loading, setLoading] = useState(false);
@@ -27,6 +67,26 @@ export default function WalletPolicyConfigPage() {
   const [forcePayoutKycUnlessApproved, setForcePayoutKycUnlessApproved] = useState(false);
   const [forceKycBeforeAppUse, setForceKycBeforeAppUse] = useState(false);
   const [sendCryptoExternalProviderEnabled, setSendCryptoExternalProviderEnabled] = useState(false);
+  const [autoRefundBlockedActions, setAutoRefundBlockedActions] = useState([]);
+  const [autoRefundActionSearch, setAutoRefundActionSearch] = useState('');
+  const [configSnapshot, setConfigSnapshot] = useState(null);
+
+  const autoRefundActionOptions = useMemo(() => {
+    const known = new Set(ACTION_OPTIONS);
+    for (const action of autoRefundBlockedActions) {
+      if (action) known.add(String(action));
+    }
+    return Array.from(known).sort();
+  }, [autoRefundBlockedActions]);
+
+  const filteredAutoRefundActionOptions = useMemo(() => {
+    const query = autoRefundActionSearch.trim().toLowerCase();
+    if (!query) return autoRefundActionOptions;
+    return autoRefundActionOptions.filter((action) => {
+      const raw = String(action);
+      return raw.toLowerCase().includes(query) || humanizeEnum(raw).toLowerCase().includes(query);
+    });
+  }, [autoRefundActionOptions, autoRefundActionSearch]);
 
   const loadConfig = async () => {
     setLoading(true);
@@ -34,10 +94,12 @@ export default function WalletPolicyConfigPage() {
     setInfo(null);
     try {
       const res = await api.walletPolicyConfig.get();
+      setConfigSnapshot(res || {});
       const value = res?.interTransferCooldownMinutes;
       setCooldown(value === null || value === undefined ? '' : String(value));
       const incomingActions = Array.isArray(res?.payoutRateLimitActions) ? res.payoutRateLimitActions : [];
       setPayoutRateLimitActions(incomingActions.filter((action) => ALLOWED_PAYOUT_ACTIONS.includes(String(action))));
+      setAutoRefundBlockedActions(Array.isArray(res?.autoRefundBlockedActions) ? res.autoRefundBlockedActions.map((action) => String(action)).filter(Boolean) : []);
       setCryptoProviderCollectionMinimumUsd(formatUsdValue(res?.cryptoProviderCollectionMinimumUsd));
       setCryptoProviderCollectionMaximumUsd(formatUsdValue(res?.cryptoProviderCollectionMaximumUsd));
       setSendAirtimeMinimumUsd(formatUsdValue(res?.sendAirtimeMinimumUsd));
@@ -68,6 +130,13 @@ export default function WalletPolicyConfigPage() {
         (Array.isArray(payoutRateLimitActions) ? payoutRateLimitActions : [])
           .map((action) => String(action || '').trim())
           .filter((action) => ALLOWED_PAYOUT_ACTIONS.includes(action))
+      )
+    );
+    const normalizedAutoRefundBlockedActions = Array.from(
+      new Set(
+        (Array.isArray(autoRefundBlockedActions) ? autoRefundBlockedActions : [])
+          .map((action) => String(action || '').trim())
+          .filter(Boolean)
       )
     );
     const minRaw = String(cryptoProviderCollectionMinimumUsd || '').trim();
@@ -109,6 +178,7 @@ export default function WalletPolicyConfigPage() {
     setInfo(null);
     try {
       await api.walletPolicyConfig.update({
+        ...(configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {}),
         interTransferCooldownMinutes: parsed,
         payoutRateLimitActions: normalizedActions,
         cryptoProviderCollectionMinimumUsd: minRaw === '' ? '' : minParsed.toFixed(2),
@@ -118,7 +188,8 @@ export default function WalletPolicyConfigPage() {
         payoutKycThresholdUsd: payoutKycThresholdRaw === '' ? '' : payoutKycThresholdParsed.toFixed(2),
         forcePayoutKycUnlessApproved: Boolean(forcePayoutKycUnlessApproved),
         forceKycBeforeAppUse: Boolean(forceKycBeforeAppUse),
-        sendCryptoExternalProviderEnabled: Boolean(sendCryptoExternalProviderEnabled)
+        sendCryptoExternalProviderEnabled: Boolean(sendCryptoExternalProviderEnabled),
+        autoRefundBlockedActions: normalizedAutoRefundBlockedActions
       });
       setInfo('Wallet policy config updated.');
       await loadConfig();
@@ -191,6 +262,63 @@ export default function WalletPolicyConfigPage() {
                 </label>
               );
             })}
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gap: '0.5rem' }}>
+          <div style={{ fontWeight: 700 }}>Block Auto Refund For Actions</div>
+          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+            If an action is selected here, failed transactions for that action will not be auto-refunded. They will be marked for manual refund instead.
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+            <input
+              type="search"
+              value={autoRefundActionSearch}
+              onChange={(e) => setAutoRefundActionSearch(e.target.value)}
+              placeholder="Search actions"
+              disabled={loading || saving}
+            />
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: '0.35rem',
+                maxHeight: '220px',
+                overflow: 'auto',
+                padding: '0.6rem',
+                border: '1px solid var(--border)',
+                borderRadius: '12px'
+              }}
+            >
+              {filteredAutoRefundActionOptions.map((action) => {
+                const checked = autoRefundBlockedActions.includes(action);
+                return (
+                  <label key={action} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', minWidth: 0 }}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) => {
+                        const isChecked = e.target.checked;
+                        setAutoRefundBlockedActions((prev) => {
+                          const set = new Set(prev.map((item) => String(item)));
+                          if (isChecked) set.add(action);
+                          else set.delete(action);
+                          return Array.from(set);
+                        });
+                      }}
+                      disabled={loading || saving}
+                    />
+                    <span style={{ overflowWrap: 'anywhere' }}>{humanizeEnum(action)} <span style={{ color: 'var(--muted)' }}>({action})</span></span>
+                  </label>
+                );
+              })}
+              {filteredAutoRefundActionOptions.length === 0 ? (
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>No matching actions.</div>
+              ) : null}
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Empty selection means no actions are blocked from auto-refund.
+            </div>
           </div>
         </div>
 
