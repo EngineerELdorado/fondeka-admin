@@ -21,6 +21,13 @@ const PERCENT_FIELDS = [
     help: 'Daily overdue penalty percent (unpaid + accrued penalties).'
   }
 ];
+const INTEGER_FIELDS = [
+  {
+    key: 'payoutBlockPreDueDays',
+    label: 'Pre-Due Reminder / Withdrawal Block Days',
+    help: 'Number of days before a loan due date when reminders start and withdrawals/payouts are blocked.'
+  }
+];
 
 const toFormValue = (value) => {
   if (value === null || value === undefined || value === '') return '';
@@ -47,12 +54,14 @@ export default function LoanPolicyConfigPage() {
   const [initial, setInitial] = useState({
     baseEligibilityPercent: '',
     untrustedEligibilityPercent: '',
-    dailyPenaltyPercent: ''
+    dailyPenaltyPercent: '',
+    payoutBlockPreDueDays: ''
   });
   const [draft, setDraft] = useState({
     baseEligibilityPercent: '',
     untrustedEligibilityPercent: '',
-    dailyPenaltyPercent: ''
+    dailyPenaltyPercent: '',
+    payoutBlockPreDueDays: ''
   });
 
   const loadConfig = async () => {
@@ -64,7 +73,8 @@ export default function LoanPolicyConfigPage() {
       const next = {
         baseEligibilityPercent: toFormValue(res?.baseEligibilityPercent),
         untrustedEligibilityPercent: toFormValue(res?.untrustedEligibilityPercent),
-        dailyPenaltyPercent: toFormValue(res?.dailyPenaltyPercent)
+        dailyPenaltyPercent: toFormValue(res?.dailyPenaltyPercent),
+        payoutBlockPreDueDays: toFormValue(res?.payoutBlockPreDueDays)
       };
       setInitial(next);
       setDraft(next);
@@ -89,6 +99,15 @@ export default function LoanPolicyConfigPage() {
         payload[field.key] = current;
       }
     }
+    for (const field of INTEGER_FIELDS) {
+      const current = toNumberOrNull(draft[field.key]);
+      const original = toNumberOrNull(initial[field.key]);
+      if (current === null) continue;
+      if (!Number.isInteger(current) || current < 1) continue;
+      if (original === null || current !== original) {
+        payload[field.key] = current;
+      }
+    }
     return payload;
   }, [draft, initial]);
 
@@ -97,6 +116,11 @@ export default function LoanPolicyConfigPage() {
   const handleSave = async () => {
     if (!changedCount) {
       setInfo('No changes to save.');
+      return;
+    }
+    const payoutBlockPreDueDays = toNumberOrNull(draft.payoutBlockPreDueDays);
+    if (payoutBlockPreDueDays === null || !Number.isInteger(payoutBlockPreDueDays) || payoutBlockPreDueDays < 1) {
+      setError('Pre-due reminder / withdrawal block days must be an integer of 1 or greater.');
       return;
     }
     setSaving(true);
@@ -145,7 +169,7 @@ export default function LoanPolicyConfigPage() {
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
           <div style={{ fontSize: '20px', fontWeight: 800 }}>Loan Policy Config</div>
-          <div style={{ color: 'var(--muted)' }}>Manage global loan eligibility and overdue penalty percentages.</div>
+          <div style={{ color: 'var(--muted)' }}>Manage global loan eligibility, overdue penalties, and pre-due reminder/blocking settings.</div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <button type="button" className="btn-neutral" onClick={loadConfig} disabled={loading || saving}>
@@ -175,6 +199,26 @@ export default function LoanPolicyConfigPage() {
               disabled={loading || saving}
             />
             <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{field.help}</div>
+          </div>
+        ))}
+        {INTEGER_FIELDS.map((field) => (
+          <div key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+            <label htmlFor={field.key}>{field.label}</label>
+            <input
+              id={field.key}
+              type="number"
+              min="1"
+              step="1"
+              inputMode="numeric"
+              placeholder="7"
+              value={draft[field.key]}
+              onChange={(e) => setDraft((prev) => ({ ...prev, [field.key]: e.target.value }))}
+              disabled={loading || saving}
+            />
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{field.help}</div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Users will start receiving loan reminders this many days before due date, and withdrawals/payouts will also be blocked starting the same day.
+            </div>
           </div>
         ))}
       </div>
