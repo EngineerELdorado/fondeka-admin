@@ -27,6 +27,9 @@ const TRUSTED_DEVICE_IOS_KEY = 'trusted_device_enforcement.ios';
 const TRANSACTION_AUTH_GLOBAL_KEY = 'transaction_auth_enforcement';
 const TRANSACTION_AUTH_ANDROID_KEY = 'transaction_auth_enforcement.android';
 const TRANSACTION_AUTH_IOS_KEY = 'transaction_auth_enforcement.ios';
+const APP_OPEN_AUTH_GLOBAL_KEY = 'app_open_auth_enforcement';
+const APP_OPEN_AUTH_ANDROID_KEY = 'app_open_auth_enforcement.android';
+const APP_OPEN_AUTH_IOS_KEY = 'app_open_auth_enforcement.ios';
 
 const ACTION_LABELS = {
   fund_wallet: 'Wallet Deposit',
@@ -204,6 +207,18 @@ export default function FeatureFlagsPage() {
     () => flags.find((flag) => String(flag.key) === TRANSACTION_AUTH_IOS_KEY),
     [flags]
   );
+  const appOpenAuthGlobalFlag = useMemo(
+    () => flags.find((flag) => String(flag.key) === APP_OPEN_AUTH_GLOBAL_KEY),
+    [flags]
+  );
+  const appOpenAuthAndroidFlag = useMemo(
+    () => flags.find((flag) => String(flag.key) === APP_OPEN_AUTH_ANDROID_KEY),
+    [flags]
+  );
+  const appOpenAuthIosFlag = useMemo(
+    () => flags.find((flag) => String(flag.key) === APP_OPEN_AUTH_IOS_KEY),
+    [flags]
+  );
 
   const interTransferFlag = useMemo(
     () => flags.find((flag) => String(flag.key) === INTER_TRANSFER_FLAG_KEY),
@@ -232,6 +247,9 @@ export default function FeatureFlagsPage() {
           String(flag.key) !== TRANSACTION_AUTH_GLOBAL_KEY &&
           String(flag.key) !== TRANSACTION_AUTH_ANDROID_KEY &&
           String(flag.key) !== TRANSACTION_AUTH_IOS_KEY &&
+          String(flag.key) !== APP_OPEN_AUTH_GLOBAL_KEY &&
+          String(flag.key) !== APP_OPEN_AUTH_ANDROID_KEY &&
+          String(flag.key) !== APP_OPEN_AUTH_IOS_KEY &&
           !isCryptoSpreadActionKey(flag.key)
       ),
     [flags]
@@ -874,7 +892,10 @@ export default function FeatureFlagsPage() {
 
       {transactionAuthGlobalFlag && transactionAuthAndroidFlag && transactionAuthIosFlag && (
         <div className="card" style={{ maxWidth: '720px', display: 'grid', gap: '0.75rem', borderColor: '#f97316' }}>
-          <div style={{ fontWeight: 800 }}>Transaction Auth Enforcement</div>
+          <div style={{ fontWeight: 800 }}>Payout Transaction Auth Enforcement</div>
+          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+            Controls the existing payout transaction authentication requirement. This is separate from app-open authentication.
+          </div>
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
             If Global is OFF, platform/account settings are ignored.
           </div>
@@ -922,6 +943,60 @@ export default function FeatureFlagsPage() {
             <div>Android issue: keep Global ON, set Android OFF, keep iOS ON.</div>
             <div>Full outage: set Global OFF.</div>
             <div>Recovery: re-enable platform/global toggles progressively and monitor failures.</div>
+          </div>
+        </div>
+      )}
+
+      {appOpenAuthGlobalFlag && appOpenAuthAndroidFlag && appOpenAuthIosFlag && (
+        <div className="card" style={{ maxWidth: '720px', display: 'grid', gap: '0.75rem', borderColor: '#0ea5e9' }}>
+          <div style={{ fontWeight: 800 }}>App Open Authentication</div>
+          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+            Controls whether the mobile app prompts for biometric / Face ID / fingerprint / passcode on app open via <code>enforceAppOpenAuth</code> from <code>/my-account</code>.
+          </div>
+          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+            This is independent from payout transaction auth. Turning one ON or OFF does not change the other.
+          </div>
+
+          <div style={{ display: 'grid', gap: '0.5rem' }}>
+            {[
+              { key: APP_OPEN_AUTH_GLOBAL_KEY, label: 'Global enforcement', flag: appOpenAuthGlobalFlag },
+              { key: APP_OPEN_AUTH_ANDROID_KEY, label: 'Android enforcement', flag: appOpenAuthAndroidFlag },
+              { key: APP_OPEN_AUTH_IOS_KEY, label: 'iOS enforcement', flag: appOpenAuthIosFlag }
+            ].map((item) => (
+              <div
+                key={item.key}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: '1rem',
+                  flexWrap: 'wrap',
+                  border: '1px solid var(--border)',
+                  borderRadius: '10px',
+                  padding: '0.55rem 0.7rem'
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: 700 }}>{item.label}</div>
+                  <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{item.key}</div>
+                </div>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(item.flag?.enabled)}
+                    onChange={() => handleToggle(item.key)}
+                    disabled={loading || savingKey === item.key}
+                  />
+                  {item.flag?.enabled ? 'Enabled' : 'Disabled'}
+                </label>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: 'grid', gap: '0.25rem', color: 'var(--muted)', fontSize: '12px' }}>
+            <div>If Global is OFF, Android and iOS toggles do not enforce app-open auth.</div>
+            <div>Example: Global ON, Android ON, iOS OFF means only Android prompts on app open.</div>
+            <div>Use platform toggles for rollout or emergency bypass without changing payout auth.</div>
           </div>
         </div>
       )}

@@ -52,6 +52,19 @@ const humanizeEnum = (value) =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 
+const autoRefundChipStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '0.35rem',
+  padding: '0.35rem 0.65rem',
+  borderRadius: '999px',
+  border: '1px solid color-mix(in srgb, var(--accent) 22%, var(--border))',
+  background: 'var(--accent-soft)',
+  color: 'var(--text)',
+  fontSize: '12px',
+  fontWeight: 700
+};
+
 export default function WalletPolicyConfigPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -87,6 +100,12 @@ export default function WalletPolicyConfigPage() {
       return raw.toLowerCase().includes(query) || humanizeEnum(raw).toLowerCase().includes(query);
     });
   }, [autoRefundActionOptions, autoRefundActionSearch]);
+
+  const selectedAutoRefundBlockedActions = useMemo(
+    () =>
+      Array.from(new Set((Array.isArray(autoRefundBlockedActions) ? autoRefundBlockedActions : []).map((action) => String(action)).filter(Boolean))).sort(),
+    [autoRefundBlockedActions]
+  );
 
   const loadConfig = async () => {
     setLoading(true);
@@ -270,52 +289,128 @@ export default function WalletPolicyConfigPage() {
           <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
             If an action is selected here, failed transactions for that action will not be auto-refunded. They will be marked for manual refund instead.
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-            <input
-              type="search"
-              value={autoRefundActionSearch}
-              onChange={(e) => setAutoRefundActionSearch(e.target.value)}
-              placeholder="Search actions"
-              disabled={loading || saving}
-            />
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                gap: '0.35rem',
-                maxHeight: '220px',
-                overflow: 'auto',
-                padding: '0.6rem',
-                border: '1px solid var(--border)',
-                borderRadius: '12px'
-              }}
-            >
-              {filteredAutoRefundActionOptions.map((action) => {
-                const checked = autoRefundBlockedActions.includes(action);
-                return (
-                  <label key={action} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', minWidth: 0 }}>
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={(e) => {
-                        const isChecked = e.target.checked;
-                        setAutoRefundBlockedActions((prev) => {
-                          const set = new Set(prev.map((item) => String(item)));
-                          if (isChecked) set.add(action);
-                          else set.delete(action);
-                          return Array.from(set);
-                        });
-                      }}
-                      disabled={loading || saving}
-                    />
-                    <span style={{ overflowWrap: 'anywhere' }}>{humanizeEnum(action)} <span style={{ color: 'var(--muted)' }}>({action})</span></span>
-                  </label>
-                );
-              })}
-              {filteredAutoRefundActionOptions.length === 0 ? (
-                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>No matching actions.</div>
-              ) : null}
+          <div style={{ display: 'grid', gap: '0.6rem', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                {selectedAutoRefundBlockedActions.length > 0
+                  ? `${selectedAutoRefundBlockedActions.length} action${selectedAutoRefundBlockedActions.length === 1 ? '' : 's'} blocked from auto-refund`
+                  : 'No actions blocked from auto-refund'}
+              </div>
+              {selectedAutoRefundBlockedActions.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setAutoRefundBlockedActions([])}
+                  disabled={loading || saving}
+                  style={{
+                    border: 'none',
+                    background: 'transparent',
+                    color: 'var(--accent)',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                    padding: 0
+                  }}
+                >
+                  Clear all
+                </button>
+              )}
             </div>
+
+            {selectedAutoRefundBlockedActions.length > 0 ? (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem' }}>
+                {selectedAutoRefundBlockedActions.map((action) => (
+                  <span key={action} style={autoRefundChipStyle}>
+                    <span>{humanizeEnum(action)}</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setAutoRefundBlockedActions((prev) => prev.filter((item) => String(item) !== action))
+                      }
+                      disabled={loading || saving}
+                      aria-label={`Remove ${humanizeEnum(action)}`}
+                      style={{
+                        border: 'none',
+                        background: 'transparent',
+                        color: 'inherit',
+                        cursor: 'pointer',
+                        padding: 0,
+                        fontWeight: 900,
+                        lineHeight: 1
+                      }}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            ) : null}
+
+            <details>
+              <summary style={{ cursor: 'pointer', fontWeight: 700, color: 'var(--accent)' }}>
+                Add or remove actions
+              </summary>
+              <div style={{ display: 'grid', gap: '0.5rem', marginTop: '0.65rem' }}>
+                <input
+                  type="search"
+                  value={autoRefundActionSearch}
+                  onChange={(e) => setAutoRefundActionSearch(e.target.value)}
+                  placeholder="Search actions"
+                  disabled={loading || saving}
+                />
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                    gap: '0.35rem',
+                    maxHeight: '220px',
+                    overflow: 'auto',
+                    padding: '0.6rem',
+                    border: '1px solid var(--border)',
+                    borderRadius: '12px',
+                    background: 'color-mix(in srgb, var(--surface) 96%, var(--bg) 4%)'
+                  }}
+                >
+                  {filteredAutoRefundActionOptions.map((action) => {
+                    const checked = selectedAutoRefundBlockedActions.includes(action);
+                    return (
+                      <label
+                        key={action}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.45rem',
+                          minWidth: 0,
+                          padding: '0.4rem 0.45rem',
+                          borderRadius: '10px',
+                          background: checked ? 'var(--accent-soft)' : 'transparent'
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            const isChecked = e.target.checked;
+                            setAutoRefundBlockedActions((prev) => {
+                              const set = new Set(prev.map((item) => String(item)));
+                              if (isChecked) set.add(action);
+                              else set.delete(action);
+                              return Array.from(set);
+                            });
+                          }}
+                          disabled={loading || saving}
+                        />
+                        <span style={{ overflowWrap: 'anywhere' }}>
+                          {humanizeEnum(action)} <span style={{ color: 'var(--muted)' }}>({action})</span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                  {filteredAutoRefundActionOptions.length === 0 ? (
+                    <div style={{ color: 'var(--muted)', fontSize: '12px' }}>No matching actions.</div>
+                  ) : null}
+                </div>
+              </div>
+            </details>
+
             <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
               Empty selection means no actions are blocked from auto-refund.
             </div>
