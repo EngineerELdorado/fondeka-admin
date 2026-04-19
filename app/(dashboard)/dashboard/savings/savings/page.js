@@ -51,6 +51,8 @@ const formatProductLabel = (product) => {
 
 const getMinimumLockDurationDays = (product) =>
   Number(product?.minimumLockDurationDays ?? product?.minimum_lock_duration_days ?? 0);
+const getDeletedAt = (row) => row?.deletedAt;
+const isDeletedSaving = (row) => Boolean(getDeletedAt(row));
 
 const DetailGrid = ({ rows }) => (
   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
@@ -91,6 +93,7 @@ export default function SavingsPage() {
   const [draft, setDraft] = useState(emptyState);
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [restoreSaving, setRestoreSaving] = useState(false);
 
   const selectedProduct = useMemo(
     () => products.find((product) => String(product?.id) === String(draft.savingProductId)),
@@ -190,7 +193,7 @@ export default function SavingsPage() {
     return null;
   };
 
-  const columns = useMemo(() => [
+  const columns = [
     { key: 'id', label: 'ID' },
     {
       key: 'name',
@@ -214,7 +217,17 @@ export default function SavingsPage() {
     { key: 'startsAt', label: 'Start Date', render: (row) => formatDateTime(row?.startsAt) },
     { key: 'endsAt', label: 'End Date', render: (row) => formatDateTime(row?.endsAt) },
     { key: 'balance', label: 'Balance' },
-    { key: 'status', label: 'Status' },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (row) => (
+        <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+          <span>{row?.status || '—'}</span>
+          {isDeletedSaving(row) ? <span style={{ color: '#b91c1c', fontWeight: 700 }}>Deleted</span> : null}
+        </div>
+      )
+    },
+    { key: 'deletedAt', label: 'Deleted At', render: (row) => formatDateTime(getDeletedAt(row)) },
     {
       key: 'actions',
       label: 'Actions',
@@ -223,10 +236,15 @@ export default function SavingsPage() {
           <button type="button" onClick={() => openDetail(row)} className="btn-neutral">View</button>
           <button type="button" onClick={() => openEdit(row)} className="btn-neutral">Edit</button>
           <button type="button" onClick={() => setConfirmDelete(row)} className="btn-danger">Delete</button>
+          {isDeletedSaving(row) ? (
+            <button type="button" onClick={() => handleRestore(row)} className="btn-success" disabled={restoreSaving}>
+              {restoreSaving ? 'Restoring…' : 'Restore'}
+            </button>
+          ) : null}
         </div>
       )
     }
-  ], [products]);
+  ];
 
   const openCreate = () => {
     setDraft(emptyState);
@@ -319,6 +337,44 @@ export default function SavingsPage() {
       fetchRows();
     } catch (err) {
       setError(err.message);
+    }
+  };
+
+  const handleRestore = async (saving) => {
+    if (!saving?.id) return;
+    setRestoreSaving(true);
+    setError(null);
+    setInfo(null);
+    try {
+      const productCode = String(
+        selectedProduct?.code ||
+        products.find((product) => String(product?.id) === String(saving?.savingProductId))?.code ||
+        saving?.savingProductCode ||
+        ''
+      ).toUpperCase();
+
+      await api.savings.update(saving.id, {
+        name: saving?.name ?? null,
+        description: saving?.description ?? null,
+        internalReference: saving?.internalReference ?? null,
+        startsAt: toIsoString(saving?.startsAt),
+        endsAt: productCode === SAVING_PRODUCT_CODE_LOCKED ? toIsoString(saving?.endsAt) : null,
+        accountId: Number(saving?.accountId) || 0,
+        savingProductId: Number(saving?.savingProductId) || 0,
+        balance: saving?.balance ?? null,
+        status: saving?.status ?? null,
+        deleted: false
+      });
+      setInfo(`Restored saving ${saving.id}.`);
+      if (selected?.id === saving.id) {
+        const full = await api.savings.get(saving.id);
+        setSelected(full || saving);
+      }
+      fetchRows();
+    } catch (err) {
+      setError(err.message || 'Failed to restore saving.');
+    } finally {
+      setRestoreSaving(false);
     }
   };
 
@@ -469,16 +525,24 @@ export default function SavingsPage() {
                   : 'Open savings should not retain an end date.'
               },
               { label: 'Balance', value: selected?.balance },
-              { label: 'Status', value: selected?.status }
+              { label: 'Status', value: selected?.status },
+              { label: 'Deleted At', value: formatDateTime(getDeletedAt(selected)) }
             ]}
           />
+          {isDeletedSaving(selected) ? (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
+              <button type="button" onClick={() => handleRestore(selected)} className="btn-success" disabled={restoreSaving}>
+                {restoreSaving ? 'Restoring…' : 'Restore Saving'}
+              </button>
+            </div>
+          ) : null}
         </Modal>
       )}
 
       {confirmDelete && (
         <Modal title="Confirm delete" onClose={() => setConfirmDelete(null)}>
           <div style={{ color: 'var(--muted)' }}>
-            Delete saving <strong>{confirmDelete.id}</strong>? This cannot be undone.
+            Soft-delete saving <strong>{confirmDelete.id}</strong>? This marks it as deleted and it can be restored later.
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" onClick={() => setConfirmDelete(null)} className="btn-neutral">Cancel</button>

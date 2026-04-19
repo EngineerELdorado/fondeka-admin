@@ -44,6 +44,8 @@ const getAccountReference = (row) => pickFirst(row?.accountReference, row?.accou
 const getProductTitle = (row) => pickFirst(row?.savingProductTitle, row?.savingProductName, row?.savingProduct?.title, row?.savingProduct?.name);
 const getProductCode = (row) => pickFirst(row?.savingProductCode, row?.savingProduct?.code, row?.productCode);
 const getStatus = (row) => pickFirst(row?.status, row?.savingStatus, 'UNKNOWN');
+const getDeletedAt = (row) => pickFirst(row?.deletedAt);
+const isDeletedSaving = (row) => Boolean(getDeletedAt(row));
 const getPrincipalBalance = (row) => pickFirst(row?.principalBalance, row?.currentPrincipalBalance, row?.balance);
 const getEstimatedInterest = (row) => pickFirst(row?.estimatedInterestAmount, row?.estimatedInterest, row?.interestEstimate);
 const getPayableInterest = (row) => pickFirst(row?.payableInterestAmount, row?.payableInterest);
@@ -130,6 +132,7 @@ export default function PersonalSavingsPage() {
   const [editing, setEditing] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
   const [approvalSaving, setApprovalSaving] = useState(false);
+  const [restoreSaving, setRestoreSaving] = useState(false);
 
   const selectedProduct = useMemo(
     () => products.find((product) => String(product?.id) === String(editDraft.savingProductId)),
@@ -319,6 +322,40 @@ export default function PersonalSavingsPage() {
     }
   };
 
+  const handleRestoreSaving = async (saving) => {
+    if (!saving) return;
+    setRestoreSaving(true);
+    setError(null);
+    try {
+      const savingId = getSavingId(saving);
+      await api.savings.update(savingId, {
+        name: saving?.name ?? null,
+        description: saving?.description ?? null,
+        internalReference: saving?.internalReference ?? getReference(saving) ?? null,
+        startsAt: toIsoString(pickFirst(saving?.startsAt, saving?.startDate, saving?.createdAt, saving?.createdDate)),
+        endsAt: isLockedSavingProduct(pickFirst(saving?.savingProduct?.code, getProductCode(saving)))
+          ? toIsoString(pickFirst(saving?.endsAt, saving?.endDate, saving?.lockedUntil, saving?.maturityDate))
+          : null,
+        accountId: Number(pickFirst(saving?.accountId, 0)) || 0,
+        savingProductId: Number(pickFirst(saving?.savingProductId, saving?.savingProduct?.id, 0)) || 0,
+        balance: pickFirst(saving?.balance, saving?.principalBalance, null),
+        status: saving?.status ?? null,
+        deleted: false
+      });
+      const [savingRes, activityRes] = await Promise.all([
+        api.savings.get(savingId),
+        api.savingActivities.list(new URLSearchParams({ page: '0', size: '100', savingId: String(savingId) }))
+      ]);
+      setDetail(savingRes);
+      setActivities(Array.isArray(activityRes) ? activityRes : activityRes?.content || []);
+      await fetchRows();
+    } catch (err) {
+      setError(err?.message || 'Failed to restore saving');
+    } finally {
+      setRestoreSaving(false);
+    }
+  };
+
   const savingColumns = useMemo(
     () => [
       {
@@ -342,13 +379,23 @@ export default function PersonalSavingsPage() {
           </div>
         )
       },
-      { key: 'status', label: 'Status', render: (row) => <StatusBadge value={getStatus(row)} /> },
+      {
+        key: 'status',
+        label: 'Status',
+        render: (row) => (
+          <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+            <StatusBadge value={getStatus(row)} />
+            {isDeletedSaving(row) ? <StatusBadge value="DELETED" /> : null}
+          </div>
+        )
+      },
       { key: 'principalBalance', label: 'Principal', render: (row) => formatMoney(getPrincipalBalance(row)) },
       { key: 'estimatedInterest', label: 'Estimated Interest', render: (row) => formatMoney(getEstimatedInterest(row)) },
       { key: 'projectedTotal', label: 'Projected Total', render: (row) => formatMoney(getProjectedTotal(row)) },
       { key: 'withdrawableAmount', label: 'Withdrawable', render: (row) => formatMoney(getWithdrawableAmount(row)) },
       { key: 'createdAt', label: 'Created / Start', render: (row) => formatDate(getStartDate(row)) },
       { key: 'endDate', label: 'End Date', render: (row) => formatDate(getEndDate(row)) },
+      { key: 'deletedAt', label: 'Deleted At', render: (row) => formatDateTime(getDeletedAt(row)) },
       {
         key: 'actions',
         label: 'Actions',
@@ -379,6 +426,25 @@ export default function PersonalSavingsPage() {
             >
               Change Product
             </button>
+            {isDeletedSaving(row) ? (
+              <button
+                type="button"
+                onClick={async () => {
+                  const id = getSavingId(row);
+                  if (!id) return;
+                  try {
+                    const full = await api.savings.get(id);
+                    await handleRestoreSaving(full || row);
+                  } catch {
+                    await handleRestoreSaving(row);
+                  }
+                }}
+                className="btn-success"
+                disabled={restoreSaving}
+              >
+                {restoreSaving ? 'Restoring…' : 'Restore'}
+              </button>
+            ) : null}
           </div>
         )
       }
@@ -450,6 +516,7 @@ export default function PersonalSavingsPage() {
                 actions={
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
                     <StatusBadge value={getStatus(detail)} />
+                    {isDeletedSaving(detail) ? <StatusBadge value="DELETED" /> : null}
                     {String(getProductCode(detail) || '').toUpperCase() === SAVING_PRODUCT_CODE_LOCKED ? (
                       <StatusBadge
                         value={
@@ -462,6 +529,11 @@ export default function PersonalSavingsPage() {
                       />
                     ) : null}
                     <StatusBadge value={isMaturedSaving(detail) ? 'MATURED' : 'PRE_MATURITY'} />
+                    {isDeletedSaving(detail) ? (
+                      <button type="button" className="btn-success" onClick={() => handleRestoreSaving(detail)} disabled={restoreSaving}>
+                        {restoreSaving ? 'Restoring…' : 'Restore Saving'}
+                      </button>
+                    ) : null}
                     {String(getProductCode(detail) || '').toUpperCase() === SAVING_PRODUCT_CODE_LOCKED && !earlyWithdrawalAllowedByProduct && !getEarlyWithdrawalApprovedAt(detail) ? (
                       <button type="button" className="btn-primary" onClick={() => handleSetEarlyWithdrawalApproval(true)} disabled={approvalSaving}>
                         {approvalSaving ? 'Saving…' : 'Approve Early Withdrawal'}
@@ -483,7 +555,8 @@ export default function PersonalSavingsPage() {
                     { label: 'Saving name', value: getProductTitle(detail) || '—' },
                     { label: 'Internal reference', value: getReference(detail) || '—' },
                     { label: 'Product type', value: getProductType(detail) },
-                    { label: 'Account reference', value: getAccountReference(detail) || '—' }
+                    { label: 'Account reference', value: getAccountReference(detail) || '—' },
+                    { label: 'Deleted At', value: formatDateTime(getDeletedAt(detail)) }
                   ]}
                 />
               </SectionCard>
