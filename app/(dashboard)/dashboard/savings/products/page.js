@@ -24,6 +24,9 @@ const KNOWN_FIELDS = [
   'interestPercentage',
   'interestRate',
   'interestType',
+  'minimumLockDurationDays',
+  'allowEarlyWithdrawalWithoutApproval',
+  'interestTiers',
   'icon',
   'iconColor',
   'active',
@@ -37,6 +40,9 @@ const emptyDraft = {
   shortDescription: '',
   interestPercentage: '',
   interestType: '',
+  minimumLockDurationDays: '',
+  allowEarlyWithdrawalWithoutApproval: false,
+  interestTiers: [],
   icon: '',
   iconColor: '#1F7A4D',
   active: true,
@@ -45,6 +51,14 @@ const emptyDraft = {
 
 const getProductName = (row) => pickFirst(row?.title, row?.name);
 const getInterestPercentage = (row) => pickFirst(row?.interestPercentage, row?.interestRate);
+const getMinimumLockDurationDays = (row) => pickFirst(row?.minimumLockDurationDays, row?.minimum_lock_duration_days);
+const isLockedSavingProduct = (value) => String(value || '').trim().toUpperCase() === 'LOCKED_SAVING';
+const normalizeTierDraft = (tier) => ({
+  id: pickFirst(tier?.id, null),
+  minLockDurationDays: String(pickFirst(tier?.minLockDurationDays, '') ?? ''),
+  maxLockDurationDays: String(pickFirst(tier?.maxLockDurationDays, '') ?? ''),
+  interestPercentage: String(pickFirst(tier?.interestPercentage, '') ?? '')
+});
 
 const formatInterest = (value) => {
   const parsed = Number(value);
@@ -68,11 +82,60 @@ const draftFromRow = (row) => ({
   shortDescription: String(pickFirst(row?.shortDescription, row?.description, '') || ''),
   interestPercentage: String(pickFirst(getInterestPercentage(row), '') || ''),
   interestType: String(pickFirst(row?.interestType, '') || ''),
+  minimumLockDurationDays: String(pickFirst(getMinimumLockDurationDays(row), '') || ''),
+  allowEarlyWithdrawalWithoutApproval: Boolean(pickFirst(row?.allowEarlyWithdrawalWithoutApproval, false)),
+  interestTiers: Array.isArray(row?.interestTiers) ? row.interestTiers.map(normalizeTierDraft) : [],
   icon: String(pickFirst(row?.icon, '') || ''),
   iconColor: String(pickFirst(row?.iconColor, '#1F7A4D') || '#1F7A4D'),
   active: Boolean(pickFirst(row?.active, true)),
   extraJson: buildExtraJson(row)
 });
+
+const validateInterestTiers = (draft) => {
+  if (!isLockedSavingProduct(draft.code)) return [];
+
+  if (draft.minimumLockDurationDays === '' || Number(draft.minimumLockDurationDays) <= 0) {
+    throw new Error('Locked savings require a minimum lock duration greater than 0.');
+  }
+
+  const tiers = (draft.interestTiers || []).map((tier, index) => {
+    const min = Number(tier.minLockDurationDays);
+    const max = tier.maxLockDurationDays === '' ? null : Number(tier.maxLockDurationDays);
+    const interest = Number(tier.interestPercentage);
+
+    if (!Number.isFinite(min) || min <= 0) {
+      throw new Error(`Tier ${index + 1}: From days is required and must be greater than 0.`);
+    }
+    if (max !== null && (!Number.isFinite(max) || max < min)) {
+      throw new Error(`Tier ${index + 1}: To days must be greater than or equal to From days.`);
+    }
+    if (!Number.isFinite(interest) || interest < 0) {
+      throw new Error(`Tier ${index + 1}: Daily interest % is required and must be 0 or greater.`);
+    }
+
+    return {
+      id: tier.id ?? null,
+      minLockDurationDays: min,
+      maxLockDurationDays: max,
+      interestPercentage: interest
+    };
+  });
+
+  const sorted = [...tiers].sort((a, b) => a.minLockDurationDays - b.minLockDurationDays);
+  sorted.forEach((tier, index) => {
+    if (tier.maxLockDurationDays === null && index !== sorted.length - 1) {
+      throw new Error('Only the last interest tier can have no To days value.');
+    }
+    const next = sorted[index + 1];
+    if (next && tier.maxLockDurationDays !== null && tier.maxLockDurationDays >= next.minLockDurationDays) {
+      throw new Error(
+        `Interest tiers overlap between ${tier.minLockDurationDays}-${tier.maxLockDurationDays} days and ${next.minLockDurationDays}${next.maxLockDurationDays === null ? '+' : `-${next.maxLockDurationDays}`} days.`
+      );
+    }
+  });
+
+  return sorted;
+};
 
 const parseDraftPayload = (draft) => {
   let extras = {};
@@ -85,6 +148,8 @@ const parseDraftPayload = (draft) => {
     throw new Error('Additional fields must be a JSON object.');
   }
 
+  const interestTiers = validateInterestTiers(draft);
+
   return {
     ...extras,
     code: draft.code.trim() || null,
@@ -92,6 +157,14 @@ const parseDraftPayload = (draft) => {
     shortDescription: draft.shortDescription.trim() || null,
     interestPercentage: draft.interestPercentage === '' ? null : Number(draft.interestPercentage),
     interestType: draft.interestType.trim() || null,
+    minimumLockDurationDays:
+      isLockedSavingProduct(draft.code) && draft.minimumLockDurationDays !== ''
+        ? Number(draft.minimumLockDurationDays)
+        : null,
+    allowEarlyWithdrawalWithoutApproval: isLockedSavingProduct(draft.code)
+      ? Boolean(draft.allowEarlyWithdrawalWithoutApproval)
+      : false,
+    interestTiers: isLockedSavingProduct(draft.code) ? interestTiers : [],
     icon: draft.icon.trim() || null,
     iconColor: draft.iconColor.trim() || null,
     active: Boolean(draft.active)
@@ -115,6 +188,14 @@ export default function SavingProductsPage() {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [filters, setFilters] = useState({ code: '', title: '', active: '' });
   const [appliedFilters, setAppliedFilters] = useState({ code: '', title: '', active: '' });
+  const lockedDraft = isLockedSavingProduct(draft.code);
+  const sortedDraftTiers = useMemo(
+    () =>
+      [...(draft.interestTiers || [])].sort(
+        (a, b) => Number(a?.minLockDurationDays || 0) - Number(b?.minLockDurationDays || 0)
+      ),
+    [draft.interestTiers]
+  );
 
   const fetchRows = async () => {
     setLoading(true);
@@ -123,8 +204,8 @@ export default function SavingProductsPage() {
       const params = new URLSearchParams();
       params.set('page', String(page));
       params.set('size', String(size));
-      if (filters.code.trim()) params.set('code', filters.code.trim());
-      if (filters.title.trim()) params.set('title', filters.title.trim());
+      if (appliedFilters.code.trim()) params.set('code', appliedFilters.code.trim());
+      if (appliedFilters.title.trim()) params.set('title', appliedFilters.title.trim());
       if (appliedFilters.active !== '') params.set('active', appliedFilters.active);
       const res = await api.savingProducts.list(params);
       const list = Array.isArray(res) ? res : res?.content || [];
@@ -158,6 +239,29 @@ export default function SavingProductsPage() {
       { key: 'shortDescription', label: 'Short Description', render: (row) => pickFirst(row?.shortDescription, row?.description, '—') },
       { key: 'interest', label: 'Interest', render: (row) => formatInterest(getInterestPercentage(row)) },
       { key: 'interestType', label: 'Interest Type', render: (row) => pickFirst(row?.interestType, '—') },
+      {
+        key: 'minimumLockDurationDays',
+        label: 'Minimum Lock',
+        render: (row) => (isLockedSavingProduct(row?.code) ? `${pickFirst(getMinimumLockDurationDays(row), '—')} days` : '—')
+      },
+      {
+        key: 'interestTiers',
+        label: 'Interest Tiers',
+        render: (row) => {
+          const count = Array.isArray(row?.interestTiers) ? row.interestTiers.length : 0;
+          return isLockedSavingProduct(row?.code) ? `${count} tier${count === 1 ? '' : 's'}` : '—';
+        }
+      },
+      {
+        key: 'allowEarlyWithdrawalWithoutApproval',
+        label: 'Early Break Policy',
+        render: (row) =>
+          isLockedSavingProduct(row?.code)
+            ? Boolean(pickFirst(row?.allowEarlyWithdrawalWithoutApproval, false))
+              ? 'Self-service allowed'
+              : 'Approval required'
+            : '—'
+      },
       {
         key: 'active',
         label: 'Status',
@@ -259,6 +363,9 @@ export default function SavingProductsPage() {
           <div style={{ display: 'grid', gap: '0.25rem' }}>
             <label htmlFor="code">Product code</label>
             <input id="code" value={draft.code} onChange={(e) => setDraft((p) => ({ ...p, code: e.target.value }))} placeholder="OPEN_SAVING" />
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Set to <strong>LOCKED_SAVING</strong> to manage minimum lock duration.
+            </div>
           </div>
           <div style={{ display: 'grid', gap: '0.25rem' }}>
             <label htmlFor="title">Title</label>
@@ -274,11 +381,49 @@ export default function SavingProductsPage() {
               onChange={(e) => setDraft((p) => ({ ...p, interestPercentage: e.target.value }))}
               placeholder="4"
             />
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Open savings is normally zero-interest by default. Admin can still configure a non-zero rate for negotiated exceptions.
+            </div>
           </div>
           <div style={{ display: 'grid', gap: '0.25rem' }}>
             <label htmlFor="interestType">Interest type</label>
             <input id="interestType" value={draft.interestType} onChange={(e) => setDraft((p) => ({ ...p, interestType: e.target.value }))} placeholder="SIMPLE" />
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Locked savings accrue daily interest and that interest becomes payable only at maturity.
+            </div>
           </div>
+          <div style={{ display: 'grid', gap: '0.25rem' }}>
+            <label htmlFor="minimumLockDurationDays">Minimum lock duration (days)</label>
+            <input
+              id="minimumLockDurationDays"
+              type="number"
+              min="0"
+              step="1"
+              value={draft.minimumLockDurationDays}
+              onChange={(e) => setDraft((p) => ({ ...p, minimumLockDurationDays: e.target.value }))}
+              placeholder={isLockedSavingProduct(draft.code) ? '30' : 'Not used for open savings'}
+              disabled={!isLockedSavingProduct(draft.code)}
+            />
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Minimum number of days a locked saving must remain active before maturity.
+            </div>
+          </div>
+          {lockedDraft ? (
+            <label style={{ display: 'inline-flex', alignItems: 'flex-start', gap: '0.5rem', fontWeight: 700, gridColumn: '1 / -1' }}>
+              <input
+                id="allowEarlyWithdrawalWithoutApproval"
+                type="checkbox"
+                checked={draft.allowEarlyWithdrawalWithoutApproval}
+                onChange={(e) => setDraft((p) => ({ ...p, allowEarlyWithdrawalWithoutApproval: e.target.checked }))}
+              />
+              <span style={{ display: 'grid', gap: '0.2rem' }}>
+                <span>Allow early withdrawal without support approval</span>
+                <span style={{ color: 'var(--muted)', fontSize: '12px', fontWeight: 400 }}>
+                  If off, customers cannot break this locked saving before maturity unless support or admin approves that specific saving.
+                </span>
+              </span>
+            </label>
+          ) : null}
           <div style={{ display: 'grid', gap: '0.25rem' }}>
             <label htmlFor="icon">Icon</label>
             <input id="icon" value={draft.icon} onChange={(e) => setDraft((p) => ({ ...p, icon: e.target.value }))} placeholder="wallet-outline" />
@@ -305,6 +450,149 @@ export default function SavingProductsPage() {
       </SectionCard>
 
       <SectionCard
+        title="Base Interest Rate"
+        description={lockedDraft ? 'Base daily interest used as the fallback rate for new locked savings when no duration tier matches.' : 'Base rate for flexible open savings. Open savings is normally zero-interest unless admin configures an exception.'}
+      >
+        <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+          {lockedDraft
+            ? 'If tiers exist, backend uses the matching duration tier for new locked savings and falls back to the base rate only when no tier matches.'
+            : 'Keep this at 0 for the standard open-savings setup, or set a negotiated exception rate when needed.'}
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Duration-based Interest Tiers"
+        description="Set the daily interest based on how long the customer locks funds."
+      >
+        <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+          These tiers apply only to new locked savings. Existing savings keep their original applied rate.
+        </div>
+        {!lockedDraft ? (
+          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+            Interest tiers are only available for <strong>LOCKED_SAVING</strong>.
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gap: '0.5rem' }}>
+              {sortedDraftTiers.length === 0 ? (
+                <div style={{ color: 'var(--muted)', fontSize: '13px' }}>No duration tiers configured. Backend will fall back to the base interest rate.</div>
+              ) : (
+                sortedDraftTiers.map((tier, index) => (
+                  <div
+                    key={tier.id ?? `${tier.minLockDurationDays}-${tier.maxLockDurationDays}-${index}`}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr)) auto',
+                      gap: '0.75rem',
+                      alignItems: 'end',
+                      padding: '0.85rem',
+                      border: '1px solid var(--border)',
+                      borderRadius: '12px'
+                    }}
+                  >
+                    <div style={{ display: 'grid', gap: '0.25rem' }}>
+                      <label htmlFor={`tier-min-${index}`}>From days</label>
+                      <input
+                        id={`tier-min-${index}`}
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={tier.minLockDurationDays}
+                        onChange={(e) =>
+                          setDraft((prev) => ({
+                            ...prev,
+                            interestTiers: sortedDraftTiers.map((entry, entryIndex) =>
+                              entryIndex === index ? { ...entry, minLockDurationDays: e.target.value } : entry
+                            )
+                          }))
+                        }
+                      />
+                    </div>
+                    <div style={{ display: 'grid', gap: '0.25rem' }}>
+                      <label htmlFor={`tier-max-${index}`}>To days</label>
+                      <input
+                        id={`tier-max-${index}`}
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={tier.maxLockDurationDays}
+                        onChange={(e) =>
+                          setDraft((prev) => ({
+                            ...prev,
+                            interestTiers: sortedDraftTiers.map((entry, entryIndex) =>
+                              entryIndex === index ? { ...entry, maxLockDurationDays: e.target.value } : entry
+                            )
+                          }))
+                        }
+                        placeholder="Leave blank for final tier"
+                      />
+                    </div>
+                    <div style={{ display: 'grid', gap: '0.25rem' }}>
+                      <label htmlFor={`tier-interest-${index}`}>Daily interest %</label>
+                      <input
+                        id={`tier-interest-${index}`}
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={tier.interestPercentage}
+                        onChange={(e) =>
+                          setDraft((prev) => ({
+                            ...prev,
+                            interestTiers: sortedDraftTiers.map((entry, entryIndex) =>
+                              entryIndex === index ? { ...entry, interestPercentage: e.target.value } : entry
+                            )
+                          }))
+                        }
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-danger"
+                      onClick={() =>
+                        setDraft((prev) => ({
+                          ...prev,
+                          interestTiers: sortedDraftTiers.filter((_, entryIndex) => entryIndex !== index)
+                        }))
+                      }
+                    >
+                      Remove tier
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                Tiers are sorted by From days. Overlapping bands or open-ended non-final tiers will be rejected before save.
+              </div>
+              <button
+                type="button"
+                className="btn-neutral"
+                onClick={() =>
+                  setDraft((prev) => ({
+                    ...prev,
+                    interestTiers: [
+                      ...sortedDraftTiers,
+                      normalizeTierDraft({
+                        minLockDurationDays:
+                          sortedDraftTiers.length > 0
+                            ? Number(sortedDraftTiers[sortedDraftTiers.length - 1].maxLockDurationDays || sortedDraftTiers[sortedDraftTiers.length - 1].minLockDurationDays) + 1
+                            : prev.minimumLockDurationDays || '30',
+                        maxLockDurationDays: '',
+                        interestPercentage: ''
+                      })
+                    ]
+                  }))
+                }
+              >
+                Add tier
+              </button>
+            </div>
+          </div>
+        )}
+      </SectionCard>
+
+      <SectionCard
         title="Additional Fields"
         description="Raw JSON object for any backend product fields not yet modeled in the form. This keeps admin unblocked when the backend adds product properties."
       >
@@ -327,6 +615,31 @@ export default function SavingProductsPage() {
           { label: 'Short Description', value: pickFirst(selected?.shortDescription, selected?.description, '—') },
           { label: 'Interest Percentage', value: formatInterest(getInterestPercentage(selected)) },
           { label: 'Interest Type', value: pickFirst(selected?.interestType, '—') },
+          {
+            label: 'Minimum Lock Duration',
+            value: isLockedSavingProduct(selected?.code) ? `${pickFirst(getMinimumLockDurationDays(selected), '—')} days` : 'Not applicable',
+            hint: isLockedSavingProduct(selected?.code)
+              ? 'Affects future locked savings creation validation only.'
+              : 'Open savings can leave this null.'
+          },
+          {
+            label: 'Interest Tiers',
+            value: isLockedSavingProduct(selected?.code) ? `${Array.isArray(selected?.interestTiers) ? selected.interestTiers.length : 0} configured` : 'Not applicable',
+            hint: isLockedSavingProduct(selected?.code)
+              ? 'Changes apply to new savings only. Existing savings keep the rate they were created with.'
+              : 'Duration tiers are hidden for open savings.'
+          },
+          {
+            label: 'Early Withdrawal Policy',
+            value: isLockedSavingProduct(selected?.code)
+              ? Boolean(pickFirst(selected?.allowEarlyWithdrawalWithoutApproval, false))
+                ? 'Allowed without support approval'
+                : 'Support approval required'
+              : 'Not applicable',
+            hint: isLockedSavingProduct(selected?.code)
+              ? 'This is the default product policy. Individual savings can still be approved as exceptions.'
+              : 'Open savings stays customer-flexible by design.'
+          },
           { label: 'Icon', value: pickFirst(selected?.icon, '—') },
           { label: 'Icon Color', value: pickFirst(selected?.iconColor, '—') },
           { label: 'Active', value: Boolean(pickFirst(selected?.active, false)) ? 'Yes' : 'No' }
@@ -340,7 +653,7 @@ export default function SavingProductsPage() {
       <SavingsSubnav />
       <SavingsPageHeader
         title="Savings Products"
-        description="Full admin management for savings products. Core mobile-facing fields are editable directly, and any additional backend product fields can be managed through the JSON extension block."
+        description="Full admin management for savings products. Open savings is flexible and normally non-interest-bearing, while locked savings is the default interest-bearing product with maturity-driven payout rules."
         actions={
           <button type="button" onClick={openCreate} className="btn-success">
             Add saving product
@@ -398,6 +711,18 @@ export default function SavingProductsPage() {
         Managing {formatCount(totalElements)} saving products. Use `code` to align product behavior with mobile savings flows such as `OPEN_SAVING` and `LOCKED_SAVING`.
       </div>
 
+      <SectionCard
+        title="Commercial Defaults"
+        description="These defaults shape how support should explain savings products to customers and when exceptions apply."
+      >
+        <div style={{ display: 'grid', gap: '0.35rem', color: 'var(--muted)', fontSize: '13px' }}>
+          <div>Open savings is flexible and normally non-interest-bearing.</div>
+          <div>Locked savings accrues daily interest that becomes payable only at maturity.</div>
+          <div>If a customer breaks a locked saving early, accrued interest is forfeited.</div>
+          <div>Negotiated exceptions can still be configured by admin where needed.</div>
+        </div>
+      </SectionCard>
+
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
@@ -440,6 +765,25 @@ export default function SavingProductsPage() {
             <SectionCard title="Product Detail" description="Core fields used by the app and personal savings flows.">
               <DetailGrid rows={detailRows} />
             </SectionCard>
+            {isLockedSavingProduct(selected?.code) ? (
+              <SectionCard
+                title="Duration-based Interest Tiers"
+                description="These tiers are evaluated for new locked savings only. Existing savings keep the rate they were created with."
+              >
+                <DataTable
+                  showIndex={false}
+                  showAccountQuickNav={false}
+                  pageSize={100}
+                  columns={[
+                    { key: 'minLockDurationDays', label: 'From days', render: (row) => pickFirst(row?.minLockDurationDays, '—') },
+                    { key: 'maxLockDurationDays', label: 'To days', render: (row) => (row?.maxLockDurationDays === null || row?.maxLockDurationDays === undefined ? 'Open-ended' : row.maxLockDurationDays) },
+                    { key: 'interestPercentage', label: 'Daily interest %', render: (row) => formatInterest(row?.interestPercentage) }
+                  ]}
+                  rows={Array.isArray(selected?.interestTiers) ? [...selected.interestTiers].sort((a, b) => Number(a?.minLockDurationDays || 0) - Number(b?.minLockDurationDays || 0)) : []}
+                  emptyLabel="No duration tiers configured"
+                />
+              </SectionCard>
+            ) : null}
             <SectionCard title="Full Resource JSON" description="Raw backend payload for this product.">
               <pre style={{ margin: 0, overflow: 'auto', background: 'color-mix(in srgb, var(--surface) 96%, var(--bg) 4%)', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--border)' }}>
                 {prettyJson(selected)}

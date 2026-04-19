@@ -9,14 +9,14 @@ const FLAG_DEFINITIONS = [
   {
     key: 'personal_saving.interest_payout.open.enabled',
     label: 'Open Savings Interest Payout Enabled',
-    description: 'When enabled, withdrawals for this personal savings type include estimated interest payout.',
-    disabledDescription: 'When disabled, interest remains informational only.'
+    description: 'When enabled, open-savings withdrawals can include an interest payout for negotiated commercial arrangements.',
+    disabledDescription: 'When disabled, open savings remains flexible and normally non-interest-bearing.'
   },
   {
     key: 'personal_saving.interest_payout.locked.enabled',
     label: 'Locked Savings Interest Payout Enabled',
-    description: 'When enabled, withdrawals for this personal savings type include estimated interest payout.',
-    disabledDescription: 'When disabled, interest remains informational only.'
+    description: 'When enabled, locked-savings withdrawals pay accrued interest once the saving reaches maturity.',
+    disabledDescription: 'When disabled, accrued locked-savings interest is shown for visibility but is not paid out.'
   }
 ];
 
@@ -91,13 +91,22 @@ export default function SavingsFeatureFlagsPage() {
       <SavingsSubnav />
       <SavingsPageHeader
         title="Savings Feature Flags"
-        description="Focused controls for savings behavior. These flags affect whether estimated interest is merely shown to the user or actually included when money is withdrawn."
+        description="Focused controls for savings interest behavior. Open savings is normally non-interest-bearing, while locked savings accrues daily interest that is intended to become payable only at maturity."
         actions={
           <Link href="/dashboard/feature-flags" className="btn-neutral" style={{ textDecoration: 'none' }}>
             Open Global Flags
           </Link>
-        }
+          }
       />
+
+      <SectionCard title="Support Framing" description="Use this language when explaining current savings behavior to support teams and admins.">
+        <div style={{ display: 'grid', gap: '0.35rem', color: 'var(--muted)', fontSize: '13px' }}>
+          <div>Open savings is flexible and normally non-interest-bearing.</div>
+          <div>Locked savings accrues daily interest that becomes payable only at maturity.</div>
+          <div>If a customer breaks a locked saving early, accrued interest is forfeited.</div>
+          <div>Open-savings interest can still be enabled where admin has agreed a negotiated exception.</div>
+        </div>
+      </SectionCard>
 
       {error ? <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div> : null}
       {info ? <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div> : null}

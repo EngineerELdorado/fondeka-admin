@@ -12,7 +12,7 @@ const sections = [
   {
     href: '/dashboard/savings/personal',
     title: 'Personal Savings',
-    blurb: 'Search and inspect individual savings with visibility into principal, withdrawable value, estimated interest, and activity history.'
+    blurb: 'Search and inspect individual savings with visibility into principal, withdrawable value, estimated interest, payable interest, forfeitable interest, and activity history.'
   },
   {
     href: '/dashboard/savings/groups',
@@ -22,7 +22,7 @@ const sections = [
   {
     href: '/dashboard/savings/feature-flags',
     title: 'Feature Flags',
-    blurb: 'Manage savings-specific feature flags such as open and locked savings interest payout behavior.'
+    blurb: 'Manage savings-specific feature flags for open-savings exceptions and locked-savings maturity payout behavior.'
   }
 ];
 
@@ -32,7 +32,7 @@ export default function SavingsHubPage() {
       <SavingsSubnav />
       <SavingsPageHeader
         title="Savings"
-        description="Admin visibility for personal savings and group savings. Group products are split intentionally: LIKELEMBA is cycle-first, while AVEC is treasury and policy-first."
+        description="Admin visibility for personal savings and group savings. Open savings is normally flexible and non-interest-bearing, while locked savings is maturity-based and interest-bearing by default. Group products are split intentionally: LIKELEMBA is cycle-first, while AVEC is treasury and policy-first."
       />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
