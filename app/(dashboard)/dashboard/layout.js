@@ -21,7 +21,7 @@ const navItems = [
   { href: '/dashboard/crypto', label: 'Cryptos & Products' },
   { href: '/dashboard/esim', label: 'eSIMs & Providers' },
   { href: '/dashboard/esim-products', label: 'eSIM Products' },
-  { href: '/dashboard/savings', label: 'Savings & Products' },
+  { href: '/dashboard/savings', label: 'Savings & products' },
   { href: '/dashboard/payment-requests', label: 'Payment Requests' },
   { href: '/dashboard/recharge-catalog', label: 'Recharge Catalog' },
   { href: '/dashboard/bills/utility-catalog', label: 'Utility Bill Catalog' },

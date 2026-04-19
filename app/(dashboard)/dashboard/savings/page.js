@@ -1,38 +1,68 @@
 'use client';
 
 import Link from 'next/link';
+import { SavingsPageHeader, SavingsSubnav, TypeBadge } from '@/components/SavingsAdmin';
 
 const sections = [
-  { href: '/dashboard/savings/products', title: 'Saving Products', blurb: 'Configure saving products (rates, terms).' },
-  { href: '/dashboard/savings/savings', title: 'Savings', blurb: 'Manage individual savings accounts.' },
-  { href: '/dashboard/savings/activities', title: 'Saving Activities', blurb: 'Track deposits and withdrawals.' }
+  {
+    href: '/dashboard/savings/products',
+    title: 'Savings Products',
+    blurb: 'Create, edit, inspect, activate, and fully manage personal savings product definitions and backend product fields.'
+  },
+  {
+    href: '/dashboard/savings/personal',
+    title: 'Personal Savings',
+    blurb: 'Search and inspect individual savings with visibility into principal, withdrawable value, estimated interest, and activity history.'
+  },
+  {
+    href: '/dashboard/savings/groups',
+    title: 'Group Savings',
+    blurb: 'Operate LIKELEMBA and AVEC groups with separate workflows for cycles, treasury, members, policy, and audit review.'
+  },
+  {
+    href: '/dashboard/savings/feature-flags',
+    title: 'Feature Flags',
+    blurb: 'Manage savings-specific feature flags such as open and locked savings interest payout behavior.'
+  }
 ];
 
 export default function SavingsHubPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-        <div style={{ fontSize: '20px', fontWeight: 800 }}>Savings</div>
-        <div style={{ color: 'var(--muted)' }}>Pick a savings area to manage with focused UIs.</div>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+      <SavingsSubnav />
+      <SavingsPageHeader
+        title="Savings"
+        description="Admin visibility for personal savings and group savings. Group products are split intentionally: LIKELEMBA is cycle-first, while AVEC is treasury and policy-first."
+      />
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
         {sections.map((item) => (
           <Link
             key={item.href}
             href={item.href}
             className="card"
             style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.35rem',
-              textDecoration: 'none',
-              color: 'var(--text)'
+              display: 'grid',
+              gap: '0.45rem',
+              color: 'var(--text)',
+              textDecoration: 'none'
             }}
           >
             <div style={{ fontWeight: 800 }}>{item.title}</div>
             <div style={{ color: 'var(--muted)' }}>{item.blurb}</div>
           </Link>
         ))}
+      </div>
+
+      <div className="card" style={{ display: 'grid', gap: '0.7rem' }}>
+        <div style={{ fontWeight: 800 }}>Operational Shape</div>
+        <div style={{ color: 'var(--muted)' }}>
+          Support work is visibility first and control second. Admin inspects, pauses or resumes groups when needed, removes members only when policy allows, and updates AVEC policy without bypassing customer flows.
+        </div>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <TypeBadge value="LIKELEMBA" />
+          <TypeBadge value="AVEC" />
+        </div>
       </div>
     </div>
   );
