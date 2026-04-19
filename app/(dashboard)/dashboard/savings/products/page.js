@@ -246,7 +246,7 @@ export default function SavingProductsPage() {
       },
       {
         key: 'interestTiers',
-        label: 'Interest Tiers',
+        label: 'Default Daily Tiers',
         render: (row) => {
           const count = Array.isArray(row?.interestTiers) ? row.interestTiers.length : 0;
           return isLockedSavingProduct(row?.code) ? `${count} tier${count === 1 ? '' : 's'}` : '—';
@@ -451,21 +451,21 @@ export default function SavingProductsPage() {
 
       <SectionCard
         title="Base Interest Rate"
-        description={lockedDraft ? 'Base daily interest used as the fallback rate for new locked savings when no duration tier matches.' : 'Base rate for flexible open savings. Open savings is normally zero-interest unless admin configures an exception.'}
+        description={lockedDraft ? 'Base daily interest rate used as the fallback for new locked savings when no duration tier matches.' : 'Base daily interest rate for flexible open savings. Open savings is normally zero-interest unless admin configures an exception.'}
       >
         <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
           {lockedDraft
-            ? 'If tiers exist, backend uses the matching duration tier for new locked savings and falls back to the base rate only when no tier matches.'
+            ? 'Applies per day. If tiers exist, backend uses the matching duration tier for new locked savings and falls back to the base rate only when no tier matches.'
             : 'Keep this at 0 for the standard open-savings setup, or set a negotiated exception rate when needed.'}
         </div>
       </SectionCard>
 
       <SectionCard
-        title="Duration-based Interest Tiers"
-        description="Set the daily interest based on how long the customer locks funds."
+        title="Default Locked-Saving Interest Tiers"
+        description="These are the starting daily rates for new locked savings based on lock duration."
       >
         <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-          These tiers apply only to new locked savings. Existing savings keep their original applied rate.
+          Changes apply only to new savings. Existing savings keep the applied terms they were created with.
         </div>
         {!lockedDraft ? (
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
@@ -544,6 +544,9 @@ export default function SavingProductsPage() {
                           }))
                         }
                       />
+                      <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                        Applies per day. Longer lock periods can offer higher daily rates.
+                      </div>
                     </div>
                     <button
                       type="button"
@@ -563,7 +566,7 @@ export default function SavingProductsPage() {
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
               <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-                Tiers are sorted by From days. Overlapping bands or open-ended non-final tiers will be rejected before save.
+                Tiers are sorted by From days. Overlapping bands or open-ended non-final tiers will be rejected before save. These seeded defaults are a starting commercial ladder, not fixed product law.
               </div>
               <button
                 type="button"
@@ -626,7 +629,7 @@ export default function SavingProductsPage() {
             label: 'Interest Tiers',
             value: isLockedSavingProduct(selected?.code) ? `${Array.isArray(selected?.interestTiers) ? selected.interestTiers.length : 0} configured` : 'Not applicable',
             hint: isLockedSavingProduct(selected?.code)
-              ? 'Changes apply to new savings only. Existing savings keep the rate they were created with.'
+              ? 'Changes apply only to new savings. Existing savings keep the applied terms they were created with.'
               : 'Duration tiers are hidden for open savings.'
           },
           {
@@ -767,8 +770,8 @@ export default function SavingProductsPage() {
             </SectionCard>
             {isLockedSavingProduct(selected?.code) ? (
               <SectionCard
-                title="Duration-based Interest Tiers"
-                description="These tiers are evaluated for new locked savings only. Existing savings keep the rate they were created with."
+                title="Default Locked-Saving Interest Tiers"
+                description="Current daily-rate ladder for new locked savings. Existing savings keep the applied terms they were created with."
               >
                 <DataTable
                   showIndex={false}
@@ -777,7 +780,7 @@ export default function SavingProductsPage() {
                   columns={[
                     { key: 'minLockDurationDays', label: 'From days', render: (row) => pickFirst(row?.minLockDurationDays, '—') },
                     { key: 'maxLockDurationDays', label: 'To days', render: (row) => (row?.maxLockDurationDays === null || row?.maxLockDurationDays === undefined ? 'Open-ended' : row.maxLockDurationDays) },
-                    { key: 'interestPercentage', label: 'Daily interest %', render: (row) => formatInterest(row?.interestPercentage) }
+                    { key: 'interestPercentage', label: 'Daily interest rate (%)', render: (row) => formatInterest(row?.interestPercentage) }
                   ]}
                   rows={Array.isArray(selected?.interestTiers) ? [...selected.interestTiers].sort((a, b) => Number(a?.minLockDurationDays || 0) - Number(b?.minLockDurationDays || 0)) : []}
                   emptyLabel="No duration tiers configured"
