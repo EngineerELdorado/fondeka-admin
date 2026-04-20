@@ -8,7 +8,7 @@ const sections = [
   { href: '/dashboard/payments/method-providers', title: 'Method ↔ Provider', blurb: 'Map payment methods to providers with rank/active.' },
   { href: '/dashboard/payments/method-crypto-networks', title: 'Method ↔ Crypto Network', blurb: 'Map payment methods to crypto networks.' },
   { href: '/dashboard/payments/payment-method-action-configs', title: 'Method Action Configs', blurb: 'Rules that include/exclude payment methods per action/country.' },
-  { href: '/dashboard/fees/fee-configs', title: 'Fee Configs', blurb: 'Configure fees per action, service, country, PMPP.' }
+  { href: '/dashboard/fees/fee-configs', title: 'Fee Configs', blurb: 'Configure fees and default fee charging mode per action, service, country, and route.' }
 ];
 
 export default function PaymentsHubPage() {

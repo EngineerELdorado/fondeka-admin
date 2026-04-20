@@ -124,6 +124,7 @@ export default function AccountsListPage() {
   const [feeProviderFlat, setFeeProviderFlat] = useState('');
   const [feeOurPct, setFeeOurPct] = useState('');
   const [feeOurFlat, setFeeOurFlat] = useState('');
+  const [feeApplicationMode, setFeeApplicationMode] = useState('EXCLUSIVE');
   const [feeSaving, setFeeSaving] = useState(false);
   const [pmps, setPmps] = useState([]);
   const actionOptions = [
@@ -777,6 +778,7 @@ export default function AccountsListPage() {
     setFeeProviderFlat(fee?.providerFlatFee ?? '');
     setFeeOurPct(fee?.ourFeePercentage ?? '');
     setFeeOurFlat(fee?.ourFlatFee ?? '');
+    setFeeApplicationMode(fee?.feeApplicationMode || 'EXCLUSIVE');
     setShowFeeForm(true);
   };
 
@@ -790,6 +792,7 @@ export default function AccountsListPage() {
     setFeeProviderFlat('');
     setFeeOurPct('');
     setFeeOurFlat('');
+    setFeeApplicationMode('EXCLUSIVE');
   };
 
   const submitFeeForm = async () => {
@@ -809,7 +812,8 @@ export default function AccountsListPage() {
       providerFeePercentage: feeProviderPct === '' ? 0 : Number(feeProviderPct),
       providerFlatFee: feeProviderFlat === '' ? 0 : Number(feeProviderFlat),
       ourFeePercentage: feeOurPct === '' ? 0 : Number(feeOurPct),
-      ourFlatFee: feeOurFlat === '' ? 0 : Number(feeOurFlat)
+      ourFlatFee: feeOurFlat === '' ? 0 : Number(feeOurFlat),
+      feeApplicationMode: feeApplicationMode || 'EXCLUSIVE'
     };
     setFeeSaving(true);
     setFeeConfigsError(null);
@@ -1368,9 +1372,9 @@ export default function AccountsListPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
                   <div style={{ fontWeight: 800 }}>Custom Fee Overrides</div>
-                  <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-                    Per-account fee rules. Leave PMPP blank for account-wide action overrides.
-                  </div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Per-account fee rules and fee charging policy exceptions. Leave PMPP blank for account-wide action overrides.
+            </div>
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                   <button type="button" className="btn-neutral btn-sm" onClick={() => loadFeeConfigs(selected?.id)} disabled={feeConfigsLoading}>
@@ -1391,7 +1395,7 @@ export default function AccountsListPage() {
                     <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '720px' }}>
                       <thead>
                         <tr>
-                          {['Action', 'Service', 'PMPP', 'Country', 'Provider %', 'Provider flat', 'Our %', 'Our flat', 'Updated', ''].map((h) => (
+                            {['Action', 'Service', 'PMPP', 'Country', 'Provider %', 'Provider flat', 'Our %', 'Our flat', 'Fee mode', 'Updated', ''].map((h) => (
                             <th key={h} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
                               {h}
                             </th>
@@ -1419,6 +1423,7 @@ export default function AccountsListPage() {
                             <td style={{ padding: '0.45rem' }}>{fee.providerFlatFee}</td>
                             <td style={{ padding: '0.45rem' }}>{fee.ourFeePercentage}</td>
                             <td style={{ padding: '0.45rem' }}>{fee.ourFlatFee}</td>
+                            <td style={{ padding: '0.45rem' }}>{String(fee.feeApplicationMode || 'EXCLUSIVE').toUpperCase() === 'INCLUSIVE' ? 'Recipient pays' : 'Sender pays'}</td>
                             <td style={{ padding: '0.45rem' }}>{fee.updatedAt ? formatDateTime(fee.updatedAt) : '—'}</td>
                             <td style={{ padding: '0.45rem', display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                               <button type="button" className="btn-neutral btn-sm" onClick={() => openFeeForm(fee)}>
@@ -1670,6 +1675,12 @@ export default function AccountsListPage() {
         <Modal title={`${feeFormId ? 'Edit' : 'Add'} fee override`} onClose={() => (!feeSaving ? setShowFeeForm(false) : null)}>
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             {feeConfigsError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{feeConfigsError}</div>}
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Overrides the default fee mode for this action on this account when the app does not explicitly choose a fee mode.
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              This applies across fee-bearing flows, not only payouts. Older app versions also use this override when they send no explicit fee mode.
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="feeService">Service</label>
@@ -1733,6 +1744,25 @@ export default function AccountsListPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="feeOurFlat">Our flat</label>
                 <input id="feeOurFlat" type="number" step="0.01" value={feeOurFlat} onChange={(e) => setFeeOurFlat(e.target.value)} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="feeApplicationMode">Fee charging mode</label>
+                <select id="feeApplicationMode" value={feeApplicationMode} onChange={(e) => setFeeApplicationMode(e.target.value)}>
+                  <option value="EXCLUSIVE">Sender pays fees (EXCLUSIVE)</option>
+                  <option value="INCLUSIVE">Recipient pays fees (INCLUSIVE)</option>
+                </select>
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                  Choose how fees apply for this action on this account.
+                </div>
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                  Used when the app does not explicitly choose how fees should be applied.
+                </div>
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                  EXCLUSIVE: fees are added on top of the entered amount. INCLUSIVE: fees are deducted from the entered amount.
+                </div>
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                  This rule is action-specific. Different actions on the same account can use different fee modes.
+                </div>
               </div>
             </div>
 

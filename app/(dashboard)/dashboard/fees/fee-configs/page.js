@@ -6,6 +6,10 @@ import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
 const serviceOptions = ['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'PAYMENT_REQUEST', 'E_SIM', 'AIRTIME_AND_DATA', 'OTHER'];
+const feeApplicationModeOptions = [
+  { value: 'EXCLUSIVE', label: 'Sender pays fees (EXCLUSIVE)' },
+  { value: 'INCLUSIVE', label: 'Recipient pays fees (INCLUSIVE)' }
+];
 
 const actionOptions = [
   'BUY_CARD',
@@ -59,7 +63,8 @@ const emptyState = {
   providerFeePercentage: '',
   providerFlatFee: '',
   ourFeePercentage: '',
-  ourFlatFee: ''
+  ourFlatFee: '',
+  feeApplicationMode: 'EXCLUSIVE'
 };
 
 const resolveAction = (state) => (state.action === '__custom' ? state.customAction : state.action);
@@ -82,7 +87,8 @@ const toPayload = (state) => ({
   providerFeePercentage: state.providerFeePercentage === '' ? null : Number(state.providerFeePercentage),
   providerFlatFee: state.providerFlatFee === '' ? null : Number(state.providerFlatFee),
   ourFeePercentage: state.ourFeePercentage === '' ? null : Number(state.ourFeePercentage),
-  ourFlatFee: state.ourFlatFee === '' ? null : Number(state.ourFlatFee)
+  ourFlatFee: state.ourFlatFee === '' ? null : Number(state.ourFlatFee),
+  feeApplicationMode: state.feeApplicationMode || 'EXCLUSIVE'
 });
 
 const Modal = ({ title, onClose, children }) => (
@@ -430,6 +436,11 @@ export default function FeeConfigsPage() {
       { key: 'ourFeePercentage', label: 'Our %' },
       { key: 'ourFlatFee', label: 'Our flat' },
       {
+        key: 'feeApplicationMode',
+        label: 'Fee mode',
+        render: (row) => (String(row?.feeApplicationMode || 'EXCLUSIVE').toUpperCase() === 'INCLUSIVE' ? 'Recipient pays' : 'Sender pays')
+      },
+      {
         key: 'overrideSpecificFees',
         label: 'Override Specific',
         render: (row) => (row.overrideSpecificFees ? 'Yes' : 'No')
@@ -478,7 +489,8 @@ export default function FeeConfigsPage() {
       providerFeePercentage: row.providerFeePercentage ?? '',
       providerFlatFee: row.providerFlatFee ?? '',
       ourFeePercentage: row.ourFeePercentage ?? '',
-      ourFlatFee: row.ourFlatFee ?? ''
+      ourFlatFee: row.ourFlatFee ?? '',
+      feeApplicationMode: row.feeApplicationMode || 'EXCLUSIVE'
     });
     setShowEdit(true);
     setInfo(null);
@@ -560,7 +572,8 @@ export default function FeeConfigsPage() {
         providerFeePercentage: '',
         providerFlatFee: '',
         ourFeePercentage: '',
-        ourFlatFee: ''
+        ourFlatFee: '',
+        feeApplicationMode: 'EXCLUSIVE'
       }));
       fetchRows();
     } catch (err) {
@@ -756,6 +769,28 @@ export default function FeeConfigsPage() {
         <label htmlFor="ourFlatFee">Our flat</label>
         <input id="ourFlatFee" type="number" min={0} value={draft.ourFlatFee} onChange={(e) => setDraft((p) => ({ ...p, ourFlatFee: e.target.value }))} />
       </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="feeApplicationMode">Fee application mode</label>
+        <select id="feeApplicationMode" value={draft.feeApplicationMode} onChange={(e) => setDraft((p) => ({ ...p, feeApplicationMode: e.target.value }))}>
+          {feeApplicationModeOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+          Choose how fees apply for this action.
+        </div>
+        <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+          Used when the app does not explicitly choose how fees should be applied.
+        </div>
+        <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+          EXCLUSIVE: fees are added on top of the entered amount. INCLUSIVE: fees are deducted from the entered amount.
+        </div>
+        <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+          This rule is action-specific. Different actions can use different fee modes.
+        </div>
+      </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <input
           id="overrideSpecificFees"
@@ -781,7 +816,7 @@ export default function FeeConfigsPage() {
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <div style={{ fontWeight: 800, fontSize: '20px' }}>Fee Configs</div>
-          <div style={{ color: 'var(--muted)' }}>Configure layered fees by provider names first, then add exact route exceptions only when needed.</div>
+          <div style={{ color: 'var(--muted)' }}>Configure layered fees and the default fee charging policy across withdrawals, funding, purchases, bill payments, airtime, crypto, eSIM, and payment requests.</div>
         </div>
         <Link href="/dashboard/payments" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
           ← Payments hub
@@ -814,6 +849,7 @@ export default function FeeConfigsPage() {
 
       <div className="card" style={{ display: 'grid', gap: '0.45rem', color: 'var(--muted)', fontSize: '13px' }}>
         <div>Configure fees using provider and product names in the UI. The system sends IDs underneath, but names are the source of truth for admin decisions.</div>
+        <div>Fee application mode is now a cross-app pricing policy, not just a payout setting. It affects fee-bearing flows such as withdrawals, funding, purchases, bill payments, airtime, eSIM, crypto, and public payment requests.</div>
         <div>
           Available scopes, from most specific to most general: <strong>Exact Route</strong> (Payment Method Route + Bill Product Route), <strong>Payment Route Only</strong>, <strong>Bill Route Only</strong>, <strong>Provider Pair</strong> (Payment Provider + Bill Provider), <strong>Bill Provider Default</strong>, <strong>Payment Provider Default</strong>, and <strong>Global Action Default</strong>.
         </div>
@@ -822,6 +858,18 @@ export default function FeeConfigsPage() {
         </div>
         <div>
           Precedence: account custom fees win first. After that, narrower system configs normally beat broader ones, while broader configs act as fallback defaults. If <strong>Override Specific Fees</strong> is on, a broader matching fee can intentionally beat ordinary narrower system configs.
+        </div>
+        <div>
+          Best mental model: <strong>each fee row is action-specific</strong>. Global config is the default commercial policy for that action, account override is the customer-specific exception for that action, and app request is the explicit per-transaction choice.
+        </div>
+        <div>
+          Fee application precedence: <strong>app request</strong>, then <strong>account fee override for that action</strong>, then <strong>global fee config for that action</strong>, then <strong>EXCLUSIVE</strong>.
+        </div>
+        <div>
+          If the mobile app does not specify a fee mode, the configured rule for that action will be used. Older app versions rely on this admin-configured action default by design.
+        </div>
+        <div>
+          Operational impact: changing fee mode can change the effective credited or serviced amount for users who enter the same amount, especially on collection flows like bill payments, airtime, wallet funding, and payment requests.
         </div>
         <div>
           Recommended workflow: create blank-action provider defaults first, then add action-specific or exact-route exceptions only where needed. Avoid multiple active fee configs at the same exact scope for the same action state.
@@ -1093,6 +1141,10 @@ export default function FeeConfigsPage() {
               { label: 'Provider flat', value: selected?.providerFlatFee },
               { label: 'Our %', value: selected?.ourFeePercentage },
               { label: 'Our flat', value: selected?.ourFlatFee },
+              {
+                label: 'Fee application mode',
+                value: String(selected?.feeApplicationMode || 'EXCLUSIVE').toUpperCase() === 'INCLUSIVE' ? 'Recipient pays (INCLUSIVE)' : 'Sender pays (EXCLUSIVE)'
+              },
               { label: 'Created', value: selected?.createdAt },
               { label: 'Updated', value: selected?.updatedAt }
             ]}
