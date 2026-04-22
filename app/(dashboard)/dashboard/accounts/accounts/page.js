@@ -47,6 +47,12 @@ const pickOwedLoans = (item) =>
   item?.previousDebt ??
   null;
 
+const sumCryptoWalletBalances = (wallets) =>
+  (Array.isArray(wallets) ? wallets : []).reduce((total, wallet) => {
+    const amount = Number(wallet?.balance);
+    return Number.isFinite(amount) ? total + amount : total;
+  }, 0);
+
 const Modal = ({ title, onClose, children }) => (
   <div className="modal-backdrop">
     <div className="modal-surface">
@@ -315,6 +321,7 @@ export default function AccountsListPage() {
         blacklisted: item.blacklisted,
         createdAt: item.createdAt,
         balance: item.balance,
+        cryptoBalance: sumCryptoWalletBalances(item.cryptoWallets || []),
         owedLoansAmount: item.owedLoansAmount ?? null,
         owedLoans: pickOwedLoans(item),
         previousDebt: item.previousDebt,
@@ -441,9 +448,10 @@ export default function AccountsListPage() {
       { key: 'accountId', label: 'Account ID' },
       { key: 'userName', label: 'User' },
       { key: 'email', label: 'Email' },
-      { key: 'countryName', label: 'Country' },
       { key: 'phone', label: 'Phone' },
+      { key: 'countryName', label: 'Country' },
       { key: 'balance', label: 'Balance' },
+      { key: 'cryptoBalance', label: 'Crypto balance', render: (row) => formatAmount(row.cryptoBalance) },
       { key: 'owedLoans', label: 'Amount owed', render: (row) => formatAmount(row.owedLoansAmount ?? row.owedLoans) },
       { key: 'eligibleLoanAmount', label: 'Eligible loan' },
       { key: 'createdAt', label: 'Created at', render: (row) => formatDateTime(row.createdAt) },
