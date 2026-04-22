@@ -24,7 +24,8 @@ export function DataTable({
   onPageChange,
   canPrev,
   canNext,
-  showAccountQuickNav = true
+  showAccountQuickNav = true,
+  rowStyle
 }) {
   const isServerPagination = typeof onPageChange === 'function';
   const [localPage, setLocalPage] = useState(0);
@@ -174,7 +175,7 @@ export function DataTable({
             </tr>
           )}
           {displayRows.map((row, idx) => (
-            <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>
+            <tr key={idx} style={{ borderBottom: '1px solid var(--border)', ...(rowStyle ? rowStyle(row, idx) : {}) }}>
               {showIndex && (
                 <td className="data-table__cell" style={{ padding: '0.75rem', color: 'var(--muted)' }}>
                   {idx + 1 + page * safePageSize}

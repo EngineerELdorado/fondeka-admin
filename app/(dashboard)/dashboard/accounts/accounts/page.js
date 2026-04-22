@@ -38,6 +38,15 @@ const sortDirOptions = [
   { value: 'asc', label: 'Ascending' }
 ];
 
+const pickOwedLoans = (item) =>
+  item?.owedLoansAmount ??
+  item?.owedLoans ??
+  item?.owed_loans ??
+  item?.loanBalance ??
+  item?.account?.loanBalance ??
+  item?.previousDebt ??
+  null;
+
 const Modal = ({ title, onClose, children }) => (
   <div className="modal-backdrop">
     <div className="modal-surface">
@@ -306,6 +315,8 @@ export default function AccountsListPage() {
         blacklisted: item.blacklisted,
         createdAt: item.createdAt,
         balance: item.balance,
+        owedLoansAmount: item.owedLoansAmount ?? null,
+        owedLoans: pickOwedLoans(item),
         previousDebt: item.previousDebt,
         eligibleLoanAmount: item.eligibleLoanAmount,
         lastTransactions: item.lastTransactions || [],
@@ -428,15 +439,14 @@ export default function AccountsListPage() {
   const columns = useMemo(
     () => [
       { key: 'accountId', label: 'Account ID' },
-      { key: 'accountReference', label: 'Account' },
       { key: 'userName', label: 'User' },
       { key: 'email', label: 'Email' },
       { key: 'countryName', label: 'Country' },
       { key: 'phone', label: 'Phone' },
       { key: 'balance', label: 'Balance' },
+      { key: 'owedLoans', label: 'Amount owed', render: (row) => formatAmount(row.owedLoansAmount ?? row.owedLoans) },
       { key: 'eligibleLoanAmount', label: 'Eligible loan' },
       { key: 'createdAt', label: 'Created at', render: (row) => formatDateTime(row.createdAt) },
-      { key: 'blacklisted', label: 'Blacklist status', render: (row) => renderBlacklistBadge(row.blacklisted) },
       {
         key: 'actions',
         label: 'Actions',
@@ -445,34 +455,6 @@ export default function AccountsListPage() {
             <Link href={`/dashboard/accounts/accounts/${row.id}`} className="btn-neutral">
               View
             </Link>
-            {row.blacklisted ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setBlacklistError(null);
-                  setSelected(row);
-                  setShowUnblacklistModal(true);
-                }}
-                className="btn-neutral"
-                title="Remove account from blacklist and restore access"
-              >
-                Remove from blacklist
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  setBlacklistError(null);
-                  setBlacklistReason('');
-                  setSelected(row);
-                  setShowBlacklistModal(true);
-                }}
-                className="btn-danger"
-                title="Add account to blacklist"
-              >
-                Blacklist account
-              </button>
-            )}
           </div>
         )
       }
@@ -1170,6 +1152,13 @@ export default function AccountsListPage() {
         onPageChange={setPage}
         canPrev={canGoPrevious}
         canNext={canGoNext}
+        rowStyle={(row) =>
+          row?.blacklisted
+            ? {
+                background: 'rgba(239, 68, 68, 0.06)'
+              }
+            : undefined
+        }
         emptyLabel="No accounts found"
       />
 
@@ -1279,6 +1268,18 @@ export default function AccountsListPage() {
                 { label: 'KYC level', value: accountView?.kycLevel ?? selected?.kycLevel },
                 { label: 'Blacklisted', value: renderBlacklistBadge(accountView?.blacklisted ?? selected?.blacklisted) },
                 { label: 'Balance', value: accountView?.balance ?? selected?.balance },
+                {
+                  label: 'Amount owed',
+                  value: formatAmount(
+                    accountView?.owedLoansAmount ??
+                    selected?.owedLoansAmount ??
+                    accountView?.owedLoans ??
+                    selected?.owedLoans ??
+                    pickOwedLoans(accountView) ??
+                    pickOwedLoans(selected)
+                  )
+                },
+                { label: 'Previous debt', value: formatAmount(accountView?.previousDebt ?? selected?.previousDebt) },
                 { label: 'Eligible loan', value: accountView?.eligibleLoanAmount ?? selected?.eligibleLoanAmount }
               ]}
             />
@@ -1929,4 +1930,11 @@ const formatDateTime = (value) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+};
+
+const formatAmount = (value) => {
+  if (value === null || value === undefined || value === '') return '—';
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return String(value);
+  return parsed.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
