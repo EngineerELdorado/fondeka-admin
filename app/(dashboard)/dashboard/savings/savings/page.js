@@ -78,6 +78,50 @@ const Modal = ({ title, onClose, children }) => (
   </div>
 );
 
+const BottomSheetNotice = ({ title, message, onClose }) => (
+  <div
+    style={{
+      position: 'fixed',
+      inset: 'auto 0 0 0',
+      display: 'flex',
+      justifyContent: 'center',
+      padding: '0 1rem 1rem',
+      zIndex: 1200,
+      pointerEvents: 'none'
+    }}
+  >
+    <div
+      style={{
+        width: 'min(680px, 100%)',
+        display: 'grid',
+        gap: '0.45rem',
+        padding: '0.95rem 1rem 1rem',
+        borderRadius: '18px 18px 0 0',
+        border: '1px solid rgba(239, 68, 68, 0.22)',
+        background: '#fff7f7',
+        color: '#7f1d1d',
+        boxShadow: '0 -18px 48px rgba(15, 23, 42, 0.18)',
+        pointerEvents: 'auto'
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'flex-start' }}>
+        <div style={{ display: 'grid', gap: '0.15rem' }}>
+          <div style={{ fontWeight: 800 }}>{title}</div>
+          <div style={{ fontSize: '13px', color: '#991b1b' }}>{message}</div>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          style={{ border: 'none', background: 'transparent', color: '#991b1b', fontSize: '20px', cursor: 'pointer', lineHeight: 1 }}
+          aria-label="Close create saving error"
+        >
+          ×
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
 export default function SavingsPage() {
   const [rows, setRows] = useState([]);
   const [products, setProducts] = useState([]);
@@ -94,6 +138,7 @@ export default function SavingsPage() {
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [restoreSaving, setRestoreSaving] = useState(false);
+  const [createError, setCreateError] = useState(null);
 
   const selectedProduct = useMemo(
     () => products.find((product) => String(product?.id) === String(draft.savingProductId)),
@@ -249,6 +294,7 @@ export default function SavingsPage() {
   const openCreate = () => {
     setDraft(emptyState);
     setShowCreate(true);
+    setCreateError(null);
     setInfo(null);
     setError(null);
   };
@@ -291,18 +337,20 @@ export default function SavingsPage() {
   const handleCreate = async () => {
     const validationError = validateDraft();
     if (validationError) {
-      setError(validationError);
+      setCreateError(validationError);
       return;
     }
+    setCreateError(null);
     setError(null);
     setInfo(null);
     try {
       await api.savings.create(toPayload(draft));
       setInfo('Created saving.');
       setShowCreate(false);
+      setCreateError(null);
       fetchRows();
     } catch (err) {
-      setError(err.message);
+      setCreateError(err?.message || 'Failed to create saving.');
     }
   };
 
@@ -487,14 +535,31 @@ export default function SavingsPage() {
       <DataTable columns={columns} rows={rows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No savings found" />
 
       {showCreate && (
-        <Modal title="Add saving" onClose={() => setShowCreate(false)}>
+        <Modal
+          title="Add saving"
+          onClose={() => {
+            setShowCreate(false);
+            setCreateError(null);
+          }}
+        >
           {renderForm()}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-            <button type="button" onClick={() => setShowCreate(false)} className="btn-neutral">Cancel</button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowCreate(false);
+                setCreateError(null);
+              }}
+              className="btn-neutral"
+            >
+              Cancel
+            </button>
             <button type="button" onClick={handleCreate} className="btn-success">Create</button>
           </div>
         </Modal>
       )}
+
+      {showCreate && createError ? <BottomSheetNotice title="Could not create saving" message={createError} onClose={() => setCreateError(null)} /> : null}
 
       {showEdit && (
         <Modal title={`Edit saving ${selected?.id}`} onClose={() => setShowEdit(false)}>

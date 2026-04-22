@@ -9,6 +9,10 @@ const ALLOWED_PAYOUT_ACTIONS = ['WITHDRAW_FROM_WALLET', 'WITHDRAW_FROM_CARD', 'S
 const ACTION_OPTIONS = [
   'FUND_WALLET',
   'WITHDRAW_FROM_WALLET',
+  'PERSONAL_SAVING_DEPOSIT',
+  'PERSONAL_SAVING_WITHDRAWAL',
+  'PERSONAL_SAVING_INTEREST_PAYOUT',
+  'GROUP_SAVING_PAYOUT',
   'REFUND_TO_WALLET',
   'BONUS',
   'PAY_INTERNET_BILL',
@@ -39,6 +43,11 @@ const ACTION_OPTIONS = [
   'INTER_TRANSFER',
   'OTHER'
 ].sort();
+const feeApplicationModeOptions = [
+  { value: 'EXCLUSIVE', label: 'Sender pays fees (EXCLUSIVE)' },
+  { value: 'INCLUSIVE', label: 'Recipient pays fees (INCLUSIVE)' }
+];
+const FEE_APPLICATION_MODES = new Set(feeApplicationModeOptions.map((option) => option.value));
 const formatUsdValue = (value) => {
   if (value === null || value === undefined || value === '') return '';
   const parsed = Number(value);
@@ -82,6 +91,8 @@ export default function WalletPolicyConfigPage() {
   const [sendCryptoExternalProviderEnabled, setSendCryptoExternalProviderEnabled] = useState(false);
   const [autoRefundBlockedActions, setAutoRefundBlockedActions] = useState([]);
   const [autoRefundActionSearch, setAutoRefundActionSearch] = useState('');
+  const [globalFeeApplicationMode, setGlobalFeeApplicationMode] = useState('EXCLUSIVE');
+  const [actionFeeApplicationModes, setActionFeeApplicationModes] = useState({});
   const [configSnapshot, setConfigSnapshot] = useState(null);
 
   const autoRefundActionOptions = useMemo(() => {
@@ -107,6 +118,19 @@ export default function WalletPolicyConfigPage() {
     [autoRefundBlockedActions]
   );
 
+  const actionFeeModeEntries = useMemo(
+    () =>
+      Object.entries(actionFeeApplicationModes || {})
+        .filter(([action, mode]) => action && FEE_APPLICATION_MODES.has(String(mode || '').toUpperCase()))
+        .sort(([left], [right]) => String(left).localeCompare(String(right))),
+    [actionFeeApplicationModes]
+  );
+
+  const availableActionFeeModeActions = useMemo(() => {
+    const configured = new Set(actionFeeModeEntries.map(([action]) => String(action)));
+    return ACTION_OPTIONS.filter((action) => !configured.has(action));
+  }, [actionFeeModeEntries]);
+
   const loadConfig = async () => {
     setLoading(true);
     setError(null);
@@ -127,6 +151,15 @@ export default function WalletPolicyConfigPage() {
       setForcePayoutKycUnlessApproved(Boolean(res?.forcePayoutKycUnlessApproved));
       setForceKycBeforeAppUse(Boolean(res?.forceKycBeforeAppUse));
       setSendCryptoExternalProviderEnabled(Boolean(res?.sendCryptoExternalProviderEnabled));
+      setGlobalFeeApplicationMode(String(res?.globalFeeApplicationMode || 'EXCLUSIVE').toUpperCase());
+      const incomingActionFeeModes =
+        res?.actionFeeApplicationModes && typeof res.actionFeeApplicationModes === 'object' ? res.actionFeeApplicationModes : {};
+      const normalizedActionFeeModes = Object.fromEntries(
+        Object.entries(incomingActionFeeModes)
+          .map(([action, mode]) => [String(action || '').trim(), String(mode || '').toUpperCase()])
+          .filter(([action, mode]) => action && FEE_APPLICATION_MODES.has(mode))
+      );
+      setActionFeeApplicationModes(normalizedActionFeeModes);
     } catch (err) {
       setError(err?.message || 'Failed to load wallet policy config');
     } finally {
@@ -157,6 +190,11 @@ export default function WalletPolicyConfigPage() {
           .map((action) => String(action || '').trim())
           .filter(Boolean)
       )
+    );
+    const normalizedActionFeeModes = Object.fromEntries(
+      Object.entries(actionFeeApplicationModes || {})
+        .map(([action, mode]) => [String(action || '').trim(), String(mode || '').toUpperCase()])
+        .filter(([action, mode]) => action && FEE_APPLICATION_MODES.has(mode))
     );
     const minRaw = String(cryptoProviderCollectionMinimumUsd || '').trim();
     const maxRaw = String(cryptoProviderCollectionMaximumUsd || '').trim();
@@ -208,7 +246,9 @@ export default function WalletPolicyConfigPage() {
         forcePayoutKycUnlessApproved: Boolean(forcePayoutKycUnlessApproved),
         forceKycBeforeAppUse: Boolean(forceKycBeforeAppUse),
         sendCryptoExternalProviderEnabled: Boolean(sendCryptoExternalProviderEnabled),
-        autoRefundBlockedActions: normalizedAutoRefundBlockedActions
+        autoRefundBlockedActions: normalizedAutoRefundBlockedActions,
+        globalFeeApplicationMode: globalFeeApplicationMode || 'EXCLUSIVE',
+        actionFeeApplicationModes: normalizedActionFeeModes
       });
       setInfo('Wallet policy config updated.');
       await loadConfig();
@@ -251,6 +291,170 @@ export default function WalletPolicyConfigPage() {
           <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
             Allowed range: {MIN_COOLDOWN} to {MAX_COOLDOWN} minutes.
           </div>
+        </div>
+
+        <div style={{ display: 'grid', gap: '0.5rem' }}>
+          <div style={{ fontWeight: 700 }}>Global Fee Mode</div>
+          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+            Default-of-defaults for fee application across the platform.
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxWidth: '360px' }}>
+            <label htmlFor="globalFeeApplicationMode">Default fee mode for all actions</label>
+            <select
+              id="globalFeeApplicationMode"
+              value={globalFeeApplicationMode}
+              onChange={(e) => setGlobalFeeApplicationMode(e.target.value)}
+              disabled={loading || saving}
+            >
+              {feeApplicationModeOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Used only when no action-level wallet policy default, fee-config row mode, or account override is configured.
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              App-requested mode, account overrides, fee-config row modes, and action-level wallet policy defaults all win over this master default.
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gap: '0.6rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'grid', gap: '0.2rem' }}>
+              <div style={{ fontWeight: 700 }}>Action-specific fee mode defaults</div>
+              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                These defaults apply to a specific action without requiring a fee-config row mode.
+              </div>
+              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                If a fee-config row or account override sets a fee mode, that more specific rule wins.
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="btn-neutral"
+              disabled={loading || saving || availableActionFeeModeActions.length === 0}
+              onClick={() => {
+                const nextAction = availableActionFeeModeActions[0];
+                if (!nextAction) return;
+                setError(null);
+                setActionFeeApplicationModes((prev) => ({
+                  ...(prev && typeof prev === 'object' ? prev : {}),
+                  [nextAction]: 'EXCLUSIVE'
+                }));
+              }}
+            >
+              Add action override
+            </button>
+          </div>
+
+          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+            Remove an action from this list to let it inherit from the master global fee mode.
+          </div>
+
+          {actionFeeModeEntries.length > 0 ? (
+            <div style={{ display: 'grid', gap: '0.6rem' }}>
+              {actionFeeModeEntries.map(([action, mode], index) => (
+                <div
+                  key={action}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'minmax(220px, 1.3fr) minmax(220px, 1fr) auto',
+                    gap: '0.6rem',
+                    alignItems: 'end',
+                    padding: '0.75rem',
+                    border: '1px solid var(--border)',
+                    borderRadius: '12px'
+                  }}
+                >
+                  <div style={{ display: 'grid', gap: '0.25rem' }}>
+                    <label htmlFor={`actionFeeApplicationModes-action-${index}`}>Action</label>
+                    <select
+                      id={`actionFeeApplicationModes-action-${index}`}
+                      value={action}
+                      onChange={(e) => {
+                        const nextAction = String(e.target.value || '').trim();
+                        if (!nextAction || nextAction === action) return;
+                        if (actionFeeApplicationModes[nextAction]) {
+                          setError(`Fee mode for ${nextAction} is already configured in wallet policy.`);
+                          return;
+                        }
+                        setError(null);
+                        setActionFeeApplicationModes((prev) => {
+                          const next = { ...(prev && typeof prev === 'object' ? prev : {}) };
+                          const currentMode = next[action] || mode;
+                          delete next[action];
+                          next[nextAction] = currentMode;
+                          return next;
+                        });
+                      }}
+                      disabled={loading || saving}
+                    >
+                      {[action, ...availableActionFeeModeActions].map((option) => (
+                        <option key={option} value={option}>
+                          {humanizeEnum(option)} ({option})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div style={{ display: 'grid', gap: '0.25rem' }}>
+                    <label htmlFor={`actionFeeApplicationModes-mode-${index}`}>Fee mode</label>
+                    <select
+                      id={`actionFeeApplicationModes-mode-${index}`}
+                      value={mode}
+                      onChange={(e) => {
+                        const nextMode = String(e.target.value || '').toUpperCase();
+                        setError(null);
+                        setActionFeeApplicationModes((prev) => ({
+                          ...(prev && typeof prev === 'object' ? prev : {}),
+                          [action]: FEE_APPLICATION_MODES.has(nextMode) ? nextMode : 'EXCLUSIVE'
+                        }));
+                      }}
+                      disabled={loading || saving}
+                    >
+                      {feeApplicationModeOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="btn-danger"
+                    onClick={() => {
+                      setError(null);
+                      setActionFeeApplicationModes((prev) => {
+                        const next = { ...(prev && typeof prev === 'object' ? prev : {}) };
+                        delete next[action];
+                        return next;
+                      });
+                    }}
+                    disabled={loading || saving}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div
+              style={{
+                padding: '0.85rem',
+                border: '1px dashed var(--border)',
+                borderRadius: '12px',
+                color: 'var(--muted)',
+                fontSize: '13px'
+              }}
+            >
+              No action-level fee mode defaults configured. All actions currently inherit from the master global fee mode unless a more specific rule exists.
+            </div>
+          )}
         </div>
 
         <div style={{ display: 'grid', gap: '0.5rem' }}>

@@ -452,7 +452,7 @@ const [notificationDataModal, setNotificationDataModal] = useState(null);
   const [feeProviderFlat, setFeeProviderFlat] = useState('');
   const [feeOurPct, setFeeOurPct] = useState('');
   const [feeOurFlat, setFeeOurFlat] = useState('');
-  const [feeApplicationMode, setFeeApplicationMode] = useState('EXCLUSIVE');
+  const [feeApplicationMode, setFeeApplicationMode] = useState('');
   const [feeSaving, setFeeSaving] = useState(false);
   const [paymentMethodActionConfigs, setPaymentMethodActionConfigs] = useState([]);
   const [paymentMethodActionConfigsLoading, setPaymentMethodActionConfigsLoading] = useState(false);
@@ -627,6 +627,10 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     'SEND_AIRTIME',
     'SEND_CRYPTO',
     'WITHDRAW_FROM_CARD',
+    'PERSONAL_SAVING_DEPOSIT',
+    'PERSONAL_SAVING_WITHDRAWAL',
+    'PERSONAL_SAVING_INTEREST_PAYOUT',
+    'GROUP_SAVING_PAYOUT',
     'WITHDRAW_FROM_WALLET'
   ].sort();
 
@@ -1789,7 +1793,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     setFeeProviderFlat(fee?.providerFlatFee ?? '');
     setFeeOurPct(fee?.ourFeePercentage ?? '');
     setFeeOurFlat(fee?.ourFlatFee ?? '');
-    setFeeApplicationMode(fee?.feeApplicationMode || 'EXCLUSIVE');
+    setFeeApplicationMode(fee?.feeApplicationMode || '');
     setShowFeeForm(true);
   };
 
@@ -1803,7 +1807,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     setFeeProviderFlat('');
     setFeeOurPct('');
     setFeeOurFlat('');
-    setFeeApplicationMode('EXCLUSIVE');
+    setFeeApplicationMode('');
   };
 
   const submitFeeForm = async () => {
@@ -1824,7 +1828,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       providerFlatFee: feeProviderFlat === '' ? 0 : Number(feeProviderFlat),
       ourFeePercentage: feeOurPct === '' ? 0 : Number(feeOurPct),
       ourFlatFee: feeOurFlat === '' ? 0 : Number(feeOurFlat),
-      feeApplicationMode: feeApplicationMode || 'EXCLUSIVE'
+      feeApplicationMode: feeApplicationMode || null
     };
     setFeeSaving(true);
     setFeeConfigsError(null);
@@ -3455,7 +3459,13 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                             <td style={{ padding: '0.45rem' }}>{fee.providerFlatFee}</td>
                             <td style={{ padding: '0.45rem' }}>{fee.ourFeePercentage}</td>
                             <td style={{ padding: '0.45rem' }}>{fee.ourFlatFee}</td>
-                            <td style={{ padding: '0.45rem' }}>{String(fee.feeApplicationMode || 'EXCLUSIVE').toUpperCase() === 'INCLUSIVE' ? 'Recipient pays' : 'Sender pays'}</td>
+                            <td style={{ padding: '0.45rem' }}>
+                              {String(fee.feeApplicationMode || '').toUpperCase() === 'INCLUSIVE'
+                                ? 'Recipient pays'
+                                : String(fee.feeApplicationMode || '').toUpperCase() === 'EXCLUSIVE'
+                                  ? 'Sender pays'
+                                  : 'Use inherited default'}
+                            </td>
                             <td style={{ padding: '0.45rem' }}>{fee.updatedAt ? formatDateTime(fee.updatedAt) : '—'}</td>
                       <td style={{ padding: '0.45rem', display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                         <button type="button" className="btn-neutral btn-sm" onClick={() => openFeeForm(fee)}>
@@ -4999,6 +5009,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="feeApplicationMode">Account fee application override</label>
                 <select id="feeApplicationMode" value={feeApplicationMode} onChange={(e) => setFeeApplicationMode(e.target.value)}>
+                  <option value="">Use inherited default</option>
                   <option value="EXCLUSIVE">Sender pays fees (EXCLUSIVE)</option>
                   <option value="INCLUSIVE">Recipient pays fees (INCLUSIVE)</option>
                 </select>
@@ -5013,6 +5024,9 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                 </div>
                 <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
                   This rule is action-specific. Different actions on the same account can use different fee modes.
+                </div>
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                  Use inherited default to fall back to the action-level global rule, then to the master global fee mode.
                 </div>
               </div>
             </div>

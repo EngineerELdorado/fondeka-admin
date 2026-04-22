@@ -21,6 +21,23 @@ const initialFilters = {
   blacklisted: ''
 };
 
+const defaultSort = {
+  sortBy: 'created_at',
+  sortDir: 'desc'
+};
+
+const sortByOptions = [
+  { value: 'created_at', label: 'Most recent' },
+  { value: 'wallet_balance', label: 'Wallet balance' },
+  { value: 'crypto_balance', label: 'Crypto balance' },
+  { value: 'owed_loans', label: 'Owed loans' }
+];
+
+const sortDirOptions = [
+  { value: 'desc', label: 'Descending' },
+  { value: 'asc', label: 'Ascending' }
+];
+
 const Modal = ({ title, onClose, children }) => (
   <div className="modal-backdrop">
     <div className="modal-surface">
@@ -96,6 +113,8 @@ export default function AccountsListPage() {
   const [pageMeta, setPageMeta] = useState({ totalElements: null, totalPages: null });
   const [filters, setFilters] = useState(initialFilters);
   const [appliedFilters, setAppliedFilters] = useState(initialFilters);
+  const [sort, setSort] = useState(defaultSort);
+  const [appliedSort, setAppliedSort] = useState(defaultSort);
   const [showFilters, setShowFilters] = useState(false);
   const [countries, setCountries] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -124,7 +143,7 @@ export default function AccountsListPage() {
   const [feeProviderFlat, setFeeProviderFlat] = useState('');
   const [feeOurPct, setFeeOurPct] = useState('');
   const [feeOurFlat, setFeeOurFlat] = useState('');
-  const [feeApplicationMode, setFeeApplicationMode] = useState('EXCLUSIVE');
+  const [feeApplicationMode, setFeeApplicationMode] = useState('');
   const [feeSaving, setFeeSaving] = useState(false);
   const [pmps, setPmps] = useState([]);
   const actionOptions = [
@@ -148,6 +167,10 @@ export default function AccountsListPage() {
     'SEND_AIRTIME',
     'SEND_CRYPTO',
     'WITHDRAW_FROM_CARD',
+    'PERSONAL_SAVING_DEPOSIT',
+    'PERSONAL_SAVING_WITHDRAWAL',
+    'PERSONAL_SAVING_INTEREST_PAYOUT',
+    'GROUP_SAVING_PAYOUT',
     'WITHDRAW_FROM_WALLET'
   ].sort();
 
@@ -240,6 +263,8 @@ export default function AccountsListPage() {
     setError(null);
     try {
       const params = new URLSearchParams({ page: String(page), size: String(size) });
+      params.set('sortBy', appliedSort.sortBy || defaultSort.sortBy);
+      params.set('sortDir', appliedSort.sortDir || defaultSort.sortDir);
       Object.entries(appliedFilters).forEach(([key, value]) => {
         if (value === '' || value === null || value === undefined) return;
         if (['accountId', 'countryId'].includes(key)) {
@@ -300,7 +325,7 @@ export default function AccountsListPage() {
 
   useEffect(() => {
     fetchRows();
-  }, [page, size, appliedFilters]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [page, size, appliedFilters, appliedSort]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const fetchCountries = async () => {
@@ -330,11 +355,14 @@ export default function AccountsListPage() {
   const applyFilters = () => {
     setPage(0);
     setAppliedFilters(filters);
+    setAppliedSort(sort);
   };
 
   const resetFilters = () => {
     setFilters(initialFilters);
     setAppliedFilters(initialFilters);
+    setSort(defaultSort);
+    setAppliedSort(defaultSort);
     setPage(0);
   };
 
@@ -391,6 +419,11 @@ export default function AccountsListPage() {
   }, [appliedFilters]);
 
   const blacklistedCount = useMemo(() => rows.filter((row) => Boolean(row?.blacklisted)).length, [rows]);
+  const appliedSortLabel = useMemo(() => {
+    const sortByLabel = sortByOptions.find((option) => option.value === appliedSort.sortBy)?.label || 'Most recent';
+    const sortDirLabel = sortDirOptions.find((option) => option.value === appliedSort.sortDir)?.label || 'Descending';
+    return `${sortByLabel} · ${sortDirLabel}`;
+  }, [appliedSort]);
 
   const columns = useMemo(
     () => [
@@ -778,7 +811,7 @@ export default function AccountsListPage() {
     setFeeProviderFlat(fee?.providerFlatFee ?? '');
     setFeeOurPct(fee?.ourFeePercentage ?? '');
     setFeeOurFlat(fee?.ourFlatFee ?? '');
-    setFeeApplicationMode(fee?.feeApplicationMode || 'EXCLUSIVE');
+    setFeeApplicationMode(fee?.feeApplicationMode || '');
     setShowFeeForm(true);
   };
 
@@ -792,7 +825,7 @@ export default function AccountsListPage() {
     setFeeProviderFlat('');
     setFeeOurPct('');
     setFeeOurFlat('');
-    setFeeApplicationMode('EXCLUSIVE');
+    setFeeApplicationMode('');
   };
 
   const submitFeeForm = async () => {
@@ -813,7 +846,7 @@ export default function AccountsListPage() {
       providerFlatFee: feeProviderFlat === '' ? 0 : Number(feeProviderFlat),
       ourFeePercentage: feeOurPct === '' ? 0 : Number(feeOurPct),
       ourFlatFee: feeOurFlat === '' ? 0 : Number(feeOurFlat),
-      feeApplicationMode: feeApplicationMode || 'EXCLUSIVE'
+      feeApplicationMode: feeApplicationMode || null
     };
     setFeeSaving(true);
     setFeeConfigsError(null);
@@ -1046,6 +1079,26 @@ export default function AccountsListPage() {
                 <label htmlFor="endDate">End date</label>
                 <input id="endDate" type="datetime-local" value={filters.endDate} onChange={(e) => setFilters((p) => ({ ...p, endDate: e.target.value }))} />
               </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="sortBy">Sort by</label>
+                <select id="sortBy" value={sort.sortBy} onChange={(e) => setSort((prev) => ({ ...prev, sortBy: e.target.value }))}>
+                  {sortByOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="sortDir">Order</label>
+                <select id="sortDir" value={sort.sortDir} onChange={(e) => setSort((prev) => ({ ...prev, sortDir: e.target.value }))}>
+                  {sortDirOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.5rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   <label htmlFor="page">Page</label>
@@ -1076,7 +1129,7 @@ export default function AccountsListPage() {
               <button type="button" onClick={resetFilters} disabled={loading} className="btn-neutral">
                 Reset
               </button>
-              <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Set filters then apply to query.</span>
+              <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Set filters and sorting, then apply to query.</span>
             </div>
           </>
         )}
@@ -1103,6 +1156,7 @@ export default function AccountsListPage() {
       <div className="card" style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
         <Badge>Visible rows: {rows.length}</Badge>
         <Badge>Blacklisted (visible): {blacklistedCount}</Badge>
+        <Badge>Sort: {appliedSortLabel}</Badge>
         <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Use the `Blacklisted` filter to list only blocked or non-blocked accounts.</span>
       </div>
 
@@ -1423,7 +1477,13 @@ export default function AccountsListPage() {
                             <td style={{ padding: '0.45rem' }}>{fee.providerFlatFee}</td>
                             <td style={{ padding: '0.45rem' }}>{fee.ourFeePercentage}</td>
                             <td style={{ padding: '0.45rem' }}>{fee.ourFlatFee}</td>
-                            <td style={{ padding: '0.45rem' }}>{String(fee.feeApplicationMode || 'EXCLUSIVE').toUpperCase() === 'INCLUSIVE' ? 'Recipient pays' : 'Sender pays'}</td>
+                            <td style={{ padding: '0.45rem' }}>
+                              {String(fee.feeApplicationMode || '').toUpperCase() === 'INCLUSIVE'
+                                ? 'Recipient pays'
+                                : String(fee.feeApplicationMode || '').toUpperCase() === 'EXCLUSIVE'
+                                  ? 'Sender pays'
+                                  : 'Use inherited default'}
+                            </td>
                             <td style={{ padding: '0.45rem' }}>{fee.updatedAt ? formatDateTime(fee.updatedAt) : '—'}</td>
                             <td style={{ padding: '0.45rem', display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                               <button type="button" className="btn-neutral btn-sm" onClick={() => openFeeForm(fee)}>
@@ -1748,6 +1808,7 @@ export default function AccountsListPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="feeApplicationMode">Fee charging mode</label>
                 <select id="feeApplicationMode" value={feeApplicationMode} onChange={(e) => setFeeApplicationMode(e.target.value)}>
+                  <option value="">Use inherited default</option>
                   <option value="EXCLUSIVE">Sender pays fees (EXCLUSIVE)</option>
                   <option value="INCLUSIVE">Recipient pays fees (INCLUSIVE)</option>
                 </select>
@@ -1762,6 +1823,9 @@ export default function AccountsListPage() {
                 </div>
                 <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
                   This rule is action-specific. Different actions on the same account can use different fee modes.
+                </div>
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                  Use inherited default to fall back to the action-level global rule, then to the master global fee mode.
                 </div>
               </div>
             </div>

@@ -112,6 +112,50 @@ const toIsoString = (value) => {
   return date.toISOString();
 };
 
+const BottomSheetNotice = ({ title, message, onClose }) => (
+  <div
+    style={{
+      position: 'fixed',
+      inset: 'auto 0 0 0',
+      display: 'flex',
+      justifyContent: 'center',
+      padding: '0 1rem 1rem',
+      zIndex: 1200,
+      pointerEvents: 'none'
+    }}
+  >
+    <div
+      style={{
+        width: 'min(680px, 100%)',
+        display: 'grid',
+        gap: '0.45rem',
+        padding: '0.95rem 1rem 1rem',
+        borderRadius: '18px 18px 0 0',
+        border: '1px solid rgba(239, 68, 68, 0.22)',
+        background: '#fff7f7',
+        color: '#7f1d1d',
+        boxShadow: '0 -18px 48px rgba(15, 23, 42, 0.18)',
+        pointerEvents: 'auto'
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'flex-start' }}>
+        <div style={{ display: 'grid', gap: '0.15rem' }}>
+          <div style={{ fontWeight: 800 }}>{title}</div>
+          <div style={{ fontSize: '13px', color: '#991b1b' }}>{message}</div>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          style={{ border: 'none', background: 'transparent', color: '#991b1b', fontSize: '20px', cursor: 'pointer', lineHeight: 1 }}
+          aria-label="Close personal saving edit error"
+        >
+          ×
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
 export default function PersonalSavingsPage() {
   const [filters, setFilters] = useState(emptyFilters);
   const [appliedFilters, setAppliedFilters] = useState(emptyFilters);
@@ -133,6 +177,7 @@ export default function PersonalSavingsPage() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [approvalSaving, setApprovalSaving] = useState(false);
   const [restoreSaving, setRestoreSaving] = useState(false);
+  const [editError, setEditError] = useState(null);
 
   const selectedProduct = useMemo(
     () => products.find((product) => String(product?.id) === String(editDraft.savingProductId)),
@@ -232,6 +277,7 @@ export default function PersonalSavingsPage() {
       balance: pickFirst(saving?.balance, saving?.principalBalance, '') ?? '',
       status: saving?.status ?? ''
     });
+    setEditError(null);
     setEditing(true);
   };
 
@@ -255,10 +301,11 @@ export default function PersonalSavingsPage() {
     if (!detail?.id && !detail?.savingId) return;
     const validationError = validateEditDraft();
     if (validationError) {
-      setError(validationError);
+      setEditError(validationError);
       return;
     }
     setSavingEdit(true);
+    setEditError(null);
     setError(null);
     try {
       const savingId = getSavingId(detail);
@@ -280,9 +327,10 @@ export default function PersonalSavingsPage() {
       setDetail(savingRes);
       setActivities(Array.isArray(activityRes) ? activityRes : activityRes?.content || []);
       setEditing(false);
+      setEditError(null);
       await fetchRows();
     } catch (err) {
-      setError(err?.message || 'Failed to update saving');
+      setEditError(err?.message || 'Failed to update saving');
     } finally {
       setSavingEdit(false);
     }
@@ -700,7 +748,13 @@ export default function PersonalSavingsPage() {
       )}
 
       {editing && (
-        <AdminModal title={`Edit Saving ${getReference(detail) || getSavingId(detail)}`} onClose={() => setEditing(false)}>
+        <AdminModal
+          title={`Edit Saving ${getReference(detail) || getSavingId(detail)}`}
+          onClose={() => {
+            setEditing(false);
+            setEditError(null);
+          }}
+        >
           <div style={{ display: 'grid', gap: '1rem' }}>
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
               Changing the saving product changes the saving mode. Switching to <strong>LOCKED_SAVING</strong> requires a future end date that respects the product minimum lock duration. Locked savings accrue daily interest, but it is payable only at maturity. Early withdrawal is full-break only in v1 and forfeits accrued interest. Switching to <strong>OPEN_SAVING</strong> clears the end date.
@@ -774,7 +828,14 @@ export default function PersonalSavingsPage() {
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-              <button type="button" className="btn-neutral" onClick={() => setEditing(false)}>
+              <button
+                type="button"
+                className="btn-neutral"
+                onClick={() => {
+                  setEditing(false);
+                  setEditError(null);
+                }}
+              >
                 Cancel
               </button>
               <button type="button" className="btn-primary" onClick={handleSaveEdit} disabled={savingEdit}>
@@ -784,6 +845,8 @@ export default function PersonalSavingsPage() {
           </div>
         </AdminModal>
       )}
+
+      {editing && editError ? <BottomSheetNotice title="Could not update saving" message={editError} onClose={() => setEditError(null)} /> : null}
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { DataTable } from '@/components/DataTable';
 
 const serviceOptions = ['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'PAYMENT_REQUEST', 'E_SIM', 'AIRTIME_AND_DATA', 'OTHER'];
 const feeApplicationModeOptions = [
+  { value: '', label: 'Use global default' },
   { value: 'EXCLUSIVE', label: 'Sender pays fees (EXCLUSIVE)' },
   { value: 'INCLUSIVE', label: 'Recipient pays fees (INCLUSIVE)' }
 ];
@@ -35,6 +36,10 @@ const actionOptions = [
   'SETTLEMENT',
   'SWAP_CRYPTO',
   'WITHDRAW_FROM_CARD',
+  'PERSONAL_SAVING_DEPOSIT',
+  'PERSONAL_SAVING_WITHDRAWAL',
+  'PERSONAL_SAVING_INTEREST_PAYOUT',
+  'GROUP_SAVING_PAYOUT',
   'WITHDRAW_FROM_WALLET'
 ].sort();
 
@@ -64,7 +69,7 @@ const emptyState = {
   providerFlatFee: '',
   ourFeePercentage: '',
   ourFlatFee: '',
-  feeApplicationMode: 'EXCLUSIVE'
+  feeApplicationMode: ''
 };
 
 const resolveAction = (state) => (state.action === '__custom' ? state.customAction : state.action);
@@ -88,7 +93,7 @@ const toPayload = (state) => ({
   providerFlatFee: state.providerFlatFee === '' ? null : Number(state.providerFlatFee),
   ourFeePercentage: state.ourFeePercentage === '' ? null : Number(state.ourFeePercentage),
   ourFlatFee: state.ourFlatFee === '' ? null : Number(state.ourFlatFee),
-  feeApplicationMode: state.feeApplicationMode || 'EXCLUSIVE'
+  feeApplicationMode: state.feeApplicationMode || null
 });
 
 const Modal = ({ title, onClose, children }) => (
@@ -438,7 +443,12 @@ export default function FeeConfigsPage() {
       {
         key: 'feeApplicationMode',
         label: 'Fee mode',
-        render: (row) => (String(row?.feeApplicationMode || 'EXCLUSIVE').toUpperCase() === 'INCLUSIVE' ? 'Recipient pays' : 'Sender pays')
+        render: (row) => {
+          const mode = String(row?.feeApplicationMode || '').toUpperCase();
+          if (mode === 'INCLUSIVE') return 'Recipient pays';
+          if (mode === 'EXCLUSIVE') return 'Sender pays';
+          return 'Use global default';
+        }
       },
       {
         key: 'overrideSpecificFees',
@@ -490,7 +500,7 @@ export default function FeeConfigsPage() {
       providerFlatFee: row.providerFlatFee ?? '',
       ourFeePercentage: row.ourFeePercentage ?? '',
       ourFlatFee: row.ourFlatFee ?? '',
-      feeApplicationMode: row.feeApplicationMode || 'EXCLUSIVE'
+      feeApplicationMode: row.feeApplicationMode || ''
     });
     setShowEdit(true);
     setInfo(null);
@@ -573,7 +583,7 @@ export default function FeeConfigsPage() {
         providerFlatFee: '',
         ourFeePercentage: '',
         ourFlatFee: '',
-        feeApplicationMode: 'EXCLUSIVE'
+        feeApplicationMode: ''
       }));
       fetchRows();
     } catch (err) {
@@ -790,6 +800,9 @@ export default function FeeConfigsPage() {
         <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
           This rule is action-specific. Different actions can use different fee modes.
         </div>
+        <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+          Choose <strong>Use global default</strong> to inherit from the master global fee mode.
+        </div>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <input
@@ -860,13 +873,13 @@ export default function FeeConfigsPage() {
           Precedence: account custom fees win first. After that, narrower system configs normally beat broader ones, while broader configs act as fallback defaults. If <strong>Override Specific Fees</strong> is on, a broader matching fee can intentionally beat ordinary narrower system configs.
         </div>
         <div>
-          Best mental model: <strong>each fee row is action-specific</strong>. Global config is the default commercial policy for that action, account override is the customer-specific exception for that action, and app request is the explicit per-transaction choice.
+          Best mental model: <strong>master global fee mode = platform default</strong>, <strong>wallet policy action mode = default for one action</strong>, <strong>each fee row = more specific action override</strong>, <strong>account override = customer-specific exception for that action</strong>, and <strong>app request = explicit per-transaction choice</strong>.
         </div>
         <div>
-          Fee application precedence: <strong>app request</strong>, then <strong>account fee override for that action</strong>, then <strong>global fee config for that action</strong>, then <strong>EXCLUSIVE</strong>.
+          Fee application precedence: <strong>app request</strong>, then <strong>account fee override for that action</strong>, then <strong>global fee config for that action</strong>, then <strong>action-level wallet policy fee mode</strong>, then <strong>master global fee mode</strong>, then <strong>EXCLUSIVE</strong>.
         </div>
         <div>
-          If the mobile app does not specify a fee mode, the configured rule for that action will be used. Older app versions rely on this admin-configured action default by design.
+          If the mobile app does not specify a fee mode, the configured rule for that action will be used. If the action row leaves fee mode unset, it inherits from the wallet policy action-level mode for that action, then from the master global fee mode. Older app versions rely on these admin-configured defaults by design.
         </div>
         <div>
           Operational impact: changing fee mode can change the effective credited or serviced amount for users who enter the same amount, especially on collection flows like bill payments, airtime, wallet funding, and payment requests.
@@ -1143,7 +1156,12 @@ export default function FeeConfigsPage() {
               { label: 'Our flat', value: selected?.ourFlatFee },
               {
                 label: 'Fee application mode',
-                value: String(selected?.feeApplicationMode || 'EXCLUSIVE').toUpperCase() === 'INCLUSIVE' ? 'Recipient pays (INCLUSIVE)' : 'Sender pays (EXCLUSIVE)'
+                value:
+                  String(selected?.feeApplicationMode || '').toUpperCase() === 'INCLUSIVE'
+                    ? 'Recipient pays (INCLUSIVE)'
+                    : String(selected?.feeApplicationMode || '').toUpperCase() === 'EXCLUSIVE'
+                      ? 'Sender pays (EXCLUSIVE)'
+                      : 'Use global default'
               },
               { label: 'Created', value: selected?.createdAt },
               { label: 'Updated', value: selected?.updatedAt }
