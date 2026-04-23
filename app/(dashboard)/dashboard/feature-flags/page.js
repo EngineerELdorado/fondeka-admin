@@ -30,6 +30,7 @@ const TRANSACTION_AUTH_IOS_KEY = 'transaction_auth_enforcement.ios';
 const APP_OPEN_AUTH_GLOBAL_KEY = 'app_open_auth_enforcement';
 const APP_OPEN_AUTH_ANDROID_KEY = 'app_open_auth_enforcement.android';
 const APP_OPEN_AUTH_IOS_KEY = 'app_open_auth_enforcement.ios';
+const SAVINGS_ENABLED_KEY = 'savings.enabled';
 
 const ACTION_LABELS = {
   fund_wallet: 'Wallet Deposit',
@@ -142,6 +143,21 @@ const normalizeOverride = (entry) => {
   };
 };
 
+const normalizeCountryOverride = (entry) => {
+  if (!entry || typeof entry !== 'object') return null;
+  const countryCode = String(entry.countryCode ?? entry.country_code ?? entry.code ?? '').trim().toUpperCase();
+  if (!countryCode) return null;
+  return {
+    id: `country:${countryCode}`,
+    accountId: '',
+    email: '',
+    countryCode,
+    targetType: 'country',
+    targetLabel: `Country ${countryCode}`,
+    enabled: Boolean(entry.enabled)
+  };
+};
+
 const getOverrideErrorMessage = (err, fallback) => {
   if (err?.status === 404) return 'Account or email not found';
   return err?.message || fallback;
@@ -165,6 +181,8 @@ export default function FeatureFlagsPage() {
   const [overrideEnabled, setOverrideEnabled] = useState(true);
   const [overrideEmail, setOverrideEmail] = useState('');
   const [overrideEmailEnabled, setOverrideEmailEnabled] = useState(true);
+  const [overrideCountryCode, setOverrideCountryCode] = useState('');
+  const [overrideCountryEnabled, setOverrideCountryEnabled] = useState(true);
   const [overrides, setOverrides] = useState([]);
   const [spreadActionDraft, setSpreadActionDraft] = useState('');
   const [spreadActionEnabled, setSpreadActionEnabled] = useState(true);
@@ -496,15 +514,13 @@ export default function FeatureFlagsPage() {
     setOverrideEnabled(true);
     setOverrideEmail('');
     setOverrideEmailEnabled(true);
+    setOverrideCountryCode('');
+    setOverrideCountryEnabled(true);
     setOverrides([]);
     setOverridesLoading(true);
     setError(null);
     try {
-      const res = await api.featureFlags.listOverrides(key);
-      const list = (Array.isArray(res) ? res : [])
-        .map(normalizeOverride)
-        .filter(Boolean)
-        .sort((a, b) => a.targetLabel.localeCompare(b.targetLabel));
+      const list = await loadOverrideEntries(key);
       setOverrides(list);
     } catch (err) {
       setError(err.message || 'Failed to load overrides');
@@ -523,11 +539,7 @@ export default function FeatureFlagsPage() {
     setInfo(null);
     try {
       await api.featureFlags.upsertOverride(key, accountId, { enabled });
-      const res = await api.featureFlags.listOverrides(key);
-      const list = (Array.isArray(res) ? res : [])
-        .map(normalizeOverride)
-        .filter(Boolean)
-        .sort((a, b) => a.targetLabel.localeCompare(b.targetLabel));
+      const list = await loadOverrideEntries(key);
       setOverrides(list);
       setOverrideAccountId('');
       setOverrideEnabled(true);
@@ -543,6 +555,28 @@ export default function FeatureFlagsPage() {
     }
   };
 
+  const handleSaveCountryOverride = async (forcedEnabled) => {
+    const key = overrideDialog?.key;
+    const countryCode = overrideCountryCode.trim().toUpperCase();
+    if (!key || !countryCode || overridesSaving) return;
+    const enabled = typeof forcedEnabled === 'boolean' ? forcedEnabled : overrideCountryEnabled;
+    setOverridesSaving(true);
+    setError(null);
+    setInfo(null);
+    try {
+      await api.featureFlags.upsertCountryOverride(key, countryCode, { enabled });
+      const list = await loadOverrideEntries(key);
+      setOverrides(list);
+      setOverrideCountryCode('');
+      setOverrideCountryEnabled(true);
+      setInfo(`Country override set for ${countryCode}: ${enabled ? 'forced ON' : 'forced OFF'}.`);
+    } catch (err) {
+      setError(err?.message || 'Failed to save country override');
+    } finally {
+      setOverridesSaving(false);
+    }
+  };
+
   const handleSaveOverrideByEmail = async (forcedEnabled) => {
     const key = overrideDialog?.key;
     const email = overrideEmail.trim();
@@ -553,11 +587,7 @@ export default function FeatureFlagsPage() {
     setInfo(null);
     try {
       await api.featureFlags.upsertOverrideByEmail(key, email, { enabled });
-      const res = await api.featureFlags.listOverrides(key);
-      const list = (Array.isArray(res) ? res : [])
-        .map(normalizeOverride)
-        .filter(Boolean)
-        .sort((a, b) => a.targetLabel.localeCompare(b.targetLabel));
+      const list = await loadOverrideEntries(key);
       setOverrides(list);
       setOverrideEmail('');
       setOverrideEmailEnabled(true);
@@ -582,11 +612,7 @@ export default function FeatureFlagsPage() {
     setInfo(null);
     try {
       await api.featureFlags.removeOverrideByEmail(key, email);
-      const res = await api.featureFlags.listOverrides(key);
-      const list = (Array.isArray(res) ? res : [])
-        .map(normalizeOverride)
-        .filter(Boolean)
-        .sort((a, b) => a.targetLabel.localeCompare(b.targetLabel));
+      const list = await loadOverrideEntries(key);
       setOverrides(list);
       setOverrideEmail('');
       setInfo(`Override removed for ${email}.`);
@@ -606,7 +632,10 @@ export default function FeatureFlagsPage() {
     setError(null);
     setInfo(null);
     try {
-      if (accountId) {
+      if (entry?.countryCode) {
+        await api.featureFlags.removeCountryOverride(key, entry.countryCode);
+        setInfo(`Override removed for country ${entry.countryCode}.`);
+      } else if (accountId) {
         await api.featureFlags.removeOverride(key, accountId);
         setInfo(`Override removed for account ${accountId}.`);
       } else {
@@ -1234,14 +1263,78 @@ export default function FeatureFlagsPage() {
               Feature: <strong>{overrideDialog.key}</strong>.
             </div>
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-              {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY
-                ? 'Per-account/per-email overrides take precedence over the global flag.'
-                : <>Per-account/per-email overrides take precedence over the global flag. Use <strong>forced OFF</strong> to block an individual even when the feature is globally ON.</>}
+              {overrideDialog.key === SAVINGS_ENABLED_KEY ? (
+                <>Resolution order: <strong>account override</strong> → <strong>country override</strong> → <strong>global flag</strong> → <strong>default enabled</strong>.</>
+              ) : overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? (
+                'Per-account/per-email overrides take precedence over the global flag.'
+              ) : (
+                <>Per-account/per-email overrides take precedence over the global flag. Use <strong>forced OFF</strong> to block an individual even when the feature is globally ON.</>
+              )}
             </div>
             {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY && (
               <div style={{ display: 'grid', gap: '0.25rem', color: '#b45309', fontWeight: 600 }}>
                 <div>Use override `enabled=false` to allow crypto collection for a specific account/email even when global gate is ON.</div>
                 <div>Use override `enabled=true` to explicitly enforce the gate for that account/email.</div>
+              </div>
+            )}
+            {overrideDialog.key === SAVINGS_ENABLED_KEY && (
+              <div style={{ display: 'grid', gap: '0.25rem', color: 'var(--muted)', fontSize: '13px' }}>
+                <div>Use country overrides for market-level savings access without changing global rollout.</div>
+                <div>Account overrides still win over country and global settings.</div>
+              </div>
+            )}
+
+            {overrideDialog.key === SAVINGS_ENABLED_KEY && (
+              <div className="card" style={{ display: 'grid', gap: '0.65rem' }}>
+                <div style={{ fontWeight: 700 }}>Override by country</div>
+                <div style={{ display: 'grid', gap: '0.5rem' }}>
+                  <label htmlFor="overrideCountryCode">Country code</label>
+                  <input
+                    id="overrideCountryCode"
+                    placeholder="CD"
+                    value={overrideCountryCode}
+                    onChange={(e) => setOverrideCountryCode(e.target.value.toUpperCase())}
+                    disabled={overridesSaving}
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                  <input type="checkbox" checked={overrideCountryEnabled} onChange={(e) => setOverrideCountryEnabled(e.target.checked)} disabled={overridesSaving} />
+                  {overrideCountryEnabled ? 'Enabled' : 'Disabled'}
+                </label>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={handleSaveCountryOverride}
+                    disabled={!overrideCountryCode.trim() || overridesSaving}
+                    style={{
+                      border: `1px solid var(--border)`,
+                      background: 'var(--surface)',
+                      padding: '0.6rem 0.85rem',
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      color: 'var(--text)'
+                    }}
+                  >
+                    Save country override
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSaveCountryOverride(false)}
+                    disabled={!overrideCountryCode.trim() || overridesSaving}
+                    style={{
+                      border: `1px solid #b91c1c`,
+                      background: '#fff',
+                      color: '#b91c1c',
+                      padding: '0.6rem 0.85rem',
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      fontWeight: 700
+                    }}
+                  >
+                    Disable for country
+                  </button>
+                </div>
               </div>
             )}
 
@@ -1436,3 +1529,18 @@ export default function FeatureFlagsPage() {
     </div>
   );
 }
+  const loadOverrideEntries = async (key) => {
+    const [accountRes, countryRes] = await Promise.all([
+      api.featureFlags.listOverrides(key),
+      api.featureFlags.listCountryOverrides(key).catch((err) => {
+        if (err?.status === 404) return [];
+        throw err;
+      })
+    ]);
+    return [
+      ...(Array.isArray(accountRes) ? accountRes : []).map(normalizeOverride),
+      ...(Array.isArray(countryRes) ? countryRes : []).map(normalizeCountryOverride)
+    ]
+      .filter(Boolean)
+      .sort((a, b) => a.targetLabel.localeCompare(b.targetLabel));
+  };

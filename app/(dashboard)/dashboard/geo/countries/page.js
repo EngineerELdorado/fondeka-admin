@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
 const emptyState = { name: '', alpha2Code: '', alpha3Code: '', defaultKycLevel: '', registrationBlocked: false };
+const SAVINGS_ENABLED_KEY = 'savings.enabled';
 
 const toPayload = (state) => {
   const payload = {
@@ -63,6 +64,10 @@ export default function CountriesPage() {
   const [draft, setDraft] = useState(emptyState);
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [savingsFlag, setSavingsFlag] = useState(null);
+  const [savingsCountryOverride, setSavingsCountryOverride] = useState(null);
+  const [savingsAccessLoading, setSavingsAccessLoading] = useState(false);
+  const [savingsAccessSaving, setSavingsAccessSaving] = useState(false);
 
   const fetchRows = async () => {
     setLoading(true);
@@ -148,6 +153,79 @@ export default function CountriesPage() {
     setShowDetail(true);
     setInfo(null);
     setError(null);
+  };
+
+  const loadSavingsAccess = async (country) => {
+    const countryCode = String(country?.alpha2Code || '').trim().toUpperCase();
+    if (!countryCode) {
+      setSavingsFlag(null);
+      setSavingsCountryOverride(null);
+      return;
+    }
+    setSavingsAccessLoading(true);
+    try {
+      const [flagRes, overridesRes] = await Promise.all([
+        api.featureFlags.get(SAVINGS_ENABLED_KEY).catch((err) => {
+          if (err?.status === 404) return { key: SAVINGS_ENABLED_KEY, enabled: true };
+          throw err;
+        }),
+        api.featureFlags.listCountryOverrides(SAVINGS_ENABLED_KEY).catch((err) => {
+          if (err?.status === 404) return [];
+          throw err;
+        })
+      ]);
+      const normalizedCode = countryCode.toUpperCase();
+      const override = (Array.isArray(overridesRes) ? overridesRes : []).find(
+        (entry) => String(entry?.countryCode ?? entry?.country_code ?? '').trim().toUpperCase() === normalizedCode
+      );
+      setSavingsFlag(flagRes || { key: SAVINGS_ENABLED_KEY, enabled: true });
+      setSavingsCountryOverride(override || null);
+    } catch (err) {
+      setError(err?.message || 'Failed to load savings access for country');
+      setSavingsFlag(null);
+      setSavingsCountryOverride(null);
+    } finally {
+      setSavingsAccessLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!showDetail || !selected?.alpha2Code) return;
+    loadSavingsAccess(selected);
+  }, [showDetail, selected?.alpha2Code]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSaveSavingsCountryOverride = async (enabled) => {
+    const countryCode = String(selected?.alpha2Code || '').trim().toUpperCase();
+    if (!countryCode) return;
+    setSavingsAccessSaving(true);
+    setError(null);
+    setInfo(null);
+    try {
+      await api.featureFlags.upsertCountryOverride(SAVINGS_ENABLED_KEY, countryCode, { enabled: Boolean(enabled) });
+      await loadSavingsAccess(selected);
+      setInfo(`Savings ${enabled ? 'enabled' : 'disabled'} for ${countryCode}.`);
+    } catch (err) {
+      setError(err?.message || 'Failed to save savings access override');
+    } finally {
+      setSavingsAccessSaving(false);
+    }
+  };
+
+  const handleClearSavingsCountryOverride = async () => {
+    const countryCode = String(selected?.alpha2Code || '').trim().toUpperCase();
+    if (!countryCode) return;
+    setSavingsAccessSaving(true);
+    setError(null);
+    setInfo(null);
+    try {
+      await api.featureFlags.removeCountryOverride(SAVINGS_ENABLED_KEY, countryCode);
+      await loadSavingsAccess(selected);
+      setInfo(`Savings access for ${countryCode} now inherits the global setting.`);
+    } catch (err) {
+      setError(err?.message || 'Failed to clear savings access override');
+    } finally {
+      setSavingsAccessSaving(false);
+    }
   };
 
   const handleCreate = async () => {
@@ -296,16 +374,74 @@ export default function CountriesPage() {
 
       {showDetail && (
         <Modal title={`Details ${selected?.id}`} onClose={() => setShowDetail(false)}>
-          <DetailGrid
-            rows={[
-              { label: 'ID', value: selected?.id },
-              { label: 'Name', value: selected?.name },
-              { label: 'Alpha-2', value: selected?.alpha2Code },
-              { label: 'Alpha-3', value: selected?.alpha3Code },
-              { label: 'Default KYC', value: selected?.defaultKycLevel ?? 'Global default' },
-              { label: 'Registration blocked', value: selected?.registrationBlocked ? 'Yes' : 'No' }
-            ]}
-          />
+          <div style={{ display: 'grid', gap: '1rem' }}>
+            <DetailGrid
+              rows={[
+                { label: 'ID', value: selected?.id },
+                { label: 'Name', value: selected?.name },
+                { label: 'Alpha-2', value: selected?.alpha2Code },
+                { label: 'Alpha-3', value: selected?.alpha3Code },
+                { label: 'Default KYC', value: selected?.defaultKycLevel ?? 'Global default' },
+                { label: 'Registration blocked', value: selected?.registrationBlocked ? 'Yes' : 'No' }
+              ]}
+            />
+
+            <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
+              <div style={{ display: 'grid', gap: '0.2rem' }}>
+                <div style={{ fontWeight: 800 }}>Savings access</div>
+                <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                  Country-level control for <code>{SAVINGS_ENABLED_KEY}</code>. This uses the same feature flag override system as the feature-flags page.
+                </div>
+              </div>
+
+              {savingsAccessLoading ? (
+                <div style={{ color: 'var(--muted)' }}>Loading savings access…</div>
+              ) : (
+                <>
+                  <DetailGrid
+                    rows={[
+                      { label: 'Global default', value: savingsFlag?.enabled === false ? 'Disabled' : 'Enabled' },
+                      {
+                        label: 'Country override',
+                        value: savingsCountryOverride ? (savingsCountryOverride.enabled ? 'Enabled' : 'Disabled') : 'Inherited'
+                      },
+                      {
+                        label: 'Effective access',
+                        value: savingsCountryOverride ? (savingsCountryOverride.enabled ? 'Enabled' : 'Disabled') : savingsFlag?.enabled === false ? 'Disabled' : 'Enabled'
+                      }
+                    ]}
+                  />
+
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    <button
+                      type="button"
+                      className="btn-success"
+                      onClick={() => handleSaveSavingsCountryOverride(true)}
+                      disabled={savingsAccessSaving}
+                    >
+                      {savingsAccessSaving ? 'Saving…' : 'Enable for country'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-danger"
+                      onClick={() => handleSaveSavingsCountryOverride(false)}
+                      disabled={savingsAccessSaving}
+                    >
+                      {savingsAccessSaving ? 'Saving…' : 'Disable for country'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-neutral"
+                      onClick={handleClearSavingsCountryOverride}
+                      disabled={savingsAccessSaving || !savingsCountryOverride}
+                    >
+                      Clear override
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </Modal>
       )}
 
