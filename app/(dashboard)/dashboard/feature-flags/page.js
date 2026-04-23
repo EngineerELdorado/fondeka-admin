@@ -903,18 +903,38 @@ export default function FeatureFlagsPage() {
               <div style={{ fontWeight: 800 }}>Internal wallet transfer</div>
               <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{INTER_TRANSFER_FLAG_KEY}</div>
             </div>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
-              <input
-                type="checkbox"
-                checked={Boolean(interTransferFlag.enabled)}
-                onChange={() => handleToggle(INTER_TRANSFER_FLAG_KEY)}
-                disabled={loading || savingKey === INTER_TRANSFER_FLAG_KEY}
-              />
-              {interTransferFlag.enabled ? 'ON · transfers allowed' : 'OFF · transfers blocked'}
-            </label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => openOverridesDialog(INTER_TRANSFER_FLAG_KEY)}
+                disabled={savingKey === INTER_TRANSFER_FLAG_KEY}
+                style={{
+                  border: `1px solid var(--border)`,
+                  background: 'var(--surface)',
+                  padding: '0.45rem 0.7rem',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  color: 'var(--text)'
+                }}
+              >
+                Manage Overrides
+              </button>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(interTransferFlag.enabled)}
+                  onChange={() => handleToggle(INTER_TRANSFER_FLAG_KEY)}
+                  disabled={loading || savingKey === INTER_TRANSFER_FLAG_KEY}
+                />
+                {interTransferFlag.enabled ? 'ON · transfers allowed' : 'OFF · transfers blocked'}
+              </label>
+            </div>
           </div>
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
             Default is <strong>enabled</strong> when no value exists. Disable this flag to block all <code>INTER_TRANSFER</code> requests before transaction creation.
+          </div>
+          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+            Use Manage Overrides to allow or block transfers for specific accounts or emails without changing the global default.
           </div>
         </div>
       )}
@@ -955,15 +975,32 @@ export default function FeatureFlagsPage() {
                   <div style={{ fontWeight: 700 }}>{item.label}</div>
                   <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{item.key}</div>
                 </div>
-                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
-                  <input
-                    type="checkbox"
-                    checked={Boolean(item.flag?.enabled)}
-                    onChange={() => handleToggle(item.key)}
-                    disabled={loading || savingKey === item.key}
-                  />
-                  {item.flag?.enabled ? 'Enabled' : 'Disabled'}
-                </label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => openOverridesDialog(item.key)}
+                    disabled={savingKey === item.key}
+                    style={{
+                      border: `1px solid var(--border)`,
+                      background: 'var(--surface)',
+                      padding: '0.45rem 0.7rem',
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      color: 'var(--text)'
+                    }}
+                  >
+                    Manage Overrides
+                  </button>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(item.flag?.enabled)}
+                      onChange={() => handleToggle(item.key)}
+                      disabled={loading || savingKey === item.key}
+                    />
+                    {item.flag?.enabled ? 'Enabled' : 'Disabled'}
+                  </label>
+                </div>
               </div>
             ))}
           </div>
@@ -971,6 +1008,7 @@ export default function FeatureFlagsPage() {
           <div style={{ display: 'grid', gap: '0.25rem', color: 'var(--muted)', fontSize: '12px' }}>
             <div>Android issue: keep Global ON, set Android OFF, keep iOS ON.</div>
             <div>Full outage: set Global OFF.</div>
+            <div>Use Manage Overrides to set account-specific or email-specific exceptions on the global, Android, or iOS keys.</div>
             <div>Recovery: re-enable platform/global toggles progressively and monitor failures.</div>
           </div>
         </div>
@@ -1009,15 +1047,32 @@ export default function FeatureFlagsPage() {
                   <div style={{ fontWeight: 700 }}>{item.label}</div>
                   <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{item.key}</div>
                 </div>
-                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
-                  <input
-                    type="checkbox"
-                    checked={Boolean(item.flag?.enabled)}
-                    onChange={() => handleToggle(item.key)}
-                    disabled={loading || savingKey === item.key}
-                  />
-                  {item.flag?.enabled ? 'Enabled' : 'Disabled'}
-                </label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => openOverridesDialog(item.key)}
+                    disabled={savingKey === item.key}
+                    style={{
+                      border: `1px solid var(--border)`,
+                      background: 'var(--surface)',
+                      padding: '0.45rem 0.7rem',
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      color: 'var(--text)'
+                    }}
+                  >
+                    Manage Overrides
+                  </button>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(item.flag?.enabled)}
+                      onChange={() => handleToggle(item.key)}
+                      disabled={loading || savingKey === item.key}
+                    />
+                    {item.flag?.enabled ? 'Enabled' : 'Disabled'}
+                  </label>
+                </div>
               </div>
             ))}
           </div>
@@ -1025,6 +1080,7 @@ export default function FeatureFlagsPage() {
           <div style={{ display: 'grid', gap: '0.25rem', color: 'var(--muted)', fontSize: '12px' }}>
             <div>If Global is OFF, Android and iOS toggles do not enforce app-open auth.</div>
             <div>Example: Global ON, Android ON, iOS OFF means only Android prompts on app open.</div>
+            <div>Use Manage Overrides to set per-account or per-email exceptions for all platforms, Android only, or iOS only.</div>
             <div>Use platform toggles for rollout or emergency bypass without changing payout auth.</div>
           </div>
         </div>
@@ -1063,15 +1119,32 @@ export default function FeatureFlagsPage() {
                   <div style={{ fontWeight: 700 }}>{item.label}</div>
                   <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{item.key}</div>
                 </div>
-                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
-                  <input
-                    type="checkbox"
-                    checked={Boolean(item.flag?.enabled)}
-                    onChange={() => handleToggle(item.key)}
-                    disabled={loading || savingKey === item.key}
-                  />
-                  {item.flag?.enabled ? 'Enabled' : 'Disabled'}
-                </label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => openOverridesDialog(item.key)}
+                    disabled={savingKey === item.key}
+                    style={{
+                      border: `1px solid var(--border)`,
+                      background: 'var(--surface)',
+                      padding: '0.45rem 0.7rem',
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      color: 'var(--text)'
+                    }}
+                  >
+                    Manage Overrides
+                  </button>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(item.flag?.enabled)}
+                      onChange={() => handleToggle(item.key)}
+                      disabled={loading || savingKey === item.key}
+                    />
+                    {item.flag?.enabled ? 'Enabled' : 'Disabled'}
+                  </label>
+                </div>
               </div>
             ))}
           </div>
@@ -1079,6 +1152,7 @@ export default function FeatureFlagsPage() {
           <div style={{ display: 'grid', gap: '0.25rem', color: 'var(--muted)', fontSize: '12px' }}>
             <div>Android biometric issue: keep Global ON, set Android OFF, keep iOS ON.</div>
             <div>Full outage: set Global OFF.</div>
+            <div>Use Manage Overrides to set account-specific or email-specific exceptions on the global, Android, or iOS keys.</div>
             <div>Recovery: re-enable platform/global toggles progressively and monitor failures.</div>
           </div>
         </div>
