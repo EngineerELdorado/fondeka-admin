@@ -31,6 +31,7 @@ const getGroupType = (row) => String(pickFirst(row?.type, row?.groupType, 'UNKNO
 const getGroupStatus = (row) => pickFirst(row?.status, row?.groupStatus, 'UNKNOWN');
 const getCreatorAccount = (row) => pickFirst(row?.createdByAccountId, row?.creatorAccountId, row?.creator?.accountId);
 const getTreasuryBalance = (row) => pickFirst(row?.treasuryBalance, row?.currentTreasuryBalance);
+const getCurrentRoundNumber = (row) => pickFirst(row?.currentRoundNumber, row?.roundNumber);
 
 export default function GroupSavingsPage() {
   const [filters, setFilters] = useState(emptyFilters);
@@ -90,7 +91,16 @@ export default function GroupSavingsPage() {
       { key: 'status', label: 'Status', render: (row) => <StatusBadge value={getGroupStatus(row)} /> },
       { key: 'creator', label: 'Creator Account', render: (row) => getCreatorAccount(row) || '—' },
       { key: 'activeMembers', label: 'Active Members', render: (row) => formatCount(pickFirst(row?.activeMemberCount, row?.memberCount)) },
-      { key: 'cycle', label: 'Current Cycle', render: (row) => formatCount(pickFirst(row?.currentCycleNumber, row?.cycleNumber)) },
+      {
+        key: 'cycle',
+        label: 'Current Round / Cycle',
+        render: (row) => {
+          const round = getCurrentRoundNumber(row);
+          const cycle = pickFirst(row?.currentCycleNumber, row?.cycleNumber);
+          if ((round === null || round === undefined || round === '') && (cycle === null || cycle === undefined || cycle === '')) return '—';
+          return `Round ${formatCount(round)} · Cycle ${formatCount(cycle)}`;
+        }
+      },
       { key: 'pending', label: 'Pending Contributions', render: (row) => formatCount(row?.pendingContributionCount) },
       { key: 'paid', label: 'Paid Contributions', render: (row) => formatCount(row?.paidContributionCount) },
       { key: 'overdue', label: 'Overdue Contributions', render: (row) => formatCount(row?.overdueContributionCount) },

@@ -49,7 +49,16 @@ const getCreator = (group) => pickFirst(group?.createdByAccountId, group?.creato
 const getCreatedAt = (group) => pickFirst(group?.createdAt, group?.createdDate);
 const getTreasuryBalance = (group) => pickFirst(group?.treasuryBalance, group?.currentTreasuryBalance);
 const getCurrentCycleNumber = (group) => pickFirst(group?.currentCycleNumber, group?.cycleNumber);
+const getCurrentRoundNumber = (group) => pickFirst(group?.currentRoundNumber, group?.roundNumber);
 const getMembersCount = (group) => pickFirst(group?.activeMemberCount, group?.memberCount);
+const getRoundNumber = (row) => pickFirst(row?.roundNumber, row?.round?.number);
+const getCycleNumber = (row) => pickFirst(row?.cycleNumber, row?.cycle?.cycleNumber);
+const formatRoundCycleLabel = (row, fallbackRound, fallbackCycle) => {
+  const round = pickFirst(getRoundNumber(row), fallbackRound);
+  const cycle = pickFirst(getCycleNumber(row), fallbackCycle);
+  if ((round === null || round === undefined || round === '') && (cycle === null || cycle === undefined || cycle === '')) return '—';
+  return `Round ${formatCount(round)} · Cycle ${formatCount(cycle)}`;
+};
 
 export default function GroupSavingDetailPage() {
   const params = useParams();
@@ -169,7 +178,11 @@ export default function GroupSavingDetailPage() {
   const currentCycle = useMemo(() => {
     return (
       cycles.find((cycle) => String(pickFirst(cycle?.status, '')).toUpperCase() === 'ACTIVE') ||
-      cycles.find((cycle) => Number(pickFirst(cycle?.cycleNumber, -1)) === Number(getCurrentCycleNumber(group))) ||
+      cycles.find(
+        (cycle) =>
+          Number(pickFirst(cycle?.roundNumber, -1)) === Number(getCurrentRoundNumber(group)) &&
+          Number(pickFirst(cycle?.cycleNumber, -1)) === Number(getCurrentCycleNumber(group))
+      ) ||
       cycles[0] ||
       null
     );
@@ -326,7 +339,8 @@ export default function GroupSavingDetailPage() {
             { label: 'Reference', value: getReference(group) || '—' },
             { label: 'Group Name', value: getName(group) || '—' },
             { label: 'Creator', value: getCreator(group) || '—' },
-            { label: 'Created Date', value: formatDateTime(getCreatedAt(group)) }
+            { label: 'Created Date', value: formatDateTime(getCreatedAt(group)) },
+            { label: 'Current Round Number', value: formatCount(getCurrentRoundNumber(group)) }
           ]}
         />
       </SectionCard>
@@ -352,6 +366,7 @@ export default function GroupSavingDetailPage() {
         <MetricStrip
           items={[
             { label: 'Active Members', value: formatCount(getMembersCount(group)) },
+            { label: 'Current Round Number', value: formatCount(getCurrentRoundNumber(group)) },
             { label: 'Current Cycle Number', value: formatCount(getCurrentCycleNumber(group)) },
             { label: 'Pending Contributions', value: formatCount(group?.pendingContributionCount) },
             { label: 'Overdue Contributions', value: formatCount(group?.overdueContributionCount), valueTone: '#b91c1c' },
@@ -388,7 +403,7 @@ export default function GroupSavingDetailPage() {
             <SectionCard title="Current Cycle Card" description="Use this first when support asks why a LIKELEMBA group is stuck.">
               <DetailGrid
                 rows={[
-                  { label: 'Cycle Number', value: pickFirst(currentCycle?.cycleNumber, getCurrentCycleNumber(group), '—') },
+                  { label: 'Round / Cycle', value: formatRoundCycleLabel(currentCycle, getCurrentRoundNumber(group), getCurrentCycleNumber(group)) },
                   { label: 'Beneficiary', value: pickFirst(currentCycle?.beneficiaryAccountReference, currentCycle?.beneficiary?.accountReference, currentCycle?.beneficiaryAccountId, '—') },
                   { label: 'Due Date', value: formatDateTime(pickFirst(currentCycle?.dueDate, currentCycle?.expectedDueDate)) },
                   { label: 'Status', value: <StatusBadge value={pickFirst(currentCycle?.status, 'UNKNOWN')} /> },
@@ -446,7 +461,7 @@ export default function GroupSavingDetailPage() {
             showIndex={false}
             pageSize={100}
             columns={[
-              { key: 'cycleNumber', label: 'Cycle', render: (row) => pickFirst(row?.cycleNumber, '—') },
+              { key: 'cycleNumber', label: 'Round / Cycle', render: (row) => formatRoundCycleLabel(row) },
               { key: 'beneficiary', label: 'Beneficiary', render: (row) => pickFirst(row?.beneficiaryAccountReference, row?.beneficiary?.accountReference, row?.beneficiaryAccountId, '—') },
               { key: 'dueDate', label: 'Due Date', render: (row) => formatDateTime(pickFirst(row?.dueDate, row?.expectedDueDate)) },
               { key: 'status', label: 'Status', render: (row) => <StatusBadge value={pickFirst(row?.status, 'UNKNOWN')} /> },
@@ -466,6 +481,7 @@ export default function GroupSavingDetailPage() {
             showIndex={false}
             pageSize={100}
             columns={[
+              { key: 'roundNumber', label: 'Round / Cycle', render: (row) => formatRoundCycleLabel(row, pickFirst(row?.groupRoundNumber, row?.currentRoundNumber), pickFirst(row?.groupCycleNumber, row?.currentCycleNumber)) },
               { key: 'member', label: 'Member / Account', render: (row) => pickFirst(row?.memberAccountReference, row?.accountReference, row?.member?.accountReference, row?.memberAccountId, '—') },
               { key: 'amountDue', label: 'Amount Due', render: (row) => formatMoney(pickFirst(row?.amountDue, row?.dueAmount)) },
               { key: 'amountPaid', label: 'Amount Paid', render: (row) => formatMoney(pickFirst(row?.amountPaid, row?.paidAmount)) },
@@ -487,7 +503,11 @@ export default function GroupSavingDetailPage() {
             showIndex={false}
             pageSize={100}
             columns={[
-              { key: 'cycle', label: 'Cycle', render: (row) => pickFirst(row?.cycleNumber, row?.cycle?.cycleNumber, '—') },
+              {
+                key: 'cycle',
+                label: 'Round / Cycle',
+                render: (row) => formatRoundCycleLabel(row, pickFirst(row?.cycle?.roundNumber), pickFirst(row?.cycle?.cycleNumber))
+              },
               { key: 'beneficiary', label: 'Beneficiary', render: (row) => pickFirst(row?.beneficiaryAccountReference, row?.beneficiary?.accountReference, row?.beneficiaryAccountId, '—') },
               { key: 'amount', label: 'Amount', render: (row) => formatMoney(pickFirst(row?.amount, row?.payoutAmount)) },
               { key: 'status', label: 'Status', render: (row) => <StatusBadge value={pickFirst(row?.status, 'UNKNOWN')} /> },
@@ -636,6 +656,9 @@ export default function GroupSavingDetailPage() {
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                       <StatusBadge value={pickFirst(event?.eventType, event?.type, 'EVENT')} />
                       <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{formatDateTime(pickFirst(event?.createdAt, event?.timestamp))}</div>
+                      <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                        Round {formatCount(getRoundNumber(event))}
+                      </div>
                     </div>
                     <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{pickFirst(event?.actorAccountReference, event?.actorAccountId, event?.actor, 'System')}</div>
                   </div>
