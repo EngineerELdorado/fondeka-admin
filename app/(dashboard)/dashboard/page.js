@@ -745,7 +745,7 @@ export default function DashboardPage() {
     {
       label: 'Net profit',
       value: formatCurrency(totalNetProfit),
-      sub: 'After referral cost',
+      sub: 'After costs',
       tone: '#15803d'
     }
   ];

@@ -627,14 +627,15 @@ export default function FeatureFlagsPage() {
     const key = overrideDialog?.key;
     const accountId = entry?.accountId || '';
     const email = entry?.email || '';
-    if (!key || (!accountId && !email) || overridesSaving) return;
+    const countryCode = entry?.countryCode || '';
+    if (!key || (!accountId && !email && !countryCode) || overridesSaving) return;
     setOverridesSaving(true);
     setError(null);
     setInfo(null);
     try {
-      if (entry?.countryCode) {
-        await api.featureFlags.removeCountryOverride(key, entry.countryCode);
-        setInfo(`Override removed for country ${entry.countryCode}.`);
+      if (countryCode) {
+        await api.featureFlags.removeCountryOverride(key, countryCode);
+        setInfo(`Override removed for country ${countryCode}.`);
       } else if (accountId) {
         await api.featureFlags.removeOverride(key, accountId);
         setInfo(`Override removed for account ${accountId}.`);
