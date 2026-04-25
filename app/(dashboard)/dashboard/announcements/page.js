@@ -12,7 +12,8 @@ const emptyDraft = {
   startAt: '',
   endAt: '',
   link: '',
-  image: ''
+  image: '',
+  downloadUpdate: false
 };
 
 const severityOptions = ['INFO', 'WARNING', 'CRITICAL'];
@@ -194,7 +195,8 @@ export default function AnnouncementsPage() {
       startAt: toDatetimeLocal(row?.startAt),
       endAt: toDatetimeLocal(row?.endAt),
       link: row?.link ?? '',
-      image: row?.image ?? ''
+      image: row?.image ?? '',
+      downloadUpdate: Boolean(row?.downloadUpdate)
     });
     setShowEdit(true);
     setError(null);
@@ -208,7 +210,8 @@ export default function AnnouncementsPage() {
     startAt: toUtcInstant(draft.startAt),
     endAt: toUtcInstant(draft.endAt),
     link: draft.link ? String(draft.link).trim() : null,
-    image: draft.image ? String(draft.image).trim() : null
+    image: draft.image ? String(draft.image).trim() : null,
+    downloadUpdate: Boolean(draft.downloadUpdate)
   });
 
   const validateDraft = () => {
@@ -300,6 +303,11 @@ export default function AnnouncementsPage() {
         render: (row) => <ActiveBadge active={isActiveNow(row)} />
       },
       {
+        key: 'downloadUpdate',
+        label: 'Update CTA',
+        render: (row) => (row?.downloadUpdate ? 'Enabled' : '—')
+      },
+      {
         key: 'viewCount',
         label: 'Views',
         render: (row) => formatCount(row.viewCount)
@@ -376,6 +384,14 @@ export default function AnnouncementsPage() {
         <label htmlFor="image">Image URL</label>
         <input id="image" value={draft.image} onChange={(e) => setDraft((p) => ({ ...p, image: e.target.value }))} placeholder="https://cdn.fondeka.com/..." />
       </div>
+      <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.55rem', alignSelf: 'end', minHeight: '42px' }}>
+        <input
+          type="checkbox"
+          checked={draft.downloadUpdate}
+          onChange={(e) => setDraft((p) => ({ ...p, downloadUpdate: e.target.checked }))}
+        />
+        <span>Download update</span>
+      </label>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', gridColumn: '1 / -1' }}>
         <label htmlFor="body">Body *</label>
         <textarea
@@ -385,6 +401,9 @@ export default function AnnouncementsPage() {
           onChange={(e) => setDraft((p) => ({ ...p, body: e.target.value }))}
           placeholder="We will be unavailable from 2-4 AM UTC."
         />
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          When enabled, the customer app resolves the announcement link to the platform store URL.
+        </div>
       </div>
     </div>
   );

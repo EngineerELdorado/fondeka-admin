@@ -39,6 +39,7 @@ const actionOptions = [
   'PERSONAL_SAVING_DEPOSIT',
   'PERSONAL_SAVING_WITHDRAWAL',
   'PERSONAL_SAVING_INTEREST_PAYOUT',
+  'GROUP_SAVING_CONTRIBUTION',
   'GROUP_SAVING_PAYOUT',
   'WITHDRAW_FROM_WALLET'
 ].sort();
@@ -860,72 +861,80 @@ export default function FeeConfigsPage() {
         </div>
       </div>
 
-      <div className="card" style={{ display: 'grid', gap: '0.45rem', color: 'var(--muted)', fontSize: '13px' }}>
-        <div>Configure fees using provider and product names in the UI. The system sends IDs underneath, but names are the source of truth for admin decisions.</div>
-        <div>Fee application mode is now a cross-app pricing policy, not just a payout setting. It affects fee-bearing flows such as withdrawals, funding, purchases, bill payments, airtime, eSIM, crypto, and public payment requests.</div>
-        <div>
-          Available scopes, from most specific to most general: <strong>Exact Route</strong> (Payment Method Route + Bill Product Route), <strong>Payment Route Only</strong>, <strong>Bill Route Only</strong>, <strong>Provider Pair</strong> (Payment Provider + Bill Provider), <strong>Bill Provider Default</strong>, <strong>Payment Provider Default</strong>, and <strong>Global Action Default</strong>.
+      <details className="card">
+        <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Fee configuration guidance</summary>
+        <div style={{ display: 'grid', gap: '0.45rem', color: 'var(--muted)', fontSize: '13px', marginTop: '0.75rem' }}>
+          <div>Configure fees using provider and product names in the UI. The system sends IDs underneath, but names are the source of truth for admin decisions.</div>
+          <div>Fee application mode is now a cross-app pricing policy, not just a payout setting. It affects fee-bearing flows such as withdrawals, funding, purchases, bill payments, airtime, eSIM, crypto, and public payment requests.</div>
+          <div>
+            Available scopes, from most specific to most general: <strong>Exact Route</strong> (Payment Method Route + Bill Product Route), <strong>Payment Route Only</strong>, <strong>Bill Route Only</strong>, <strong>Provider Pair</strong> (Payment Provider + Bill Provider), <strong>Bill Provider Default</strong>, <strong>Payment Provider Default</strong>, and <strong>Global Action Default</strong>.
+          </div>
+          <div>
+            Action resolution at each matching scope is: <strong>exact action</strong>, then <strong>OTHER</strong>, then <strong>blank action</strong>. Blank action is a valid default fee for that scope, not a bad request.
+          </div>
+          <div>
+            Precedence: account custom fees win first. After that, narrower system configs normally beat broader ones, while broader configs act as fallback defaults. If <strong>Override Specific Fees</strong> is on, a broader matching fee can intentionally beat ordinary narrower system configs.
+          </div>
+          <div>
+            Best mental model: <strong>master global fee mode = platform default</strong>, <strong>wallet policy action mode = default for one action</strong>, <strong>each fee row = more specific action override</strong>, <strong>account override = customer-specific exception for that action</strong>, and <strong>app request = explicit per-transaction choice</strong>.
+          </div>
+          <div>
+            Fee application precedence: <strong>app request</strong>, then <strong>account fee override for that action</strong>, then <strong>global fee config for that action</strong>, then <strong>action-level wallet policy fee mode</strong>, then <strong>master global fee mode</strong>, then <strong>EXCLUSIVE</strong>.
+          </div>
+          <div>
+            If the mobile app does not specify a fee mode, the configured rule for that action will be used. If the action row leaves fee mode unset, it inherits from the wallet policy action-level mode for that action, then from the master global fee mode. Older app versions rely on these admin-configured defaults by design.
+          </div>
+          <div>
+            Operational impact: changing fee mode can change the effective credited or serviced amount for users who enter the same amount, especially on collection flows like bill payments, airtime, wallet funding, and payment requests.
+          </div>
+          <div>
+            Recommended workflow: create blank-action provider defaults first, then add action-specific or exact-route exceptions only where needed. Avoid multiple active fee configs at the same exact scope for the same action state.
+          </div>
+          <div>
+            Example: set <strong>Bill Provider = ZENDIT</strong> with blank action for a default Zendit fee, then add <strong>Bill Product Route = SONABEL</strong> with <strong>PAY_ELECTRICITY_BILL</strong> for a targeted exception. The specific action fee wins automatically unless a broader config is marked <strong>Override Specific Fees</strong>.
+          </div>
         </div>
-        <div>
-          Action resolution at each matching scope is: <strong>exact action</strong>, then <strong>OTHER</strong>, then <strong>blank action</strong>. Blank action is a valid default fee for that scope, not a bad request.
-        </div>
-        <div>
-          Precedence: account custom fees win first. After that, narrower system configs normally beat broader ones, while broader configs act as fallback defaults. If <strong>Override Specific Fees</strong> is on, a broader matching fee can intentionally beat ordinary narrower system configs.
-        </div>
-        <div>
-          Best mental model: <strong>master global fee mode = platform default</strong>, <strong>wallet policy action mode = default for one action</strong>, <strong>each fee row = more specific action override</strong>, <strong>account override = customer-specific exception for that action</strong>, and <strong>app request = explicit per-transaction choice</strong>.
-        </div>
-        <div>
-          Fee application precedence: <strong>app request</strong>, then <strong>account fee override for that action</strong>, then <strong>global fee config for that action</strong>, then <strong>action-level wallet policy fee mode</strong>, then <strong>master global fee mode</strong>, then <strong>EXCLUSIVE</strong>.
-        </div>
-        <div>
-          If the mobile app does not specify a fee mode, the configured rule for that action will be used. If the action row leaves fee mode unset, it inherits from the wallet policy action-level mode for that action, then from the master global fee mode. Older app versions rely on these admin-configured defaults by design.
-        </div>
-        <div>
-          Operational impact: changing fee mode can change the effective credited or serviced amount for users who enter the same amount, especially on collection flows like bill payments, airtime, wallet funding, and payment requests.
-        </div>
-        <div>
-          Recommended workflow: create blank-action provider defaults first, then add action-specific or exact-route exceptions only where needed. Avoid multiple active fee configs at the same exact scope for the same action state.
-        </div>
-        <div>
-          Example: set <strong>Bill Provider = ZENDIT</strong> with blank action for a default Zendit fee, then add <strong>Bill Product Route = SONABEL</strong> with <strong>PAY_ELECTRICITY_BILL</strong> for a targeted exception. The specific action fee wins automatically unless a broader config is marked <strong>Override Specific Fees</strong>.
-        </div>
-      </div>
+      </details>
 
-      <div className="card" style={{ color: 'var(--muted)', fontSize: '13px' }}>
-        Gift cards best practice: keep action as <strong>BUY_GIFT_CARD</strong>, scope by <strong>Bill Product Route</strong>, optionally add <strong>Payment Method Route</strong> for channel pricing, and avoid duplicate rows with the same layered scope. Use the same pattern for Netflix, Spotify, App Store, Google Play, Airbnb, and Uber. Legacy <strong>PAY_NETFLIX</strong> rows are not the new pricing path. Preview check: <code>/customer-api/fees?action=BUY_GIFT_CARD&amp;paymentMethodId=...&amp;billProductId=...&amp;amount=...</code>.
-      </div>
-
-      <div className="card" style={{ display: 'grid', gap: '0.6rem' }}>
-        <div style={{ fontWeight: 700 }}>Gift Card Pricing Readiness</div>
-        <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-          Global BUY_GIFT_CARD fallback is unsafe. Ensure each required gift card has an active Reloadly mapping and at least one BUY_GIFT_CARD fee row.
+      <details className="card">
+        <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Gift card pricing guidance</summary>
+        <div style={{ color: 'var(--muted)', fontSize: '13px', marginTop: '0.75rem' }}>
+          Gift cards best practice: keep action as <strong>BUY_GIFT_CARD</strong>, scope by <strong>Bill Product Route</strong>, optionally add <strong>Payment Method Route</strong> for channel pricing, and avoid duplicate rows with the same layered scope. Use the same pattern for Netflix, Spotify, App Store, Google Play, Airbnb, and Uber. Legacy <strong>PAY_NETFLIX</strong> rows are not the new pricing path. Preview check: <code>/customer-api/fees?action=BUY_GIFT_CARD&amp;paymentMethodId=...&amp;billProductId=...&amp;amount=...</code>.
         </div>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-            <thead>
-              <tr>
-                <th style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)' }}>Product</th>
-                <th style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)' }}>Active Reloadly Mapping</th>
-                <th style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)' }}>BUY_GIFT_CARD Fee Rows</th>
-              </tr>
-            </thead>
-            <tbody>
-              {requiredGiftCardStatus.map((item) => (
-                <tr key={item.key}>
-                  <td style={{ padding: '0.45rem', borderBottom: '1px solid var(--border)' }}>{item.displayName}</td>
-                  <td style={{ padding: '0.45rem', borderBottom: '1px solid var(--border)' }}>
-                    {item.hasActiveReloadlyMapping ? `Yes (${item.activeReloadlyMappingIds.join(', ')})` : 'Missing'}
-                  </td>
-                  <td style={{ padding: '0.45rem', borderBottom: '1px solid var(--border)' }}>
-                    {item.feeConfigCount > 0 ? item.feeConfigCount : 'Missing'}
-                  </td>
+      </details>
+
+      <details className="card">
+        <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Gift Card Pricing Readiness</summary>
+        <div style={{ display: 'grid', gap: '0.6rem', marginTop: '0.75rem' }}>
+          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+            Global BUY_GIFT_CARD fallback is unsafe. Ensure each required gift card has an active Reloadly mapping and at least one BUY_GIFT_CARD fee row.
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)' }}>Product</th>
+                  <th style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)' }}>Active Reloadly Mapping</th>
+                  <th style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)' }}>BUY_GIFT_CARD Fee Rows</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {requiredGiftCardStatus.map((item) => (
+                  <tr key={item.key}>
+                    <td style={{ padding: '0.45rem', borderBottom: '1px solid var(--border)' }}>{item.displayName}</td>
+                    <td style={{ padding: '0.45rem', borderBottom: '1px solid var(--border)' }}>
+                      {item.hasActiveReloadlyMapping ? `Yes (${item.activeReloadlyMappingIds.join(', ')})` : 'Missing'}
+                    </td>
+                    <td style={{ padding: '0.45rem', borderBottom: '1px solid var(--border)' }}>
+                      {item.feeConfigCount > 0 ? item.feeConfigCount : 'Missing'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      </details>
 
       {activeFilterChips.length > 0 && (
         <div className="card" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>

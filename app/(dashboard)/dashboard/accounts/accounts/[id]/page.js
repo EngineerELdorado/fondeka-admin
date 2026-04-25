@@ -630,6 +630,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     'PERSONAL_SAVING_DEPOSIT',
     'PERSONAL_SAVING_WITHDRAWAL',
     'PERSONAL_SAVING_INTEREST_PAYOUT',
+    'GROUP_SAVING_CONTRIBUTION',
     'GROUP_SAVING_PAYOUT',
     'WITHDRAW_FROM_WALLET'
   ].sort();

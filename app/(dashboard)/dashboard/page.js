@@ -53,6 +53,16 @@ const getRevenueValue = (row) => {
   const commission = Number(row?.commission ?? row?.commissionRevenue) || 0;
   return fee + commission;
 };
+const getPaidRevenueValue = (row) => {
+  if (row?.paidRevenue !== undefined && row?.paidRevenue !== null) return Number(row.paidRevenue) || 0;
+  const revenue = getRevenueValue(row);
+  const unpaidRevenue = getUnpaidRevenueValue(row);
+  return Math.max(0, revenue - unpaidRevenue);
+};
+const getUnpaidRevenueValue = (row) => {
+  if (row?.unpaidRevenue !== undefined && row?.unpaidRevenue !== null) return Number(row.unpaidRevenue) || 0;
+  return 0;
+};
 const getNetProfitValue = (row) => getRevenueValue(row) - getReferralCostValue(row);
 
 const InlineStat = ({ value, percentage }) => {
@@ -532,6 +542,8 @@ export default function DashboardPage() {
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
         .map((p) => ({
           ...p,
+          paidRevenue: getPaidRevenueValue(p),
+          unpaidRevenue: getUnpaidRevenueValue(p),
           referralCost: getReferralCostValue(p),
           netProfit: getNetProfitValue(p),
           label: p.date
@@ -613,6 +625,8 @@ export default function DashboardPage() {
   const totalRevenue = useMemo(() => {
     return getRevenueValue(totals);
   }, [totals]);
+  const totalPaidRevenue = useMemo(() => getPaidRevenueValue(totals), [totals]);
+  const totalUnpaidRevenue = useMemo(() => getUnpaidRevenueValue(totals), [totals]);
 
   const totalReferralCost = useMemo(() => getReferralCostValue(totals), [totals]);
   const totalNetProfit = useMemo(() => totalRevenue - totalReferralCost, [totalRevenue, totalReferralCost]);
@@ -741,6 +755,24 @@ export default function DashboardPage() {
       value: formatCurrency(providerFeesTotal),
       sub: 'Total provider fees',
       tone: '#f97316'
+    },
+    {
+      label: 'Revenue',
+      value: formatCurrency(totalRevenue),
+      sub: 'Booked revenue',
+      tone: '#16a34a'
+    },
+    {
+      label: 'Paid Revenue',
+      value: formatCurrency(totalPaidRevenue),
+      sub: 'Fully realized',
+      tone: '#15803d'
+    },
+    {
+      label: 'Unpaid Revenue',
+      value: formatCurrency(totalUnpaidRevenue),
+      sub: 'Open loan / Pay Later exposure',
+      tone: '#b45309'
     },
     {
       label: 'Net profit',
@@ -1093,6 +1125,8 @@ export default function DashboardPage() {
                       formatter={(value, name) => {
                         if (name === 'volume') return [formatCurrency(value), 'Volume'];
                         if (name === 'revenue') return [formatCurrency(value), 'Total revenue'];
+                        if (name === 'paidRevenue') return [formatCurrency(value), 'Paid Revenue'];
+                        if (name === 'unpaidRevenue') return [formatCurrency(value), 'Unpaid Revenue'];
                         if (name === 'referralCost') return [formatCurrency(value), 'Referral cost'];
                         if (name === 'netProfit') return [formatCurrency(value), 'Net profit'];
                         return [value, name];
@@ -1102,6 +1136,8 @@ export default function DashboardPage() {
                     <Legend />
                     <Line type="monotone" dataKey="volume" name="Volume" stroke="#0f172a" strokeWidth={2.5} dot={false} yAxisId="left" />
                     <Line type="monotone" dataKey="revenue" name="Total revenue" stroke="#16a34a" strokeWidth={2} dot={false} yAxisId="left" />
+                    <Line type="monotone" dataKey="paidRevenue" name="Paid Revenue" stroke="#22c55e" strokeWidth={2} dot={false} yAxisId="left" />
+                    <Line type="monotone" dataKey="unpaidRevenue" name="Unpaid Revenue" stroke="#f59e0b" strokeWidth={2} dot={false} yAxisId="left" />
                     <Line type="monotone" dataKey="referralCost" name="Referral cost" stroke="#ea580c" strokeWidth={2} dot={false} yAxisId="left" />
                     <Line type="monotone" dataKey="netProfit" name="Net profit" stroke="#7c3aed" strokeWidth={2} dot={false} yAxisId="left" />
                   </LineChart>
