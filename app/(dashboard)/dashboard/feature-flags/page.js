@@ -124,6 +124,10 @@ const formatCryptoSpreadActionLabel = (key) => {
   return ACTION_LABELS[action] || formatKeyPart(action);
 };
 const normalizeActionToken = (value) => String(value || '').trim().toLowerCase().replace(/\s+/g, '_');
+const isSavingsRelatedKey = (key) => {
+  const raw = String(key || '');
+  return raw === SAVINGS_ENABLED_KEY || raw.startsWith('personal_saving.') || raw.startsWith('group_saving.') || raw.startsWith('savings.');
+};
 
 const normalizeOverride = (entry) => {
   if (!entry || typeof entry !== 'object') return null;
@@ -268,8 +272,18 @@ export default function FeatureFlagsPage() {
           String(flag.key) !== APP_OPEN_AUTH_GLOBAL_KEY &&
           String(flag.key) !== APP_OPEN_AUTH_ANDROID_KEY &&
           String(flag.key) !== APP_OPEN_AUTH_IOS_KEY &&
+          !isSavingsRelatedKey(flag.key) &&
           !isCryptoSpreadActionKey(flag.key)
       ),
+    [flags]
+  );
+
+  const savingsFlags = useMemo(
+    () =>
+      flags
+        .filter((flag) => !isActionLimitKey(flag.key))
+        .filter((flag) => isSavingsRelatedKey(flag.key))
+        .sort((a, b) => String(a.key || '').localeCompare(String(b.key || ''))),
     [flags]
   );
 
@@ -1155,6 +1169,80 @@ export default function FeatureFlagsPage() {
             <div>Full outage: set Global OFF.</div>
             <div>Use Manage Overrides to set account-specific or email-specific exceptions on the global, Android, or iOS keys.</div>
             <div>Recovery: re-enable platform/global toggles progressively and monitor failures.</div>
+          </div>
+        </div>
+      )}
+
+      {!loading && savingsFlags.length > 0 && (
+        <div className="card" style={{ maxWidth: '720px', display: 'grid', gap: '0.75rem', borderColor: '#16a34a' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontWeight: 800 }}>Savings</div>
+              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Savings access and savings behavior flags in one place.</div>
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{savingsFlags.length} flags</div>
+          </div>
+
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            {savingsFlags.map((flag) => {
+              const label = formatResolvedLabel(flag.key);
+              return (
+                <div key={flag.key} style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                    <div>
+                      <div style={{ fontWeight: 700 }}>{label}</div>
+                      <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{flag.key}</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={() => openOverridesDialog(flag.key)}
+                        disabled={savingKey === flag.key}
+                        style={{
+                          border: `1px solid var(--border)`,
+                          background: 'var(--surface)',
+                          padding: '0.45rem 0.7rem',
+                          borderRadius: '10px',
+                          cursor: 'pointer',
+                          color: 'var(--text)'
+                        }}
+                      >
+                        {flag.key === SAVINGS_ENABLED_KEY ? 'Manage Overrides' : 'Overrides'}
+                      </button>
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                        <input
+                          type="checkbox"
+                          checked={Boolean(flag.enabled)}
+                          onChange={() => handleToggle(flag.key)}
+                          disabled={loading || savingKey === flag.key}
+                        />
+                        {flag.enabled ? 'Enabled' : 'Disabled'}
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteConfirm({ key: flag.key })}
+                        disabled={savingKey === flag.key}
+                        style={{
+                          border: `1px solid var(--border)`,
+                          background: 'var(--surface)',
+                          padding: '0.45rem 0.7rem',
+                          borderRadius: '10px',
+                          cursor: 'pointer',
+                          color: 'var(--text)'
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                  {flag.key === SAVINGS_ENABLED_KEY && (
+                    <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                      Resolution order: account override → country override → global flag → default enabled.
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

@@ -6,6 +6,14 @@ import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
 const emptyState = { firstName: '', lastName: '', email: '', phoneNumber: '', role: '' };
+const ROLE_OPTIONS = [
+  { value: 'SUPER_ADMIN', label: 'Super Admin', description: 'Full access' },
+  { value: 'ADMIN', label: 'Admin', description: 'Standard read/write admin access' },
+  { value: 'ASSISTANT', label: 'Assistant', description: 'Read-only access' },
+  { value: 'STAFF', label: 'Staff', description: 'Stored role, limited by current backend rules' }
+];
+
+const formatRoleLabel = (value) => ROLE_OPTIONS.find((item) => item.value === value)?.label || value || '—';
 
 const toPayload = (state) => ({
   firstName: state.firstName,
@@ -79,7 +87,7 @@ export default function AdminsPage() {
     { key: 'lastName', label: 'Last name' },
     { key: 'email', label: 'Email' },
     { key: 'phoneNumber', label: 'Phone' },
-    { key: 'role', label: 'Role' },
+    { key: 'role', label: 'Role', render: (row) => formatRoleLabel(row.role) },
     {
       key: 'actions',
       label: 'Actions',
@@ -183,7 +191,17 @@ export default function AdminsPage() {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="role">Role</label>
-        <input id="role" value={draft.role} onChange={(e) => setDraft((p) => ({ ...p, role: e.target.value }))} placeholder="SUPER_ADMIN / ADMIN / STAFF" />
+        <select id="role" value={draft.role} onChange={(e) => setDraft((p) => ({ ...p, role: e.target.value }))}>
+          <option value="">Select role</option>
+          {ROLE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          {ROLE_OPTIONS.find((option) => option.value === draft.role)?.description || 'Choose the admin access level.'}
+        </div>
       </div>
     </div>
   );
@@ -251,7 +269,7 @@ export default function AdminsPage() {
               { label: 'Last name', value: selected?.lastName },
               { label: 'Email', value: selected?.email },
               { label: 'Phone', value: selected?.phoneNumber },
-              { label: 'Role', value: selected?.role }
+              { label: 'Role', value: formatRoleLabel(selected?.role) }
             ]}
           />
         </Modal>
