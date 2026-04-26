@@ -65,11 +65,12 @@ export default function DashboardLayout({ children }) {
   const [theme, setTheme] = useState('light');
   const [menuOpen, setMenuOpen] = useState(false);
   const [showQaStubFailureModes, setShowQaStubFailureModes] = useState(false);
-  const sessionPayload = session?.tokens?.accessToken?.payload || session?.tokens?.idToken?.payload || null;
+  const accessTokenPayload = session?.tokens?.accessToken?.payload || null;
+  const idTokenPayload = session?.tokens?.idToken?.payload || null;
   const adminGroups = useMemo(() => {
-    const rawGroups = sessionPayload?.['cognito:groups'] || sessionPayload?.groups;
+    const rawGroups = accessTokenPayload?.['cognito:groups'] || accessTokenPayload?.groups || idTokenPayload?.['cognito:groups'] || idTokenPayload?.groups;
     return Array.isArray(rawGroups) ? rawGroups.map((group) => String(group).toUpperCase()) : [];
-  }, [sessionPayload]);
+  }, [accessTokenPayload, idTokenPayload]);
   const canSeeAdminsMenu = useMemo(
     () => adminGroups.includes('ADMIN') || adminGroups.includes('SUPER_ADMIN'),
     [adminGroups]
@@ -80,7 +81,7 @@ export default function DashboardLayout({ children }) {
     return [...baseItems, { href: '/dashboard/admin/stub-failure-modes', label: 'Stub Failure Modes (QA)' }];
   }, [canSeeAdminsMenu, showQaStubFailureModes]);
   const userLabel = useMemo(() => {
-    const payload = sessionPayload;
+    const payload = idTokenPayload || accessTokenPayload;
     return (
       payload?.name ||
       payload?.preferred_username ||
@@ -89,7 +90,7 @@ export default function DashboardLayout({ children }) {
       payload?.username ||
       'Admin'
     );
-  }, [sessionPayload]);
+  }, [idTokenPayload, accessTokenPayload]);
 
   useEffect(() => {
     const stored = typeof window !== 'undefined' ? localStorage.getItem('fondeka-theme') : null;
