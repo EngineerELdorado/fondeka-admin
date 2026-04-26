@@ -328,6 +328,7 @@ export default function DashboardPage() {
   const [billProviders, setBillProviders] = useState([]);
   const [countries, setCountries] = useState([]);
   const [showHoldings, setShowHoldings] = useState(false);
+  const [showRevenueBreakdown, setShowRevenueBreakdown] = useState(false);
   const [staleMinutes, setStaleMinutes] = useState(3);
   const [staleMinutesMode, setStaleMinutesMode] = useState('preset');
   const [fundedStuckReport, setFundedStuckReport] = useState(null);
@@ -757,28 +758,14 @@ export default function DashboardPage() {
       tone: '#f97316'
     },
     {
-      label: 'Revenue',
-      value: formatCurrency(totalRevenue),
-      sub: 'Booked revenue',
-      tone: '#16a34a'
-    },
-    {
-      label: 'Paid Revenue',
-      value: formatCurrency(totalPaidRevenue),
-      sub: 'Fully realized',
-      tone: '#15803d'
-    },
-    {
-      label: 'Unpaid Revenue',
-      value: formatCurrency(totalUnpaidRevenue),
-      sub: 'Open loan / Pay Later exposure',
-      tone: '#b45309'
-    },
-    {
       label: 'Net profit',
       value: formatCurrency(totalNetProfit),
       sub: 'After costs',
-      tone: '#15803d'
+      tone: '#15803d',
+      menu: {
+        label: 'Revenue breakdown',
+        onClick: () => setShowRevenueBreakdown(true)
+      }
     }
   ];
 
@@ -1088,12 +1075,41 @@ export default function DashboardPage() {
           <div
             key={kpi.label}
             className="card"
-            style={{ display: 'grid', gap: '0.2rem', cursor: kpi.onClick ? 'pointer' : 'default' }}
+            style={{ display: 'grid', gap: '0.2rem', cursor: kpi.onClick ? 'pointer' : 'default', position: 'relative' }}
             onClick={kpi.onClick}
             role={kpi.onClick ? 'button' : undefined}
             tabIndex={kpi.onClick ? 0 : undefined}
             onKeyDown={kpi.onClick ? (e) => (e.key === 'Enter' || e.key === ' ') && kpi.onClick() : undefined}
           >
+            {kpi.menu ? (
+              <button
+                type="button"
+                aria-label={kpi.menu.label}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  kpi.menu.onClick();
+                }}
+                style={{
+                  position: 'absolute',
+                  top: '0.55rem',
+                  right: '0.55rem',
+                  border: '1px solid var(--border)',
+                  background: 'var(--surface)',
+                  color: 'var(--muted)',
+                  width: '30px',
+                  height: '30px',
+                  borderRadius: '999px',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '18px',
+                  lineHeight: 1
+                }}
+              >
+                ⋯
+              </button>
+            ) : null}
             <div style={{ fontSize: '13px', color: 'var(--muted)' }}>{kpi.label}</div>
             <div style={{ fontSize: '26px', fontWeight: 800, color: kpi.tone || 'var(--accent)' }}>{kpi.value}</div>
             <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{kpi.sub}</div>
@@ -1625,6 +1641,38 @@ export default function DashboardPage() {
               rows={stuckItemsData?.items || []}
               emptyLabel={stuckItemsLoading ? 'Loading stuck items...' : 'No stuck items found for this action.'}
             />
+          </div>
+        </Modal>
+      )}
+
+      {showRevenueBreakdown && (
+        <Modal title="Revenue Breakdown" onClose={() => setShowRevenueBreakdown(false)}>
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Revenue detail for the current dashboard filter window.
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+              {[
+                { label: 'Booked revenue', value: formatCurrency(totalRevenue) },
+                { label: 'Fully realized', value: formatCurrency(totalPaidRevenue) },
+                { label: 'Open loan / Pay Later exposure', value: formatCurrency(totalUnpaidRevenue) }
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.15rem',
+                    padding: '0.6rem',
+                    border: '1px solid var(--border)',
+                    borderRadius: '10px'
+                  }}
+                >
+                  <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{item.label}</div>
+                  <div style={{ fontWeight: 800, fontSize: '18px' }}>{item.value}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </Modal>
       )}

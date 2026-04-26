@@ -53,6 +53,15 @@ const getCurrentRoundNumber = (group) => pickFirst(group?.currentRoundNumber, gr
 const getMembersCount = (group) => pickFirst(group?.activeMemberCount, group?.memberCount);
 const getRoundNumber = (row) => pickFirst(row?.roundNumber, row?.round?.number);
 const getCycleNumber = (row) => pickFirst(row?.cycleNumber, row?.cycle?.cycleNumber);
+const getCycleId = (row) => pickFirst(row?.cycleId, row?.cycle?.id);
+const getMemberId = (row) => pickFirst(row?.memberId, row?.groupMemberId, row?.member?.id);
+const getContributionStatus = (row) => String(pickFirst(row?.status, 'UNKNOWN')).toUpperCase();
+const isPendingContribution = (row) => getContributionStatus(row) === 'PENDING';
+const getCycleReminderKey = (row) => {
+  const cycleId = getCycleId(row);
+  if (cycleId !== null && cycleId !== undefined && cycleId !== '') return `id:${cycleId}`;
+  return `rc:${pickFirst(getRoundNumber(row), 'x')}:${pickFirst(getCycleNumber(row), 'x')}`;
+};
 const formatRoundCycleLabel = (row, fallbackRound, fallbackCycle) => {
   const round = pickFirst(getRoundNumber(row), fallbackRound);
   const cycle = pickFirst(getCycleNumber(row), fallbackCycle);
@@ -80,6 +89,8 @@ export default function GroupSavingDetailPage() {
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
+  const [selectedReminderCycleKey, setSelectedReminderCycleKey] = useState('');
+  const [selectedReminderMemberIds, setSelectedReminderMemberIds] = useState([]);
 
   const isAvec = getType(group) === 'AVEC';
   const isLikelemba = getType(group) === 'LIKELEMBA';
@@ -175,6 +186,19 @@ export default function GroupSavingDetailPage() {
     return () => clearTimeout(timer);
   }, [error, info]);
 
+  useEffect(() => {
+    setSelectedReminderMemberIds((prev) => {
+      if (!selectedReminderCycleKey) return [];
+      const validMemberIds = new Set(
+        contributions
+          .filter((row) => isPendingContribution(row) && getCycleReminderKey(row) === selectedReminderCycleKey)
+          .map((row) => String(getMemberId(row)))
+          .filter(Boolean)
+      );
+      return prev.filter((memberId) => validMemberIds.has(String(memberId)));
+    });
+  }, [contributions, selectedReminderCycleKey]);
+
   const currentCycle = useMemo(() => {
     return (
       cycles.find((cycle) => String(pickFirst(cycle?.status, '')).toUpperCase() === 'ACTIVE') ||
@@ -187,6 +211,77 @@ export default function GroupSavingDetailPage() {
       null
     );
   }, [cycles, group]);
+
+  const pendingContributionCycleOptions = useMemo(() => {
+    const map = new Map();
+    contributions.forEach((row) => {
+      if (!isPendingContribution(row)) return;
+      const key = getCycleReminderKey(row);
+      const memberId = getMemberId(row);
+      const cycleId = getCycleId(row);
+      const existing = map.get(key) || {
+        key,
+        cycleId,
+        roundNumber: getRoundNumber(row),
+        cycleNumber: getCycleNumber(row),
+        label: formatRoundCycleLabel(row, pickFirst(row?.groupRoundNumber, row?.currentRoundNumber), pickFirst(row?.groupCycleNumber, row?.currentCycleNumber)),
+        pendingCount: 0,
+        memberIds: []
+      };
+      existing.pendingCount += 1;
+      if (memberId !== null && memberId !== undefined && memberId !== '') {
+        const normalizedMemberId = String(memberId);
+        if (!existing.memberIds.includes(normalizedMemberId)) existing.memberIds.push(normalizedMemberId);
+      }
+      map.set(key, existing);
+    });
+    return Array.from(map.values()).sort((a, b) => {
+      const roundDiff = Number(b.roundNumber || 0) - Number(a.roundNumber || 0);
+      if (roundDiff !== 0) return roundDiff;
+      return Number(b.cycleNumber || 0) - Number(a.cycleNumber || 0);
+    });
+  }, [contributions]);
+
+  useEffect(() => {
+    if (!pendingContributionCycleOptions.length) {
+      setSelectedReminderCycleKey('');
+      return;
+    }
+    if (!selectedReminderCycleKey || !pendingContributionCycleOptions.some((option) => option.key === selectedReminderCycleKey)) {
+      setSelectedReminderCycleKey(pendingContributionCycleOptions[0].key);
+      setSelectedReminderMemberIds([]);
+    }
+  }, [pendingContributionCycleOptions, selectedReminderCycleKey]);
+
+  const selectedReminderCycle = useMemo(
+    () => pendingContributionCycleOptions.find((option) => option.key === selectedReminderCycleKey) || null,
+    [pendingContributionCycleOptions, selectedReminderCycleKey]
+  );
+
+  const pendingMembersForSelectedCycle = useMemo(
+    () =>
+      new Set(
+        contributions
+          .filter((row) => isPendingContribution(row) && getCycleReminderKey(row) === selectedReminderCycleKey)
+          .map((row) => String(getMemberId(row)))
+          .filter(Boolean)
+      ),
+    [contributions, selectedReminderCycleKey]
+  );
+
+  const toggleReminderMemberSelection = (row) => {
+    const memberId = getMemberId(row);
+    const cycleKey = getCycleReminderKey(row);
+    if (!memberId || !isPendingContribution(row)) return;
+    const normalizedMemberId = String(memberId);
+    setSelectedReminderCycleKey(cycleKey);
+    setSelectedReminderMemberIds((prev) => {
+      const filtered = prev.filter((item) => pendingMembersForSelectedCycle.has(String(item)));
+      return filtered.includes(normalizedMemberId)
+        ? filtered.filter((item) => item !== normalizedMemberId)
+        : [...filtered, normalizedMemberId];
+    });
+  };
 
   const handlePauseResume = async (action) => {
     if (!groupId) return;
@@ -248,6 +343,44 @@ export default function GroupSavingDetailPage() {
       await loadGroup();
     } catch (err) {
       setError(err?.message || 'Failed to update AVEC policy');
+    } finally {
+      setSavingAction('');
+    }
+  };
+
+  const handleRemindMember = async (row) => {
+    const cycleId = getCycleId(row);
+    const memberId = getMemberId(row);
+    if (!groupId || !cycleId || !memberId) return;
+    const actionKey = `remind-member-${cycleId}-${memberId}`;
+    setSavingAction(actionKey);
+    setError(null);
+    setInfo(null);
+    try {
+      const res = await api.groupSavings.cycles.remindMember(groupId, cycleId, memberId);
+      const queuedCount = Number(res?.queuedCount);
+      setInfo(`Queued ${Number.isFinite(queuedCount) ? queuedCount : 1} reminder${queuedCount === 1 ? '' : 's'} for this member.`);
+    } catch (err) {
+      setError(err?.message || 'Failed to queue reminder');
+    } finally {
+      setSavingAction('');
+    }
+  };
+
+  const handleRemindUnpaid = async ({ memberIds } = {}) => {
+    if (!groupId || !selectedReminderCycle?.cycleId) return;
+    const actionKey = memberIds?.length ? 'remind-selected-unpaid' : 'remind-all-unpaid';
+    setSavingAction(actionKey);
+    setError(null);
+    setInfo(null);
+    try {
+      const payload = memberIds?.length ? { memberIds } : undefined;
+      const res = await api.groupSavings.cycles.remindUnpaid(groupId, selectedReminderCycle.cycleId, payload);
+      const queuedCount = Number(res?.queuedCount) || 0;
+      setInfo(`Queued ${queuedCount} reminder${queuedCount === 1 ? '' : 's'} for ${selectedReminderCycle.label}.`);
+      if (memberIds?.length) setSelectedReminderMemberIds([]);
+    } catch (err) {
+      setError(err?.message || 'Failed to queue reminders');
     } finally {
       setSavingAction('');
     }
@@ -477,10 +610,72 @@ export default function GroupSavingDetailPage() {
 
       {activeTab === 'contributions' ? (
         <SectionCard title="Contributions" description="Use this table to answer why a group is stuck and who is overdue.">
+          <div style={{ display: 'grid', gap: '0.75rem', marginBottom: '0.85rem' }}>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Manual reminders only target unpaid members with <strong>PENDING</strong> contributions. Automatic reminders continue to run from the backend.
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(240px, 320px) auto auto', gap: '0.65rem', alignItems: 'end' }}>
+              <div style={{ display: 'grid', gap: '0.25rem' }}>
+                <label htmlFor="reminderCycle">Reminder cycle</label>
+                <select
+                  id="reminderCycle"
+                  value={selectedReminderCycleKey}
+                  onChange={(e) => {
+                    setSelectedReminderCycleKey(e.target.value);
+                    setSelectedReminderMemberIds([]);
+                  }}
+                  disabled={pendingContributionCycleOptions.length === 0}
+                >
+                  {pendingContributionCycleOptions.length === 0 ? <option value="">No unpaid contributions</option> : null}
+                  {pendingContributionCycleOptions.map((option) => (
+                    <option key={option.key} value={option.key}>
+                      {option.label} · {option.pendingCount} unpaid
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="button"
+                className="btn-neutral"
+                onClick={() => handleRemindUnpaid()}
+                disabled={!selectedReminderCycle?.cycleId || savingAction === 'remind-all-unpaid'}
+              >
+                {savingAction === 'remind-all-unpaid' ? 'Queueing…' : 'Remind All Unpaid'}
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => handleRemindUnpaid({ memberIds: selectedReminderMemberIds })}
+                disabled={!selectedReminderCycle?.cycleId || selectedReminderMemberIds.length === 0 || savingAction === 'remind-selected-unpaid'}
+              >
+                {savingAction === 'remind-selected-unpaid' ? 'Queueing…' : `Remind Selected (${selectedReminderMemberIds.length})`}
+              </button>
+            </div>
+          </div>
           <DataTable
             showIndex={false}
             pageSize={100}
             columns={[
+              {
+                key: 'select',
+                label: 'Select',
+                render: (row) => {
+                  const pending = isPendingContribution(row);
+                  const cycleKey = getCycleReminderKey(row);
+                  const memberId = String(getMemberId(row) || '');
+                  const checked = pending && selectedReminderCycleKey === cycleKey && selectedReminderMemberIds.includes(memberId);
+                  const disabled = !pending || (Boolean(selectedReminderCycleKey) && selectedReminderCycleKey !== cycleKey);
+                  return (
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={disabled}
+                      onChange={() => toggleReminderMemberSelection(row)}
+                      aria-label={`Select ${pickFirst(row?.memberAccountReference, row?.accountReference, row?.memberAccountId, 'member')} for reminder`}
+                    />
+                  );
+                }
+              },
               { key: 'roundNumber', label: 'Round / Cycle', render: (row) => formatRoundCycleLabel(row, pickFirst(row?.groupRoundNumber, row?.currentRoundNumber), pickFirst(row?.groupCycleNumber, row?.currentCycleNumber)) },
               { key: 'member', label: 'Member / Account', render: (row) => pickFirst(row?.memberAccountReference, row?.accountReference, row?.member?.accountReference, row?.memberAccountId, '—') },
               { key: 'amountDue', label: 'Amount Due', render: (row) => formatMoney(pickFirst(row?.amountDue, row?.dueAmount)) },
@@ -489,7 +684,29 @@ export default function GroupSavingDetailPage() {
               { key: 'dueDate', label: 'Due Date', render: (row) => formatDateTime(row?.dueDate) },
               { key: 'overdue', label: 'Overdue', render: (row) => (Boolean(pickFirst(row?.overdue, row?.isOverdue, false)) ? 'Yes' : 'No') },
               { key: 'daysOverdue', label: 'Days Overdue', render: (row) => formatCount(row?.daysOverdue) },
-              { key: 'transactionId', label: 'Transaction ID', render: (row) => pickFirst(row?.transactionId, row?.transaction?.id, '—') }
+              { key: 'transactionId', label: 'Transaction ID', render: (row) => pickFirst(row?.transactionId, row?.transaction?.id, '—') },
+              {
+                key: 'actions',
+                label: 'Actions',
+                render: (row) => {
+                  const pending = isPendingContribution(row);
+                  const cycleId = getCycleId(row);
+                  const memberId = getMemberId(row);
+                  const actionKey = `remind-member-${cycleId}-${memberId}`;
+                  return pending && cycleId && memberId ? (
+                    <button
+                      type="button"
+                      className="btn-neutral"
+                      onClick={() => handleRemindMember(row)}
+                      disabled={savingAction === actionKey}
+                    >
+                      {savingAction === actionKey ? 'Queueing…' : 'Remind'}
+                    </button>
+                  ) : (
+                    '—'
+                  );
+                }
+              }
             ]}
             rows={contributions}
             emptyLabel="No contributions found"
