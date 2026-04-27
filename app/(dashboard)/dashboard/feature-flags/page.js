@@ -690,7 +690,7 @@ export default function FeatureFlagsPage() {
                 color: 'var(--text)'
               }}
             >
-              Manage Overrides
+              {t('featureFlags.manageOverrides')}
             </button>
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
               <input
@@ -699,19 +699,19 @@ export default function FeatureFlagsPage() {
                 onChange={() => handleToggle(CRYPTO_SPREAD_GLOBAL_KEY)}
                 disabled={loading || savingKey === CRYPTO_SPREAD_GLOBAL_KEY}
               />
-              {cryptoSpreadGlobalFlag.enabled ? 'ON · enabled globally' : 'OFF · disabled globally'}
+              {cryptoSpreadGlobalFlag.enabled ? t('featureFlags.enabledGlobally') : t('featureFlags.disabledGlobally')}
             </label>
           </div>
         </div>
         <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-          Resolution order: action override → action global → global override → global `crypto.spread.enabled` (default true).
+          {t('featureFlags.cryptoSpreadResolution')}
         </div>
 
         <div className="card" style={{ display: 'grid', gap: '0.65rem' }}>
-          <div style={{ fontWeight: 700 }}>Create or update action key</div>
+          <div style={{ fontWeight: 700 }}>{t('featureFlags.createOrUpdateActionKey')}</div>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: '0.65rem', alignItems: 'end' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <label htmlFor="spreadActionDraft">Action (lowercase enum)</label>
+              <label htmlFor="spreadActionDraft">{t('featureFlags.actionLowercaseEnum')}</label>
               <input
                 id="spreadActionDraft"
                 placeholder="fund_card"
@@ -721,7 +721,7 @@ export default function FeatureFlagsPage() {
             </div>
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
               <input type="checkbox" checked={spreadActionEnabled} onChange={(e) => setSpreadActionEnabled(e.target.checked)} />
-              {spreadActionEnabled ? 'Enabled' : 'Disabled'}
+              {spreadActionEnabled ? t('featureFlags.enabled') : t('featureFlags.disabled')}
             </label>
             <button
               type="button"
@@ -737,14 +737,14 @@ export default function FeatureFlagsPage() {
                 fontWeight: 600
               }}
             >
-              Save action
+              {t('featureFlags.saveAction')}
             </button>
           </div>
         </div>
 
         <div style={{ display: 'grid', gap: '0.7rem' }}>
-          <div style={{ fontWeight: 700 }}>Action spread flags</div>
-          {cryptoSpreadActionFlags.length === 0 && <div style={{ color: 'var(--muted)', fontSize: '13px' }}>No action keys yet.</div>}
+          <div style={{ fontWeight: 700 }}>{t('featureFlags.actionSpreadFlags')}</div>
+          {cryptoSpreadActionFlags.length === 0 && <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{t('featureFlags.noActionKeys')}</div>}
           {cryptoSpreadActionFlags.map((flag) => (
             <div key={flag.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.6rem 0.7rem' }}>
               <div>
@@ -784,7 +784,7 @@ export default function FeatureFlagsPage() {
                     color: 'var(--text)'
                   }}
                 >
-                  Reset
+                  {t('featureFlags.reset')}
                 </button>
               </div>
             </div>
@@ -849,7 +849,7 @@ export default function FeatureFlagsPage() {
         <div className="card" style={{ maxWidth: '720px', display: 'grid', gap: '0.75rem', borderColor: '#f59e0b' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
             <div>
-              <div style={{ fontWeight: 800 }}>Restrict crypto collection to verified users</div>
+              <div style={{ fontWeight: 800 }}>{t('featureFlags.cryptoVerifiedTitle')}</div>
               <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{CRYPTO_COLLECTION_GATE_KEY}</div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -866,7 +866,7 @@ export default function FeatureFlagsPage() {
                   color: 'var(--text)'
                 }}
               >
-                Manage Overrides
+                {t('featureFlags.manageOverrides')}
               </button>
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
                 <input
@@ -875,12 +875,12 @@ export default function FeatureFlagsPage() {
                   onChange={() => handleToggle(CRYPTO_COLLECTION_GATE_KEY)}
                   disabled={loading || savingKey === CRYPTO_COLLECTION_GATE_KEY}
                 />
-                {cryptoCollectionGateFlag.enabled ? 'ON · Gate enforced' : 'OFF · Gate removed'}
+                {cryptoCollectionGateFlag.enabled ? `ON · ${t('featureFlags.enabled')}` : `OFF · ${t('featureFlags.disabled')}`}
               </label>
             </div>
           </div>
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-            Access is allowed only when KYC status is <strong>{CRYPTO_COLLECTION_GATE_KYC_STATUSES.join(' or ')}</strong> and KYC level is <strong>2 or above</strong>, unless an override is set.
+            {t('featureFlags.cryptoVerifiedHelp', { statuses: CRYPTO_COLLECTION_GATE_KYC_STATUSES.join(' or ') })}
           </div>
           <div style={{ display: 'grid', gap: '0.25rem', color: 'var(--muted)', fontSize: '13px' }}>
             <div>`enabled=true` globally enforces the gate for everyone by default.</div>
@@ -894,7 +894,7 @@ export default function FeatureFlagsPage() {
         <div className="card" style={{ maxWidth: '720px', display: 'grid', gap: '0.75rem', borderColor: '#0284c7' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
             <div>
-              <div style={{ fontWeight: 800 }}>Allow public crypto payment links</div>
+              <div style={{ fontWeight: 800 }}>{t('featureFlags.cryptoPublicTitle')}</div>
               <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY}</div>
             </div>
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
@@ -904,11 +904,11 @@ export default function FeatureFlagsPage() {
                 onChange={() => handleToggle(CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY)}
                 disabled={loading || savingKey === CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY}
               />
-              {cryptoCollectionPublicEndpointsFlag.enabled ? 'ON · Public links bypass gate' : 'OFF · Public links enforce gate'}
+              {cryptoCollectionPublicEndpointsFlag.enabled ? t('featureFlags.publicLinksBypassGate') : t('featureFlags.publicLinksEnforceGate')}
             </label>
           </div>
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-            Controls crypto collection behavior for payment-request pay links and other public endpoints.
+            {t('featureFlags.cryptoPublicHelp')}
           </div>
         </div>
       )}
@@ -917,7 +917,7 @@ export default function FeatureFlagsPage() {
         <div className="card" style={{ maxWidth: '720px', display: 'grid', gap: '0.75rem', borderColor: '#14b8a6' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
             <div>
-              <div style={{ fontWeight: 800 }}>Internal wallet transfer</div>
+              <div style={{ fontWeight: 800 }}>{t('featureFlags.internalTransferTitle')}</div>
               <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{INTER_TRANSFER_FLAG_KEY}</div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -934,7 +934,7 @@ export default function FeatureFlagsPage() {
                   color: 'var(--text)'
                 }}
               >
-                Manage Overrides
+                {t('featureFlags.manageOverrides')}
               </button>
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
                 <input
@@ -943,37 +943,37 @@ export default function FeatureFlagsPage() {
                   onChange={() => handleToggle(INTER_TRANSFER_FLAG_KEY)}
                   disabled={loading || savingKey === INTER_TRANSFER_FLAG_KEY}
                 />
-                {interTransferFlag.enabled ? 'ON · transfers allowed' : 'OFF · transfers blocked'}
+                {interTransferFlag.enabled ? t('featureFlags.transfersAllowed') : t('featureFlags.transfersBlocked')}
               </label>
             </div>
           </div>
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-            Default is <strong>enabled</strong> when no value exists. Disable this flag to block all <code>INTER_TRANSFER</code> requests before transaction creation.
+            {t('featureFlags.internalTransferHelp')}
           </div>
           <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-            Use Manage Overrides to allow or block transfers for specific accounts or emails without changing the global default.
+            {t('featureFlags.internalTransferOverridesHelp')}
           </div>
         </div>
       )}
 
       {transactionAuthGlobalFlag && transactionAuthAndroidFlag && transactionAuthIosFlag && (
         <div className="card" style={{ maxWidth: '720px', display: 'grid', gap: '0.75rem', borderColor: '#f97316' }}>
-          <div style={{ fontWeight: 800 }}>Payout Transaction Auth Enforcement</div>
+          <div style={{ fontWeight: 800 }}>{t('featureFlags.payoutAuthTitle')}</div>
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-            Controls the existing payout transaction authentication requirement. This is separate from app-open authentication.
+            {t('featureFlags.payoutAuthHelp')}
           </div>
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-            If Global is OFF, platform/account settings are ignored.
+            {t('featureFlags.globalOffIgnored')}
           </div>
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-            Platform OFF is emergency bypass for that platform.
+            {t('featureFlags.platformOffBypass')}
           </div>
 
           <div style={{ display: 'grid', gap: '0.5rem' }}>
             {[
-              { key: TRANSACTION_AUTH_GLOBAL_KEY, label: 'Global enforcement', flag: transactionAuthGlobalFlag },
-              { key: TRANSACTION_AUTH_ANDROID_KEY, label: 'Android enforcement', flag: transactionAuthAndroidFlag },
-              { key: TRANSACTION_AUTH_IOS_KEY, label: 'iOS enforcement', flag: transactionAuthIosFlag }
+              { key: TRANSACTION_AUTH_GLOBAL_KEY, label: t('featureFlags.globalEnforcement'), flag: transactionAuthGlobalFlag },
+              { key: TRANSACTION_AUTH_ANDROID_KEY, label: t('featureFlags.androidEnforcement'), flag: transactionAuthAndroidFlag },
+              { key: TRANSACTION_AUTH_IOS_KEY, label: t('featureFlags.iosEnforcement'), flag: transactionAuthIosFlag }
             ].map((item) => (
               <div
                 key={item.key}
@@ -1006,7 +1006,7 @@ export default function FeatureFlagsPage() {
                       color: 'var(--text)'
                     }}
                   >
-                    Manage Overrides
+                    {t('featureFlags.manageOverrides')}
                   </button>
                   <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
                     <input
@@ -1015,7 +1015,7 @@ export default function FeatureFlagsPage() {
                       onChange={() => handleToggle(item.key)}
                       disabled={loading || savingKey === item.key}
                     />
-                    {item.flag?.enabled ? 'Enabled' : 'Disabled'}
+                    {item.flag?.enabled ? t('featureFlags.enabled') : t('featureFlags.disabled')}
                   </label>
                 </div>
               </div>
@@ -1023,29 +1023,29 @@ export default function FeatureFlagsPage() {
           </div>
 
           <div style={{ display: 'grid', gap: '0.25rem', color: 'var(--muted)', fontSize: '12px' }}>
-            <div>Android issue: keep Global ON, set Android OFF, keep iOS ON.</div>
-            <div>Full outage: set Global OFF.</div>
-            <div>Use Manage Overrides to set account-specific or email-specific exceptions on the global, Android, or iOS keys.</div>
-            <div>Recovery: re-enable platform/global toggles progressively and monitor failures.</div>
+            <div>{t('featureFlags.androidIssue')}</div>
+            <div>{t('featureFlags.fullOutage')}</div>
+            <div>{t('featureFlags.platformOverridesHelp')}</div>
+            <div>{t('featureFlags.recoveryHelp')}</div>
           </div>
         </div>
       )}
 
       {appOpenAuthGlobalFlag && appOpenAuthAndroidFlag && appOpenAuthIosFlag && (
         <div className="card" style={{ maxWidth: '720px', display: 'grid', gap: '0.75rem', borderColor: '#0ea5e9' }}>
-          <div style={{ fontWeight: 800 }}>App Open Authentication</div>
+          <div style={{ fontWeight: 800 }}>{t('featureFlags.appOpenTitle')}</div>
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-            Controls whether the mobile app prompts for biometric / Face ID / fingerprint / passcode on app open via <code>enforceAppOpenAuth</code> from <code>/my-account</code>.
+            {t('featureFlags.appOpenHelp')}
           </div>
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-            This is independent from payout transaction auth. Turning one ON or OFF does not change the other.
+            {t('featureFlags.independentFromPayoutAuth')}
           </div>
 
           <div style={{ display: 'grid', gap: '0.5rem' }}>
             {[
-              { key: APP_OPEN_AUTH_GLOBAL_KEY, label: 'Global enforcement', flag: appOpenAuthGlobalFlag },
-              { key: APP_OPEN_AUTH_ANDROID_KEY, label: 'Android enforcement', flag: appOpenAuthAndroidFlag },
-              { key: APP_OPEN_AUTH_IOS_KEY, label: 'iOS enforcement', flag: appOpenAuthIosFlag }
+              { key: APP_OPEN_AUTH_GLOBAL_KEY, label: t('featureFlags.globalEnforcement'), flag: appOpenAuthGlobalFlag },
+              { key: APP_OPEN_AUTH_ANDROID_KEY, label: t('featureFlags.androidEnforcement'), flag: appOpenAuthAndroidFlag },
+              { key: APP_OPEN_AUTH_IOS_KEY, label: t('featureFlags.iosEnforcement'), flag: appOpenAuthIosFlag }
             ].map((item) => (
               <div
                 key={item.key}
@@ -1078,7 +1078,7 @@ export default function FeatureFlagsPage() {
                       color: 'var(--text)'
                     }}
                   >
-                    Manage Overrides
+                    {t('featureFlags.manageOverrides')}
                   </button>
                   <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
                     <input
@@ -1087,7 +1087,7 @@ export default function FeatureFlagsPage() {
                       onChange={() => handleToggle(item.key)}
                       disabled={loading || savingKey === item.key}
                     />
-                    {item.flag?.enabled ? 'Enabled' : 'Disabled'}
+                    {item.flag?.enabled ? t('featureFlags.enabled') : t('featureFlags.disabled')}
                   </label>
                 </div>
               </div>
@@ -1095,29 +1095,29 @@ export default function FeatureFlagsPage() {
           </div>
 
           <div style={{ display: 'grid', gap: '0.25rem', color: 'var(--muted)', fontSize: '12px' }}>
-            <div>If Global is OFF, Android and iOS toggles do not enforce app-open auth.</div>
-            <div>Example: Global ON, Android ON, iOS OFF means only Android prompts on app open.</div>
-            <div>Use Manage Overrides to set per-account or per-email exceptions for all platforms, Android only, or iOS only.</div>
-            <div>Use platform toggles for rollout or emergency bypass without changing payout auth.</div>
+            <div>{t('featureFlags.appOpenGlobalOff')}</div>
+            <div>{t('featureFlags.appOpenExample')}</div>
+            <div>{t('featureFlags.appOpenOverrides')}</div>
+            <div>{t('featureFlags.appOpenRollout')}</div>
           </div>
         </div>
       )}
 
       {trustedDeviceGlobalFlag && trustedDeviceAndroidFlag && trustedDeviceIosFlag && (
         <div className="card" style={{ maxWidth: '720px', display: 'grid', gap: '0.75rem', borderColor: '#f59e0b' }}>
-          <div style={{ fontWeight: 800 }}>Trusted Device Enforcement</div>
+          <div style={{ fontWeight: 800 }}>{t('featureFlags.trustedDeviceTitle')}</div>
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-            If Global is OFF, platform/account settings are ignored.
+            {t('featureFlags.globalOffIgnored')}
           </div>
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-            Platform OFF is emergency bypass for that platform.
+            {t('featureFlags.platformOffBypass')}
           </div>
 
           <div style={{ display: 'grid', gap: '0.5rem' }}>
             {[
-              { key: TRUSTED_DEVICE_GLOBAL_KEY, label: 'Global enforcement', flag: trustedDeviceGlobalFlag },
-              { key: TRUSTED_DEVICE_ANDROID_KEY, label: 'Android enforcement', flag: trustedDeviceAndroidFlag },
-              { key: TRUSTED_DEVICE_IOS_KEY, label: 'iOS enforcement', flag: trustedDeviceIosFlag }
+              { key: TRUSTED_DEVICE_GLOBAL_KEY, label: t('featureFlags.globalEnforcement'), flag: trustedDeviceGlobalFlag },
+              { key: TRUSTED_DEVICE_ANDROID_KEY, label: t('featureFlags.androidEnforcement'), flag: trustedDeviceAndroidFlag },
+              { key: TRUSTED_DEVICE_IOS_KEY, label: t('featureFlags.iosEnforcement'), flag: trustedDeviceIosFlag }
             ].map((item) => (
               <div
                 key={item.key}
@@ -1150,7 +1150,7 @@ export default function FeatureFlagsPage() {
                       color: 'var(--text)'
                     }}
                   >
-                    Manage Overrides
+                    {t('featureFlags.manageOverrides')}
                   </button>
                   <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
                     <input
@@ -1159,7 +1159,7 @@ export default function FeatureFlagsPage() {
                       onChange={() => handleToggle(item.key)}
                       disabled={loading || savingKey === item.key}
                     />
-                    {item.flag?.enabled ? 'Enabled' : 'Disabled'}
+                    {item.flag?.enabled ? t('featureFlags.enabled') : t('featureFlags.disabled')}
                   </label>
                 </div>
               </div>
@@ -1167,10 +1167,10 @@ export default function FeatureFlagsPage() {
           </div>
 
           <div style={{ display: 'grid', gap: '0.25rem', color: 'var(--muted)', fontSize: '12px' }}>
-            <div>Android biometric issue: keep Global ON, set Android OFF, keep iOS ON.</div>
-            <div>Full outage: set Global OFF.</div>
-            <div>Use Manage Overrides to set account-specific or email-specific exceptions on the global, Android, or iOS keys.</div>
-            <div>Recovery: re-enable platform/global toggles progressively and monitor failures.</div>
+            <div>{t('featureFlags.androidIssue')}</div>
+            <div>{t('featureFlags.fullOutage')}</div>
+            <div>{t('featureFlags.platformOverridesHelp')}</div>
+            <div>{t('featureFlags.recoveryHelp')}</div>
           </div>
         </div>
       )}
@@ -1239,7 +1239,7 @@ export default function FeatureFlagsPage() {
                   </div>
                   {flag.key === SAVINGS_ENABLED_KEY && (
                     <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-                      Resolution order: account override → country override → global flag → default enabled.
+                      {t('featureFlags.savingsResolution')}
                     </div>
                   )}
                 </div>
@@ -1284,11 +1284,11 @@ export default function FeatureFlagsPage() {
                               color: 'var(--text)'
                             }}
                           >
-                            Overrides
+                            {t('featureFlags.overrides')}
                           </button>
                           <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
                             <input type="checkbox" checked={Boolean(flag.enabled)} onChange={() => handleToggle(flag.key)} disabled={loading || savingKey === flag.key} />
-                            {flag.enabled ? 'Enabled' : 'Disabled'}
+                            {flag.enabled ? t('featureFlags.enabled') : t('featureFlags.disabled')}
                           </label>
                           <button
                             type="button"
@@ -1303,7 +1303,7 @@ export default function FeatureFlagsPage() {
                               color: 'var(--text)'
                             }}
                           >
-                            Delete
+                            {t('featureFlags.delete')}
                           </button>
                         </div>
                       </div>
@@ -1346,11 +1346,11 @@ export default function FeatureFlagsPage() {
                           color: 'var(--text)'
                         }}
                       >
-                        Overrides
+                        {t('featureFlags.overrides')}
                       </button>
                       <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
                         <input type="checkbox" checked={Boolean(flag.enabled)} onChange={() => handleToggle(flag.key)} disabled={loading || savingKey === flag.key} />
-                        {flag.enabled ? 'Enabled' : 'Disabled'}
+                        {flag.enabled ? t('featureFlags.enabled') : t('featureFlags.disabled')}
                       </label>
                       <button
                         type="button"
@@ -1365,7 +1365,7 @@ export default function FeatureFlagsPage() {
                           color: 'var(--text)'
                         }}
                       >
-                        Reset
+                        {t('featureFlags.reset')}
                       </button>
                     </div>
                   </div>
@@ -1381,13 +1381,13 @@ export default function FeatureFlagsPage() {
         <div className="modal-backdrop">
           <div className="modal-surface" style={{ width: 'min(520px, 92vw)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.25rem', borderBottom: '1px solid var(--border)' }}>
-              <div style={{ fontWeight: 800 }}>Disable feature flag?</div>
+              <div style={{ fontWeight: 800 }}>{t('featureFlags.disableFlagTitle')}</div>
               <button type="button" onClick={() => setConfirm(null)} style={{ border: 'none', background: 'transparent', fontSize: '18px', cursor: 'pointer', color: 'var(--text)' }}>
                 ×
               </button>
             </div>
             <div style={{ color: 'var(--muted)' }}>
-              This will disable <strong>{formatResolvedDisplayLabel(confirm.key)}</strong> and may reduce security or change system behavior.
+              {t('featureFlags.disableConfirmHelp', { label: formatResolvedDisplayLabel(confirm.key) })}
             </div>
             {isActionLimitKey(confirm.key) && <div style={{ color: '#b45309', fontWeight: 600 }}>{ACTION_LIMIT_WARNING}</div>}
             <div className="modal-actions">
@@ -1396,14 +1396,14 @@ export default function FeatureFlagsPage() {
                 onClick={() => setConfirm(null)}
                 style={{ border: `1px solid var(--border)`, background: 'var(--surface)', padding: '0.6rem 0.85rem', borderRadius: '10px', cursor: 'pointer' }}
               >
-                Cancel
+                {t('featureFlags.cancel')}
               </button>
               <button
                 type="button"
                 onClick={handleConfirmDisable}
                 style={{ border: `1px solid #b91c1c`, background: '#b91c1c', color: '#fff', padding: '0.6rem 0.85rem', borderRadius: '10px', cursor: 'pointer' }}
               >
-                Disable
+                {t('featureFlags.disable')}
               </button>
             </div>
           </div>
@@ -1414,7 +1414,7 @@ export default function FeatureFlagsPage() {
         <div className="modal-backdrop">
           <div className="modal-surface" style={{ width: 'min(920px, 96vw)', display: 'grid', gap: '0.85rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.25rem', borderBottom: '1px solid var(--border)' }}>
-              <div style={{ fontWeight: 800 }}>{overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? 'Account crypto collection override' : 'Feature Overrides'}</div>
+              <div style={{ fontWeight: 800 }}>{overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? t('featureFlags.cryptoVerifiedTitle') : t('featureFlags.overrideModal')}</div>
               <button
                 type="button"
                 onClick={() => setOverrideDialog(null)}
@@ -1429,31 +1429,31 @@ export default function FeatureFlagsPage() {
             </div>
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
               {overrideDialog.key === SAVINGS_ENABLED_KEY ? (
-                <>Resolution order: <strong>account override</strong> → <strong>country override</strong> → <strong>global flag</strong> → <strong>default enabled</strong>.</>
+                <>{t('featureFlags.savingsResolution')}</>
               ) : overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? (
-                'Per-account/per-email overrides take precedence over the global flag.'
+                t('featureFlags.overridesPrecedence')
               ) : (
-                <>Per-account/per-email overrides take precedence over the global flag. Use <strong>forced OFF</strong> to block an individual even when the feature is globally ON.</>
+                <>{t('featureFlags.overridesPrecedence')}</>
               )}
             </div>
             {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY && (
               <div style={{ display: 'grid', gap: '0.25rem', color: '#b45309', fontWeight: 600 }}>
-                <div>Use override `enabled=false` to allow crypto collection for a specific account/email even when global gate is ON.</div>
-                <div>Use override `enabled=true` to explicitly enforce the gate for that account/email.</div>
+                <div>{t('featureFlags.overrideEnabledFalseHelp')}</div>
+                <div>{t('featureFlags.overrideEnabledTrueHelp')}</div>
               </div>
             )}
             {overrideDialog.key === SAVINGS_ENABLED_KEY && (
               <div style={{ display: 'grid', gap: '0.25rem', color: 'var(--muted)', fontSize: '13px' }}>
-                <div>Use country overrides for market-level savings access without changing global rollout.</div>
-                <div>Account overrides still win over country and global settings.</div>
+                <div>{t('featureFlags.countryOverridesHelp')}</div>
+                <div>{t('featureFlags.accountOverridesStillWin')}</div>
               </div>
             )}
 
             {overrideDialog.key === SAVINGS_ENABLED_KEY && (
               <div className="card" style={{ display: 'grid', gap: '0.65rem' }}>
-                <div style={{ fontWeight: 700 }}>Override by country</div>
+                <div style={{ fontWeight: 700 }}>{t('featureFlags.overrideByCountry')}</div>
                 <div style={{ display: 'grid', gap: '0.5rem' }}>
-                  <label htmlFor="overrideCountryCode">Country code</label>
+                  <label htmlFor="overrideCountryCode">{t('featureFlags.countryCode')}</label>
                   <input
                     id="overrideCountryCode"
                     placeholder="CD"
@@ -1465,7 +1465,7 @@ export default function FeatureFlagsPage() {
                 </div>
                 <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
                   <input type="checkbox" checked={overrideCountryEnabled} onChange={(e) => setOverrideCountryEnabled(e.target.checked)} disabled={overridesSaving} />
-                  {overrideCountryEnabled ? 'Enabled' : 'Disabled'}
+                  {overrideCountryEnabled ? t('featureFlags.enabled') : t('featureFlags.disabled')}
                 </label>
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                   <button
@@ -1481,7 +1481,7 @@ export default function FeatureFlagsPage() {
                       color: 'var(--text)'
                     }}
                   >
-                    Save country override
+                    {t('featureFlags.saveCountryOverride')}
                   </button>
                   <button
                     type="button"
@@ -1497,16 +1497,16 @@ export default function FeatureFlagsPage() {
                       fontWeight: 700
                     }}
                   >
-                    Disable for country
+                    {t('featureFlags.disableForCountry')}
                   </button>
                 </div>
               </div>
             )}
 
             <div className="card" style={{ display: 'grid', gap: '0.65rem' }}>
-              <div style={{ fontWeight: 700 }}>Override by account</div>
+              <div style={{ fontWeight: 700 }}>{t('featureFlags.overrideByAccount')}</div>
               <div style={{ display: 'grid', gap: '0.5rem' }}>
-                <label htmlFor="overrideAccountId">Account ID</label>
+                <label htmlFor="overrideAccountId">{t('featureFlags.accountId')}</label>
                 <input
                   id="overrideAccountId"
                   placeholder="123"
@@ -1518,7 +1518,7 @@ export default function FeatureFlagsPage() {
               </div>
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
                 <input type="checkbox" checked={overrideEnabled} onChange={(e) => setOverrideEnabled(e.target.checked)} disabled={overridesSaving} />
-                {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? (overrideEnabled ? 'Enforce gate (verified only)' : 'Allow crypto collection') : overrideEnabled ? 'Enabled' : 'Disabled'}
+                {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? (overrideEnabled ? 'Enforce gate (verified only)' : 'Allow crypto collection') : overrideEnabled ? t('featureFlags.enabled') : t('featureFlags.disabled')}
               </label>
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <button
@@ -1534,7 +1534,7 @@ export default function FeatureFlagsPage() {
                     color: 'var(--text)'
                   }}
                 >
-                  Save account override
+                  {t('featureFlags.saveAccountOverride')}
                 </button>
                 <button
                   type="button"
@@ -1550,15 +1550,15 @@ export default function FeatureFlagsPage() {
                     fontWeight: 700
                   }}
                 >
-                  {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? 'Allow crypto collection for this user' : 'Block account'}
+                  {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? t('featureFlags.allowCryptoCollectionForUser') : t('featureFlags.blockAccount')}
                 </button>
               </div>
             </div>
 
             <div className="card" style={{ display: 'grid', gap: '0.65rem' }}>
-              <div style={{ fontWeight: 700 }}>Override by email</div>
+              <div style={{ fontWeight: 700 }}>{t('featureFlags.overrideByEmail')}</div>
               <div style={{ display: 'grid', gap: '0.5rem' }}>
-                <label htmlFor="overrideEmail">Email</label>
+                <label htmlFor="overrideEmail">{t('featureFlags.email')}</label>
                 <input
                   id="overrideEmail"
                   placeholder="qa@example.com"
@@ -1570,7 +1570,7 @@ export default function FeatureFlagsPage() {
               </div>
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
                 <input type="checkbox" checked={overrideEmailEnabled} onChange={(e) => setOverrideEmailEnabled(e.target.checked)} disabled={overridesSaving} />
-                {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? (overrideEmailEnabled ? 'Enforce gate (verified only)' : 'Allow crypto collection') : overrideEmailEnabled ? 'Enabled' : 'Disabled'}
+                {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? (overrideEmailEnabled ? 'Enforce gate (verified only)' : 'Allow crypto collection') : overrideEmailEnabled ? t('featureFlags.enabled') : t('featureFlags.disabled')}
               </label>
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <button
@@ -1586,7 +1586,7 @@ export default function FeatureFlagsPage() {
                     color: 'var(--text)'
                   }}
                 >
-                  Save email override
+                  {t('featureFlags.saveEmailOverride')}
                 </button>
                 <button
                   type="button"
@@ -1602,7 +1602,7 @@ export default function FeatureFlagsPage() {
                     fontWeight: 700
                   }}
                 >
-                  {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? 'Allow crypto collection for this user' : 'Block email'}
+                  {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? t('featureFlags.allowCryptoCollectionForUser') : t('featureFlags.blockEmail')}
                 </button>
                 <button
                   type="button"
@@ -1617,15 +1617,15 @@ export default function FeatureFlagsPage() {
                     cursor: 'pointer'
                   }}
                 >
-                  Delete email override
+                  {t('featureFlags.deleteEmailOverride')}
                 </button>
               </div>
             </div>
 
             <div className="card" style={{ display: 'grid', gap: '0.65rem' }}>
-              <div style={{ fontWeight: 700 }}>Current Overrides</div>
-              {overridesLoading && <div style={{ color: 'var(--muted)' }}>Loading overrides…</div>}
-              {!overridesLoading && overrides.length === 0 && <div style={{ color: 'var(--muted)' }}>No overrides for this feature.</div>}
+              <div style={{ fontWeight: 700 }}>{t('featureFlags.currentOverrides')}</div>
+              {overridesLoading && <div style={{ color: 'var(--muted)' }}>{t('featureFlags.loadingOverrides')}</div>}
+              {!overridesLoading && overrides.length === 0 && <div style={{ color: 'var(--muted)' }}>{t('featureFlags.noOverrides')}</div>}
               {!overridesLoading &&
                 overrides.map((entry) => (
                   <div
@@ -1635,7 +1635,7 @@ export default function FeatureFlagsPage() {
                     <div>
                       <div style={{ fontWeight: 700 }}>{entry.targetLabel}</div>
                       <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-                        {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? (entry.enabled ? 'Enforce gate' : 'Allow collection') : entry.enabled ? 'Forced ON' : 'Forced OFF'}
+                        {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? (entry.enabled ? t('featureFlags.overrideGateEnforced') : t('featureFlags.overrideAllowCollection')) : entry.enabled ? t('featureFlags.forcedOn') : t('featureFlags.forcedOff')}
                       </div>
                     </div>
                     <button
@@ -1651,7 +1651,7 @@ export default function FeatureFlagsPage() {
                         cursor: 'pointer'
                       }}
                     >
-                      Delete
+                      {t('featureFlags.delete')}
                     </button>
                   </div>
                 ))}

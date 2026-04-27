@@ -557,12 +557,12 @@ export default function PersonalSavingsPage() {
       {selectedId !== null && (
         <AdminModal title={`Personal Saving ${getReference(detail) || selectedId}`} onClose={() => { setSelectedId(null); setDetail(null); setActivities([]); }}>
           {detailLoading ? (
-            <div style={{ padding: '1rem 0' }}>Loading saving detail…</div>
+            <div style={{ padding: '1rem 0' }}>{t('savings.personal.loadingDetail')}</div>
           ) : (
             <div style={{ display: 'grid', gap: '1rem' }}>
               <SectionCard
-                title="Header"
-                description="High-level identity for the saving."
+                title={t('savings.personal.header')}
+                description={t('savings.personal.headerDescription')}
                 actions={
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
                     <StatusBadge value={getStatus(detail)} />
@@ -581,21 +581,21 @@ export default function PersonalSavingsPage() {
                     <StatusBadge value={isMaturedSaving(detail) ? 'MATURED' : 'PRE_MATURITY'} />
                     {isDeletedSaving(detail) ? (
                       <button type="button" className="btn-success" onClick={() => handleRestoreSaving(detail)} disabled={restoreSaving}>
-                        {restoreSaving ? 'Restoring…' : 'Restore Saving'}
+                        {restoreSaving ? 'Restoring…' : t('savings.personal.restoreSaving')}
                       </button>
                     ) : null}
                     {String(getProductCode(detail) || '').toUpperCase() === SAVING_PRODUCT_CODE_LOCKED && !earlyWithdrawalAllowedByProduct && !getEarlyWithdrawalApprovedAt(detail) ? (
                       <button type="button" className="btn-primary" onClick={() => handleSetEarlyWithdrawalApproval(true)} disabled={approvalSaving}>
-                        {approvalSaving ? 'Saving…' : 'Approve Early Withdrawal'}
+                        {approvalSaving ? 'Saving…' : t('savings.personal.approveEarlyWithdrawal')}
                       </button>
                     ) : null}
                     {String(getProductCode(detail) || '').toUpperCase() === SAVING_PRODUCT_CODE_LOCKED && getEarlyWithdrawalApprovedAt(detail) ? (
                       <button type="button" className="btn-neutral" onClick={() => handleSetEarlyWithdrawalApproval(false)} disabled={approvalSaving}>
-                        {approvalSaving ? 'Saving…' : 'Revoke Approval'}
+                        {approvalSaving ? 'Saving…' : t('savings.personal.revokeApproval')}
                       </button>
                     ) : null}
                     <button type="button" className="btn-primary" onClick={() => openEdit(detail)}>
-                      Change Product
+                      {t('savings.personal.changeProduct')}
                     </button>
                   </div>
                 }
@@ -611,7 +611,7 @@ export default function PersonalSavingsPage() {
                 />
               </SectionCard>
 
-              <SectionCard title="Product Info" description="Current product identity. This is the current offer label, not the contract truth for an existing saving.">
+              <SectionCard title={t('savings.personal.productInfo')} description={t('savings.personal.productInfoDescription')}>
                 <DetailGrid
                   rows={[
                     { label: 'Saving Product Code', value: getProductCode(detail) || '—' },
@@ -635,7 +635,7 @@ export default function PersonalSavingsPage() {
                 />
               </SectionCard>
 
-              <SectionCard title="Applied Terms" description="These are the terms fixed when this saving was created. Use these fields as contract truth when support asks why a saving is on a given rate.">
+              <SectionCard title={t('savings.personal.appliedTerms')} description={t('savings.personal.appliedTermsDescription')}>
                 <DetailGrid
                   rows={[
                     { label: 'Applied Interest %', value: getAppliedInterestPercentage(detail) !== undefined ? `${getAppliedInterestPercentage(detail)}%` : '—' },
@@ -654,7 +654,7 @@ export default function PersonalSavingsPage() {
                 />
               </SectionCard>
 
-              <SectionCard title="Value State" description="Withdrawable principal and payable interest are what the customer can receive now. Estimated and forfeitable interest explain projected accrual and what would be lost on an early locked-saving break.">
+              <SectionCard title={t('savings.personal.valueState')} description={t('savings.personal.valueStateDescription')}>
                 <MetricStrip
                   items={[
                     { label: 'Principal Balance', value: formatMoney(getPrincipalBalance(detail)), hint: 'Tracked principal value' },
@@ -692,7 +692,7 @@ export default function PersonalSavingsPage() {
                 />
               </SectionCard>
 
-              <SectionCard title="Operational Rules" description="How to explain maturity, early withdrawal, and the difference between the current product offer and the saving’s fixed applied terms.">
+              <SectionCard title={t('savings.personal.operationalRules')} description={t('savings.personal.operationalRulesDescription')}>
                 <DetailGrid
                   rows={[
                     { label: 'Start Date', value: formatDateTime(getStartDate(detail)) },
@@ -724,7 +724,7 @@ export default function PersonalSavingsPage() {
                 />
               </SectionCard>
 
-              <SectionCard title="Activity History" description="Deposits, withdrawals, and related transaction references.">
+              <SectionCard title={t('savings.personal.activityHistory')} description={t('savings.personal.activityHistoryDescription')}>
                 <DataTable
                   showIndex={false}
                   showAccountQuickNav={false}
@@ -741,7 +741,7 @@ export default function PersonalSavingsPage() {
                     { key: 'createdAt', label: 'Timestamp', render: (row) => formatDateTime(pickFirst(row?.createdAt, row?.timestamp, row?.activityDate)) }
                   ]}
                   rows={activities}
-                  emptyLabel="No saving activities found"
+                  emptyLabel={t('savings.personal.noActivities')}
                 />
               </SectionCard>
             </div>
@@ -751,7 +751,7 @@ export default function PersonalSavingsPage() {
 
       {editing && (
         <AdminModal
-          title={`Edit Saving ${getReference(detail) || getSavingId(detail)}`}
+          title={`${t('savings.personal.editSaving')} ${getReference(detail) || getSavingId(detail)}`}
           onClose={() => {
             setEditing(false);
             setEditError(null);
@@ -838,17 +838,17 @@ export default function PersonalSavingsPage() {
                   setEditError(null);
                 }}
               >
-                Cancel
+                {t('featureFlags.cancel')}
               </button>
               <button type="button" className="btn-primary" onClick={handleSaveEdit} disabled={savingEdit}>
-                {savingEdit ? 'Saving…' : 'Save'}
+                {savingEdit ? 'Saving…' : t('savings.personal.save')}
               </button>
             </div>
           </div>
         </AdminModal>
       )}
 
-      {editing && editError ? <BottomSheetNotice title="Could not update saving" message={editError} onClose={() => setEditError(null)} /> : null}
+      {editing && editError ? <BottomSheetNotice title={t('savings.personal.couldNotUpdate')} message={editError} onClose={() => setEditError(null)} /> : null}
     </div>
   );
 }

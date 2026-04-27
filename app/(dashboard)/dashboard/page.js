@@ -65,6 +65,8 @@ const getUnpaidRevenueValue = (row) => {
   return 0;
 };
 const getNetProfitValue = (row) => getRevenueValue(row) - getReferralCostValue(row);
+const CURRENCY_METRIC_KEYS = new Set(['loanDisbursedVolume', 'loansOutstanding']);
+const formatMetricCardValue = (key, value) => (CURRENCY_METRIC_KEYS.has(key) ? formatCurrency(value) : formatNumber(value));
 
 const InlineStat = ({ value, percentage }) => {
   const main = value ?? '—';
@@ -1336,7 +1338,7 @@ export default function DashboardPage() {
               {metricCards.map((m) => (
                 <div key={m.key} style={{ padding: '0.75rem', border: `1px solid var(--border)`, borderRadius: '12px', display: 'grid', gap: '0.15rem', background: 'color-mix(in srgb, var(--surface) 90%, var(--accent-soft) 10%)' }}>
                   <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{m.label}</div>
-                  <div style={{ fontWeight: 800, fontSize: '18px' }}>{formatNumber(metrics?.[m.key])}</div>
+                  <div style={{ fontWeight: 800, fontSize: '18px' }}>{formatMetricCardValue(m.key, metrics?.[m.key])}</div>
                 </div>
               ))}
             </div>
@@ -1352,7 +1354,7 @@ export default function DashboardPage() {
               {metricCards.map((m) => (
                 <div key={m.key} style={{ padding: '0.75rem', border: `1px solid var(--border)`, borderRadius: '12px', display: 'grid', gap: '0.15rem', background: 'color-mix(in srgb, var(--surface) 90%, var(--accent-soft) 10%)' }}>
                   <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{m.label}</div>
-                  <div style={{ fontWeight: 800, fontSize: '18px' }}>{formatNumber(metrics?.[m.key])}</div>
+                  <div style={{ fontWeight: 800, fontSize: '18px' }}>{formatMetricCardValue(m.key, metrics?.[m.key])}</div>
                 </div>
               ))}
             </div>

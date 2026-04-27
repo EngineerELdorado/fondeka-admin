@@ -967,11 +967,11 @@ export default function AccountsListPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <div style={{ fontWeight: 800, fontSize: '20px' }}>Accounts</div>
-          <div style={{ color: 'var(--muted)' }}>Find accounts quickly with deep filters and drill into recent activity.</div>
+          <div style={{ fontWeight: 800, fontSize: '20px' }}>{t('accounts.accounts')}</div>
+          <div style={{ color: 'var(--muted)' }}>{t('accounts.findAccounts')}</div>
         </div>
         <Link href="/dashboard/accounts" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
-          ← Accounts hub
+          ← {t('accounts.accountsHub')}
         </Link>
       </div>
 
@@ -980,10 +980,10 @@ export default function AccountsListPage() {
           <div style={{ fontWeight: 700 }}>Filters</div>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <button type="button" className="btn-neutral btn-sm" onClick={() => setShowFilters((prev) => !prev)}>
-              {showFilters ? 'Hide filters' : 'Show filters'}
+              {showFilters ? t('common.hideFilters') : t('common.showFilters')}
             </button>
             <button type="button" onClick={fetchRows} disabled={loading} className="btn-neutral btn-sm">
-              {loading ? 'Refreshing…' : 'Refresh data'}
+              {loading ? t('common.refreshing') : t('accounts.refreshData')}
             </button>
           </div>
         </div>
@@ -995,15 +995,15 @@ export default function AccountsListPage() {
                 <input id="accountId" value={filters.accountId} onChange={(e) => setFilters((p) => ({ ...p, accountId: e.target.value }))} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="accountReference">Account reference/number</label>
+                <label htmlFor="accountReference">{t('accounts.accountReferenceNumber')}</label>
                 <input id="accountReference" value={filters.accountReference} onChange={(e) => setFilters((p) => ({ ...p, accountReference: e.target.value }))} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="userReference">User reference</label>
+                <label htmlFor="userReference">{t('accounts.userReference')}</label>
                 <input id="userReference" value={filters.userReference} onChange={(e) => setFilters((p) => ({ ...p, userReference: e.target.value }))} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="usernameContains">Username contains</label>
+                <label htmlFor="usernameContains">{t('accounts.usernameContains')}</label>
                 <input id="usernameContains" value={filters.usernameContains} onChange={(e) => setFilters((p) => ({ ...p, usernameContains: e.target.value }))} />
               </div>
             </div>
@@ -1028,45 +1028,45 @@ export default function AccountsListPage() {
                 </select>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="blacklisted">Blacklisted</label>
+                <label htmlFor="blacklisted">{t('accounts.blacklistedFilter')}</label>
                 <select id="blacklisted" value={filters.blacklisted} onChange={(e) => setFilters((p) => ({ ...p, blacklisted: e.target.value }))}>
-                  <option value="">All</option>
-                  <option value="true">Only blacklisted</option>
-                  <option value="false">Only not blacklisted</option>
+                  <option value="">{t('common.all')}</option>
+                  <option value="true">{t('accounts.onlyBlacklisted')}</option>
+                  <option value="false">{t('accounts.onlyNotBlacklisted')}</option>
                 </select>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="hasWalletBalance">Has fiat wallet balance</label>
+                <label htmlFor="hasWalletBalance">{t('accounts.hasFiatWalletBalance')}</label>
                 <select
                   id="hasWalletBalance"
                   value={filters.hasWalletBalance}
                   onChange={(e) => setFilters((p) => ({ ...p, hasWalletBalance: e.target.value }))}
                 >
-                  <option value="">All</option>
-                  <option value="true">Yes (&gt; 0)</option>
-                  <option value="false">No (≤ 0)</option>
+                  <option value="">{t('common.all')}</option>
+                  <option value="true">{t('accounts.yesPositive')}</option>
+                  <option value="false">{t('accounts.noNonPositive')}</option>
                 </select>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="hasCryptoWalletBalance">Has crypto wallet balance</label>
+                <label htmlFor="hasCryptoWalletBalance">{t('accounts.hasCryptoWalletBalance')}</label>
                 <select
                   id="hasCryptoWalletBalance"
                   value={filters.hasCryptoWalletBalance}
                   onChange={(e) => setFilters((p) => ({ ...p, hasCryptoWalletBalance: e.target.value }))}
                 >
-                  <option value="">All</option>
-                  <option value="true">Yes (&gt; 0)</option>
-                  <option value="false">No (none &gt; 0)</option>
+                  <option value="">{t('common.all')}</option>
+                  <option value="true">{t('accounts.yesPositive')}</option>
+                  <option value="false">{t('accounts.noCryptoPositive')}</option>
                 </select>
               </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="startDate">Start date</label>
+                <label htmlFor="startDate">{t('accounts.startDate')}</label>
                 <input id="startDate" type="datetime-local" value={filters.startDate} onChange={(e) => setFilters((p) => ({ ...p, startDate: e.target.value }))} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="endDate">End date</label>
+                <label htmlFor="endDate">{t('accounts.endDate')}</label>
                 <input id="endDate" type="datetime-local" value={filters.endDate} onChange={(e) => setFilters((p) => ({ ...p, endDate: e.target.value }))} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -1104,7 +1104,7 @@ export default function AccountsListPage() {
                   <input id="size" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                  <label>Navigate</label>
+                  <label>{t('accounts.navigate')}</label>
                   <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
                     <button type="button" className="btn-neutral" disabled={loading || !canGoPrevious} onClick={() => setPage((p) => Math.max(0, p - 1))}>
                       ←
@@ -1112,19 +1112,19 @@ export default function AccountsListPage() {
                     <button type="button" className="btn-neutral" disabled={loading || !canGoNext} onClick={() => setPage((p) => p + 1)}>
                       →
                     </button>
-                    <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Page {page + 1}</span>
+                    <span style={{ color: 'var(--muted)', fontSize: '13px' }}>{t('accounts.page')} {page + 1}</span>
                   </div>
                 </div>
               </div>
             </div>
             <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
               <button type="button" onClick={applyFilters} disabled={loading} className="btn-primary">
-                {loading ? 'Applying…' : 'Apply filters'}
+                {loading ? t('accounts.applying') : t('accounts.applyFilters')}
               </button>
               <button type="button" onClick={resetFilters} disabled={loading} className="btn-neutral">
-                Reset
+                {t('savings.groups.reset')}
               </button>
-              <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Set filters and sorting, then apply to query.</span>
+              <span style={{ color: 'var(--muted)', fontSize: '13px' }}>{t('accounts.filtersQueryHelp')}</span>
             </div>
           </>
         )}
@@ -1229,7 +1229,7 @@ export default function AccountsListPage() {
                 className="btn-neutral"
                 disabled={detailLoading}
               >
-                {detailLoading ? 'Refreshing…' : 'Refresh'}
+                {detailLoading ? t('common.refreshing') : t('common.refresh')}
               </button>
               <button type="button" onClick={runAmlCheck} className="btn-neutral" disabled={amlLoading}>
                 {amlLoading ? t('accounts.runningAml') : t('accounts.runAmlCheck')}
@@ -1252,12 +1252,12 @@ export default function AccountsListPage() {
                 ) : (
                   <div style={{ display: 'grid', gap: '0.35rem' }}>
                     <div style={{ fontWeight: 800, color: amlResult?.blackListed ? '#991b1b' : '#166534' }}>
-                      AML result: {amlResult?.blackListed ? 'BLACKLISTED' : 'CLEAR'}
+                      {t('accounts.amlResult')}: {amlResult?.blackListed ? t('accounts.blacklistedState') : t('accounts.clearState')}
                     </div>
-                    <div style={{ color: 'var(--text)' }}>{amlResult?.message || 'No provider message.'}</div>
+                    <div style={{ color: 'var(--text)' }}>{amlResult?.message || t('accounts.noProviderMessage')}</div>
                     {amlResult?.checkedAt ? (
                       <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-                        Checked: {new Date(amlResult.checkedAt).toLocaleString()}
+                        {t('accounts.checked')}: {new Date(amlResult.checkedAt).toLocaleString()}
                       </div>
                     ) : null}
                   </div>
