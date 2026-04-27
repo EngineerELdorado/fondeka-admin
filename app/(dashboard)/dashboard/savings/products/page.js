@@ -717,14 +717,14 @@ export default function SavingProductsPage() {
       </div>
 
       <SectionCard
-        title="Commercial Defaults"
-        description="These defaults shape how support should explain savings products to customers and when exceptions apply."
+        title={t('savings.products.commercialDefaults')}
+        description={t('savings.products.commercialDefaultsDescription')}
       >
         <div style={{ display: 'grid', gap: '0.35rem', color: 'var(--muted)', fontSize: '13px' }}>
-          <div>Open savings is flexible and normally non-interest-bearing.</div>
-          <div>Locked savings accrues daily interest that becomes payable only at maturity.</div>
-          <div>If a customer breaks a locked saving early, accrued interest is forfeited.</div>
-          <div>Negotiated exceptions can still be configured by admin where needed.</div>
+          <div>{t('savings.products.commercialDefault1')}</div>
+          <div>{t('savings.products.commercialDefault2')}</div>
+          <div>{t('savings.products.commercialDefault3')}</div>
+          <div>{t('savings.products.commercialDefault4')}</div>
         </div>
       </SectionCard>
 
@@ -745,21 +745,21 @@ export default function SavingProductsPage() {
       />
 
       {showCreate && (
-        <AdminModal title="Add saving product" onClose={() => setShowCreate(false)}>
+        <AdminModal title={t('savings.products.addProductTitle')} onClose={() => setShowCreate(false)}>
           {renderForm()}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-            <button type="button" onClick={() => setShowCreate(false)} className="btn-neutral">Cancel</button>
-            <button type="button" onClick={handleCreate} className="btn-success">Create</button>
+            <button type="button" onClick={() => setShowCreate(false)} className="btn-neutral">{t('featureFlags.cancel')}</button>
+            <button type="button" onClick={handleCreate} className="btn-success">{t('common.create')}</button>
           </div>
         </AdminModal>
       )}
 
       {showEdit && (
-        <AdminModal title={`Edit saving product ${selected?.id}`} onClose={() => setShowEdit(false)}>
+        <AdminModal title={`${t('savings.products.editProductTitle')} ${selected?.id}`} onClose={() => setShowEdit(false)}>
           {renderForm()}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-            <button type="button" onClick={() => setShowEdit(false)} className="btn-neutral">Cancel</button>
-            <button type="button" onClick={handleUpdate} className="btn-primary">Save</button>
+            <button type="button" onClick={() => setShowEdit(false)} className="btn-neutral">{t('featureFlags.cancel')}</button>
+            <button type="button" onClick={handleUpdate} className="btn-primary">{t('savings.personal.save')}</button>
           </div>
         </AdminModal>
       )}
@@ -767,13 +767,13 @@ export default function SavingProductsPage() {
       {showDetail && (
         <AdminModal title={`Saving Product ${selected?.id}`} onClose={() => setShowDetail(false)}>
           <div style={{ display: 'grid', gap: '1rem' }}>
-            <SectionCard title="Product Detail" description="Core fields used by the app and personal savings flows.">
+            <SectionCard title={t('savings.products.productDetailTitle')} description={t('savings.products.productDetailDescription')}>
               <DetailGrid rows={detailRows} />
             </SectionCard>
             {isLockedSavingProduct(selected?.code) ? (
               <SectionCard
-                title="Default Locked-Saving Interest Tiers"
-                description="Current daily-rate ladder for new locked savings. Existing savings keep the applied terms they were created with."
+                title={t('savings.products.lockedTiersTitle')}
+                description={t('savings.products.lockedTiersDescription')}
               >
                 <DataTable
                   showIndex={false}
@@ -785,11 +785,11 @@ export default function SavingProductsPage() {
                     { key: 'interestPercentage', label: 'Daily interest rate (%)', render: (row) => formatInterest(row?.interestPercentage) }
                   ]}
                   rows={Array.isArray(selected?.interestTiers) ? [...selected.interestTiers].sort((a, b) => Number(a?.minLockDurationDays || 0) - Number(b?.minLockDurationDays || 0)) : []}
-                  emptyLabel="No duration tiers configured"
+                  emptyLabel={t('savings.products.noDurationTiers')}
                 />
               </SectionCard>
             ) : null}
-            <SectionCard title="Full Resource JSON" description="Raw backend payload for this product.">
+            <SectionCard title={t('savings.products.fullResourceJson')} description={t('savings.products.fullResourceJsonDescription')}>
               <pre style={{ margin: 0, overflow: 'auto', background: 'color-mix(in srgb, var(--surface) 96%, var(--bg) 4%)', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--border)' }}>
                 {prettyJson(selected)}
               </pre>
@@ -799,14 +799,14 @@ export default function SavingProductsPage() {
       )}
 
       {confirmDelete && (
-        <AdminModal title="Confirm delete" onClose={() => setConfirmDelete(null)} width={560}>
+        <AdminModal title={t('savings.products.confirmDelete')} onClose={() => setConfirmDelete(null)} width={560}>
           <div style={{ display: 'grid', gap: '1rem' }}>
             <div style={{ color: 'var(--muted)' }}>
-              Delete saving product <strong>{getProductName(confirmDelete) || confirmDelete.id}</strong>? This cannot be undone.
+              {t('savings.products.deleteHelp', { name: getProductName(confirmDelete) || confirmDelete.id })}
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-              <button type="button" onClick={() => setConfirmDelete(null)} className="btn-neutral">Cancel</button>
-              <button type="button" onClick={handleDelete} className="btn-danger">Delete</button>
+              <button type="button" onClick={() => setConfirmDelete(null)} className="btn-neutral">{t('featureFlags.cancel')}</button>
+              <button type="button" onClick={handleDelete} className="btn-danger">{t('featureFlags.delete')}</button>
             </div>
           </div>
         </AdminModal>

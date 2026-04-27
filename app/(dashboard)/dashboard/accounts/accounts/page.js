@@ -1357,7 +1357,7 @@ export default function AccountsListPage() {
                       <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '520px' }}>
                         <thead>
                           <tr>
-                            {['Limit', 'Base (KYC)', 'Override (custom)', 'Effective'].map((label) => (
+                            {[t('accounts.limit'), t('accounts.baseKyc'), t('accounts.overrideCustom'), t('accounts.effective')].map((label) => (
                               <th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
                                 {label}
                               </th>
@@ -1383,26 +1383,26 @@ export default function AccountsListPage() {
 
                             const rows = [
                               {
-                                label: 'Loan eligibility (computed)',
+                                label: t('accounts.loanEligibilityComputed'),
                                 base: eligibleLoanBase,
                                 override: extraLoan,
                                 effective: eligibleLoanEffective
                               },
                               {
-                                label: 'Max collection (deposit)',
+                                label: t('accounts.maxCollectionDeposit'),
                                 base: kycCollection,
                                 override: overrideCollection,
                                 effective: effectiveCollection
                               },
                               {
-                                label: 'Max payout (withdrawal)',
+                                label: t('accounts.maxPayoutWithdrawal'),
                                 base: kycPayout,
                                 override: overridePayout,
                                 effective: effectivePayout
                               }
                             ];
 
-                            const fmt = (v, { empty = '—', defaultLabel = 'Default' } = {}) => {
+                            const fmt = (v, { empty = '—', defaultLabel = t('accounts.default') } = {}) => {
                               if (v === null || v === undefined) return empty;
                               if (v === defaultLabel) return defaultLabel;
                               return String(v);
@@ -1412,7 +1412,7 @@ export default function AccountsListPage() {
                               <tr key={row.label} style={{ borderBottom: '1px solid var(--border)' }}>
                                 <td style={{ padding: '0.5rem', fontWeight: 700 }}>{row.label}</td>
                                 <td style={{ padding: '0.5rem' }}>{fmt(row.base)}</td>
-                                <td style={{ padding: '0.5rem' }}>{fmt(row.override, { empty: 'None' })}</td>
+                                <td style={{ padding: '0.5rem' }}>{fmt(row.override, { empty: t('accounts.none') })}</td>
                                 <td style={{ padding: '0.5rem' }}>{fmt(row.effective)}</td>
                               </tr>
                             ));
@@ -1439,31 +1439,31 @@ export default function AccountsListPage() {
             <div className="card" style={{ padding: '1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                  <div style={{ fontWeight: 800 }}>Custom Fee Overrides</div>
+                  <div style={{ fontWeight: 800 }}>{t('accounts.customFeeOverrides')}</div>
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-              Per-account fee rules and fee charging policy exceptions. Leave PMPP blank for account-wide action overrides.
+              {t('accounts.customFeeOverridesHelp')}
             </div>
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                   <button type="button" className="btn-neutral btn-sm" onClick={() => loadFeeConfigs(selected?.id)} disabled={feeConfigsLoading}>
-                    {feeConfigsLoading ? 'Loading…' : 'Reload'}
+                    {feeConfigsLoading ? t('common.refreshing') : t('accounts.reload')}
                   </button>
                   <button type="button" className="btn-primary btn-sm" onClick={() => { resetFeeForm(); setShowFeeForm(true); }}>
-                    Add override
+                    {t('accounts.addOverride')}
                   </button>
                 </div>
               </div>
 
               <div style={{ marginTop: '0.75rem' }}>
                 {feeConfigsError && <div style={{ color: '#b91c1c', fontWeight: 700, marginBottom: '0.4rem' }}>{feeConfigsError}</div>}
-                {feeConfigsLoading && <div style={{ color: 'var(--muted)' }}>Loading fee overrides…</div>}
-                {!feeConfigsLoading && feeConfigs.length === 0 && <div style={{ color: 'var(--muted)' }}>No fee overrides.</div>}
+                {feeConfigsLoading && <div style={{ color: 'var(--muted)' }}>{t('accounts.loadingFeeOverrides')}</div>}
+                {!feeConfigsLoading && feeConfigs.length === 0 && <div style={{ color: 'var(--muted)' }}>{t('accounts.noFeeOverrides')}</div>}
                 {!feeConfigsLoading && feeConfigs.length > 0 && (
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '720px' }}>
                       <thead>
                         <tr>
-                            {['Action', 'Service', 'PMPP', 'Country', 'Provider %', 'Provider flat', 'Our %', 'Our flat', 'Fee mode', 'Updated', ''].map((h) => (
+                            {[t('common.action'), t('common.service'), 'PMPP', t('common.country'), t('accounts.providerFeePct'), t('accounts.providerFeeFlat'), t('accounts.ourFeePct'), t('accounts.ourFeeFlat'), t('accounts.feeMode'), t('common.updated'), ''].map((h) => (
                             <th key={h} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
                               {h}
                             </th>
@@ -1493,18 +1493,18 @@ export default function AccountsListPage() {
                             <td style={{ padding: '0.45rem' }}>{fee.ourFlatFee}</td>
                             <td style={{ padding: '0.45rem' }}>
                               {String(fee.feeApplicationMode || '').toUpperCase() === 'INCLUSIVE'
-                                ? 'Recipient pays'
+                                  ? t('accounts.recipientPays')
                                 : String(fee.feeApplicationMode || '').toUpperCase() === 'EXCLUSIVE'
-                                  ? 'Sender pays'
-                                  : 'Use inherited default'}
+                                  ? t('accounts.senderPays')
+                                  : t('accounts.useInheritedDefault')}
                             </td>
                             <td style={{ padding: '0.45rem' }}>{fee.updatedAt ? formatDateTime(fee.updatedAt) : '—'}</td>
                             <td style={{ padding: '0.45rem', display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                               <button type="button" className="btn-neutral btn-sm" onClick={() => openFeeForm(fee)}>
-                                Edit
+                                {t('accounts.edit')}
                               </button>
                               <button type="button" className="btn-danger btn-sm" onClick={() => deleteFee(fee)}>
-                                Delete
+                                {t('featureFlags.delete')}
                               </button>
                             </td>
                           </tr>
@@ -1518,12 +1518,12 @@ export default function AccountsListPage() {
 
             {txView?.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <div style={{ fontWeight: 700 }}>Recent transaction (last 1)</div>
+                <div style={{ fontWeight: 700 }}>{t('accounts.recentTransaction')}</div>
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr>
-                        {['Created', 'Reference', 'Status', 'Service', 'Action', 'Amount'].map((label) => (
+                        {[t('common.created'), t('accounts.reference'), t('common.status'), t('common.service'), t('common.action'), t('common.amount')].map((label) => (
                           <th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid #e5e7eb', color: '#6b7280' }}>
                             {label}
                           </th>
@@ -1551,7 +1551,7 @@ export default function AccountsListPage() {
 
             {selected?.cryptoWallets?.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <div style={{ fontWeight: 700 }}>Crypto wallets</div>
+                <div style={{ fontWeight: 700 }}>{t('accounts.cryptoWallets')}</div>
                 {(() => {
                   const totals = (selected?.cryptoWallets || []).reduce((acc, w) => {
                     if (!w || w.balance === undefined || w.balance === null || !w.currency) return acc;
@@ -1564,7 +1564,7 @@ export default function AccountsListPage() {
                   if (entries.length === 0) return null;
                   return (
                     <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                      <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Totals by currency:</span>
+                      <span style={{ color: 'var(--muted)', fontSize: '13px' }}>{t('accounts.totalsByCurrency')}</span>
                       {entries.map(([cur, amt]) => (
                         <Badge key={cur}>
                           {amt} {cur}
@@ -1577,7 +1577,7 @@ export default function AccountsListPage() {
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr>
-                        {['ID', 'Product', 'Network', 'Balance'].map((label) => (
+                        {['ID', t('accounts.product'), t('accounts.network'), t('accounts.balance')].map((label) => (
                           <th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid #e5e7eb', color: '#6b7280' }}>
                             {label}
                           </th>
@@ -1610,13 +1610,13 @@ export default function AccountsListPage() {
       )}
 
       {showBlacklistModal && (
-        <Modal title="Blacklist account" onClose={() => (!blacklistLoading ? setShowBlacklistModal(false) : null)}>
+        <Modal title={t('accounts.blacklistAccount')} onClose={() => (!blacklistLoading ? setShowBlacklistModal(false) : null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ color: 'var(--muted)' }}>
               Add <span style={{ fontWeight: 800 }}>{selected?.userName || selected?.username || 'this user'}</span> to the blacklist. Blocked accounts cannot transact.
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <label htmlFor="blacklistReason">Reason (required)</label>
+              <label htmlFor="blacklistReason">{t('accounts.reasonRequired')}</label>
               <input
                 id="blacklistReason"
                 value={blacklistReason}
@@ -1627,10 +1627,10 @@ export default function AccountsListPage() {
             {blacklistError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{blacklistError}</div>}
             <div className="modal-actions">
               <button type="button" className="btn-neutral" disabled={blacklistLoading} onClick={() => setShowBlacklistModal(false)}>
-                Cancel
+                {t('accounts.cancel')}
               </button>
               <button type="button" className="btn-danger" disabled={blacklistLoading} onClick={submitBlacklist}>
-                {blacklistLoading ? 'Blacklisting…' : 'Confirm blacklist'}
+                {blacklistLoading ? 'Blacklisting…' : t('accounts.confirmBlacklist')}
               </button>
             </div>
           </div>
@@ -1638,19 +1638,19 @@ export default function AccountsListPage() {
       )}
 
       {showUnblacklistModal && (
-        <Modal title="Remove from blacklist (restore access)" onClose={() => (!blacklistLoading ? setShowUnblacklistModal(false) : null)}>
+        <Modal title={t('accounts.removeBlacklistRestore')} onClose={() => (!blacklistLoading ? setShowUnblacklistModal(false) : null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ fontWeight: 700 }}>
-              Allow account <span style={{ fontWeight: 900 }}>{selected?.accountReference || selected?.id}</span> to transact again?
+              {t('accounts.allowAccountTransact', { account: selected?.accountReference || selected?.id })}
             </div>
-            <div style={{ color: 'var(--muted)' }}>This is safe to repeat; removal is idempotent.</div>
+            <div style={{ color: 'var(--muted)' }}>{t('accounts.safeToRepeat')}</div>
             {blacklistError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{blacklistError}</div>}
             <div className="modal-actions">
               <button type="button" className="btn-neutral" disabled={blacklistLoading} onClick={() => setShowUnblacklistModal(false)}>
-                Cancel
+                {t('accounts.cancel')}
               </button>
               <button type="button" className="btn-primary" disabled={blacklistLoading} onClick={submitUnblacklist}>
-                {blacklistLoading ? 'Updating…' : 'Remove from blacklist (restore access)'}
+                {blacklistLoading ? t('accounts.updating') : t('accounts.removeBlacklistRestore')}
               </button>
             </div>
           </div>
@@ -1658,21 +1658,21 @@ export default function AccountsListPage() {
       )}
 
       {showCredit && (
-        <Modal title="Credit wallet" onClose={() => (!creditLoading ? setShowCredit(false) : null)}>
+        <Modal title={t('accounts.creditWallet')} onClose={() => (!creditLoading ? setShowCredit(false) : null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ color: 'var(--muted)' }}>
-              Crediting account <span style={{ fontWeight: 800 }}>{accountView?.accountReference || selected?.accountReference || selected?.id}</span>
+              {t('accounts.creditingAccount', { account: accountView?.accountReference || selected?.accountReference || selected?.id })}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="creditAction">Action</label>
+                <label htmlFor="creditAction">{t('common.action')}</label>
                 <select id="creditAction" value={creditAction} onChange={(e) => setCreditAction(e.target.value)}>
-                  <option value="MANUAL_ADJUSTMENT">Manual adjustment</option>
-                  <option value="BONUS">Bonus</option>
+                  <option value="MANUAL_ADJUSTMENT">{t('accounts.manualAdjustment')}</option>
+                  <option value="BONUS">{t('accounts.bonus')}</option>
                 </select>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="creditAmount">Amount</label>
+                <label htmlFor="creditAmount">{t('accounts.amountLabel')}</label>
                 <input
                   id="creditAmount"
                   type="number"
@@ -1684,17 +1684,17 @@ export default function AccountsListPage() {
                 />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="creditNote">Note (optional)</label>
-                <input id="creditNote" value={creditNote} onChange={(e) => setCreditNote(e.target.value)} placeholder="Optional note shown on receipt" />
+                <label htmlFor="creditNote">{t('common.note')} (optional)</label>
+                <input id="creditNote" value={creditNote} onChange={(e) => setCreditNote(e.target.value)} placeholder={t('accounts.optionalNoteReceipt')} />
               </div>
             </div>
             {creditError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{creditError}</div>}
             <div className="modal-actions">
               <button type="button" onClick={() => setShowCredit(false)} className="btn-neutral" disabled={creditLoading}>
-                Cancel
+                {t('accounts.cancel')}
               </button>
               <button type="button" onClick={submitCredit} className="btn-success" disabled={creditLoading}>
-                {creditLoading ? 'Crediting…' : 'Credit wallet'}
+                {creditLoading ? t('accounts.crediting') : t('accounts.creditWallet')}
               </button>
             </div>
           </div>
@@ -1702,21 +1702,21 @@ export default function AccountsListPage() {
       )}
 
       {showDebit && (
-        <Modal title="Debit wallet" onClose={() => (!debitLoading ? setShowDebit(false) : null)}>
+        <Modal title={t('accounts.debitWallet')} onClose={() => (!debitLoading ? setShowDebit(false) : null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ color: 'var(--muted)' }}>
-              Debiting account <span style={{ fontWeight: 800 }}>{accountView?.accountReference || selected?.accountReference || selected?.id}</span>
+              {t('accounts.debitingAccount', { account: accountView?.accountReference || selected?.accountReference || selected?.id })}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="debitAction">Action</label>
+                <label htmlFor="debitAction">{t('common.action')}</label>
                 <select id="debitAction" value={debitAction} onChange={(e) => setDebitAction(e.target.value)}>
-                  <option value="MANUAL_ADJUSTMENT">Manual adjustment</option>
+                  <option value="MANUAL_ADJUSTMENT">{t('accounts.manualAdjustment')}</option>
                   <option value="WITHDRAW_FROM_WALLET">Withdraw from wallet</option>
                 </select>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="debitAmount">Amount</label>
+                <label htmlFor="debitAmount">{t('accounts.amountLabel')}</label>
                 <input
                   id="debitAmount"
                   type="number"
@@ -1728,17 +1728,17 @@ export default function AccountsListPage() {
                 />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="debitNote">Note (optional)</label>
-                <input id="debitNote" value={debitNote} onChange={(e) => setDebitNote(e.target.value)} placeholder="Optional note shown to user" />
+                <label htmlFor="debitNote">{t('common.note')} (optional)</label>
+                <input id="debitNote" value={debitNote} onChange={(e) => setDebitNote(e.target.value)} placeholder={t('accounts.optionalNoteUser')} />
               </div>
             </div>
             {debitError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{debitError}</div>}
             <div className="modal-actions">
               <button type="button" onClick={() => setShowDebit(false)} className="btn-neutral" disabled={debitLoading}>
-                Cancel
+                {t('accounts.cancel')}
               </button>
               <button type="button" onClick={submitDebit} className="btn-danger" disabled={debitLoading}>
-                {debitLoading ? 'Debiting…' : 'Debit wallet'}
+                {debitLoading ? t('accounts.debiting') : t('accounts.debitWallet')}
               </button>
             </div>
           </div>
@@ -1746,20 +1746,20 @@ export default function AccountsListPage() {
       )}
 
       {showFeeForm && (
-        <Modal title={`${feeFormId ? 'Edit' : 'Add'} fee override`} onClose={() => (!feeSaving ? setShowFeeForm(false) : null)}>
+        <Modal title={feeFormId ? t('accounts.editFeeOverride') : t('accounts.addFeeOverride')} onClose={() => (!feeSaving ? setShowFeeForm(false) : null)}>
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             {feeConfigsError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{feeConfigsError}</div>}
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-              Overrides the default fee mode for this action on this account when the app does not explicitly choose a fee mode.
+              {t('accounts.feeOverrideHelp1')}
             </div>
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-              This applies across fee-bearing flows, not only payouts. Older app versions also use this override when they send no explicit fee mode.
+              {t('accounts.feeOverrideHelp2')}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="feeService">Service</label>
+                <label htmlFor="feeService">{t('common.service')}</label>
                 <select id="feeService" value={feeService} onChange={(e) => setFeeService(e.target.value)}>
-                  <option value="">None</option>
+                  <option value="">{t('accounts.noneOption')}</option>
                   {['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'PAYMENT_REQUEST', 'E_SIM', 'AIRTIME_AND_DATA', 'OTHER'].map((svc) => (
                     <option key={svc} value={svc}>
                       {svc}
@@ -1768,9 +1768,9 @@ export default function AccountsListPage() {
                 </select>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="feeAction">Action *</label>
+                <label htmlFor="feeAction">{t('common.action')} *</label>
                 <select id="feeAction" value={feeAction} onChange={(e) => setFeeAction(e.target.value)}>
-                  <option value="">Select action</option>
+                  <option value="">{t('accounts.selectAction')}</option>
                   {actionOptions.map((act) => (
                     <option key={act} value={act}>
                       {act}
@@ -1779,9 +1779,9 @@ export default function AccountsListPage() {
                 </select>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="feePmpId">Payment method / provider</label>
+                <label htmlFor="feePmpId">{t('common.paymentMethod')} / {t('common.paymentProvider')}</label>
                 <select id="feePmpId" value={feePmpId} onChange={(e) => setFeePmpId(e.target.value)}>
-                  <option value="">Account-wide</option>
+                  <option value="">{t('accounts.accountWide')}</option>
                   {pmps.map((p) => (
                     <option key={p.id} value={p.id}>
                       {(p.paymentMethodName || p.paymentMethodDisplayName || 'Method') + ' → ' + (p.paymentProviderName || 'Provider')}
@@ -1790,9 +1790,9 @@ export default function AccountsListPage() {
                 </select>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="feeCountryId">Country (optional)</label>
+                <label htmlFor="feeCountryId">{t('accounts.countryOptional')}</label>
                 <select id="feeCountryId" value={feeCountryId} onChange={(e) => setFeeCountryId(e.target.value)}>
-                  <option value="">Any</option>
+                  <option value="">{t('common.any')}</option>
                   {countries.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name} {c.alpha2Code ? `(${c.alpha2Code})` : ''}
@@ -1804,52 +1804,52 @@ export default function AccountsListPage() {
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="feeProviderPct">Provider fee %</label>
+                <label htmlFor="feeProviderPct">{t('accounts.providerFeePct')}</label>
                 <input id="feeProviderPct" type="number" step="0.01" value={feeProviderPct} onChange={(e) => setFeeProviderPct(e.target.value)} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="feeProviderFlat">Provider flat</label>
+                <label htmlFor="feeProviderFlat">{t('accounts.providerFeeFlat')}</label>
                 <input id="feeProviderFlat" type="number" step="0.01" value={feeProviderFlat} onChange={(e) => setFeeProviderFlat(e.target.value)} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="feeOurPct">Our fee %</label>
+                <label htmlFor="feeOurPct">{t('accounts.ourFeePct')}</label>
                 <input id="feeOurPct" type="number" step="0.01" value={feeOurPct} onChange={(e) => setFeeOurPct(e.target.value)} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="feeOurFlat">Our flat</label>
+                <label htmlFor="feeOurFlat">{t('accounts.ourFeeFlat')}</label>
                 <input id="feeOurFlat" type="number" step="0.01" value={feeOurFlat} onChange={(e) => setFeeOurFlat(e.target.value)} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="feeApplicationMode">Fee charging mode</label>
+                <label htmlFor="feeApplicationMode">{t('accounts.feeChargingMode')}</label>
                 <select id="feeApplicationMode" value={feeApplicationMode} onChange={(e) => setFeeApplicationMode(e.target.value)}>
-                  <option value="">Use inherited default</option>
-                  <option value="EXCLUSIVE">Sender pays fees (EXCLUSIVE)</option>
-                  <option value="INCLUSIVE">Recipient pays fees (INCLUSIVE)</option>
+                  <option value="">{t('accounts.useInheritedDefault')}</option>
+                  <option value="EXCLUSIVE">{t('accounts.senderPays')} (EXCLUSIVE)</option>
+                  <option value="INCLUSIVE">{t('accounts.recipientPays')} (INCLUSIVE)</option>
                 </select>
                 <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-                  Choose how fees apply for this action on this account.
+                  {t('accounts.feeHelp1')}
                 </div>
                 <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-                  Used when the app does not explicitly choose how fees should be applied.
+                  {t('accounts.feeHelp2')}
                 </div>
                 <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-                  EXCLUSIVE: fees are added on top of the entered amount. INCLUSIVE: fees are deducted from the entered amount.
+                  {t('accounts.feeHelp3')}
                 </div>
                 <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-                  This rule is action-specific. Different actions on the same account can use different fee modes.
+                  {t('accounts.feeHelp4')}
                 </div>
                 <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-                  Use inherited default to fall back to the action-level global rule, then to the master global fee mode.
+                  {t('accounts.feeHelp5')}
                 </div>
               </div>
             </div>
 
             <div className="modal-actions">
               <button type="button" className="btn-neutral" onClick={() => { if (!feeSaving) { resetFeeForm(); setShowFeeForm(false); } }} disabled={feeSaving}>
-                Cancel
+                {t('accounts.cancel')}
               </button>
               <button type="button" className="btn-primary" onClick={submitFeeForm} disabled={feeSaving}>
-                {feeSaving ? 'Saving…' : feeFormId ? 'Update' : 'Add'}
+                {feeSaving ? t('savings.personal.saving') : feeFormId ? t('savings.personal.save') : t('accounts.addOverride')}
               </button>
             </div>
           </div>
@@ -1857,11 +1857,11 @@ export default function AccountsListPage() {
       )}
 
       {showPricingForm && (
-        <Modal title={`${customPricing ? 'Edit' : 'Add'} custom KYC caps`} onClose={() => (!pricingSaving ? setShowPricingForm(false) : null)}>
+        <Modal title={customPricing ? t('accounts.editCustomKycCapsTitle') : t('accounts.addCustomKycCapsTitle')} onClose={() => (!pricingSaving ? setShowPricingForm(false) : null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="extraLoanEligibilityAmount">Extra loan eligibility amount</label>
+                <label htmlFor="extraLoanEligibilityAmount">{t('accounts.extraLoanEligibility')}</label>
                 <input
                   id="extraLoanEligibilityAmount"
                   type="number"
@@ -1873,7 +1873,7 @@ export default function AccountsListPage() {
                 />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="maxCollectionAmount">Max collection amount (optional)</label>
+                <label htmlFor="maxCollectionAmount">{t('accounts.maxCollectionOptional')}</label>
                 <input
                   id="maxCollectionAmount"
                   type="number"
@@ -1885,7 +1885,7 @@ export default function AccountsListPage() {
                 />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="maxPayoutAmount">Max payout amount (optional)</label>
+                <label htmlFor="maxPayoutAmount">{t('accounts.maxPayoutOptional')}</label>
                 <input
                   id="maxPayoutAmount"
                   type="number"
@@ -1897,17 +1897,17 @@ export default function AccountsListPage() {
                 />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="pricingNote">Note (optional)</label>
+                <label htmlFor="pricingNote">{t('common.note')} (optional)</label>
                 <input id="pricingNote" value={pricingNote} onChange={(e) => setPricingNote(e.target.value)} placeholder="VIP customer" />
               </div>
             </div>
             {pricingError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{pricingError}</div>}
             <div className="modal-actions">
               <button type="button" className="btn-neutral" disabled={pricingSaving} onClick={() => setShowPricingForm(false)}>
-                Cancel
+                {t('accounts.cancel')}
               </button>
               <button type="button" className="btn-primary" disabled={pricingSaving} onClick={submitPricing}>
-                {pricingSaving ? 'Saving…' : 'Save'}
+                {pricingSaving ? t('savings.personal.saving') : t('savings.personal.save')}
               </button>
             </div>
           </div>
