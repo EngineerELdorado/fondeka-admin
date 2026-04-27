@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { DataTable } from '@/components/DataTable';
+import { useLocale } from '@/contexts/LocaleContext';
 import {
   AdminModal,
   DetailGrid,
@@ -51,6 +52,7 @@ const getTreasuryBalance = (group) => pickFirst(group?.treasuryBalance, group?.c
 const getCurrentCycleNumber = (group) => pickFirst(group?.currentCycleNumber, group?.cycleNumber);
 const getCurrentRoundNumber = (group) => pickFirst(group?.currentRoundNumber, group?.roundNumber);
 const getMembersCount = (group) => pickFirst(group?.activeMemberCount, group?.memberCount);
+const getDeletedAt = (group) => pickFirst(group?.deletedAt);
 const getRoundNumber = (row) => pickFirst(row?.roundNumber, row?.round?.number);
 const getCycleNumber = (row) => pickFirst(row?.cycleNumber, row?.cycle?.cycleNumber);
 const getCycleId = (row) => pickFirst(row?.cycleId, row?.cycle?.id);
@@ -70,6 +72,7 @@ const formatRoundCycleLabel = (row, fallbackRound, fallbackCycle) => {
 };
 
 export default function GroupSavingDetailPage() {
+  const { t } = useLocale();
   const params = useParams();
   const groupId = params?.id;
   const [group, setGroup] = useState(null);
@@ -94,6 +97,7 @@ export default function GroupSavingDetailPage() {
 
   const isAvec = getType(group) === 'AVEC';
   const isLikelemba = getType(group) === 'LIKELEMBA';
+  const canRestore = Boolean(getDeletedAt(group));
 
   const tabs = useMemo(() => {
     const base = [
@@ -305,6 +309,25 @@ export default function GroupSavingDetailPage() {
     }
   };
 
+  const handleRestoreGroup = async () => {
+    if (!groupId) return;
+    setSavingAction('restore-group');
+    setError(null);
+    setInfo(null);
+    try {
+      const restored = await api.groupSavings.restore(groupId);
+      setGroup(restored || null);
+      setInfo('Group restored');
+    } catch (err) {
+      if (err?.status === 400) setError('This group is not deleted.');
+      else if (err?.status === 404) setError('Group not found.');
+      else setError('Could not restore group. Please refresh and try again.');
+    } finally {
+      setSavingAction('');
+      setConfirmAction(null);
+    }
+  };
+
   const handleRemoveMember = async (member) => {
     setSavingAction(`remove-member-${member.id}`);
     setError(null);
@@ -464,6 +487,12 @@ export default function GroupSavingDetailPage() {
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             <TypeBadge value={getType(group)} />
             <StatusBadge value={getStatus(group)} />
+            {canRestore ? <StatusBadge value="DELETED" /> : null}
+            {canRestore ? (
+              <button type="button" className="btn-primary" disabled={savingAction === 'restore-group'} onClick={() => setConfirmAction({ type: 'restore-group' })}>
+                {savingAction === 'restore-group' ? 'Restoring…' : 'Restore'}
+              </button>
+            ) : null}
           </div>
         }
       >
@@ -473,7 +502,8 @@ export default function GroupSavingDetailPage() {
             { label: 'Group Name', value: getName(group) || '—' },
             { label: 'Creator', value: getCreator(group) || '—' },
             { label: 'Created Date', value: formatDateTime(getCreatedAt(group)) },
-            { label: 'Current Round Number', value: formatCount(getCurrentRoundNumber(group)) }
+            { label: 'Current Round Number', value: formatCount(getCurrentRoundNumber(group)) },
+            { label: 'Deleted At', value: formatDateTime(getDeletedAt(group)) }
           ]}
         />
       </SectionCard>
@@ -899,7 +929,9 @@ export default function GroupSavingDetailPage() {
               ? 'Pause group saving?'
               : confirmAction.type === 'resume'
                 ? 'Resume group saving?'
-                : 'Remove member?'
+                : confirmAction.type === 'restore-group'
+                  ? 'Restore group?'
+                  : 'Remove member?'
           }
           onClose={() => setConfirmAction(null)}
           width={560}
@@ -910,7 +942,9 @@ export default function GroupSavingDetailPage() {
                 ? 'Pausing blocks contribution payment until the group is resumed. The backend writes an audit event for traceability.'
                 : confirmAction.type === 'resume'
                   ? 'Resuming re-enables normal group activity and contribution payment. The backend writes an audit event for traceability.'
-                  : 'Remove this member from the group if allowed by policy and debt state?'}
+                  : confirmAction.type === 'restore-group'
+                    ? 'This will make the soft-deleted group visible again.'
+                    : 'Remove this member from the group if allowed by policy and debt state?'}
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
               <button type="button" className="btn-neutral" onClick={() => setConfirmAction(null)}>
@@ -934,6 +968,11 @@ export default function GroupSavingDetailPage() {
                   disabled={savingAction === `remove-member-${confirmAction.member?.id}`}
                 >
                   {savingAction === `remove-member-${confirmAction.member?.id}` ? 'Removing…' : 'Remove Member'}
+                </button>
+              ) : null}
+              {confirmAction.type === 'restore-group' ? (
+                <button type="button" className="btn-primary" onClick={handleRestoreGroup} disabled={savingAction === 'restore-group'}>
+                  {savingAction === 'restore-group' ? 'Restoring…' : 'Restore'}
                 </button>
               ) : null}
             </div>

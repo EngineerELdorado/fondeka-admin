@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { DataTable } from '@/components/DataTable';
 import { useLocale } from '@/contexts/LocaleContext';
 import {
+  AdminModal,
   SavingsPageHeader,
   SavingsSubnav,
   SectionCard,
@@ -22,7 +23,8 @@ const emptyFilters = {
   status: '',
   type: '',
   createdByAccountId: '',
-  memberAccountId: ''
+  memberAccountId: '',
+  deletedState: ''
 };
 
 const getGroupId = (row) => pickFirst(row?.id, row?.groupSavingId);
@@ -33,6 +35,8 @@ const getGroupStatus = (row) => pickFirst(row?.status, row?.groupStatus, 'UNKNOW
 const getCreatorAccount = (row) => pickFirst(row?.createdByAccountId, row?.creatorAccountId, row?.creator?.accountId);
 const getTreasuryBalance = (row) => pickFirst(row?.treasuryBalance, row?.currentTreasuryBalance);
 const getCurrentRoundNumber = (row) => pickFirst(row?.currentRoundNumber, row?.roundNumber);
+const getDeletedAt = (row) => pickFirst(row?.deletedAt);
+const isDeletedGroup = (row) => Boolean(getDeletedAt(row));
 
 export default function GroupSavingsPage() {
   const { t } = useLocale();
@@ -45,6 +49,9 @@ export default function GroupSavingsPage() {
   const [totalElements, setTotalElements] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [info, setInfo] = useState(null);
+  const [savingAction, setSavingAction] = useState('');
+  const [confirmRestore, setConfirmRestore] = useState(null);
 
   const loadGroups = async () => {
     setLoading(true);
@@ -52,6 +59,11 @@ export default function GroupSavingsPage() {
     try {
       const params = new URLSearchParams({ page: String(page), size: String(size) });
       Object.entries(appliedFilters).forEach(([key, value]) => {
+        if (key === 'deletedState') {
+          if (value === 'active') params.set('deleted', 'false');
+          if (value === 'deleted') params.set('deleted', 'true');
+          return;
+        }
         if (String(value || '').trim()) params.set(key, String(value).trim());
       });
       const res = await api.groupSavings.list(params);
@@ -71,6 +83,40 @@ export default function GroupSavingsPage() {
     loadGroups();
   }, [page, size, appliedFilters]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (!error && !info) return;
+    const timer = setTimeout(() => {
+      setError(null);
+      setInfo(null);
+    }, 3500);
+    return () => clearTimeout(timer);
+  }, [error, info]);
+
+  const handleRestore = async (group) => {
+    const groupId = getGroupId(group);
+    if (!groupId) return;
+    setSavingAction(`restore-${groupId}`);
+    setError(null);
+    setInfo(null);
+    try {
+      const restored = await api.groupSavings.restore(groupId);
+      setRows((prev) => {
+        if (appliedFilters.deletedState === 'deleted') {
+          return prev.filter((row) => String(getGroupId(row)) !== String(groupId));
+        }
+        return prev.map((row) => (String(getGroupId(row)) === String(groupId) ? { ...row, ...restored } : row));
+      });
+      setInfo('Group restored');
+    } catch (err) {
+      if (err?.status === 400) setError('This group is not deleted.');
+      else if (err?.status === 404) setError('Group not found.');
+      else setError('Could not restore group. Please refresh and try again.');
+    } finally {
+      setSavingAction('');
+      setConfirmRestore(null);
+    }
+  };
+
   const visibleCounts = useMemo(() => {
     const likelemba = rows.filter((row) => getGroupType(row) === 'LIKELEMBA').length;
     const avec = rows.filter((row) => getGroupType(row) === 'AVEC').length;
@@ -86,11 +132,21 @@ export default function GroupSavingsPage() {
           <div style={{ display: 'grid', gap: '0.2rem' }}>
             <div style={{ fontWeight: 700 }}>{getGroupReference(row) || `Group ${getGroupId(row)}`}</div>
             <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{getGroupName(row) || '—'}</div>
+            {isDeletedGroup(row) ? <div style={{ color: '#991b1b', fontSize: '12px' }}>Deleted on {formatDate(getDeletedAt(row))}</div> : null}
           </div>
         )
       },
       { key: 'type', label: t('savings.groups.type'), render: (row) => <TypeBadge value={getGroupType(row)} /> },
-      { key: 'status', label: t('common.status'), render: (row) => <StatusBadge value={getGroupStatus(row)} /> },
+      {
+        key: 'status',
+        label: t('common.status'),
+        render: (row) => (
+          <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+            <StatusBadge value={getGroupStatus(row)} />
+            {isDeletedGroup(row) ? <StatusBadge value="DELETED" /> : null}
+          </div>
+        )
+      },
       { key: 'creator', label: t('savings.groups.creatorAccount'), render: (row) => getCreatorAccount(row) || '—' },
       { key: 'activeMembers', label: t('savings.groups.activeMembers'), render: (row) => formatCount(pickFirst(row?.activeMemberCount, row?.memberCount)) },
       {
@@ -112,13 +168,20 @@ export default function GroupSavingsPage() {
         key: 'actions',
         label: t('savings.groups.actions'),
         render: (row) => (
-          <Link href={`/dashboard/savings/groups/${encodeURIComponent(getGroupId(row))}`} className="btn-neutral" style={{ textDecoration: 'none' }}>
-            {t('savings.groups.open')}
-          </Link>
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+            <Link href={`/dashboard/savings/groups/${encodeURIComponent(getGroupId(row))}`} className="btn-neutral" style={{ textDecoration: 'none' }}>
+              {t('savings.groups.open')}
+            </Link>
+            {isDeletedGroup(row) ? (
+              <button type="button" className="btn-primary" disabled={savingAction === `restore-${getGroupId(row)}`} onClick={() => setConfirmRestore(row)}>
+                {savingAction === `restore-${getGroupId(row)}` ? 'Restoring…' : 'Restore'}
+              </button>
+            ) : null}
+          </div>
         )
       }
     ],
-    [t]
+    [savingAction, t]
   );
 
   return (
@@ -172,6 +235,14 @@ export default function GroupSavingsPage() {
             <label htmlFor="group-member">{t('savings.groups.memberAccountId')}</label>
             <input id="group-member" value={filters.memberAccountId} onChange={(e) => setFilters((prev) => ({ ...prev, memberAccountId: e.target.value }))} />
           </div>
+          <div style={{ display: 'grid', gap: '0.25rem' }}>
+            <label htmlFor="group-deleted">Deleted state</label>
+            <select id="group-deleted" value={filters.deletedState} onChange={(e) => setFilters((prev) => ({ ...prev, deletedState: e.target.value }))}>
+              <option value="">All</option>
+              <option value="active">Active</option>
+              <option value="deleted">Deleted</option>
+            </select>
+          </div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button type="button" className="btn-primary" onClick={() => { setPage(0); setAppliedFilters(filters); }} disabled={loading}>
@@ -184,6 +255,7 @@ export default function GroupSavingsPage() {
       </SectionCard>
 
       {error ? <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div> : null}
+      {info ? <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div> : null}
 
       <DataTable
         columns={columns}
@@ -197,6 +269,27 @@ export default function GroupSavingsPage() {
         onPageChange={setPage}
         emptyLabel={t('savings.groups.noGroups')}
       />
+
+      {confirmRestore ? (
+        <AdminModal title="Restore group?" onClose={() => setConfirmRestore(null)} width={560}>
+          <div style={{ display: 'grid', gap: '1rem' }}>
+            <div style={{ color: 'var(--muted)' }}>This will make the soft-deleted group visible again.</div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button type="button" className="btn-neutral" onClick={() => setConfirmRestore(null)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => handleRestore(confirmRestore)}
+                disabled={savingAction === `restore-${getGroupId(confirmRestore)}`}
+              >
+                {savingAction === `restore-${getGroupId(confirmRestore)}` ? 'Restoring…' : 'Restore'}
+              </button>
+            </div>
+          </div>
+        </AdminModal>
+      ) : null}
     </div>
   );
 }
