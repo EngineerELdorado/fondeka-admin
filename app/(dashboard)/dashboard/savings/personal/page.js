@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { DataTable } from '@/components/DataTable';
+import { useLocale } from '@/contexts/LocaleContext';
 import {
   AdminModal,
   DetailGrid,
@@ -157,6 +158,7 @@ const BottomSheetNotice = ({ title, message, onClose }) => (
 );
 
 export default function PersonalSavingsPage() {
+  const { t } = useLocale();
   const [filters, setFilters] = useState(emptyFilters);
   const [appliedFilters, setAppliedFilters] = useState(emptyFilters);
   const [rows, setRows] = useState([]);
@@ -416,7 +418,7 @@ export default function PersonalSavingsPage() {
           </div>
         )
       },
-      { key: 'accountReference', label: 'Account', render: (row) => getAccountReference(row) || '—' },
+      { key: 'accountReference', label: t('savings.personal.account'), render: (row) => getAccountReference(row) || '—' },
       {
         key: 'product',
         label: 'Product',
@@ -429,7 +431,7 @@ export default function PersonalSavingsPage() {
       },
       {
         key: 'status',
-        label: 'Status',
+        label: t('common.status'),
         render: (row) => (
           <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
             <StatusBadge value={getStatus(row)} />
@@ -440,10 +442,10 @@ export default function PersonalSavingsPage() {
       { key: 'principalBalance', label: 'Principal', render: (row) => formatMoney(getPrincipalBalance(row)) },
       { key: 'estimatedInterest', label: 'Estimated Interest', render: (row) => formatMoney(getEstimatedInterest(row)) },
       { key: 'projectedTotal', label: 'Projected Total', render: (row) => formatMoney(getProjectedTotal(row)) },
-      { key: 'withdrawableAmount', label: 'Withdrawable', render: (row) => formatMoney(getWithdrawableAmount(row)) },
+      { key: 'withdrawableAmount', label: t('savings.personal.withdrawable'), render: (row) => formatMoney(getWithdrawableAmount(row)) },
       { key: 'createdAt', label: 'Created / Start', render: (row) => formatDate(getStartDate(row)) },
       { key: 'endDate', label: 'End Date', render: (row) => formatDate(getEndDate(row)) },
-      { key: 'deletedAt', label: 'Deleted At', render: (row) => formatDateTime(getDeletedAt(row)) },
+      { key: 'deletedAt', label: t('savings.personal.deletedAt'), render: (row) => formatDateTime(getDeletedAt(row)) },
       {
         key: 'actions',
         label: 'Actions',
@@ -497,42 +499,42 @@ export default function PersonalSavingsPage() {
         )
       }
     ],
-    [] // eslint-disable-line react-hooks/exhaustive-deps
+    [t] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <SavingsSubnav />
       <SavingsPageHeader
-        title="Personal Savings"
-        description="Visibility-first admin view for personal savings. Actual withdrawable value is separated from estimated, payable, and forfeitable interest so support can explain maturity and early-break outcomes correctly."
+        title={t('savings.personal.title')}
+        description={t('savings.personal.description')}
       />
 
-      <SectionCard title="Search" description="Search by saving reference, account reference, product code, or status.">
+      <SectionCard title={t('savings.groups.searchTitle')} description={t('savings.personal.searchDescription')}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
           <div style={{ display: 'grid', gap: '0.25rem' }}>
-            <label htmlFor="personal-reference">Saving reference</label>
+            <label htmlFor="personal-reference">{t('savings.groups.reference')}</label>
             <input id="personal-reference" value={filters.reference} onChange={(e) => setFilters((prev) => ({ ...prev, reference: e.target.value }))} />
           </div>
           <div style={{ display: 'grid', gap: '0.25rem' }}>
-            <label htmlFor="personal-account-reference">Account reference</label>
+            <label htmlFor="personal-account-reference">{t('savings.personal.accountReference')}</label>
             <input id="personal-account-reference" value={filters.accountReference} onChange={(e) => setFilters((prev) => ({ ...prev, accountReference: e.target.value }))} />
           </div>
           <div style={{ display: 'grid', gap: '0.25rem' }}>
-            <label htmlFor="personal-product-code">Product code</label>
+            <label htmlFor="personal-product-code">{t('savings.personal.productCode')}</label>
             <input id="personal-product-code" value={filters.savingProductCode} onChange={(e) => setFilters((prev) => ({ ...prev, savingProductCode: e.target.value }))} />
           </div>
           <div style={{ display: 'grid', gap: '0.25rem' }}>
-            <label htmlFor="personal-status">Status</label>
+            <label htmlFor="personal-status">{t('common.status')}</label>
             <input id="personal-status" value={filters.status} onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))} />
           </div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button type="button" className="btn-primary" onClick={() => { setPage(0); setAppliedFilters(filters); }} disabled={loading}>
-            {loading ? 'Loading…' : 'Search'}
+            {loading ? t('common.refreshing') : t('savings.groups.search')}
           </button>
           <button type="button" className="btn-neutral" onClick={() => { setFilters(emptyFilters); setAppliedFilters(emptyFilters); setPage(0); }} disabled={loading}>
-            Reset
+            {t('savings.groups.reset')}
           </button>
         </div>
       </SectionCard>
@@ -549,7 +551,7 @@ export default function PersonalSavingsPage() {
         canPrev={page > 0}
         canNext={page + 1 < totalPages}
         onPageChange={setPage}
-        emptyLabel="No personal savings found"
+        emptyLabel={t('savings.personal.noSavings')}
       />
 
       {selectedId !== null && (

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { DataTable } from '@/components/DataTable';
+import { useLocale } from '@/contexts/LocaleContext';
 import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
 
@@ -26,17 +27,8 @@ const defaultSort = {
   sortDir: 'desc'
 };
 
-const sortByOptions = [
-  { value: 'created_at', label: 'Most recent' },
-  { value: 'wallet_balance', label: 'Wallet balance' },
-  { value: 'crypto_balance', label: 'Crypto balance' },
-  { value: 'owed_loans', label: 'Owed loans' }
-];
-
-const sortDirOptions = [
-  { value: 'desc', label: 'Descending' },
-  { value: 'asc', label: 'Ascending' }
-];
+const sortByOptions = ['created_at', 'wallet_balance', 'crypto_balance', 'owed_loans'];
+const sortDirOptions = ['desc', 'asc'];
 
 const pickOwedLoans = (item) =>
   item?.owedLoansAmount ??
@@ -121,6 +113,7 @@ const Badge = ({ children }) => (
 );
 
 export default function AccountsListPage() {
+  const { t } = useLocale();
   const { pushToast } = useToast();
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
@@ -439,22 +432,28 @@ export default function AccountsListPage() {
 
   const blacklistedCount = useMemo(() => rows.filter((row) => Boolean(row?.blacklisted)).length, [rows]);
   const appliedSortLabel = useMemo(() => {
-    const sortByLabel = sortByOptions.find((option) => option.value === appliedSort.sortBy)?.label || 'Most recent';
-    const sortDirLabel = sortDirOptions.find((option) => option.value === appliedSort.sortDir)?.label || 'Descending';
+    const sortByLabel =
+      {
+        created_at: t('accounts.mostRecent'),
+        wallet_balance: t('accounts.walletBalance'),
+        crypto_balance: t('accounts.cryptoBalance'),
+        owed_loans: t('accounts.owedLoans')
+      }[appliedSort.sortBy] || t('accounts.mostRecent');
+    const sortDirLabel = { desc: t('accounts.descending'), asc: t('accounts.ascending') }[appliedSort.sortDir] || t('accounts.descending');
     return `${sortByLabel} · ${sortDirLabel}`;
-  }, [appliedSort]);
+  }, [appliedSort, t]);
 
   const columns = useMemo(
     () => [
-      { key: 'accountId', label: 'Account ID' },
+      { key: 'accountId', label: t('common.accountId') },
       { key: 'userName', label: 'User' },
       { key: 'email', label: 'Email' },
-      { key: 'phone', label: 'Phone' },
-      { key: 'countryName', label: 'Country' },
+      { key: 'phone', label: t('accounts.phone') },
+      { key: 'countryName', label: t('common.country') },
       { key: 'balance', label: 'Balance' },
-      { key: 'cryptoBalance', label: 'Crypto balance', render: (row) => formatAmount(row.cryptoBalance) },
-      { key: 'owedLoans', label: 'Amount owed', render: (row) => formatAmount(row.owedLoansAmount ?? row.owedLoans) },
-      { key: 'eligibleLoanAmount', label: 'Eligible loan' },
+      { key: 'cryptoBalance', label: t('accounts.cryptoBalance'), render: (row) => formatAmount(row.cryptoBalance) },
+      { key: 'owedLoans', label: t('accounts.amountOwed'), render: (row) => formatAmount(row.owedLoansAmount ?? row.owedLoans) },
+      { key: 'eligibleLoanAmount', label: t('accounts.eligibleLoan') },
       { key: 'createdAt', label: 'Created at', render: (row) => formatDateTime(row.createdAt) },
       {
         key: 'actions',
@@ -462,13 +461,13 @@ export default function AccountsListPage() {
         render: (row) => (
           <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
             <Link href={`/dashboard/accounts/accounts/${row.id}`} className="btn-neutral">
-              View
+              {t('accounts.view')}
             </Link>
           </div>
         )
       }
     ],
-    []
+    [t]
   );
 
   const openDetail = (row) => {
@@ -1071,32 +1070,37 @@ export default function AccountsListPage() {
                 <input id="endDate" type="datetime-local" value={filters.endDate} onChange={(e) => setFilters((p) => ({ ...p, endDate: e.target.value }))} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="sortBy">Sort by</label>
+                <label htmlFor="sortBy">{t('accounts.sortBy')}</label>
                 <select id="sortBy" value={sort.sortBy} onChange={(e) => setSort((prev) => ({ ...prev, sortBy: e.target.value }))}>
                   {sortByOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
+                    <option key={option} value={option}>
+                      {{
+                        created_at: t('accounts.mostRecent'),
+                        wallet_balance: t('accounts.walletBalance'),
+                        crypto_balance: t('accounts.cryptoBalance'),
+                        owed_loans: t('accounts.owedLoans')
+                      }[option]}
                     </option>
                   ))}
                 </select>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="sortDir">Order</label>
+                <label htmlFor="sortDir">{t('accounts.order')}</label>
                 <select id="sortDir" value={sort.sortDir} onChange={(e) => setSort((prev) => ({ ...prev, sortDir: e.target.value }))}>
                   {sortDirOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
+                    <option key={option} value={option}>
+                      {{ desc: t('accounts.descending'), asc: t('accounts.ascending') }[option]}
                     </option>
                   ))}
                 </select>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.5rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                  <label htmlFor="page">Page</label>
+                  <label htmlFor="page">{t('accounts.page')}</label>
                   <input id="page" type="number" min={0} value={page} onChange={(e) => setPage(Number(e.target.value))} />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                  <label htmlFor="size">Size</label>
+                  <label htmlFor="size">{t('accounts.size')}</label>
                   <input id="size" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -1145,10 +1149,10 @@ export default function AccountsListPage() {
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
       <div className="card" style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
-        <Badge>Visible rows: {rows.length}</Badge>
-        <Badge>Blacklisted (visible): {blacklistedCount}</Badge>
-        <Badge>Sort: {appliedSortLabel}</Badge>
-        <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Use the `Blacklisted` filter to list only blocked or non-blocked accounts.</span>
+        <Badge>{t('accounts.visibleRows')}: {rows.length}</Badge>
+        <Badge>{t('accounts.blacklistedVisible')}: {blacklistedCount}</Badge>
+        <Badge>{t('accounts.activeSort')}: {appliedSortLabel}</Badge>
+        <span style={{ color: 'var(--muted)', fontSize: '13px' }}>{t('accounts.blacklistedFilterHint')}</span>
       </div>
 
       <DataTable
@@ -1168,7 +1172,7 @@ export default function AccountsListPage() {
               }
             : undefined
         }
-        emptyLabel="No accounts found"
+        emptyLabel={t('accounts.noAccounts')}
       />
 
       {showDetail && (
@@ -1179,7 +1183,7 @@ export default function AccountsListPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
               <button type="button" onClick={() => setShowCredit(true)} className="btn-success">
-                Credit wallet
+                {t('accounts.creditWallet')}
               </button>
               <button
                 type="button"
@@ -1192,7 +1196,7 @@ export default function AccountsListPage() {
                 }}
                 className="btn-danger"
               >
-                Debit wallet
+                {t('accounts.debitWallet')}
               </button>
               <button
                 type="button"
@@ -1203,9 +1207,9 @@ export default function AccountsListPage() {
                 }}
                 className="btn-danger"
                 disabled={Boolean(accountView?.blacklisted)}
-                title={accountView?.blacklisted ? 'Account is already blacklisted' : 'Add account to blacklist'}
+                title={accountView?.blacklisted ? t('accounts.accountAlreadyBlacklisted') : t('accounts.addAccountToBlacklist')}
               >
-                Blacklist account
+                {t('accounts.blacklistAccount')}
               </button>
               <button
                 type="button"
@@ -1215,9 +1219,9 @@ export default function AccountsListPage() {
                 }}
                 className="btn-neutral"
                 disabled={!accountView?.blacklisted}
-                title={accountView?.blacklisted ? 'Remove account from blacklist and restore access' : 'Account is not blacklisted'}
+                title={accountView?.blacklisted ? t('accounts.restoreAccountAccess') : t('accounts.accountNotBlacklisted')}
               >
-                Remove from blacklist
+                {t('accounts.removeFromBlacklist')}
               </button>
               <button
                 type="button"
@@ -1228,10 +1232,10 @@ export default function AccountsListPage() {
                 {detailLoading ? 'Refreshing…' : 'Refresh'}
               </button>
               <button type="button" onClick={runAmlCheck} className="btn-neutral" disabled={amlLoading}>
-                {amlLoading ? 'Running AML…' : 'Run AML check'}
+                {amlLoading ? t('accounts.runningAml') : t('accounts.runAmlCheck')}
               </button>
               <span style={{ color: 'var(--muted)', fontSize: '13px' }}>
-                {detailLoading ? 'Loading latest account data…' : ' '}
+                {detailLoading ? t('accounts.loadingLatestAccountData') : ' '}
               </span>
             </div>
 
@@ -1263,7 +1267,7 @@ export default function AccountsListPage() {
 
             {accountView?.blacklisted && (
               <div className="card" style={{ border: '1px solid #fecaca', background: '#fef2f2', color: '#991b1b', fontWeight: 700 }}>
-                This account is currently blacklisted. They cannot transact until removed.
+                {t('accounts.accountBlacklistedNotice')}
               </div>
             )}
 
@@ -1271,14 +1275,14 @@ export default function AccountsListPage() {
               rows={[
                 { label: 'Account ID', value: selected?.id },
                 { label: 'Account reference', value: accountView?.accountReference || selected?.accountReference },
-                { label: 'User', value: selected?.userName || selected?.username || accountView?.username },
+                { label: t('accounts.user'), value: selected?.userName || selected?.username || accountView?.username },
                 { label: 'Country', value: selected?.countryName || selected?.countryCode || accountView?.countryCode || '—' },
-                { label: 'KYC status', value: accountView?.kycStatus ?? selected?.kycStatus },
-                { label: 'KYC level', value: accountView?.kycLevel ?? selected?.kycLevel },
-                { label: 'Blacklisted', value: renderBlacklistBadge(accountView?.blacklisted ?? selected?.blacklisted) },
-                { label: 'Balance', value: accountView?.balance ?? selected?.balance },
+                { label: t('accounts.kycStatus'), value: accountView?.kycStatus ?? selected?.kycStatus },
+                { label: t('accounts.kycLevel'), value: accountView?.kycLevel ?? selected?.kycLevel },
+                { label: t('accounts.blacklisted'), value: renderBlacklistBadge(accountView?.blacklisted ?? selected?.blacklisted) },
+                { label: t('accounts.balance'), value: accountView?.balance ?? selected?.balance },
                 {
-                  label: 'Amount owed',
+                  label: t('accounts.amountOwed'),
                   value: formatAmount(
                     accountView?.owedLoansAmount ??
                     selected?.owedLoansAmount ??
@@ -1288,35 +1292,35 @@ export default function AccountsListPage() {
                     pickOwedLoans(selected)
                   )
                 },
-                { label: 'Previous debt', value: formatAmount(accountView?.previousDebt ?? selected?.previousDebt) },
-                { label: 'Eligible loan', value: accountView?.eligibleLoanAmount ?? selected?.eligibleLoanAmount }
+                { label: t('accounts.previousDebt'), value: formatAmount(accountView?.previousDebt ?? selected?.previousDebt) },
+                { label: t('accounts.eligibleLoan'), value: accountView?.eligibleLoanAmount ?? selected?.eligibleLoanAmount }
               ]}
             />
 
             <div className="card" style={{ padding: '1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                  <div style={{ fontWeight: 800 }}>Custom KYC Caps</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                  <div style={{ fontWeight: 800 }}>{t('accounts.customKycCaps')}</div>
                   <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-                    Per-account overrides for loan eligibility and deposit/withdrawal caps.
+                    {t('accounts.customKycCapsHelp')}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                   <button type="button" className="btn-neutral btn-sm" onClick={() => loadCustomPricing(selected?.id)} disabled={customPricingLoading}>
-                    {customPricingLoading ? 'Loading…' : 'Reload'}
+                    {customPricingLoading ? t('common.refreshing') : t('accounts.reload')}
                   </button>
                   {(customPricingMissing || !customPricing) && (
                     <button type="button" className="btn-primary btn-sm" onClick={() => openPricingForm({ extraLoanEligibilityAmount: 0 })}>
-                      Add custom KYC caps
+                      {t('accounts.addCustomKycCaps')}
                     </button>
                   )}
                   {customPricing && (
                     <>
                       <button type="button" className="btn-primary btn-sm" onClick={() => openPricingForm(customPricing)}>
-                        Edit
+                        {t('accounts.edit')}
                       </button>
                       <button type="button" className="btn-danger btn-sm" onClick={() => setShowPricingRemove(true)} disabled={pricingRemoving}>
-                        Remove
+                        {t('accounts.remove')}
                       </button>
                     </>
                   )}
@@ -1324,9 +1328,9 @@ export default function AccountsListPage() {
               </div>
 
               <div style={{ marginTop: '0.75rem' }}>
-                {customPricingLoading && <div style={{ color: 'var(--muted)' }}>Loading custom KYC caps…</div>}
+                {customPricingLoading && <div style={{ color: 'var(--muted)' }}>{t('accounts.loadingCustomKycCaps')}</div>}
                 {!customPricingLoading && (customPricingMissing || !customPricing) && (
-                  <div style={{ color: 'var(--muted)' }}>No custom KYC caps configured.</div>
+                  <div style={{ color: 'var(--muted)' }}>{t('accounts.noCustomKycCaps')}</div>
                 )}
                 {!customPricingLoading && customPricing && (
                   <DetailGrid
@@ -1342,9 +1346,9 @@ export default function AccountsListPage() {
 
                 <div style={{ marginTop: '0.85rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                    <div style={{ fontWeight: 800 }}>Effective caps</div>
+                    <div style={{ fontWeight: 800 }}>{t('accounts.effectiveCaps')}</div>
                     <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-                      KYC level: {accountView?.kycLevel ?? selected?.kycLevel ?? '—'} {kycCapLoading ? '• loading KYC caps…' : ''}
+                      KYC level: {accountView?.kycLevel ?? selected?.kycLevel ?? '—'} {kycCapLoading ? `• ${t('accounts.loadingKycCaps')}` : ''}
                     </div>
                   </div>
 

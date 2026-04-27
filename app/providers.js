@@ -2,6 +2,7 @@
 
 import { Amplify } from 'aws-amplify';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { LocaleProvider } from '@/contexts/LocaleContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import awsConfig from '@/lib/amplify-config';
 
@@ -14,8 +15,10 @@ if (!amplifyConfigured) {
 
 export default function Providers({ children }) {
   return (
-    <AuthProvider>
-      <ToastProvider>{children}</ToastProvider>
-    </AuthProvider>
+    <LocaleProvider>
+      <AuthProvider>
+        <ToastProvider>{children}</ToastProvider>
+      </AuthProvider>
+    </LocaleProvider>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { DataTable } from '@/components/DataTable';
+import { useLocale } from '@/contexts/LocaleContext';
 import {
   AdminModal,
   DetailGrid,
@@ -172,6 +173,7 @@ const parseDraftPayload = (draft) => {
 };
 
 export default function SavingProductsPage() {
+  const { t } = useLocale();
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
@@ -228,7 +230,7 @@ export default function SavingProductsPage() {
       { key: 'id', label: 'ID' },
       {
         key: 'product',
-        label: 'Product',
+        label: t('savings.products.product'),
         render: (row) => (
           <div style={{ display: 'grid', gap: '0.15rem' }}>
             <div style={{ fontWeight: 700 }}>{getProductName(row) || '—'}</div>
@@ -236,50 +238,50 @@ export default function SavingProductsPage() {
           </div>
         )
       },
-      { key: 'shortDescription', label: 'Short Description', render: (row) => pickFirst(row?.shortDescription, row?.description, '—') },
-      { key: 'interest', label: 'Interest', render: (row) => formatInterest(getInterestPercentage(row)) },
-      { key: 'interestType', label: 'Interest Type', render: (row) => pickFirst(row?.interestType, '—') },
+      { key: 'shortDescription', label: t('savings.products.shortDescription'), render: (row) => pickFirst(row?.shortDescription, row?.description, '—') },
+      { key: 'interest', label: t('savings.products.interest'), render: (row) => formatInterest(getInterestPercentage(row)) },
+      { key: 'interestType', label: t('savings.products.interestType'), render: (row) => pickFirst(row?.interestType, '—') },
       {
         key: 'minimumLockDurationDays',
-        label: 'Minimum Lock',
-        render: (row) => (isLockedSavingProduct(row?.code) ? `${pickFirst(getMinimumLockDurationDays(row), '—')} days` : '—')
+        label: t('savings.products.minimumLock'),
+        render: (row) => (isLockedSavingProduct(row?.code) ? t('savings.products.days', { count: pickFirst(getMinimumLockDurationDays(row), '—') }) : '—')
       },
       {
         key: 'interestTiers',
-        label: 'Default Daily Tiers',
+        label: t('savings.products.defaultDailyTiers'),
         render: (row) => {
           const count = Array.isArray(row?.interestTiers) ? row.interestTiers.length : 0;
-          return isLockedSavingProduct(row?.code) ? `${count} tier${count === 1 ? '' : 's'}` : '—';
+          return isLockedSavingProduct(row?.code) ? t(count === 1 ? 'savings.products.tiers' : 'savings.products.tiers_plural', { count }) : '—';
         }
       },
       {
         key: 'allowEarlyWithdrawalWithoutApproval',
-        label: 'Early Break Policy',
+        label: t('savings.products.earlyBreakPolicy'),
         render: (row) =>
           isLockedSavingProduct(row?.code)
             ? Boolean(pickFirst(row?.allowEarlyWithdrawalWithoutApproval, false))
-              ? 'Self-service allowed'
-              : 'Approval required'
+              ? t('savings.products.allowed')
+              : t('savings.products.approvalRequired')
             : '—'
       },
       {
         key: 'active',
-        label: 'Status',
+        label: t('common.status'),
         render: (row) => <StatusBadge value={Boolean(pickFirst(row?.active, false)) ? 'ACTIVE' : 'INACTIVE'} />
       },
       {
         key: 'actions',
-        label: 'Actions',
+        label: t('savings.groups.actions'),
         render: (row) => (
           <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-            <button type="button" onClick={() => openDetail(row)} className="btn-neutral">View</button>
-            <button type="button" onClick={() => openEdit(row)} className="btn-neutral">Edit</button>
-            <button type="button" onClick={() => setConfirmDelete(row)} className="btn-danger">Delete</button>
+            <button type="button" onClick={() => openDetail(row)} className="btn-neutral">{t('accounts.view')}</button>
+            <button type="button" onClick={() => openEdit(row)} className="btn-neutral">{t('accounts.edit')}</button>
+            <button type="button" onClick={() => setConfirmDelete(row)} className="btn-danger">{t('featureFlags.delete')}</button>
           </div>
         )
       }
     ],
-    []
+    [t]
   );
 
   const openCreate = () => {
@@ -655,16 +657,16 @@ export default function SavingProductsPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <SavingsSubnav />
       <SavingsPageHeader
-        title="Savings Products"
-        description="Full admin management for savings products. Open savings is flexible and normally non-interest-bearing, while locked savings is the default interest-bearing product with maturity-driven payout rules."
+        title={t('savings.products.title')}
+        description={t('savings.products.description')}
         actions={
           <button type="button" onClick={openCreate} className="btn-success">
-            Add saving product
+            {t('savings.products.addProduct')}
           </button>
         }
       />
 
-      <SectionCard title="Search" description="Filter products by code, title, or active state.">
+      <SectionCard title={t('savings.products.searchTitle')} description={t('savings.products.searchDescription')}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
           <div style={{ display: 'grid', gap: '0.25rem' }}>
             <label htmlFor="filter-code">Code</label>
@@ -677,7 +679,7 @@ export default function SavingProductsPage() {
           <div style={{ display: 'grid', gap: '0.25rem' }}>
             <label htmlFor="filter-active">Active</label>
             <select id="filter-active" value={filters.active} onChange={(e) => setFilters((p) => ({ ...p, active: e.target.value }))}>
-              <option value="">All</option>
+              <option value="">{t('common.all')}</option>
               <option value="true">Active</option>
               <option value="false">Inactive</option>
             </select>
@@ -693,7 +695,7 @@ export default function SavingProductsPage() {
             disabled={loading}
             className="btn-primary"
           >
-            {loading ? 'Loading…' : 'Search'}
+            {loading ? t('common.refreshing') : t('savings.groups.search')}
           </button>
           <button
             type="button"
@@ -705,7 +707,7 @@ export default function SavingProductsPage() {
             }}
             className="btn-neutral"
           >
-            Reset
+            {t('savings.groups.reset')}
           </button>
         </div>
       </SectionCard>
@@ -739,7 +741,7 @@ export default function SavingProductsPage() {
         canPrev={page > 0}
         canNext={page + 1 < totalPages}
         onPageChange={setPage}
-        emptyLabel="No saving products found"
+        emptyLabel={t('savings.products.noProducts')}
       />
 
       {showCreate && (

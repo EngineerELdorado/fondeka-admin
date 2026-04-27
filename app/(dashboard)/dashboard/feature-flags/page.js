@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment, useEffect, useMemo, useState } from 'react';
+import { useLocale } from '@/contexts/LocaleContext';
 import { api } from '@/lib/api';
 
 const LABELS = {
@@ -168,6 +169,7 @@ const getOverrideErrorMessage = (err, fallback) => {
 };
 
 export default function FeatureFlagsPage() {
+  const { t } = useLocale();
   const [flags, setFlags] = useState([]);
   const [cryptoProductNamesById, setCryptoProductNamesById] = useState({});
   const [loading, setLoading] = useState(true);
@@ -795,8 +797,8 @@ export default function FeatureFlagsPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div>
-        <div style={{ fontSize: '22px', fontWeight: 800 }}>Feature Flags</div>
-        <div style={{ color: 'var(--muted)' }}>Toggle admin-controlled runtime features.</div>
+        <div style={{ fontSize: '22px', fontWeight: 800 }}>{t('featureFlags.title')}</div>
+        <div style={{ color: 'var(--muted)' }}>{t('featureFlags.description')}</div>
       </div>
 
       {error && (
@@ -811,15 +813,15 @@ export default function FeatureFlagsPage() {
       )}
 
       <div className="card" style={{ maxWidth: '720px', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        <div style={{ fontWeight: 700 }}>Create / Update Flag</div>
+        <div style={{ fontWeight: 700 }}>{t('featureFlags.createUpdate')}</div>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: '0.65rem', alignItems: 'end' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="flagKey">Key</label>
+            <label htmlFor="flagKey">{t('featureFlags.key')}</label>
             <input id="flagKey" placeholder="trusted_device_enforcement" value={draftKey} onChange={(e) => setDraftKey(e.target.value)} />
           </div>
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
             <input type="checkbox" checked={draftEnabled} onChange={(e) => setDraftEnabled(e.target.checked)} />
-            {draftEnabled ? 'Enabled' : 'Disabled'}
+            {draftEnabled ? t('featureFlags.enabled') : t('featureFlags.disabled')}
           </label>
           <button
             type="button"
@@ -835,7 +837,7 @@ export default function FeatureFlagsPage() {
               fontWeight: 600
             }}
           >
-            Save
+            {t('featureFlags.save')}
           </button>
         </div>
         <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
@@ -1177,8 +1179,8 @@ export default function FeatureFlagsPage() {
         <div className="card" style={{ maxWidth: '720px', display: 'grid', gap: '0.75rem', borderColor: '#16a34a' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
             <div>
-              <div style={{ fontWeight: 800 }}>Savings</div>
-              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Savings access and savings behavior flags in one place.</div>
+              <div style={{ fontWeight: 800 }}>{t('featureFlags.savings')}</div>
+              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{t('featureFlags.savingsDescription')}</div>
             </div>
             <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{savingsFlags.length} flags</div>
           </div>
@@ -1207,7 +1209,7 @@ export default function FeatureFlagsPage() {
                           color: 'var(--text)'
                         }}
                       >
-                        {flag.key === SAVINGS_ENABLED_KEY ? 'Manage Overrides' : 'Overrides'}
+                        {flag.key === SAVINGS_ENABLED_KEY ? t('featureFlags.manageOverrides') : t('featureFlags.overrides')}
                       </button>
                       <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
                         <input
@@ -1216,7 +1218,7 @@ export default function FeatureFlagsPage() {
                           onChange={() => handleToggle(flag.key)}
                           disabled={loading || savingKey === flag.key}
                         />
-                        {flag.enabled ? 'Enabled' : 'Disabled'}
+                        {flag.enabled ? t('featureFlags.enabled') : t('featureFlags.disabled')}
                       </label>
                       <button
                         type="button"
@@ -1231,7 +1233,7 @@ export default function FeatureFlagsPage() {
                           color: 'var(--text)'
                         }}
                       >
-                        Delete
+                        {t('featureFlags.delete')}
                       </button>
                     </div>
                   </div>
@@ -1248,8 +1250,8 @@ export default function FeatureFlagsPage() {
       )}
 
       <div style={{ display: 'grid', gap: '0.85rem', maxWidth: '720px' }}>
-        {loading && <div className="card">Loading feature flags…</div>}
-        {!loading && otherFlags.length === 0 && <div className="card">No feature flags available.</div>}
+        {loading && <div className="card">{t('featureFlags.loading')}</div>}
+        {!loading && otherFlags.length === 0 && <div className="card">{t('featureFlags.none')}</div>}
         {groupedFlags.map((group) => (
           <Fragment key={group.key}>
             <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>

@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useLocale } from '@/contexts/LocaleContext';
 
 export const savingsNavItems = [
-  { href: '/dashboard/savings', label: 'Savings' },
-  { href: '/dashboard/savings/products', label: 'Savings Products' },
-  { href: '/dashboard/savings/personal', label: 'Personal Savings' },
-  { href: '/dashboard/savings/groups', label: 'Group Savings' },
-  { href: '/dashboard/savings/feature-flags', label: 'Feature Flags' }
+  { href: '/dashboard/savings', labelKey: 'savings.nav.savings' },
+  { href: '/dashboard/savings/products', labelKey: 'savings.nav.products' },
+  { href: '/dashboard/savings/personal', labelKey: 'savings.nav.personal' },
+  { href: '/dashboard/savings/groups', labelKey: 'savings.nav.groups' },
+  { href: '/dashboard/savings/feature-flags', labelKey: 'savings.nav.flags' }
 ];
 
 export const humanizeEnum = (value) =>
@@ -56,6 +57,7 @@ export const pickFirst = (...values) => values.find((value) => value !== null &&
 
 export function SavingsSubnav() {
   const pathname = usePathname();
+  const { t } = useLocale();
 
   return (
     <div
@@ -83,7 +85,7 @@ export function SavingsSubnav() {
               border: active ? '1px solid color-mix(in srgb, var(--accent) 30%, transparent)' : '1px solid var(--border)'
             }}
           >
-            {item.label}
+            {t(item.labelKey)}
           </Link>
         );
       })}

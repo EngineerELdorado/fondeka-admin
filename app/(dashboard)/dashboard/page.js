@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 import { useRouter } from 'next/navigation';
+import { useLocale } from '@/contexts/LocaleContext';
 import { api } from '@/lib/api';
 
 const DISPLAY_LOCALE = 'en-US';
@@ -312,6 +313,7 @@ const formatCryptoHoldings = (list) =>
   }));
 
 export default function DashboardPage() {
+  const { t } = useLocale();
   const router = useRouter();
   const [filters, setFilters] = useState(initialFilters);
   const [appliedFilters, setAppliedFilters] = useState(initialFilters);
@@ -607,16 +609,16 @@ export default function DashboardPage() {
       end.getMonth() === endOfYear.getMonth() &&
       end.getDate() === endOfYear.getDate();
 
-    if (isToday) return 'Viewing today';
-    if (isYesterday) return 'Viewing yesterday';
-    if (isThisWeek) return 'Viewing this week';
-    if (isThisMonth) return 'Viewing this month';
-    if (isThisYear) return 'Viewing this year';
+    if (isToday) return t('dashboard.viewingToday');
+    if (isYesterday) return t('dashboard.viewingYesterday');
+    if (isThisWeek) return t('dashboard.viewingThisWeek');
+    if (isThisMonth) return t('dashboard.viewingThisMonth');
+    if (isThisYear) return t('dashboard.viewingThisYear');
     if (start && end) {
       return `${formatDateTime(start)} → ${formatDateTime(end)}`;
     }
-    return 'Date range not set';
-  }, [appliedFilters.startDate, appliedFilters.endDate]);
+    return t('dashboard.dateRangeNotSet');
+  }, [appliedFilters.startDate, appliedFilters.endDate, t]);
 
   const activeFilterCount = useMemo(
     () => Object.values(appliedFilters).filter((v) => v !== '' && v !== null && v !== undefined).length,
@@ -730,40 +732,40 @@ export default function DashboardPage() {
   }, [stuckItemsModal?.action, stuckItemsModal?.status, stuckItemsPage, stuckItemsSize, fetchFundedStuckItems]);
 
   const kpiCards = [
-    { label: 'Fiat balance', value: formatCurrency(holdings.fiatBalanceTotal), sub: 'Across fiat accounts', tone: '#2563eb' },
+    { label: t('dashboard.fiatBalance'), value: formatCurrency(holdings.fiatBalanceTotal), sub: t('dashboard.acrossFiatAccounts'), tone: '#2563eb' },
     {
-      label: 'Crypto balance (USD)',
+      label: t('dashboard.cryptoBalanceUsd'),
       value: formatCurrency(holdings.cryptoBalanceFiat),
-      sub: 'All crypto converted',
+      sub: t('dashboard.allCryptoConverted'),
       tone: '#0ea5e9',
       onClick: () => setShowHoldings(true)
     },
     {
-      label: 'Transactions',
+      label: t('dashboard.transactions'),
       value: formatNumber(totals.totalCount),
       sub: `Volume ${formatCurrency(totals.totalVolume)}`,
       onClick: () => goToTransactions()
     },
     {
-      label: 'Completed',
+      label: t('dashboard.completed'),
       value: formatNumber(totals.completedCount),
       sub: `Volume ${formatCurrency(totals.completedVolume)}`,
       tone: '#16a34a',
       onClick: () => goToTransactions('COMPLETED')
     },
     {
-      label: 'Provider fees',
+      label: t('dashboard.providerFees'),
       value: formatCurrency(providerFeesTotal),
-      sub: 'Total provider fees',
+      sub: t('dashboard.totalProviderFees'),
       tone: '#f97316'
     },
     {
-      label: 'Net profit',
+      label: t('dashboard.netProfit'),
       value: formatCurrency(totalNetProfit),
-      sub: 'After costs',
+      sub: t('dashboard.afterCosts'),
       tone: '#15803d',
       menu: {
-        label: 'Revenue breakdown',
+        label: t('dashboard.revenueBreakdown'),
         onClick: () => setShowRevenueBreakdown(true)
       }
     }
@@ -811,18 +813,18 @@ export default function DashboardPage() {
   };
 
   const metricCards = [
-    { key: 'cardsIssued', label: 'Cards issued' },
-    { key: 'loansDisbursed', label: 'Loans disbursed' },
-    { key: 'loanDisbursedVolume', label: 'Loan disbursed volume' },
-    { key: 'loansOpen', label: 'Loans open' },
-    { key: 'loansOutstanding', label: 'Loans outstanding' },
-    { key: 'esimsPurchased', label: 'eSIM purchases' },
-    { key: 'airtimePurchases', label: 'Airtime purchases' },
-    { key: 'billPayments', label: 'Bill payments' },
-    { key: 'cryptoTransactions', label: 'Crypto transactions' },
-    { key: 'kycApproved', label: 'KYC approved' },
-    { key: 'newAccounts', label: 'New accounts' },
-    { key: 'activeAccounts', label: 'Active accounts' }
+    { key: 'cardsIssued', label: t('dashboard.cardsIssued') },
+    { key: 'loansDisbursed', label: t('dashboard.loansDisbursed') },
+    { key: 'loanDisbursedVolume', label: t('dashboard.loanDisbursedVolume') },
+    { key: 'loansOpen', label: t('dashboard.loansOpen') },
+    { key: 'loansOutstanding', label: t('dashboard.loansOutstanding') },
+    { key: 'esimsPurchased', label: t('dashboard.esimPurchases') },
+    { key: 'airtimePurchases', label: t('dashboard.airtimePurchases') },
+    { key: 'billPayments', label: t('dashboard.billPayments') },
+    { key: 'cryptoTransactions', label: t('dashboard.cryptoTransactions') },
+    { key: 'kycApproved', label: t('dashboard.kycApproved') },
+    { key: 'newAccounts', label: t('dashboard.newAccounts') },
+    { key: 'activeAccounts', label: t('dashboard.activeAccounts') }
   ];
 
   return (
@@ -831,16 +833,16 @@ export default function DashboardPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <div style={{ fontWeight: 900, fontSize: '22px' }}>Performance</div>
+              <div style={{ fontWeight: 900, fontSize: '22px' }}>{t('dashboard.performance')}</div>
               <div className="pill" style={{ background: 'var(--accent-soft)', color: 'var(--accent)', fontWeight: 900, fontSize: '13px' }}>
                 {dateLabel}
               </div>
             </div>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            {activeFilterCount > 0 && <Pill tone="#0ea5e9">Applied: {activeFilterCount}</Pill>}
+            {activeFilterCount > 0 && <Pill tone="#0ea5e9">{t('dashboard.applied', { count: activeFilterCount })}</Pill>}
             <button type="button" className="btn-neutral btn-sm" onClick={() => setShowFilters((p) => !p)}>
-              {showFilters ? 'Hide filters' : 'Show filters'}
+              {showFilters ? t('common.hideFilters') : t('common.showFilters')}
             </button>
             <button type="button" onClick={() => setAutoRefresh((prev) => !prev)} aria-pressed={autoRefresh} className="btn-neutral btn-sm">
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
@@ -887,7 +889,7 @@ export default function DashboardPage() {
             <button type="button" onClick={() => fetchDashboard()} className="btn-neutral" disabled={loading}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
                 <RefreshIcon size={14} />
-                {loading ? 'Refreshing…' : 'Refresh'}
+                {loading ? t('common.refreshing') : t('common.refresh')}
               </span>
             </button>
           </div>
@@ -895,10 +897,10 @@ export default function DashboardPage() {
 
         {showFilters && (
           <div className="card" style={{ border: `1px dashed var(--border)`, background: 'color-mix(in srgb, var(--surface) 95%, var(--bg) 5%)' }}>
-            <div style={{ fontWeight: 700 }}>Filters</div>
+            <div style={{ fontWeight: 700 }}>{t('common.filters')}</div>
             <div className="dashboard-filters-grid" style={{ marginTop: '0.75rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: '0' }}>
-                  <label htmlFor="startDate" style={{ color: 'var(--muted)', fontSize: '12px' }}>Start</label>
+                  <label htmlFor="startDate" style={{ color: 'var(--muted)', fontSize: '12px' }}>{t('common.start')}</label>
                   <input
                     id="startDate"
                     type="date"
@@ -910,7 +912,7 @@ export default function DashboardPage() {
                   />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: '0' }}>
-                  <label htmlFor="endDate" style={{ color: 'var(--muted)', fontSize: '12px' }}>End</label>
+                  <label htmlFor="endDate" style={{ color: 'var(--muted)', fontSize: '12px' }}>{t('common.end')}</label>
                   <input
                     id="endDate"
                     type="date"
@@ -923,28 +925,28 @@ export default function DashboardPage() {
                 </div>
                 <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                   <button type="button" className={`btn-sm ${datePreset === 'today' ? 'btn-primary' : 'btn-neutral'}`} onClick={() => applyDatePreset('today')}>
-                    Today
+                    {t('dashboard.today')}
                   </button>
                   <button type="button" className={`btn-sm ${datePreset === 'last7' ? 'btn-primary' : 'btn-neutral'}`} onClick={() => applyDatePreset('last7')}>
-                    Last 7 days
+                    {t('dashboard.last7Days')}
                   </button>
                   <button type="button" className={`btn-sm ${datePreset === 'month' ? 'btn-primary' : 'btn-neutral'}`} onClick={() => applyDatePreset('month')}>
-                    This month
+                    {t('dashboard.thisMonth')}
                   </button>
                   <button type="button" className={`btn-sm ${datePreset === 'year' ? 'btn-primary' : 'btn-neutral'}`} onClick={() => applyDatePreset('year')}>
-                    This year
+                    {t('dashboard.thisYear')}
                   </button>
                   <button type="button" className="btn-ghost btn-sm" onClick={() => applyDatePreset('')}>
-                    Clear
+                    {t('common.clear')}
                   </button>
                 </div>
             </div>
 
             <div className="dashboard-filters-wide-grid" style={{ marginTop: '0.75rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                  <label htmlFor="service" style={{ color: 'var(--muted)', fontSize: '12px' }}>Service</label>
+                  <label htmlFor="service" style={{ color: 'var(--muted)', fontSize: '12px' }}>{t('common.service')}</label>
                   <select id="service" value={filters.service} onChange={(e) => setFilters((p) => ({ ...p, service: e.target.value }))}>
-                    <option value="">All</option>
+                    <option value="">{t('common.all')}</option>
                     {serviceOptions.map((svc) => (
                       <option key={svc} value={svc}>
                         {formatEnumLabel(svc)}
@@ -953,9 +955,9 @@ export default function DashboardPage() {
                   </select>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                  <label htmlFor="status" style={{ color: 'var(--muted)', fontSize: '12px' }}>Status</label>
+                  <label htmlFor="status" style={{ color: 'var(--muted)', fontSize: '12px' }}>{t('common.status')}</label>
                   <select id="status" value={filters.status} onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value }))}>
-                    <option value="">Any</option>
+                    <option value="">{t('common.any')}</option>
                     {statusOptions.map((st) => (
                       <option key={st} value={st}>
                         {st}
@@ -964,9 +966,9 @@ export default function DashboardPage() {
                   </select>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                  <label htmlFor="paymentMethodId" style={{ color: 'var(--muted)', fontSize: '12px' }}>Payment method</label>
+                  <label htmlFor="paymentMethodId" style={{ color: 'var(--muted)', fontSize: '12px' }}>{t('common.paymentMethod')}</label>
                   <select id="paymentMethodId" value={filters.paymentMethodId} onChange={(e) => setFilters((p) => ({ ...p, paymentMethodId: e.target.value }))}>
-                    <option value="">Any</option>
+                    <option value="">{t('common.any')}</option>
                     {paymentMethods.map((pm) => (
                       <option key={pm.id} value={pm.id}>
                         {pm.name || pm.displayName || pm.id}
@@ -975,9 +977,9 @@ export default function DashboardPage() {
                   </select>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                  <label htmlFor="paymentProviderId" style={{ color: 'var(--muted)', fontSize: '12px' }}>Payment provider</label>
+                  <label htmlFor="paymentProviderId" style={{ color: 'var(--muted)', fontSize: '12px' }}>{t('common.paymentProvider')}</label>
                   <select id="paymentProviderId" value={filters.paymentProviderId} onChange={(e) => setFilters((p) => ({ ...p, paymentProviderId: e.target.value }))}>
-                    <option value="">Any</option>
+                    <option value="">{t('common.any')}</option>
                     {paymentProviders.map((prov) => (
                       <option key={prov.id} value={prov.id}>
                         {prov.name || prov.displayName || prov.id}
@@ -986,9 +988,9 @@ export default function DashboardPage() {
                   </select>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                  <label htmlFor="billProductId" style={{ color: 'var(--muted)', fontSize: '12px' }}>Bill product</label>
+                  <label htmlFor="billProductId" style={{ color: 'var(--muted)', fontSize: '12px' }}>{t('common.billProduct')}</label>
                   <select id="billProductId" value={filters.billProductId} onChange={(e) => setFilters((p) => ({ ...p, billProductId: e.target.value }))}>
-                    <option value="">Any</option>
+                    <option value="">{t('common.any')}</option>
                     {billProducts.map((product) => (
                       <option key={product.id} value={product.id}>
                         {product.displayName || product.code || product.id}
@@ -997,9 +999,9 @@ export default function DashboardPage() {
                   </select>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                  <label htmlFor="billProviderId" style={{ color: 'var(--muted)', fontSize: '12px' }}>Bill provider</label>
+                  <label htmlFor="billProviderId" style={{ color: 'var(--muted)', fontSize: '12px' }}>{t('common.billProvider')}</label>
                   <select id="billProviderId" value={filters.billProviderId} onChange={(e) => setFilters((p) => ({ ...p, billProviderId: e.target.value }))}>
-                    <option value="">Any</option>
+                    <option value="">{t('common.any')}</option>
                     {billProviders.map((prov) => (
                       <option key={prov.id} value={prov.id}>
                         {prov.displayName || prov.name || prov.id}
@@ -1008,17 +1010,17 @@ export default function DashboardPage() {
                   </select>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                  <label htmlFor="accountReference" style={{ color: 'var(--muted)', fontSize: '12px' }}>Account ref</label>
+                  <label htmlFor="accountReference" style={{ color: 'var(--muted)', fontSize: '12px' }}>{t('common.accountRef')}</label>
                   <input id="accountReference" value={filters.accountReference} onChange={(e) => setFilters((p) => ({ ...p, accountReference: e.target.value }))} />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                  <label htmlFor="userReference" style={{ color: 'var(--muted)', fontSize: '12px' }}>User ref</label>
+                  <label htmlFor="userReference" style={{ color: 'var(--muted)', fontSize: '12px' }}>{t('common.userRef')}</label>
                   <input id="userReference" value={filters.userReference} onChange={(e) => setFilters((p) => ({ ...p, userReference: e.target.value }))} />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                  <label htmlFor="countryId" style={{ color: 'var(--muted)', fontSize: '12px' }}>Country</label>
+                  <label htmlFor="countryId" style={{ color: 'var(--muted)', fontSize: '12px' }}>{t('common.country')}</label>
                   <select id="countryId" value={filters.countryId} onChange={(e) => setFilters((p) => ({ ...p, countryId: e.target.value }))}>
-                    <option value="">Any</option>
+                    <option value="">{t('common.any')}</option>
                     {countries.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name} {c.alpha2Code ? `(${c.alpha2Code})` : ''}
@@ -1027,13 +1029,13 @@ export default function DashboardPage() {
                   </select>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                  <label htmlFor="accountId" style={{ color: 'var(--muted)', fontSize: '12px' }}>Account ID</label>
+                  <label htmlFor="accountId" style={{ color: 'var(--muted)', fontSize: '12px' }}>{t('common.accountId')}</label>
                   <input id="accountId" value={filters.accountId} onChange={(e) => setFilters((p) => ({ ...p, accountId: e.target.value }))} />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                  <label htmlFor="action" style={{ color: 'var(--muted)', fontSize: '12px' }}>Action</label>
+                  <label htmlFor="action" style={{ color: 'var(--muted)', fontSize: '12px' }}>{t('common.action')}</label>
                   <select id="action" value={filters.action} onChange={(e) => setFilters((p) => ({ ...p, action: e.target.value }))}>
-                    <option value="">Any</option>
+                    <option value="">{t('common.any')}</option>
                     {actionOptions.map((act) => (
                       <option key={act} value={act}>
                         {formatEnumLabel(act)}
@@ -1042,23 +1044,23 @@ export default function DashboardPage() {
                   </select>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                  <label htmlFor="userEmail" style={{ color: 'var(--muted)', fontSize: '12px' }}>User email</label>
+                  <label htmlFor="userEmail" style={{ color: 'var(--muted)', fontSize: '12px' }}>{t('common.userEmail')}</label>
                   <input id="userEmail" value={filters.userEmail} onChange={(e) => setFilters((p) => ({ ...p, userEmail: e.target.value }))} placeholder="email@example.com" />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                  <label htmlFor="userPhone" style={{ color: 'var(--muted)', fontSize: '12px' }}>User phone</label>
+                  <label htmlFor="userPhone" style={{ color: 'var(--muted)', fontSize: '12px' }}>{t('common.userPhone')}</label>
                   <input id="userPhone" value={filters.userPhone} onChange={(e) => setFilters((p) => ({ ...p, userPhone: e.target.value }))} placeholder="+243" />
                 </div>
             </div>
 
             <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap', marginTop: '0.6rem' }}>
               <button type="button" className="btn-primary" onClick={applyFilters} disabled={loading}>
-                {loading ? 'Applying…' : 'Apply filters'}
+                {loading ? t('dashboard.applying') : t('dashboard.applyFilters')}
               </button>
               <button type="button" className="btn-neutral" onClick={resetFilters} disabled={loading}>
-                Reset
+                {t('dashboard.reset')}
               </button>
-              <span style={{ fontSize: '12px', color: 'var(--muted)' }}>All tiles respect the filters/date window.</span>
+              <span style={{ fontSize: '12px', color: 'var(--muted)' }}>{t('dashboard.filtersHelp')}</span>
             </div>
           </div>
         )}
@@ -1121,10 +1123,10 @@ export default function DashboardPage() {
         <div style={{ display: 'grid', gap: '1rem' }}>
           <div className="card" style={{ display: 'grid', gap: '0.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontWeight: 800 }}>Volume trend</div>
+              <div style={{ fontWeight: 800 }}>{t('dashboard.volumeTrend')}</div>
             </div>
             {chartData.length === 0 ? (
-              <div style={{ color: 'var(--muted)', minHeight: '200px', display: 'flex', alignItems: 'center' }}>No data in this window</div>
+              <div style={{ color: 'var(--muted)', minHeight: '200px', display: 'flex', alignItems: 'center' }}>{t('dashboard.noDataWindow')}</div>
             ) : (
               <div className="dashboard-chart">
                 <ResponsiveContainer>
@@ -1139,30 +1141,30 @@ export default function DashboardPage() {
                     />
                     <Tooltip
                       formatter={(value, name) => {
-                        if (name === 'volume') return [formatCurrency(value), 'Volume'];
-                        if (name === 'revenue') return [formatCurrency(value), 'Total revenue'];
-                        if (name === 'paidRevenue') return [formatCurrency(value), 'Paid Revenue'];
-                        if (name === 'unpaidRevenue') return [formatCurrency(value), 'Unpaid Revenue'];
-                        if (name === 'referralCost') return [formatCurrency(value), 'Referral cost'];
-                        if (name === 'netProfit') return [formatCurrency(value), 'Net profit'];
+                        if (name === 'volume') return [formatCurrency(value), t('dashboard.volume')];
+                        if (name === 'revenue') return [formatCurrency(value), t('dashboard.totalRevenue')];
+                        if (name === 'paidRevenue') return [formatCurrency(value), t('dashboard.paidRevenue')];
+                        if (name === 'unpaidRevenue') return [formatCurrency(value), t('dashboard.unpaidRevenue')];
+                        if (name === 'referralCost') return [formatCurrency(value), t('dashboard.referralCost')];
+                        if (name === 'netProfit') return [formatCurrency(value), t('dashboard.netProfit')];
                         return [value, name];
                       }}
-                      labelFormatter={(label) => `Date: ${label}`}
+                      labelFormatter={(label) => t('dashboard.dateLabel', { label })}
                     />
                     <Legend />
-                    <Line type="monotone" dataKey="volume" name="Volume" stroke="#0f172a" strokeWidth={2.5} dot={false} yAxisId="left" />
-                    <Line type="monotone" dataKey="revenue" name="Total revenue" stroke="#16a34a" strokeWidth={2} dot={false} yAxisId="left" />
-                    <Line type="monotone" dataKey="paidRevenue" name="Paid Revenue" stroke="#22c55e" strokeWidth={2} dot={false} yAxisId="left" />
-                    <Line type="monotone" dataKey="unpaidRevenue" name="Unpaid Revenue" stroke="#f59e0b" strokeWidth={2} dot={false} yAxisId="left" />
-                    <Line type="monotone" dataKey="referralCost" name="Referral cost" stroke="#ea580c" strokeWidth={2} dot={false} yAxisId="left" />
-                    <Line type="monotone" dataKey="netProfit" name="Net profit" stroke="#7c3aed" strokeWidth={2} dot={false} yAxisId="left" />
+                    <Line type="monotone" dataKey="volume" name={t('dashboard.volume')} stroke="#0f172a" strokeWidth={2.5} dot={false} yAxisId="left" />
+                    <Line type="monotone" dataKey="revenue" name={t('dashboard.totalRevenue')} stroke="#16a34a" strokeWidth={2} dot={false} yAxisId="left" />
+                    <Line type="monotone" dataKey="paidRevenue" name={t('dashboard.paidRevenue')} stroke="#22c55e" strokeWidth={2} dot={false} yAxisId="left" />
+                    <Line type="monotone" dataKey="unpaidRevenue" name={t('dashboard.unpaidRevenue')} stroke="#f59e0b" strokeWidth={2} dot={false} yAxisId="left" />
+                    <Line type="monotone" dataKey="referralCost" name={t('dashboard.referralCost')} stroke="#ea580c" strokeWidth={2} dot={false} yAxisId="left" />
+                    <Line type="monotone" dataKey="netProfit" name={t('dashboard.netProfit')} stroke="#7c3aed" strokeWidth={2} dot={false} yAxisId="left" />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
             )}
             {timeseries.length > 0 && (
               <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', color: 'var(--muted)', fontSize: '12px' }}>
-                <span>From {timeseries[0]?.date}</span>
+                <span>{t('dashboard.from')} {timeseries[0]?.date}</span>
                 <span>→</span>
                 <span>{timeseries[timeseries.length - 1]?.date}</span>
               </div>
@@ -1329,7 +1331,7 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="card" style={{ display: 'grid', gap: '0.5rem' }}>
-            <div style={{ fontWeight: 800 }}>Key metrics</div>
+            <div style={{ fontWeight: 800 }}>{t('dashboard.keyMetrics')}</div>
             <div className="dashboard-metrics-grid">
               {metricCards.map((m) => (
                 <div key={m.key} style={{ padding: '0.75rem', border: `1px solid var(--border)`, borderRadius: '12px', display: 'grid', gap: '0.15rem', background: 'color-mix(in srgb, var(--surface) 90%, var(--accent-soft) 10%)' }}>
@@ -1345,7 +1347,7 @@ export default function DashboardPage() {
       <div className="dashboard-tables-grid">
         {showFundedStuckSection && (
           <div className="card" style={{ display: 'grid', gap: '0.5rem' }}>
-            <div style={{ fontWeight: 800 }}>Key metrics</div>
+            <div style={{ fontWeight: 800 }}>{t('dashboard.keyMetrics')}</div>
             <div className="dashboard-metrics-grid">
               {metricCards.map((m) => (
                 <div key={m.key} style={{ padding: '0.75rem', border: `1px solid var(--border)`, borderRadius: '12px', display: 'grid', gap: '0.15rem', background: 'color-mix(in srgb, var(--surface) 90%, var(--accent-soft) 10%)' }}>
@@ -1646,16 +1648,16 @@ export default function DashboardPage() {
       )}
 
       {showRevenueBreakdown && (
-        <Modal title="Revenue Breakdown" onClose={() => setShowRevenueBreakdown(false)}>
+        <Modal title={t('dashboard.revenueBreakdownTitle')} onClose={() => setShowRevenueBreakdown(false)}>
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-              Revenue detail for the current dashboard filter window.
+              {t('dashboard.revenueBreakdownHelp')}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
               {[
-                { label: 'Booked revenue', value: formatCurrency(totalRevenue) },
-                { label: 'Fully realized', value: formatCurrency(totalPaidRevenue) },
-                { label: 'Open loan / Pay Later exposure', value: formatCurrency(totalUnpaidRevenue) }
+                { label: t('dashboard.bookedRevenue'), value: formatCurrency(totalRevenue) },
+                { label: t('dashboard.fullyRealized'), value: formatCurrency(totalPaidRevenue) },
+                { label: t('dashboard.openLoanExposure'), value: formatCurrency(totalUnpaidRevenue) }
               ].map((item) => (
                 <div
                   key={item.label}

@@ -4,62 +4,64 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLocale } from '@/contexts/LocaleContext';
 
 const navItems = [
-  { href: '/dashboard', label: 'Overview' },
-  { href: '/dashboard/accounts/accounts', label: 'Accounts / Users' },
-  { href: '/dashboard/blacklist', label: 'Blacklist' },
-  { href: '/dashboard/payments', label: 'Payment Methods' },
+  { href: '/dashboard', labelKey: 'layout.nav.overview' },
+  { href: '/dashboard/accounts/accounts', labelKey: 'layout.nav.accounts' },
+  { href: '/dashboard/blacklist', labelKey: 'layout.nav.blacklist' },
+  { href: '/dashboard/payments', labelKey: 'layout.nav.paymentMethods' },
   // Products cluster
-  { href: '/dashboard/loans', label: 'Loans & Products' },
-  { href: '/dashboard/loans/direct-credit', label: 'Direct Loan Credit' },
-  { href: '/dashboard/loans/loan-policy-config', label: 'Loan Policy Config' },
-  { href: '/dashboard/loans/untrusted-borrowers', label: 'Untrusted Borrowers' },
-  { href: '/dashboard/bills', label: 'Bills & Products' },
-  { href: '/dashboard/bills/cegaweb-profiles', label: 'CegaWeb Profiles' },
-  { href: '/dashboard/cards', label: 'Cards & Products' },
-  { href: '/dashboard/crypto', label: 'Cryptos & Products' },
-  { href: '/dashboard/esim', label: 'eSIMs & Providers' },
-  { href: '/dashboard/esim-products', label: 'eSIM Products' },
-  { href: '/dashboard/savings', label: 'Savings & products' },
-  { href: '/dashboard/payment-requests', label: 'Payment Requests' },
-  { href: '/dashboard/recharge-catalog', label: 'Recharge Catalog' },
-  { href: '/dashboard/bills/utility-catalog', label: 'Utility Bill Catalog' },
-  { href: '/dashboard/recharge-provider-routing', label: 'Recharge Provider Routing' },
-  { href: '/dashboard/recharge-catalog-sync', label: 'Recharge Catalog Sync' },
-  { href: '/dashboard/bills/utility-catalog-sync', label: 'Utility Bill Catalog Sync' },
+  { href: '/dashboard/loans', labelKey: 'layout.nav.loansProducts' },
+  { href: '/dashboard/loans/direct-credit', labelKey: 'layout.nav.directLoanCredit' },
+  { href: '/dashboard/loans/loan-policy-config', labelKey: 'layout.nav.loanPolicyConfig' },
+  { href: '/dashboard/loans/untrusted-borrowers', labelKey: 'layout.nav.untrustedBorrowers' },
+  { href: '/dashboard/bills', labelKey: 'layout.nav.billsProducts' },
+  { href: '/dashboard/bills/cegaweb-profiles', labelKey: 'layout.nav.cegawebProfiles' },
+  { href: '/dashboard/cards', labelKey: 'layout.nav.cardsProducts' },
+  { href: '/dashboard/crypto', labelKey: 'layout.nav.cryptosProducts' },
+  { href: '/dashboard/esim', labelKey: 'layout.nav.esimsProviders' },
+  { href: '/dashboard/esim-products', labelKey: 'layout.nav.esimProducts' },
+  { href: '/dashboard/savings', labelKey: 'layout.nav.savingsProducts' },
+  { href: '/dashboard/payment-requests', labelKey: 'layout.nav.paymentRequests' },
+  { href: '/dashboard/recharge-catalog', labelKey: 'layout.nav.rechargeCatalog' },
+  { href: '/dashboard/bills/utility-catalog', labelKey: 'layout.nav.utilityBillCatalog' },
+  { href: '/dashboard/recharge-provider-routing', labelKey: 'layout.nav.rechargeProviderRouting' },
+  { href: '/dashboard/recharge-catalog-sync', labelKey: 'layout.nav.rechargeCatalogSync' },
+  { href: '/dashboard/bills/utility-catalog-sync', labelKey: 'layout.nav.utilityBillCatalogSync' },
   // Other menus
-  { href: '/dashboard/trusted-devices', label: 'Trusted Devices' },
-  { href: '/dashboard/transactions', label: 'Transactions' },
-  { href: '/dashboard/bank-deposit-proofs', label: 'Bank Deposit Proofs' },
-  { href: '/dashboard/estimated-processing-times', label: 'Estimated Processing Times' },
-  { href: '/dashboard/webhook-events', label: 'Webhook Events' },
-  { href: '/dashboard/outbox', label: 'Outbox' },
-  { href: '/dashboard/liquibase/changelogs', label: 'Liquibase Changelogs' },
-  { href: '/dashboard/kycs', label: 'KYCs' },
-  { href: '/dashboard/kyc-caps', label: 'KycCaps' },
-  { href: '/dashboard/kyc-default-levels', label: 'KYC Defaults' },
-  { href: '/dashboard/feature-flags', label: 'Feature Flags' },
-  { href: '/dashboard/wallet-policy-config', label: 'Wallet Policy Config' },
-  { href: '/dashboard/registration-policy-config', label: 'Registration Policy Config' },
-  { href: '/dashboard/app-version', label: 'App Version' },
-  { href: '/dashboard/announcements', label: 'Announcements' },
-  { href: '/dashboard/notification-providers', label: 'Notification Providers' },
-  { href: '/dashboard/notification-default-channels', label: 'Notification Defaults' },
-  { href: '/dashboard/notification-push-campaigns', label: 'Push Campaigns' },
-  { href: '/dashboard/notification-push-campaign-history', label: 'Push Campaign History' },
-  { href: '/dashboard/referral-campaigns', label: 'Referral Campaigns' },
-  { href: '/dashboard/notification-email-test', label: 'Email Tests' },
-  { href: '/dashboard/provider-tokens', label: 'Provider Tokens' },
-  { href: '/dashboard/cron-jobs', label: 'Cron Jobs' },
-  { href: '/dashboard/redis-caches', label: 'Redis Caches' },
-  { href: '/dashboard/admins', label: 'Admins' },
-  { href: '/dashboard/fees/fee-configs', label: 'Fee Configs' },
-  { href: '/dashboard/geo', label: 'Geo' }
+  { href: '/dashboard/trusted-devices', labelKey: 'layout.nav.trustedDevices' },
+  { href: '/dashboard/transactions', labelKey: 'layout.nav.transactions' },
+  { href: '/dashboard/bank-deposit-proofs', labelKey: 'layout.nav.bankDepositProofs' },
+  { href: '/dashboard/estimated-processing-times', labelKey: 'layout.nav.estimatedProcessingTimes' },
+  { href: '/dashboard/webhook-events', labelKey: 'layout.nav.webhookEvents' },
+  { href: '/dashboard/outbox', labelKey: 'layout.nav.outbox' },
+  { href: '/dashboard/liquibase/changelogs', labelKey: 'layout.nav.liquibaseChangelogs' },
+  { href: '/dashboard/kycs', labelKey: 'layout.nav.kycs' },
+  { href: '/dashboard/kyc-caps', labelKey: 'layout.nav.kycCaps' },
+  { href: '/dashboard/kyc-default-levels', labelKey: 'layout.nav.kycDefaults' },
+  { href: '/dashboard/feature-flags', labelKey: 'layout.nav.featureFlags' },
+  { href: '/dashboard/wallet-policy-config', labelKey: 'layout.nav.walletPolicyConfig' },
+  { href: '/dashboard/registration-policy-config', labelKey: 'layout.nav.registrationPolicyConfig' },
+  { href: '/dashboard/app-version', labelKey: 'layout.nav.appVersion' },
+  { href: '/dashboard/announcements', labelKey: 'layout.nav.announcements' },
+  { href: '/dashboard/notification-providers', labelKey: 'layout.nav.notificationProviders' },
+  { href: '/dashboard/notification-default-channels', labelKey: 'layout.nav.notificationDefaults' },
+  { href: '/dashboard/notification-push-campaigns', labelKey: 'layout.nav.pushCampaigns' },
+  { href: '/dashboard/notification-push-campaign-history', labelKey: 'layout.nav.pushCampaignHistory' },
+  { href: '/dashboard/referral-campaigns', labelKey: 'layout.nav.referralCampaigns' },
+  { href: '/dashboard/notification-email-test', labelKey: 'layout.nav.emailTests' },
+  { href: '/dashboard/provider-tokens', labelKey: 'layout.nav.providerTokens' },
+  { href: '/dashboard/cron-jobs', labelKey: 'layout.nav.cronJobs' },
+  { href: '/dashboard/redis-caches', labelKey: 'layout.nav.redisCaches' },
+  { href: '/dashboard/admins', labelKey: 'layout.nav.admins' },
+  { href: '/dashboard/fees/fee-configs', labelKey: 'layout.nav.feeConfigs' },
+  { href: '/dashboard/geo', labelKey: 'layout.nav.geo' }
 ];
 
 export default function DashboardLayout({ children }) {
   const { isAuthenticated, loading, initialized, logout, refreshSession, session } = useAuth();
+  const { locale, setLocale, t } = useLocale();
   const router = useRouter();
   const pathname = usePathname();
   const [theme, setTheme] = useState('light');
@@ -78,7 +80,7 @@ export default function DashboardLayout({ children }) {
   const renderedNavItems = useMemo(() => {
     const baseItems = navItems.filter((item) => item.href !== '/dashboard/admins' || canSeeAdminsMenu);
     if (!showQaStubFailureModes) return baseItems;
-    return [...baseItems, { href: '/dashboard/admin/stub-failure-modes', label: 'Stub Failure Modes (QA)' }];
+    return [...baseItems, { href: '/dashboard/admin/stub-failure-modes', labelKey: 'layout.nav.stubFailureModes' }];
   }, [canSeeAdminsMenu, showQaStubFailureModes]);
   const userLabel = useMemo(() => {
     const payload = idTokenPayload || accessTokenPayload;
@@ -132,7 +134,7 @@ export default function DashboardLayout({ children }) {
   if (!initialized) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', color: 'var(--text)' }}>
-        Loading session…
+        {t('common.loadingSession')}
       </div>
     );
   }
@@ -159,7 +161,7 @@ export default function DashboardLayout({ children }) {
       >
         <div style={{ fontWeight: 900, letterSpacing: 0.6, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <img src="/icon.svg" alt="Fondeka" width={34} height={34} style={{ borderRadius: '10px' }} />
-          Fondeka Admin
+          {t('layout.appName')}
         </div>
         <nav className="dashboard-nav-links" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
           {renderedNavItems.map((item) => (
@@ -175,11 +177,18 @@ export default function DashboardLayout({ children }) {
                 fontWeight: isActive(item.href) ? 700 : 500
               }}
             >
-              {item.label}
+              {t(item.labelKey)}
             </Link>
           ))}
         </nav>
         <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+          <label style={{ display: 'grid', gap: '0.25rem' }}>
+            <span style={{ color: 'var(--muted)', fontSize: '12px' }}>{t('common.language')}</span>
+            <select value={locale} onChange={(e) => setLocale(e.target.value)}>
+              <option value="en">{t('common.english')}</option>
+              <option value="fr">{t('common.french')}</option>
+            </select>
+          </label>
           <button
             onClick={() => setTheme((prev) => (prev === 'light' ? 'dark' : 'light'))}
             style={{
@@ -191,7 +200,7 @@ export default function DashboardLayout({ children }) {
               color: 'var(--text)'
             }}
           >
-            Switch to {theme === 'light' ? 'Dark' : 'Light'} mode
+            {theme === 'light' ? t('layout.switchToDark') : t('layout.switchToLight')}
           </button>
           <button
             onClick={logout}
@@ -204,7 +213,7 @@ export default function DashboardLayout({ children }) {
               color: 'var(--text)'
             }}
           >
-            Sign out
+            {t('layout.signOut')}
           </button>
         </div>
       </aside>
@@ -234,14 +243,14 @@ export default function DashboardLayout({ children }) {
               aria-expanded={menuOpen}
               aria-controls="dashboard-nav"
             >
-              <span className="sr-only">Toggle menu</span>
+              <span className="sr-only">{t('layout.toggleMenu')}</span>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
               </svg>
             </button>
             <Link href="/dashboard" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.6rem', color: 'inherit', textDecoration: 'none' }}>
               <img src="/icon.svg" alt="Fondeka" width={26} height={26} style={{ borderRadius: '8px' }} />
-              <span>Fondeka Admin</span>
+              <span>{t('layout.appName')}</span>
             </Link>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

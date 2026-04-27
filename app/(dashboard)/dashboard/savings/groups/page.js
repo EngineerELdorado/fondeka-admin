@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { DataTable } from '@/components/DataTable';
+import { useLocale } from '@/contexts/LocaleContext';
 import {
   SavingsPageHeader,
   SavingsSubnav,
@@ -34,6 +35,7 @@ const getTreasuryBalance = (row) => pickFirst(row?.treasuryBalance, row?.current
 const getCurrentRoundNumber = (row) => pickFirst(row?.currentRoundNumber, row?.roundNumber);
 
 export default function GroupSavingsPage() {
+  const { t } = useLocale();
   const [filters, setFilters] = useState(emptyFilters);
   const [appliedFilters, setAppliedFilters] = useState(emptyFilters);
   const [rows, setRows] = useState([]);
@@ -79,7 +81,7 @@ export default function GroupSavingsPage() {
     () => [
       {
         key: 'reference',
-        label: 'Group',
+        label: t('savings.groups.group'),
         render: (row) => (
           <div style={{ display: 'grid', gap: '0.2rem' }}>
             <div style={{ fontWeight: 700 }}>{getGroupReference(row) || `Group ${getGroupId(row)}`}</div>
@@ -87,96 +89,96 @@ export default function GroupSavingsPage() {
           </div>
         )
       },
-      { key: 'type', label: 'Type', render: (row) => <TypeBadge value={getGroupType(row)} /> },
-      { key: 'status', label: 'Status', render: (row) => <StatusBadge value={getGroupStatus(row)} /> },
-      { key: 'creator', label: 'Creator Account', render: (row) => getCreatorAccount(row) || '—' },
-      { key: 'activeMembers', label: 'Active Members', render: (row) => formatCount(pickFirst(row?.activeMemberCount, row?.memberCount)) },
+      { key: 'type', label: t('savings.groups.type'), render: (row) => <TypeBadge value={getGroupType(row)} /> },
+      { key: 'status', label: t('common.status'), render: (row) => <StatusBadge value={getGroupStatus(row)} /> },
+      { key: 'creator', label: t('savings.groups.creatorAccount'), render: (row) => getCreatorAccount(row) || '—' },
+      { key: 'activeMembers', label: t('savings.groups.activeMembers'), render: (row) => formatCount(pickFirst(row?.activeMemberCount, row?.memberCount)) },
       {
         key: 'cycle',
-        label: 'Current Round / Cycle',
+        label: t('savings.groups.currentRoundCycle'),
         render: (row) => {
           const round = getCurrentRoundNumber(row);
           const cycle = pickFirst(row?.currentCycleNumber, row?.cycleNumber);
           if ((round === null || round === undefined || round === '') && (cycle === null || cycle === undefined || cycle === '')) return '—';
-          return `Round ${formatCount(round)} · Cycle ${formatCount(cycle)}`;
+          return t('savings.groups.roundCycleValue', { round: formatCount(round), cycle: formatCount(cycle) });
         }
       },
-      { key: 'pending', label: 'Pending Contributions', render: (row) => formatCount(row?.pendingContributionCount) },
-      { key: 'paid', label: 'Paid Contributions', render: (row) => formatCount(row?.paidContributionCount) },
-      { key: 'overdue', label: 'Overdue Contributions', render: (row) => formatCount(row?.overdueContributionCount) },
-      { key: 'treasuryBalance', label: 'Treasury Balance', render: (row) => (getGroupType(row) === 'AVEC' ? formatMoney(getTreasuryBalance(row)) : '—') },
-      { key: 'createdAt', label: 'Created', render: (row) => formatDate(pickFirst(row?.createdAt, row?.createdDate)) },
+      { key: 'pending', label: t('savings.groups.pendingContributions'), render: (row) => formatCount(row?.pendingContributionCount) },
+      { key: 'paid', label: t('savings.groups.paidContributions'), render: (row) => formatCount(row?.paidContributionCount) },
+      { key: 'overdue', label: t('savings.groups.overdueContributions'), render: (row) => formatCount(row?.overdueContributionCount) },
+      { key: 'treasuryBalance', label: t('savings.groups.treasuryBalance'), render: (row) => (getGroupType(row) === 'AVEC' ? formatMoney(getTreasuryBalance(row)) : '—') },
+      { key: 'createdAt', label: t('savings.groups.created'), render: (row) => formatDate(pickFirst(row?.createdAt, row?.createdDate)) },
       {
         key: 'actions',
-        label: 'Actions',
+        label: t('savings.groups.actions'),
         render: (row) => (
           <Link href={`/dashboard/savings/groups/${encodeURIComponent(getGroupId(row))}`} className="btn-neutral" style={{ textDecoration: 'none' }}>
-            Open
+            {t('savings.groups.open')}
           </Link>
         )
       }
     ],
-    []
+    [t]
   );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <SavingsSubnav />
       <SavingsPageHeader
-        title="Group Savings"
-        description="Search and inspect group savings with clear separation between LIKELEMBA and AVEC. Group detail is the main operations screen for members, cycles, contributions, payouts, loans, policy, and audit."
+        title={t('savings.groups.title')}
+        description={t('savings.groups.description')}
       />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
         <button type="button" className="card" onClick={() => { setFilters((prev) => ({ ...prev, type: 'LIKELEMBA' })); setAppliedFilters((prev) => ({ ...prev, type: 'LIKELEMBA' })); setPage(0); }} style={{ textAlign: 'left', cursor: 'pointer' }}>
           <div style={{ display: 'grid', gap: '0.35rem' }}>
             <TypeBadge value="LIKELEMBA" />
-            <div style={{ fontWeight: 800 }}>{visibleCounts.likelemba} visible groups</div>
-            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Cycle-first support flow with contributions, beneficiary rotation, and payout tracking.</div>
+            <div style={{ fontWeight: 800 }}>{t('savings.groups.visibleGroups', { count: visibleCounts.likelemba })}</div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{t('savings.groups.likelembaBlurb')}</div>
           </div>
         </button>
         <button type="button" className="card" onClick={() => { setFilters((prev) => ({ ...prev, type: 'AVEC' })); setAppliedFilters((prev) => ({ ...prev, type: 'AVEC' })); setPage(0); }} style={{ textAlign: 'left', cursor: 'pointer' }}>
           <div style={{ display: 'grid', gap: '0.35rem' }}>
             <TypeBadge value="AVEC" />
-            <div style={{ fontWeight: 800 }}>{visibleCounts.avec} visible groups</div>
-            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Treasury-first support flow with policy, loans, repayments, and withdrawal governance.</div>
+            <div style={{ fontWeight: 800 }}>{t('savings.groups.visibleGroups', { count: visibleCounts.avec })}</div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{t('savings.groups.avecBlurb')}</div>
           </div>
         </button>
       </div>
 
-      <SectionCard title="Search" description="Filter by status, group type, creator, member, or reference.">
+      <SectionCard title={t('savings.groups.searchTitle')} description={t('savings.groups.searchDescription')}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
           <div style={{ display: 'grid', gap: '0.25rem' }}>
-            <label htmlFor="group-reference">Reference</label>
+            <label htmlFor="group-reference">{t('savings.groups.reference')}</label>
             <input id="group-reference" value={filters.reference} onChange={(e) => setFilters((prev) => ({ ...prev, reference: e.target.value }))} />
           </div>
           <div style={{ display: 'grid', gap: '0.25rem' }}>
-            <label htmlFor="group-status">Status</label>
+            <label htmlFor="group-status">{t('common.status')}</label>
             <input id="group-status" value={filters.status} onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))} />
           </div>
           <div style={{ display: 'grid', gap: '0.25rem' }}>
-            <label htmlFor="group-type">Type</label>
+            <label htmlFor="group-type">{t('savings.groups.type')}</label>
             <select id="group-type" value={filters.type} onChange={(e) => setFilters((prev) => ({ ...prev, type: e.target.value }))}>
-              <option value="">All</option>
+              <option value="">{t('common.all')}</option>
               <option value="LIKELEMBA">LIKELEMBA</option>
               <option value="AVEC">AVEC</option>
             </select>
           </div>
           <div style={{ display: 'grid', gap: '0.25rem' }}>
-            <label htmlFor="group-creator">Creator account ID</label>
+            <label htmlFor="group-creator">{t('savings.groups.creatorAccountId')}</label>
             <input id="group-creator" value={filters.createdByAccountId} onChange={(e) => setFilters((prev) => ({ ...prev, createdByAccountId: e.target.value }))} />
           </div>
           <div style={{ display: 'grid', gap: '0.25rem' }}>
-            <label htmlFor="group-member">Member account ID</label>
+            <label htmlFor="group-member">{t('savings.groups.memberAccountId')}</label>
             <input id="group-member" value={filters.memberAccountId} onChange={(e) => setFilters((prev) => ({ ...prev, memberAccountId: e.target.value }))} />
           </div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button type="button" className="btn-primary" onClick={() => { setPage(0); setAppliedFilters(filters); }} disabled={loading}>
-            {loading ? 'Loading…' : 'Search'}
+            {loading ? t('common.refreshing') : t('savings.groups.search')}
           </button>
           <button type="button" className="btn-neutral" onClick={() => { setFilters(emptyFilters); setAppliedFilters(emptyFilters); setPage(0); }}>
-            Reset
+            {t('savings.groups.reset')}
           </button>
         </div>
       </SectionCard>
@@ -193,7 +195,7 @@ export default function GroupSavingsPage() {
         canPrev={page > 0}
         canNext={page + 1 < totalPages}
         onPageChange={setPage}
-        emptyLabel="No group savings found"
+        emptyLabel={t('savings.groups.noGroups')}
       />
     </div>
   );
