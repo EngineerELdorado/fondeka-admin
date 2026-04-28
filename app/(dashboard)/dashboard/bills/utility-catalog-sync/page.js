@@ -93,9 +93,11 @@ export default function UtilityBillCatalogSyncPage() {
       if (status && status !== 'ENQUEUED') {
         setInfo(`${providerName} sync request returned ${status}.`);
       } else {
-        setInfo(`${providerName} utility catalog sync enqueued.`);
+        setInfo('Sync queued');
       }
-      await fetchRows();
+      window.setTimeout(() => {
+        fetchRows();
+      }, 1500);
     } catch (err) {
       setError(err?.message || `Failed to enqueue ${providerName} utility catalog sync.`);
     } finally {

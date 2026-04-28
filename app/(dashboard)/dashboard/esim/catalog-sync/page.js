@@ -5,8 +5,7 @@ import Link from 'next/link';
 import { DataTable } from '@/components/DataTable';
 import { api } from '@/lib/api';
 
-const providerOptions = ['RELOADLY', 'ZENDIT'];
-const rechargeTypeOptions = ['AIRTIME', 'DATA', 'BUNDLE'];
+const providerOptions = ['AIRALO', 'E_SIM_GO'];
 
 const formatDateTime = (value) => {
   if (!value) return '—';
@@ -42,8 +41,8 @@ const StatusBadge = ({ enabled }) => (
 const SummaryCard = ({ label, value, tone = 'default' }) => {
   const tones = {
     default: { border: 'var(--border)', bg: 'var(--surface)' },
-    reloadly: { border: '#bfdbfe', bg: '#eff6ff' },
-    zendit: { border: '#bbf7d0', bg: '#f0fdf4' },
+    airalo: { border: '#bfdbfe', bg: '#eff6ff' },
+    esimgo: { border: '#bbf7d0', bg: '#f0fdf4' },
     cron: { border: '#fde68a', bg: '#fffbeb' }
   };
   const current = tones[tone] || tones.default;
@@ -55,14 +54,12 @@ const SummaryCard = ({ label, value, tone = 'default' }) => {
   );
 };
 
-export default function RechargeCatalogSyncPage() {
+export default function EsimCatalogSyncPage() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
   const [providerFilter, setProviderFilter] = useState('');
-  const [rechargeTypeFilter, setRechargeTypeFilter] = useState('');
-  const [countryFilter, setCountryFilter] = useState('');
   const [cronEnabledFilter, setCronEnabledFilter] = useState('');
   const [pendingProviders, setPendingProviders] = useState({});
 
@@ -70,11 +67,11 @@ export default function RechargeCatalogSyncPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.rechargeCatalogSync.list();
+      const res = await api.esimCatalogSync.list();
       setRows(normalizeList(res));
     } catch (err) {
       setRows([]);
-      setError(err?.message || 'Failed to load recharge catalog sync status.');
+      setError(err?.message || 'Failed to load eSIM catalog sync status.');
     } finally {
       setLoading(false);
     }
@@ -90,9 +87,9 @@ export default function RechargeCatalogSyncPage() {
     setError(null);
     setInfo(null);
     try {
-      const res = await api.rechargeCatalogSync.trigger(providerName);
+      const res = await api.esimCatalogSync.trigger(providerName);
       const status = String(res?.status || '').trim().toUpperCase();
-      if (status && status !== 'ENQUEUED' && status !== 'TRIGGERED') {
+      if (status && status !== 'ENQUEUED') {
         setInfo(`${providerName} sync request returned ${status}.`);
       } else {
         setInfo('Sync queued');
@@ -101,38 +98,32 @@ export default function RechargeCatalogSyncPage() {
         fetchRows();
       }, 1500);
     } catch (err) {
-      setError(err?.message || `Failed to trigger ${providerName} catalog sync.`);
+      setError(err?.message || `Failed to queue ${providerName} eSIM catalog sync.`);
     } finally {
       setPendingProviders((prev) => ({ ...prev, [providerName]: false }));
     }
   }, []);
 
   const filteredRows = useMemo(() => {
-    const countryTerm = countryFilter.trim().toUpperCase();
     return rows.filter((row) => {
       const providerMatch = !providerFilter || String(row?.providerName || '').toUpperCase() === providerFilter;
-      const rechargeTypeMatch = !rechargeTypeFilter || String(row?.rechargeType || '').toUpperCase() === rechargeTypeFilter;
-      const countryMatch = !countryTerm || String(row?.countryCode || '').toUpperCase().includes(countryTerm);
       const cronEnabled = Boolean(row?.cronEnabled);
-      const cronMatch =
-        !cronEnabledFilter || (cronEnabledFilter === 'true' ? cronEnabled : !cronEnabled);
-      return providerMatch && rechargeTypeMatch && countryMatch && cronMatch;
+      const cronMatch = !cronEnabledFilter || (cronEnabledFilter === 'true' ? cronEnabled : !cronEnabled);
+      return providerMatch && cronMatch;
     });
-  }, [countryFilter, cronEnabledFilter, providerFilter, rechargeTypeFilter, rows]);
+  }, [cronEnabledFilter, providerFilter, rows]);
 
   const summary = useMemo(() => {
     const total = rows.length;
-    const reloadly = rows.filter((row) => String(row?.providerName || '').toUpperCase() === 'RELOADLY').length;
-    const zendit = rows.filter((row) => String(row?.providerName || '').toUpperCase() === 'ZENDIT').length;
+    const airalo = rows.filter((row) => String(row?.providerName || '').toUpperCase() === 'AIRALO').length;
+    const esimgo = rows.filter((row) => String(row?.providerName || '').toUpperCase() === 'E_SIM_GO').length;
     const cronEnabled = rows.filter((row) => Boolean(row?.cronEnabled)).length;
-    return { total, reloadly, zendit, cronEnabled };
+    return { total, airalo, esimgo, cronEnabled };
   }, [rows]);
 
   const columns = useMemo(
     () => [
       { key: 'providerName', label: 'Provider' },
-      { key: 'rechargeType', label: 'Recharge Type' },
-      { key: 'countryCode', label: 'Country', render: (row) => row.countryCode || '—' },
       { key: 'itemCount', label: 'Cached Items' },
       { key: 'lastSyncedAt', label: 'Last Synced', render: (row) => formatDateTime(row.lastSyncedAt) },
       { key: 'cronJobKey', label: 'Cron Key', render: (row) => row.cronJobKey || '—' },
@@ -149,7 +140,7 @@ export default function RechargeCatalogSyncPage() {
               onClick={() => handleTrigger(providerName)}
               disabled={Boolean(pendingProviders[providerName])}
             >
-              {pendingProviders[providerName] ? 'Triggering…' : 'Trigger Sync'}
+              {pendingProviders[providerName] ? 'Queueing…' : 'Trigger Sync'}
             </button>
           );
         }
@@ -162,12 +153,12 @@ export default function RechargeCatalogSyncPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <div style={{ fontWeight: 800, fontSize: '20px' }}>Recharge Catalog Sync</div>
+          <div style={{ fontWeight: 800, fontSize: '20px' }}>eSIM Catalog Sync</div>
           <div style={{ color: 'var(--muted)' }}>
-            Monitor cached recharge catalogs and trigger manual refreshes for provider catalog data.
+            Monitor cached eSIM catalogs and enqueue manual rebuilds for Airalo and eSIM Go.
           </div>
           <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-            This screen is only for catalog cache operations. It does not manage bill product visibility or recharge provider routing.
+            Triggering from this page queues background work. It does not run the sync inline in the dashboard request.
           </div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -179,19 +170,19 @@ export default function RechargeCatalogSyncPage() {
               onClick={() => handleTrigger(provider)}
               disabled={Boolean(pendingProviders[provider])}
             >
-              {pendingProviders[provider] ? `Triggering ${provider}…` : `Trigger ${provider}`}
+              {pendingProviders[provider] ? `Queueing ${provider}…` : `Trigger ${provider}`}
             </button>
           ))}
-          <Link href="/dashboard" className="btn-neutral">
-            {'<- Dashboard'}
+          <Link href="/dashboard/esim" className="btn-neutral">
+            {'<- eSIM hub'}
           </Link>
         </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
-        <SummaryCard label="Total Cached Slices" value={summary.total} />
-        <SummaryCard label="Reloadly Slices" value={summary.reloadly} tone="reloadly" />
-        <SummaryCard label="Zendit Slices" value={summary.zendit} tone="zendit" />
+        <SummaryCard label="Total Providers" value={summary.total} />
+        <SummaryCard label="Airalo" value={summary.airalo} tone="airalo" />
+        <SummaryCard label="eSIM Go" value={summary.esimgo} tone="esimgo" />
         <SummaryCard label="Cron Enabled" value={summary.cronEnabled} tone="cron" />
       </div>
 
@@ -206,21 +197,6 @@ export default function RechargeCatalogSyncPage() {
               </option>
             ))}
           </select>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <label htmlFor="rechargeTypeFilter">Recharge Type</label>
-          <select id="rechargeTypeFilter" value={rechargeTypeFilter} onChange={(e) => setRechargeTypeFilter(e.target.value)}>
-            <option value="">All</option>
-            {rechargeTypeOptions.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <label htmlFor="countryFilter">Country</label>
-          <input id="countryFilter" value={countryFilter} onChange={(e) => setCountryFilter(e.target.value.toUpperCase())} placeholder="CD" maxLength={2} />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="cronEnabledFilter">Cron Enabled</label>
@@ -239,8 +215,6 @@ export default function RechargeCatalogSyncPage() {
             className="btn-neutral"
             onClick={() => {
               setProviderFilter('');
-              setRechargeTypeFilter('');
-              setCountryFilter('');
               setCronEnabledFilter('');
             }}
           >
@@ -255,7 +229,7 @@ export default function RechargeCatalogSyncPage() {
       <DataTable
         columns={columns}
         rows={filteredRows}
-        emptyLabel={loading ? 'Loading recharge catalog sync status…' : 'No recharge catalog slices found'}
+        emptyLabel={loading ? 'Loading eSIM catalog sync status…' : 'No eSIM catalog providers found'}
         pageSize={50}
         showAccountQuickNav={false}
       />
