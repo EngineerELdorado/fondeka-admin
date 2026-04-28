@@ -65,7 +65,13 @@ const getUnpaidRevenueValue = (row) => {
   return 0;
 };
 const getNetProfitValue = (row) => getRevenueValue(row) - getReferralCostValue(row);
-const CURRENCY_METRIC_KEYS = new Set(['loanDisbursedVolume', 'loansOutstanding']);
+const getLoansReimbursedValue = (row) => {
+  const disbursed = Number(row?.loanDisbursedVolume);
+  const outstanding = Number(row?.loansOutstanding);
+  if (!Number.isFinite(disbursed) && !Number.isFinite(outstanding)) return null;
+  return Math.max(0, (Number.isFinite(disbursed) ? disbursed : 0) - (Number.isFinite(outstanding) ? outstanding : 0));
+};
+const CURRENCY_METRIC_KEYS = new Set(['loanDisbursedVolume', 'loansOutstanding', 'loansReimbursed']);
 const formatMetricCardValue = (key, value) => (CURRENCY_METRIC_KEYS.has(key) ? formatCurrency(value) : formatNumber(value));
 
 const InlineStat = ({ value, percentage }) => {
@@ -820,6 +826,7 @@ export default function DashboardPage() {
     { key: 'loanDisbursedVolume', label: t('dashboard.loanDisbursedVolume') },
     { key: 'loansOpen', label: t('dashboard.loansOpen') },
     { key: 'loansOutstanding', label: t('dashboard.loansOutstanding') },
+    { key: 'loansReimbursed', label: t('dashboard.loansReimbursed'), getValue: getLoansReimbursedValue },
     { key: 'esimsPurchased', label: t('dashboard.esimPurchases') },
     { key: 'airtimePurchases', label: t('dashboard.airtimePurchases') },
     { key: 'billPayments', label: t('dashboard.billPayments') },
@@ -1338,7 +1345,7 @@ export default function DashboardPage() {
               {metricCards.map((m) => (
                 <div key={m.key} style={{ padding: '0.75rem', border: `1px solid var(--border)`, borderRadius: '12px', display: 'grid', gap: '0.15rem', background: 'color-mix(in srgb, var(--surface) 90%, var(--accent-soft) 10%)' }}>
                   <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{m.label}</div>
-                  <div style={{ fontWeight: 800, fontSize: '18px' }}>{formatMetricCardValue(m.key, metrics?.[m.key])}</div>
+                  <div style={{ fontWeight: 800, fontSize: '18px' }}>{formatMetricCardValue(m.key, m.getValue ? m.getValue(metrics) : metrics?.[m.key])}</div>
                 </div>
               ))}
             </div>
@@ -1354,7 +1361,7 @@ export default function DashboardPage() {
               {metricCards.map((m) => (
                 <div key={m.key} style={{ padding: '0.75rem', border: `1px solid var(--border)`, borderRadius: '12px', display: 'grid', gap: '0.15rem', background: 'color-mix(in srgb, var(--surface) 90%, var(--accent-soft) 10%)' }}>
                   <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{m.label}</div>
-                  <div style={{ fontWeight: 800, fontSize: '18px' }}>{formatMetricCardValue(m.key, metrics?.[m.key])}</div>
+                  <div style={{ fontWeight: 800, fontSize: '18px' }}>{formatMetricCardValue(m.key, m.getValue ? m.getValue(metrics) : metrics?.[m.key])}</div>
                 </div>
               ))}
             </div>
