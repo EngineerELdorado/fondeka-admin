@@ -5,6 +5,7 @@ import { api } from '@/lib/api';
 
 const MIN_COOLDOWN = 1;
 const MAX_COOLDOWN = 1440;
+const MIN_REVIEW_PROMPT_THRESHOLD = 1;
 const ALLOWED_PAYOUT_ACTIONS = ['WITHDRAW_FROM_WALLET', 'WITHDRAW_FROM_CARD', 'SELL_CRYPTO'];
 const ACTION_OPTIONS = [
   'FUND_WALLET',
@@ -90,6 +91,7 @@ export default function WalletPolicyConfigPage() {
   const [forcePayoutKycUnlessApproved, setForcePayoutKycUnlessApproved] = useState(false);
   const [forceKycBeforeAppUse, setForceKycBeforeAppUse] = useState(false);
   const [sendCryptoExternalProviderEnabled, setSendCryptoExternalProviderEnabled] = useState(false);
+  const [reviewPromptCompletedTransactionsThreshold, setReviewPromptCompletedTransactionsThreshold] = useState('');
   const [autoRefundBlockedActions, setAutoRefundBlockedActions] = useState([]);
   const [autoRefundActionSearch, setAutoRefundActionSearch] = useState('');
   const [globalFeeApplicationMode, setGlobalFeeApplicationMode] = useState('EXCLUSIVE');
@@ -152,6 +154,10 @@ export default function WalletPolicyConfigPage() {
       setForcePayoutKycUnlessApproved(Boolean(res?.forcePayoutKycUnlessApproved));
       setForceKycBeforeAppUse(Boolean(res?.forceKycBeforeAppUse));
       setSendCryptoExternalProviderEnabled(Boolean(res?.sendCryptoExternalProviderEnabled));
+      const reviewPromptThreshold = res?.reviewPromptCompletedTransactionsThreshold;
+      setReviewPromptCompletedTransactionsThreshold(
+        reviewPromptThreshold === null || reviewPromptThreshold === undefined ? '' : String(reviewPromptThreshold)
+      );
       setGlobalFeeApplicationMode(String(res?.globalFeeApplicationMode || 'EXCLUSIVE').toUpperCase());
       const incomingActionFeeModes =
         res?.actionFeeApplicationModes && typeof res.actionFeeApplicationModes === 'object' ? res.actionFeeApplicationModes : {};
@@ -202,11 +208,13 @@ export default function WalletPolicyConfigPage() {
     const sendAirtimeMinimumRaw = String(sendAirtimeMinimumUsd || '').trim();
     const paypalMinimumPayoutRaw = String(paypalMinimumPayoutUsd || '').trim();
     const payoutKycThresholdRaw = String(payoutKycThresholdUsd || '').trim();
+    const reviewPromptThresholdRaw = String(reviewPromptCompletedTransactionsThreshold || '').trim();
     const minParsed = minRaw === '' ? null : Number(minRaw);
     const maxParsed = maxRaw === '' ? null : Number(maxRaw);
     const sendAirtimeMinimumParsed = sendAirtimeMinimumRaw === '' ? null : Number(sendAirtimeMinimumRaw);
     const paypalMinimumPayoutParsed = paypalMinimumPayoutRaw === '' ? null : Number(paypalMinimumPayoutRaw);
     const payoutKycThresholdParsed = payoutKycThresholdRaw === '' ? null : Number(payoutKycThresholdRaw);
+    const reviewPromptThresholdParsed = reviewPromptThresholdRaw === '' ? null : Number(reviewPromptThresholdRaw);
     if (minRaw !== '' && (!Number.isFinite(minParsed) || minParsed <= 0)) {
       setError('Minimum amount must be greater than 0.');
       return;
@@ -231,6 +239,13 @@ export default function WalletPolicyConfigPage() {
       setError('Payout KYC threshold must be a positive amount.');
       return;
     }
+    if (
+      reviewPromptThresholdRaw !== '' &&
+      (!Number.isInteger(reviewPromptThresholdParsed) || reviewPromptThresholdParsed < MIN_REVIEW_PROMPT_THRESHOLD)
+    ) {
+      setError(`Review prompt completed transactions threshold must be a positive integer greater than or equal to ${MIN_REVIEW_PROMPT_THRESHOLD}.`);
+      return;
+    }
     setSaving(true);
     setError(null);
     setInfo(null);
@@ -247,6 +262,8 @@ export default function WalletPolicyConfigPage() {
         forcePayoutKycUnlessApproved: Boolean(forcePayoutKycUnlessApproved),
         forceKycBeforeAppUse: Boolean(forceKycBeforeAppUse),
         sendCryptoExternalProviderEnabled: Boolean(sendCryptoExternalProviderEnabled),
+        reviewPromptCompletedTransactionsThreshold:
+          reviewPromptThresholdRaw === '' ? null : reviewPromptThresholdParsed,
         autoRefundBlockedActions: normalizedAutoRefundBlockedActions,
         globalFeeApplicationMode: globalFeeApplicationMode || 'EXCLUSIVE',
         actionFeeApplicationModes: normalizedActionFeeModes
@@ -722,6 +739,36 @@ export default function WalletPolicyConfigPage() {
             </div>
             <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
               If later failed or canceled, the customer&apos;s crypto wallet is refunded.
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <div style={{ fontWeight: 700 }}>App &amp; Engagement Behavior</div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Controls product behavior that the mobile app reads from `/customer-api/accounts/my-account`.
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxWidth: '320px' }}>
+            <label htmlFor="reviewPromptCompletedTransactionsThreshold">Review prompt completed transactions threshold</label>
+            <input
+              id="reviewPromptCompletedTransactionsThreshold"
+              type="number"
+              min={MIN_REVIEW_PROMPT_THRESHOLD}
+              step={1}
+              inputMode="numeric"
+              value={reviewPromptCompletedTransactionsThreshold}
+              onChange={(e) => setReviewPromptCompletedTransactionsThreshold(e.target.value)}
+              placeholder="5"
+              disabled={loading || saving}
+            />
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Minimum number of completed transactions before the mobile app may ask the user for an app review.
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Leave blank to let backend fallback apply.
             </div>
           </div>
         </div>
