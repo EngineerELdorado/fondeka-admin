@@ -143,12 +143,29 @@ const formatDateTime = (value) => {
   return date.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
 };
 
+const formatAmount = (value) => {
+  if (value === null || value === undefined || value === '') return '—';
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return String(value);
+  return parsed.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
 const formatAuthState = (value) => {
   if (value === null || value === undefined || value === '') return '—';
   return Boolean(value) ? 'ON' : 'OFF';
 };
 
 const pickFirstDefined = (...values) => values.find((value) => value !== null && value !== undefined && value !== '');
+
+const resolveOwedAmount = (value) =>
+  pickFirstDefined(value?.owedLoansAmount, value?.owedLoans, value?.loanBalance, value?.account?.loanBalance, value?.previousDebt);
+
+const resolveOwedBreakdown = (value) => ({
+  total: resolveOwedAmount(value),
+  due: pickFirstDefined(value?.dueAmount, value?.amountDue, value?.loanDueAmount, value?.outstandingDueAmount),
+  fines: pickFirstDefined(value?.finesAmount, value?.fineAmount, value?.loanFineAmount, value?.totalFineAmount),
+  archived: pickFirstDefined(value?.archivedAmount, value?.archivedDebtAmount, value?.archivedPendingAmount, value?.previousDebt)
+});
 
 const resolveTransactionAuthValues = (account) => {
   const effective = pickFirstDefined(
@@ -372,6 +389,7 @@ const accountId = params?.id;
 const [account, setAccount] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [showOwedBreakdown, setShowOwedBreakdown] = useState(false);
   const [trustedDeviceOverride, setTrustedDeviceOverride] = useState(false);
   const [trustedDeviceSaving, setTrustedDeviceSaving] = useState(false);
   const [trustedDevicePolicy, setTrustedDevicePolicy] = useState({
@@ -2490,6 +2508,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
   const authView = useMemo(() => resolveTransactionAuthValues(accountView), [accountView]);
   const txView = transactions || [];
   const cryptoWallets = accountView?.cryptoWallets || [];
+  const owedBreakdown = useMemo(() => resolveOwedBreakdown(accountView), [accountView]);
   const resolvedAccountId = useMemo(() => {
     if (account?.id !== undefined && account?.id !== null) return account.id;
     const num = Number(accountId);
@@ -2612,6 +2631,36 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           { label: 'KYC status', value: accountView?.kycStatus },
           { label: 'Blacklist', value: <BlacklistBadge blacklisted={Boolean(accountView?.blacklisted)} /> },
           { label: 'Balance', value: accountView?.balance },
+          {
+            label: 'Amount owed',
+            value: (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
+                <span>{formatAmount(owedBreakdown.total)}</span>
+                <button
+                  type="button"
+                  onClick={() => setShowOwedBreakdown(true)}
+                  aria-label="View amount owed breakdown"
+                  title="View amount owed breakdown"
+                  style={{
+                    border: `1px solid var(--border)`,
+                    background: 'var(--card, #fff)',
+                    color: 'var(--text)',
+                    borderRadius: '999px',
+                    width: '26px',
+                    height: '26px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    fontWeight: 800,
+                    lineHeight: 1
+                  }}
+                >
+                  ⋯
+                </button>
+              </div>
+            )
+          },
           { label: 'Eligible loan', value: accountView?.eligibleLoanAmount }
         ]}
       />
@@ -5375,6 +5424,24 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               <button type="button" className="btn-primary" onClick={submitCardPriceForm} disabled={cardPriceSaving}>
                 {cardPriceSaving ? 'Saving…' : cardPriceFormId ? 'Update' : 'Add'}
               </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showOwedBreakdown && (
+        <Modal title="Amount owed breakdown" onClose={() => setShowOwedBreakdown(false)}>
+          <div style={{ display: 'grid', gap: '0.85rem', marginTop: '0.75rem' }}>
+            <DetailGrid
+              rows={[
+                { label: 'Total owed', value: formatAmount(owedBreakdown.total) },
+                { label: 'Due amount', value: formatAmount(owedBreakdown.due) },
+                { label: 'Fines amount', value: formatAmount(owedBreakdown.fines) },
+                { label: 'Archived amount', value: formatAmount(owedBreakdown.archived) }
+              ]}
+            />
+            <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+              Archived amount falls back to the account&apos;s previous debt when no dedicated archived field is returned.
             </div>
           </div>
         </Modal>
