@@ -10,6 +10,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { api } from '@/lib/api';
 
 const AuthContext = createContext(undefined);
+const FORBIDDEN_LOGOUT_EVENT = 'fondeka:auth-forbidden';
 
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
@@ -93,10 +94,23 @@ export function AuthProvider({ children }) {
   }, [refreshSession]);
 
   const logout = useCallback(async () => {
-    await signOut();
+    try {
+      await signOut();
+    } catch {
+      // Best-effort sign out; still clear local auth state below.
+    }
     setSession(null);
     api.setAuthToken(null);
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const handleForbiddenLogout = () => {
+      logout();
+    };
+    window.addEventListener(FORBIDDEN_LOGOUT_EVENT, handleForbiddenLogout);
+    return () => window.removeEventListener(FORBIDDEN_LOGOUT_EVENT, handleForbiddenLogout);
+  }, [logout]);
 
   const isAuthenticated = useMemo(() => {
     return Boolean(session?.tokens?.accessToken?.toString());
