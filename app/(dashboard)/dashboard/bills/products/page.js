@@ -18,7 +18,8 @@ const emptyState = {
   rank: '',
   countryIds: [],
   active: true,
-  available: true
+  available: true,
+  paymentsEligibleForLoanEligibility: true
 };
 
 const typeOptions = ['TELEVISION', 'ELECTRICITY', 'INTERNET', 'WATER', 'STREAMING', 'ENTERTAINMENT', 'TRAVELLING', 'AIRTIME', 'DATA', 'BUNDLES', 'OTHERS'];
@@ -61,7 +62,8 @@ const toPayload = (state) => ({
   countryIds: Array.isArray(state.countryIds) ? state.countryIds.map((id) => Number(id)).filter((n) => !Number.isNaN(n)) : [],
   rank: state.rank === '' ? null : Number(state.rank),
   active: Boolean(state.active),
-  available: Boolean(state.available)
+  available: Boolean(state.available),
+  paymentsEligibleForLoanEligibility: Boolean(state.paymentsEligibleForLoanEligibility)
 });
 
 const Modal = ({ title, onClose, children }) => (
@@ -203,6 +205,11 @@ export default function BillProductsPage() {
       render: (row) => (row.available === false ? 'No' : 'Yes')
     },
     {
+      key: 'paymentsEligibleForLoanEligibility',
+      label: 'Loan eligibility',
+      render: (row) => (row.paymentsEligibleForLoanEligibility !== false ? 'Counts' : 'Excluded')
+    },
+    {
       key: 'actions',
       label: 'Actions',
       render: (row) => (
@@ -237,7 +244,8 @@ export default function BillProductsPage() {
       countryIds: row.countryIds || [],
       rank: row.rank ?? '',
       active: Boolean(row.active),
-      available: row.available !== false
+      available: row.available !== false,
+      paymentsEligibleForLoanEligibility: row.paymentsEligibleForLoanEligibility !== false
     });
     setShowEdit(true);
     setInfo(null);
@@ -532,6 +540,23 @@ export default function BillProductsPage() {
           Available
         </label>
       </div>
+      <div style={{ gridColumn: '1 / -1', display: 'grid', gap: '0.35rem', padding: '0.8rem', border: '1px solid var(--border)', borderRadius: '12px', background: 'color-mix(in srgb, var(--surface) 96%, var(--accent-soft) 4%)' }}>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+          <input
+            id="paymentsEligibleForLoanEligibility"
+            type="checkbox"
+            checked={draft.paymentsEligibleForLoanEligibility}
+            onChange={(e) => setDraft((p) => ({ ...p, paymentsEligibleForLoanEligibility: e.target.checked }))}
+          />
+          <span>Payments count toward loan eligibility</span>
+        </label>
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          If enabled, new bill-payment transactions for this product can contribute to customer loan eligibility.
+        </div>
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          Turning this off affects future payments only. It does not change past transactions.
+        </div>
+      </div>
     </div>
   );
 
@@ -640,6 +665,10 @@ export default function BillProductsPage() {
               { label: 'Rank', value: selected?.rank },
               { label: 'Active', value: selected?.active ? 'Yes' : 'No' },
               { label: 'Available', value: selected?.available !== false ? 'Yes' : 'No' },
+              {
+                label: 'Payments count toward loan eligibility',
+                value: selected?.paymentsEligibleForLoanEligibility !== false ? 'Yes' : 'No'
+              },
               { label: 'Created', value: selected?.createdAt },
               { label: 'Updated', value: selected?.updatedAt }
             ]}
