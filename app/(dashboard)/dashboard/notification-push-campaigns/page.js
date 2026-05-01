@@ -10,6 +10,44 @@ const DEFAULT_BATCH_DELAY_SECONDS = 20;
 const DEFAULT_INITIAL_DELAY_SECONDS = 5;
 const POLL_INTERVAL_MS = 10000;
 const severityOptions = ['INFO', 'WARNING', 'CRITICAL'];
+const serviceOptions = ['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'PAYMENT_REQUEST', 'E_SIM', 'AIRTIME_AND_DATA', 'OTHER'];
+const actionOptions = [
+  'BUY_CARD',
+  'BUY_CRYPTO',
+  'BUY_GIFT_CARD',
+  'E_SIM_PURCHASE',
+  'E_SIM_TOPUP',
+  'FUND_CARD',
+  'FUND_WALLET',
+  'INTER_TRANSFER',
+  'LOAN_DISBURSEMENT',
+  'LOAN_REQUEST',
+  'PAY_ELECTRICITY_BILL',
+  'PAY_INTERNET_BILL',
+  'PAY_REQUEST',
+  'PAY_TV_SUBSCRIPTION',
+  'PAY_WATER_BILL',
+  'CARD_PAYMENT_REVERSAL',
+  'RECEIVE_CRYPTO',
+  'REPAY_LOAN',
+  'SELL_CRYPTO',
+  'SEND_AIRTIME',
+  'SEND_CRYPTO',
+  'SETTLEMENT',
+  'SWAP_CRYPTO',
+  'WITHDRAW_FROM_CARD',
+  'PERSONAL_SAVING_DEPOSIT',
+  'PERSONAL_SAVING_WITHDRAWAL',
+  'PERSONAL_SAVING_INTEREST_PAYOUT',
+  'GROUP_SAVING_CONTRIBUTION',
+  'GROUP_SAVING_PAYOUT',
+  'WITHDRAW_FROM_WALLET'
+].sort();
+const triStateOptions = [
+  { value: 'ANY', label: 'Any' },
+  { value: 'YES', label: 'Yes' },
+  { value: 'NO', label: 'No' }
+];
 
 const emptyDataRow = { key: '', value: '' };
 const emptyAnnouncement = {
@@ -48,6 +86,9 @@ const toUtcInstant = (value) => {
   return `${withSeconds}Z`;
 };
 
+const toList = (res) => (Array.isArray(res) ? res : res?.content || []);
+const triStateToBoolean = (value) => (value === 'YES' ? true : value === 'NO' ? false : undefined);
+
 export default function NotificationPushCampaignsPage() {
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
@@ -60,6 +101,9 @@ export default function NotificationPushCampaignsPage() {
   const [initialDelaySeconds, setInitialDelaySeconds] = useState(String(DEFAULT_INITIAL_DELAY_SECONDS));
 
   const [countries, setCountries] = useState([]);
+  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [paymentProviders, setPaymentProviders] = useState([]);
+  const [billProducts, setBillProducts] = useState([]);
   const [countryLoading, setCountryLoading] = useState(false);
   const [selectedCountryIds, setSelectedCountryIds] = useState([]);
   const [countryCodesOverride, setCountryCodesOverride] = useState('');
@@ -70,6 +114,18 @@ export default function NotificationPushCampaignsPage() {
   const [lastTransactionOlderThanDays, setLastTransactionOlderThanDays] = useState('');
   const [minTransactionsThisMonth, setMinTransactionsThisMonth] = useState('');
   const [maxTransactionsThisMonth, setMaxTransactionsThisMonth] = useState('');
+  const [hasCryptoWallets, setHasCryptoWallets] = useState('ANY');
+  const [hasSavings, setHasSavings] = useState('ANY');
+  const [hasGroupSavings, setHasGroupSavings] = useState('ANY');
+  const [hasCards, setHasCards] = useState('ANY');
+  const [hasLoans, setHasLoans] = useState('ANY');
+  const [hasEsims, setHasEsims] = useState('ANY');
+  const [hasPaymentRequests, setHasPaymentRequests] = useState('ANY');
+  const [selectedBillProductIds, setSelectedBillProductIds] = useState([]);
+  const [selectedPaymentMethodIds, setSelectedPaymentMethodIds] = useState([]);
+  const [selectedPaymentProviderIds, setSelectedPaymentProviderIds] = useState([]);
+  const [selectedTransactionServices, setSelectedTransactionServices] = useState([]);
+  const [selectedTransactionActions, setSelectedTransactionActions] = useState([]);
 
   const [launchLoading, setLaunchLoading] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
@@ -90,19 +146,33 @@ export default function NotificationPushCampaignsPage() {
 
   useEffect(() => {
     let cancelled = false;
-    const loadCountries = async () => {
+    const loadAudienceOptions = async () => {
       setCountryLoading(true);
       try {
-        const res = await api.countries.list(new URLSearchParams({ page: '0', size: '400' }));
-        const list = Array.isArray(res) ? res : res?.content || [];
-        if (!cancelled) setCountries(list || []);
+        const [countryRes, paymentMethodRes, paymentProviderRes, billProductRes] = await Promise.all([
+          api.countries.list(new URLSearchParams({ page: '0', size: '400' })),
+          api.paymentMethods.list(new URLSearchParams({ page: '0', size: '200' })),
+          api.paymentProviders.list(new URLSearchParams({ page: '0', size: '200' })),
+          api.billProducts.list(new URLSearchParams({ page: '0', size: '200' }))
+        ]);
+        if (!cancelled) {
+          setCountries(toList(countryRes));
+          setPaymentMethods(toList(paymentMethodRes));
+          setPaymentProviders(toList(paymentProviderRes));
+          setBillProducts(toList(billProductRes));
+        }
       } catch {
-        if (!cancelled) setCountries([]);
+        if (!cancelled) {
+          setCountries([]);
+          setPaymentMethods([]);
+          setPaymentProviders([]);
+          setBillProducts([]);
+        }
       } finally {
         if (!cancelled) setCountryLoading(false);
       }
     };
-    loadCountries();
+    loadAudienceOptions();
     return () => {
       cancelled = true;
     };
@@ -127,6 +197,11 @@ export default function NotificationPushCampaignsPage() {
       .split(',')
       .map((part) => part.trim().toLowerCase())
       .filter(Boolean);
+    const billProductIds = selectedBillProductIds.map((value) => Number(value)).filter((value) => Number.isInteger(value));
+    const paymentMethodIds = selectedPaymentMethodIds.map((value) => Number(value)).filter((value) => Number.isInteger(value));
+    const paymentProviderIds = selectedPaymentProviderIds.map((value) => Number(value)).filter((value) => Number.isInteger(value));
+    const transactionServices = Array.from(new Set(selectedTransactionServices.map((value) => String(value || '').trim()).filter(Boolean)));
+    const transactionActions = Array.from(new Set(selectedTransactionActions.map((value) => String(value || '').trim()).filter(Boolean)));
 
     const audience = {};
     if (countryIds.length) audience.countryIds = countryIds;
@@ -146,6 +221,23 @@ export default function NotificationPushCampaignsPage() {
     if (olderThanDays !== undefined) audience.lastTransactionOlderThanDays = olderThanDays;
     if (minThisMonth !== undefined) audience.minTransactionsThisMonth = minThisMonth;
     if (maxThisMonth !== undefined) audience.maxTransactionsThisMonth = maxThisMonth;
+    const ownershipFilters = {
+      hasCryptoWallets: triStateToBoolean(hasCryptoWallets),
+      hasSavings: triStateToBoolean(hasSavings),
+      hasGroupSavings: triStateToBoolean(hasGroupSavings),
+      hasCards: triStateToBoolean(hasCards),
+      hasLoans: triStateToBoolean(hasLoans),
+      hasEsims: triStateToBoolean(hasEsims),
+      hasPaymentRequests: triStateToBoolean(hasPaymentRequests)
+    };
+    Object.entries(ownershipFilters).forEach(([key, value]) => {
+      if (value !== undefined) audience[key] = value;
+    });
+    if (billProductIds.length) audience.billProductIds = billProductIds;
+    if (paymentMethodIds.length) audience.paymentMethodIds = paymentMethodIds;
+    if (paymentProviderIds.length) audience.paymentProviderIds = paymentProviderIds;
+    if (transactionServices.length) audience.transactionServices = transactionServices;
+    if (transactionActions.length) audience.transactionActions = transactionActions;
 
     if (Object.keys(audience).length === 0) return undefined;
     return audience;
@@ -159,7 +251,19 @@ export default function NotificationPushCampaignsPage() {
     maxCompletedTransactions,
     lastTransactionOlderThanDays,
     minTransactionsThisMonth,
-    maxTransactionsThisMonth
+    maxTransactionsThisMonth,
+    hasCryptoWallets,
+    hasSavings,
+    hasGroupSavings,
+    hasCards,
+    hasLoans,
+    hasEsims,
+    hasPaymentRequests,
+    selectedBillProductIds,
+    selectedPaymentMethodIds,
+    selectedPaymentProviderIds,
+    selectedTransactionServices,
+    selectedTransactionActions
   ]);
 
   const payloadPreview = useMemo(() => {
@@ -543,6 +647,123 @@ export default function NotificationPushCampaignsPage() {
                   <span>Max this month</span>
                   <input type="number" min={0} value={maxTransactionsThisMonth} onChange={(e) => setMaxTransactionsThisMonth(e.target.value)} placeholder="1" />
                 </label>
+              </div>
+            </details>
+            <details>
+              <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Advanced audience</summary>
+              <div style={{ display: 'grid', gap: '1rem', marginTop: '0.65rem' }}>
+                <div style={{ display: 'grid', gap: '0.35rem' }}>
+                  <div style={{ fontWeight: 700 }}>Product ownership</div>
+                  <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                    These are account-level filters. Any = do not filter. Yes = must have at least one. No = must have none.
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+                    {[
+                      ['Has crypto wallet', hasCryptoWallets, setHasCryptoWallets],
+                      ['Has savings', hasSavings, setHasSavings],
+                      ['Is in saving group', hasGroupSavings, setHasGroupSavings],
+                      ['Has card', hasCards, setHasCards],
+                      ['Has loan', hasLoans, setHasLoans],
+                      ['Has eSIM', hasEsims, setHasEsims],
+                      ['Has payment request', hasPaymentRequests, setHasPaymentRequests]
+                    ].map(([label, value, setter]) => (
+                      <label key={label} style={{ display: 'grid', gap: '0.35rem' }}>
+                        <span>{label}</span>
+                        <select value={value} onChange={(e) => setter(e.target.value)}>
+                          {triStateOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gap: '0.35rem' }}>
+                  <div style={{ fontWeight: 700 }}>Transaction type targeting</div>
+                  <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                    These filters use completed transactions. Combining several fields narrows the audience on the same transaction path.
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+                    <label style={{ display: 'grid', gap: '0.35rem' }}>
+                      <span>Bill products</span>
+                      <select
+                        multiple
+                        value={selectedBillProductIds}
+                        onChange={(e) => setSelectedBillProductIds(Array.from(e.target.selectedOptions).map((opt) => opt.value))}
+                        style={{ minHeight: '130px' }}
+                      >
+                        {billProducts.map((product) => (
+                          <option key={product.id} value={String(product.id)}>
+                            {(product.displayName || product.name || `Product ${product.id}`) + ` • ID ${product.id}`}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label style={{ display: 'grid', gap: '0.35rem' }}>
+                      <span>Payment methods</span>
+                      <select
+                        multiple
+                        value={selectedPaymentMethodIds}
+                        onChange={(e) => setSelectedPaymentMethodIds(Array.from(e.target.selectedOptions).map((opt) => opt.value))}
+                        style={{ minHeight: '130px' }}
+                      >
+                        {paymentMethods.map((method) => (
+                          <option key={method.id} value={String(method.id)}>
+                            {(method.displayName || method.name || `Method ${method.id}`) + ` • ID ${method.id}`}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label style={{ display: 'grid', gap: '0.35rem' }}>
+                      <span>Payment providers</span>
+                      <select
+                        multiple
+                        value={selectedPaymentProviderIds}
+                        onChange={(e) => setSelectedPaymentProviderIds(Array.from(e.target.selectedOptions).map((opt) => opt.value))}
+                        style={{ minHeight: '130px' }}
+                      >
+                        {paymentProviders.map((provider) => (
+                          <option key={provider.id} value={String(provider.id)}>
+                            {(provider.displayName || provider.name || `Provider ${provider.id}`) + ` • ID ${provider.id}`}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label style={{ display: 'grid', gap: '0.35rem' }}>
+                      <span>Services</span>
+                      <select
+                        multiple
+                        value={selectedTransactionServices}
+                        onChange={(e) => setSelectedTransactionServices(Array.from(e.target.selectedOptions).map((opt) => opt.value))}
+                        style={{ minHeight: '130px' }}
+                      >
+                        {serviceOptions.map((service) => (
+                          <option key={service} value={service}>
+                            {service}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label style={{ display: 'grid', gap: '0.35rem' }}>
+                      <span>Actions</span>
+                      <select
+                        multiple
+                        value={selectedTransactionActions}
+                        onChange={(e) => setSelectedTransactionActions(Array.from(e.target.selectedOptions).map((opt) => opt.value))}
+                        style={{ minHeight: '130px' }}
+                      >
+                        {actionOptions.map((action) => (
+                          <option key={action} value={action}>
+                            {action}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                </div>
               </div>
             </details>
             {(selectedCountryIds.length > 0 || selectedCountryCodes.length > 0) && (
