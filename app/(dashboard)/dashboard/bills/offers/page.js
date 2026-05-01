@@ -12,8 +12,13 @@ const emptyState = {
   displayName: '',
   price: '',
   currency: '',
-  ourPriceInUsd: ''
+  ourPriceInUsd: '',
+  promotionEnabled: false,
+  promotionExtraAmountUsd: '',
+  promotionTargetOfferId: ''
 };
+
+const PROMOTION_PROVIDER_KEYS = new Set(['CANAL_PLUS_CONGO', 'CANAL_PLUS_RWANDA']);
 
 const DetailGrid = ({ rows }) => (
   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
@@ -33,7 +38,10 @@ const toPayload = (state) => ({
   displayName: state.displayName,
   price: state.price === '' ? null : Number(state.price),
   currency: state.currency,
-  ourPriceInUsd: state.ourPriceInUsd === '' ? null : Number(state.ourPriceInUsd)
+  ourPriceInUsd: state.ourPriceInUsd === '' ? null : Number(state.ourPriceInUsd),
+  promotionEnabled: Boolean(state.promotionEnabled),
+  promotionExtraAmountUsd: state.promotionExtraAmountUsd === '' ? null : Number(state.promotionExtraAmountUsd),
+  promotionTargetOfferId: state.promotionTargetOfferId === '' ? null : Number(state.promotionTargetOfferId)
 });
 
 const Modal = ({ title, onClose, children }) => (
@@ -53,6 +61,7 @@ export default function BillOffersPage() {
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
   const [mappings, setMappings] = useState([]);
+  const [allOffers, setAllOffers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
@@ -87,15 +96,61 @@ export default function BillOffersPage() {
   useEffect(() => {
     const loadMappings = async () => {
       try {
-        const res = await api.billProductBillProviders.list(new URLSearchParams({ page: '0', size: '200' }));
-        const list = Array.isArray(res) ? res : res?.content || [];
-        setMappings(list || []);
+        const [mappingRes, offerRes] = await Promise.all([
+          api.billProductBillProviders.list(new URLSearchParams({ page: '0', size: '200' })),
+          api.billProductBillProviderOffers.list(new URLSearchParams({ page: '0', size: '500' }))
+        ]);
+        const mappingList = Array.isArray(mappingRes) ? mappingRes : mappingRes?.content || [];
+        const offerList = Array.isArray(offerRes) ? offerRes : offerRes?.content || [];
+        setMappings(mappingList || []);
+        setAllOffers(offerList || []);
       } catch {
         // ignore option loading failure silently
       }
     };
     loadMappings();
   }, []);
+
+  const selectedMapping = useMemo(
+    () => mappings.find((mapping) => String(mapping?.id) === String(draft.billProductBillProviderId)),
+    [draft.billProductBillProviderId, mappings]
+  );
+
+  const promotionEligible = useMemo(() => {
+    if (!selectedMapping) return false;
+    const values = [
+      selectedMapping?.billProviderName,
+      selectedMapping?.billProviderCode,
+      selectedMapping?.name,
+      selectedMapping?.displayName
+    ]
+      .map((value) => String(value || '').trim().toUpperCase())
+      .filter(Boolean);
+    return values.some((value) => PROMOTION_PROVIDER_KEYS.has(value));
+  }, [selectedMapping]);
+
+  const promotionTargetOffers = useMemo(
+    () =>
+      allOffers.filter((offer) => {
+        if (String(offer?.billProductBillProviderId) !== String(draft.billProductBillProviderId)) return false;
+        if (selected?.id && Number(offer?.id) === Number(selected.id)) return false;
+        return true;
+      }),
+    [allOffers, draft.billProductBillProviderId, selected?.id]
+  );
+
+  useEffect(() => {
+    if (promotionEligible) return;
+    setDraft((prev) => {
+      if (!prev.promotionEnabled && prev.promotionExtraAmountUsd === '' && prev.promotionTargetOfferId === '') return prev;
+      return {
+        ...prev,
+        promotionEnabled: false,
+        promotionExtraAmountUsd: '',
+        promotionTargetOfferId: ''
+      };
+    });
+  }, [promotionEligible]);
 
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
@@ -132,7 +187,10 @@ export default function BillOffersPage() {
       displayName: row.displayName ?? '',
       price: row.price ?? '',
       currency: row.currency ?? '',
-      ourPriceInUsd: row.ourPriceInUsd ?? ''
+      ourPriceInUsd: row.ourPriceInUsd ?? '',
+      promotionEnabled: Boolean(row.promotionEnabled),
+      promotionExtraAmountUsd: row.promotionExtraAmountUsd ?? '',
+      promotionTargetOfferId: row.promotionTargetOfferId ?? ''
     });
     setShowEdit(true);
     setInfo(null);
@@ -149,6 +207,18 @@ export default function BillOffersPage() {
   const handleCreate = async () => {
     setError(null);
     setInfo(null);
+    if (promotionEligible && draft.promotionEnabled) {
+      const extraAmount = Number(draft.promotionExtraAmountUsd);
+      const targetOfferId = Number(draft.promotionTargetOfferId);
+      if (!Number.isFinite(extraAmount) || extraAmount <= 0) {
+        setError('Extra amount to charge (USD) must be greater than 0 when promotion is enabled.');
+        return;
+      }
+      if (!Number.isFinite(targetOfferId) || targetOfferId <= 0) {
+        setError('Promoted upgrade offer is required when promotion is enabled.');
+        return;
+      }
+    }
     try {
       await api.billProductBillProviderOffers.create(toPayload(draft));
       setInfo('Created offer.');
@@ -163,6 +233,22 @@ export default function BillOffersPage() {
     if (!selected?.id) return;
     setError(null);
     setInfo(null);
+    if (promotionEligible && draft.promotionEnabled) {
+      const extraAmount = Number(draft.promotionExtraAmountUsd);
+      const targetOfferId = Number(draft.promotionTargetOfferId);
+      if (!Number.isFinite(extraAmount) || extraAmount <= 0) {
+        setError('Extra amount to charge (USD) must be greater than 0 when promotion is enabled.');
+        return;
+      }
+      if (!Number.isFinite(targetOfferId) || targetOfferId <= 0) {
+        setError('Promoted upgrade offer is required when promotion is enabled.');
+        return;
+      }
+      if (Number(targetOfferId) === Number(selected.id)) {
+        setError('Promoted upgrade offer cannot be the same offer.');
+        return;
+      }
+    }
     try {
       await api.billProductBillProviderOffers.update(selected.id, toPayload(draft));
       setInfo(`Updated offer ${selected.id}.`);
@@ -229,6 +315,64 @@ export default function BillOffersPage() {
         <label htmlFor="ourPriceInUsd">Our price (USD)</label>
         <input id="ourPriceInUsd" type="number" value={draft.ourPriceInUsd} onChange={(e) => setDraft((p) => ({ ...p, ourPriceInUsd: e.target.value }))} />
       </div>
+      {promotionEligible ? (
+        <div style={{ gridColumn: '1 / -1', display: 'grid', gap: '0.75rem', padding: '0.9rem', border: '1px solid var(--border)', borderRadius: '12px', background: 'color-mix(in srgb, var(--surface) 96%, var(--accent-soft) 4%)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <div style={{ fontWeight: 700 }}>Promotion</div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              When enabled, the customer pays an extra amount and receives the selected upgrade offer.
+            </div>
+          </div>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+            <input
+              type="checkbox"
+              checked={Boolean(draft.promotionEnabled)}
+              onChange={(e) =>
+                setDraft((p) => ({
+                  ...p,
+                  promotionEnabled: e.target.checked,
+                  promotionExtraAmountUsd: e.target.checked ? p.promotionExtraAmountUsd : '',
+                  promotionTargetOfferId: e.target.checked ? p.promotionTargetOfferId : ''
+                }))
+              }
+            />
+            Promotion enabled
+          </label>
+          {draft.promotionEnabled ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="promotionExtraAmountUsd">Extra amount to charge (USD)</label>
+                <input
+                  id="promotionExtraAmountUsd"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={draft.promotionExtraAmountUsd}
+                  onChange={(e) => setDraft((p) => ({ ...p, promotionExtraAmountUsd: e.target.value }))}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="promotionTargetOfferId">Promoted upgrade offer</label>
+                <select
+                  id="promotionTargetOfferId"
+                  value={draft.promotionTargetOfferId}
+                  onChange={(e) => setDraft((p) => ({ ...p, promotionTargetOfferId: e.target.value }))}
+                >
+                  <option value="">Select target offer</option>
+                  {promotionTargetOffers.map((offer) => (
+                    <option key={offer.id} value={offer.id}>
+                      {(offer.displayName || offer.name || `Offer #${offer.id}`)} {offer.price ? `• ${offer.price} ${offer.currency || ''}`.trim() : ''}
+                    </option>
+                  ))}
+                </select>
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                  Only offers from the same provider mapping can be selected.
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 
@@ -304,6 +448,9 @@ export default function BillOffersPage() {
               { label: 'Prod/Prov ID', value: selected?.billProductBillProviderId },
               { label: 'Price', value: `${selected?.price ?? ''} ${selected?.currency ?? ''}`.trim() },
               { label: 'Our price (USD)', value: selected?.ourPriceInUsd ? `${selected.ourPriceInUsd} $` : '—' },
+              { label: 'Promotion enabled', value: selected?.promotionEnabled ? 'Yes' : 'No' },
+              { label: 'Extra amount (USD)', value: selected?.promotionExtraAmountUsd ? `${selected.promotionExtraAmountUsd} $` : '—' },
+              { label: 'Promoted target offer', value: selected?.promotionTargetOfferId ?? '—' },
               { label: 'External ref', value: selected?.externalReference },
               { label: 'Created', value: selected?.createdAt },
               { label: 'Updated', value: selected?.updatedAt }
