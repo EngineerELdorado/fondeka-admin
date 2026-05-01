@@ -183,6 +183,15 @@ export default function NotificationAnonymousInstallsPage() {
     [appliedFilters]
   );
 
+  const anonymousCampaignHref = useMemo(() => {
+    const params = new URLSearchParams();
+    if (String(appliedFilters.platform || '').trim()) params.set('platform', String(appliedFilters.platform).trim());
+    if (String(appliedFilters.preferredLanguage || '').trim()) params.set('preferredLanguage', String(appliedFilters.preferredLanguage).trim());
+    if (String(appliedFilters.country || '').trim()) params.set('country', String(appliedFilters.country).trim());
+    const query = params.toString();
+    return query ? `/dashboard/notification-anonymous-push-campaigns?${query}` : '/dashboard/notification-anonymous-push-campaigns';
+  }, [appliedFilters]);
+
   const applyFilters = () => {
     setPage(0);
     setAppliedFilters(filters);
@@ -204,6 +213,12 @@ export default function NotificationAnonymousInstallsPage() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <Link
+            href={anonymousCampaignHref}
+            style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}
+          >
+            Anonymous push campaign
+          </Link>
           <Link
             href="/dashboard/notification-push-campaigns"
             style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}
