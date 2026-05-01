@@ -18,8 +18,6 @@ const emptyState = {
   promotionTargetOfferId: ''
 };
 
-const PROMOTION_PROVIDER_KEYS = new Set(['CANAL_PLUS_CONGO', 'CANAL_PLUS_RWANDA']);
-
 const DetailGrid = ({ rows }) => (
   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
     {rows.map((row) => (
@@ -111,24 +109,6 @@ export default function BillOffersPage() {
     loadMappings();
   }, []);
 
-  const selectedMapping = useMemo(
-    () => mappings.find((mapping) => String(mapping?.id) === String(draft.billProductBillProviderId)),
-    [draft.billProductBillProviderId, mappings]
-  );
-
-  const promotionEligible = useMemo(() => {
-    if (!selectedMapping) return false;
-    const values = [
-      selectedMapping?.billProviderName,
-      selectedMapping?.billProviderCode,
-      selectedMapping?.name,
-      selectedMapping?.displayName
-    ]
-      .map((value) => String(value || '').trim().toUpperCase())
-      .filter(Boolean);
-    return values.some((value) => PROMOTION_PROVIDER_KEYS.has(value));
-  }, [selectedMapping]);
-
   const promotionTargetOffers = useMemo(
     () =>
       allOffers.filter((offer) => {
@@ -138,19 +118,6 @@ export default function BillOffersPage() {
       }),
     [allOffers, draft.billProductBillProviderId, selected?.id]
   );
-
-  useEffect(() => {
-    if (promotionEligible) return;
-    setDraft((prev) => {
-      if (!prev.promotionEnabled && prev.promotionExtraAmountUsd === '' && prev.promotionTargetOfferId === '') return prev;
-      return {
-        ...prev,
-        promotionEnabled: false,
-        promotionExtraAmountUsd: '',
-        promotionTargetOfferId: ''
-      };
-    });
-  }, [promotionEligible]);
 
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
@@ -207,7 +174,7 @@ export default function BillOffersPage() {
   const handleCreate = async () => {
     setError(null);
     setInfo(null);
-    if (promotionEligible && draft.promotionEnabled) {
+    if (draft.promotionEnabled) {
       const extraAmount = Number(draft.promotionExtraAmountUsd);
       const targetOfferId = Number(draft.promotionTargetOfferId);
       if (!Number.isFinite(extraAmount) || extraAmount <= 0) {
@@ -233,7 +200,7 @@ export default function BillOffersPage() {
     if (!selected?.id) return;
     setError(null);
     setInfo(null);
-    if (promotionEligible && draft.promotionEnabled) {
+    if (draft.promotionEnabled) {
       const extraAmount = Number(draft.promotionExtraAmountUsd);
       const targetOfferId = Number(draft.promotionTargetOfferId);
       if (!Number.isFinite(extraAmount) || extraAmount <= 0) {
@@ -315,64 +282,62 @@ export default function BillOffersPage() {
         <label htmlFor="ourPriceInUsd">Our price (USD)</label>
         <input id="ourPriceInUsd" type="number" value={draft.ourPriceInUsd} onChange={(e) => setDraft((p) => ({ ...p, ourPriceInUsd: e.target.value }))} />
       </div>
-      {promotionEligible ? (
-        <div style={{ gridColumn: '1 / -1', display: 'grid', gap: '0.75rem', padding: '0.9rem', border: '1px solid var(--border)', borderRadius: '12px', background: 'color-mix(in srgb, var(--surface) 96%, var(--accent-soft) 4%)' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <div style={{ fontWeight: 700 }}>Promotion</div>
-            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-              When enabled, the customer pays an extra amount and receives the selected upgrade offer.
+      <div style={{ gridColumn: '1 / -1', display: 'grid', gap: '0.75rem', padding: '0.9rem', border: '1px solid var(--border)', borderRadius: '12px', background: 'color-mix(in srgb, var(--surface) 96%, var(--accent-soft) 4%)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <div style={{ fontWeight: 700 }}>Promotion</div>
+          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+            When enabled, the customer pays an extra amount and receives the selected upgrade offer.
+          </div>
+        </div>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+          <input
+            type="checkbox"
+            checked={Boolean(draft.promotionEnabled)}
+            onChange={(e) =>
+              setDraft((p) => ({
+                ...p,
+                promotionEnabled: e.target.checked,
+                promotionExtraAmountUsd: e.target.checked ? p.promotionExtraAmountUsd : '',
+                promotionTargetOfferId: e.target.checked ? p.promotionTargetOfferId : ''
+              }))
+            }
+          />
+          Promotion enabled
+        </label>
+        {draft.promotionEnabled ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="promotionExtraAmountUsd">Extra amount to charge (USD)</label>
+              <input
+                id="promotionExtraAmountUsd"
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={draft.promotionExtraAmountUsd}
+                onChange={(e) => setDraft((p) => ({ ...p, promotionExtraAmountUsd: e.target.value }))}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="promotionTargetOfferId">Promoted upgrade offer</label>
+              <select
+                id="promotionTargetOfferId"
+                value={draft.promotionTargetOfferId}
+                onChange={(e) => setDraft((p) => ({ ...p, promotionTargetOfferId: e.target.value }))}
+              >
+                <option value="">Select target offer</option>
+                {promotionTargetOffers.map((offer) => (
+                  <option key={offer.id} value={offer.id}>
+                    {(offer.displayName || offer.name || `Offer #${offer.id}`)} {offer.price ? `• ${offer.price} ${offer.currency || ''}`.trim() : ''}
+                  </option>
+                ))}
+              </select>
+              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                Only offers from the same provider mapping can be selected.
+              </div>
             </div>
           </div>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
-            <input
-              type="checkbox"
-              checked={Boolean(draft.promotionEnabled)}
-              onChange={(e) =>
-                setDraft((p) => ({
-                  ...p,
-                  promotionEnabled: e.target.checked,
-                  promotionExtraAmountUsd: e.target.checked ? p.promotionExtraAmountUsd : '',
-                  promotionTargetOfferId: e.target.checked ? p.promotionTargetOfferId : ''
-                }))
-              }
-            />
-            Promotion enabled
-          </label>
-          {draft.promotionEnabled ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="promotionExtraAmountUsd">Extra amount to charge (USD)</label>
-                <input
-                  id="promotionExtraAmountUsd"
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  value={draft.promotionExtraAmountUsd}
-                  onChange={(e) => setDraft((p) => ({ ...p, promotionExtraAmountUsd: e.target.value }))}
-                />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="promotionTargetOfferId">Promoted upgrade offer</label>
-                <select
-                  id="promotionTargetOfferId"
-                  value={draft.promotionTargetOfferId}
-                  onChange={(e) => setDraft((p) => ({ ...p, promotionTargetOfferId: e.target.value }))}
-                >
-                  <option value="">Select target offer</option>
-                  {promotionTargetOffers.map((offer) => (
-                    <option key={offer.id} value={offer.id}>
-                      {(offer.displayName || offer.name || `Offer #${offer.id}`)} {offer.price ? `• ${offer.price} ${offer.currency || ''}`.trim() : ''}
-                    </option>
-                  ))}
-                </select>
-                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-                  Only offers from the same provider mapping can be selected.
-                </div>
-              </div>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
+        ) : null}
+      </div>
     </div>
   );
 
@@ -450,7 +415,7 @@ export default function BillOffersPage() {
               { label: 'Our price (USD)', value: selected?.ourPriceInUsd ? `${selected.ourPriceInUsd} $` : '—' },
               { label: 'Promotion enabled', value: selected?.promotionEnabled ? 'Yes' : 'No' },
               { label: 'Extra amount (USD)', value: selected?.promotionExtraAmountUsd ? `${selected.promotionExtraAmountUsd} $` : '—' },
-              { label: 'Promoted target offer', value: selected?.promotionTargetOfferId ?? '—' },
+              { label: 'Promoted target offer', value: selected?.promotionTargetOfferDisplayName || selected?.promotionTargetOfferId || '—' },
               { label: 'External ref', value: selected?.externalReference },
               { label: 'Created', value: selected?.createdAt },
               { label: 'Updated', value: selected?.updatedAt }
