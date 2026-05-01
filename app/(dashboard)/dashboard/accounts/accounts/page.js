@@ -206,6 +206,7 @@ export default function AccountsListPage() {
   const [pricingExtraLoan, setPricingExtraLoan] = useState('');
   const [pricingMaxCollection, setPricingMaxCollection] = useState('');
   const [pricingMaxPayout, setPricingMaxPayout] = useState('');
+  const [pricingTransactionsEligible, setPricingTransactionsEligible] = useState('');
   const [pricingNote, setPricingNote] = useState('');
   const [pricingError, setPricingError] = useState(null);
   const [pricingSaving, setPricingSaving] = useState(false);
@@ -884,6 +885,13 @@ export default function AccountsListPage() {
     setPricingExtraLoan(source?.extraLoanEligibilityAmount !== undefined && source?.extraLoanEligibilityAmount !== null ? String(source.extraLoanEligibilityAmount) : '0');
     setPricingMaxCollection(source?.maxCollectionAmount !== undefined && source?.maxCollectionAmount !== null ? String(source.maxCollectionAmount) : '');
     setPricingMaxPayout(source?.maxPayoutAmount !== undefined && source?.maxPayoutAmount !== null ? String(source.maxPayoutAmount) : '');
+    setPricingTransactionsEligible(
+      source?.transactionsEligibleForLoanEligibility === true
+        ? 'true'
+        : source?.transactionsEligibleForLoanEligibility === false
+          ? 'false'
+          : ''
+    );
     setPricingNote(source?.note ? String(source.note) : '');
   };
 
@@ -924,6 +932,12 @@ export default function AccountsListPage() {
         extraLoanEligibilityAmount: extraLoan,
         maxCollectionAmount: maxCollection,
         maxPayoutAmount: maxPayout,
+        transactionsEligibleForLoanEligibility:
+          pricingTransactionsEligible === 'true'
+            ? true
+            : pricingTransactionsEligible === 'false'
+              ? false
+              : null,
         note: pricingNote?.trim() ? pricingNote.trim() : null
       };
       await api.accounts.updateCustomPricing(selected.id, payload);
@@ -1338,6 +1352,15 @@ export default function AccountsListPage() {
                       { label: 'Extra loan eligibility', value: customPricing.extraLoanEligibilityAmount },
                       { label: 'Max collection', value: customPricing.maxCollectionAmount ?? 'Default' },
                       { label: 'Max payout', value: customPricing.maxPayoutAmount ?? 'Default' },
+                      {
+                        label: 'Transactions count toward loan eligibility',
+                        value:
+                          customPricing.transactionsEligibleForLoanEligibility === true
+                            ? 'Yes'
+                            : customPricing.transactionsEligibleForLoanEligibility === false
+                              ? 'No'
+                              : 'Inherit global default'
+                      },
                       { label: 'Note', value: customPricing.note ?? '—' },
                       { label: 'Updated', value: customPricing.updatedAt ? formatDateTime(customPricing.updatedAt) : '—' }
                     ]}
@@ -1900,6 +1923,21 @@ export default function AccountsListPage() {
                 <label htmlFor="pricingNote">{t('common.note')} (optional)</label>
                 <input id="pricingNote" value={pricingNote} onChange={(e) => setPricingNote(e.target.value)} placeholder="VIP customer" />
               </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="pricingTransactionsEligible">Transactions count toward loan eligibility</label>
+                <select
+                  id="pricingTransactionsEligible"
+                  value={pricingTransactionsEligible}
+                  onChange={(e) => setPricingTransactionsEligible(e.target.value)}
+                >
+                  <option value="">Use global default</option>
+                  <option value="true">Yes</option>
+                  <option value="false">No</option>
+                </select>
+              </div>
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              This account override wins over bill-product defaults for future transactions. Leave it on global default to keep inherited behavior.
             </div>
             {pricingError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{pricingError}</div>}
             <div className="modal-actions">

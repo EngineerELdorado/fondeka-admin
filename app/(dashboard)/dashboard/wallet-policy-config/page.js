@@ -92,6 +92,7 @@ export default function WalletPolicyConfigPage() {
   const [forceKycBeforeAppUse, setForceKycBeforeAppUse] = useState(false);
   const [sendCryptoExternalProviderEnabled, setSendCryptoExternalProviderEnabled] = useState(false);
   const [reviewPromptCompletedTransactionsThreshold, setReviewPromptCompletedTransactionsThreshold] = useState('');
+  const [transactionsEligibleForLoanEligibility, setTransactionsEligibleForLoanEligibility] = useState(true);
   const [autoRefundBlockedActions, setAutoRefundBlockedActions] = useState([]);
   const [autoRefundActionSearch, setAutoRefundActionSearch] = useState('');
   const [globalFeeApplicationMode, setGlobalFeeApplicationMode] = useState('EXCLUSIVE');
@@ -154,6 +155,7 @@ export default function WalletPolicyConfigPage() {
       setForcePayoutKycUnlessApproved(Boolean(res?.forcePayoutKycUnlessApproved));
       setForceKycBeforeAppUse(Boolean(res?.forceKycBeforeAppUse));
       setSendCryptoExternalProviderEnabled(Boolean(res?.sendCryptoExternalProviderEnabled));
+      setTransactionsEligibleForLoanEligibility(res?.transactionsEligibleForLoanEligibility !== false);
       const reviewPromptThreshold = res?.reviewPromptCompletedTransactionsThreshold;
       setReviewPromptCompletedTransactionsThreshold(
         reviewPromptThreshold === null || reviewPromptThreshold === undefined ? '' : String(reviewPromptThreshold)
@@ -262,6 +264,7 @@ export default function WalletPolicyConfigPage() {
         forcePayoutKycUnlessApproved: Boolean(forcePayoutKycUnlessApproved),
         forceKycBeforeAppUse: Boolean(forceKycBeforeAppUse),
         sendCryptoExternalProviderEnabled: Boolean(sendCryptoExternalProviderEnabled),
+        transactionsEligibleForLoanEligibility: Boolean(transactionsEligibleForLoanEligibility),
         reviewPromptCompletedTransactionsThreshold:
           reviewPromptThresholdRaw === '' ? null : reviewPromptThresholdParsed,
         autoRefundBlockedActions: normalizedAutoRefundBlockedActions,
@@ -769,6 +772,30 @@ export default function WalletPolicyConfigPage() {
             </div>
             <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
               Leave blank to let backend fallback apply.
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <div style={{ fontWeight: 700 }}>Loan Eligibility Defaults</div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Master control for whether new transactions may count toward loan eligibility before account or transaction-level rules apply.
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '12px' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+              <input
+                type="checkbox"
+                checked={transactionsEligibleForLoanEligibility}
+                onChange={(e) => setTransactionsEligibleForLoanEligibility(e.target.checked)}
+                disabled={loading || saving}
+              />
+              Transactions count toward loan eligibility
+            </label>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              If disabled, all transactions are treated as ineligible for loan-eligibility calculations regardless of account or bill-product settings.
             </div>
           </div>
         </div>
