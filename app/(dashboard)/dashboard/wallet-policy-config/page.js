@@ -92,6 +92,8 @@ export default function WalletPolicyConfigPage() {
   const [forceKycBeforeAppUse, setForceKycBeforeAppUse] = useState(false);
   const [sendCryptoExternalProviderEnabled, setSendCryptoExternalProviderEnabled] = useState(false);
   const [reviewPromptCompletedTransactionsThreshold, setReviewPromptCompletedTransactionsThreshold] = useState('');
+  const [showDepositPrompt, setShowDepositPrompt] = useState(false);
+  const [depositPromptThresholdAmount, setDepositPromptThresholdAmount] = useState('');
   const [transactionsEligibleForLoanEligibility, setTransactionsEligibleForLoanEligibility] = useState(true);
   const [autoRefundBlockedActions, setAutoRefundBlockedActions] = useState([]);
   const [autoRefundActionSearch, setAutoRefundActionSearch] = useState('');
@@ -155,6 +157,8 @@ export default function WalletPolicyConfigPage() {
       setForcePayoutKycUnlessApproved(Boolean(res?.forcePayoutKycUnlessApproved));
       setForceKycBeforeAppUse(Boolean(res?.forceKycBeforeAppUse));
       setSendCryptoExternalProviderEnabled(Boolean(res?.sendCryptoExternalProviderEnabled));
+      setShowDepositPrompt(Boolean(res?.showDepositPrompt));
+      setDepositPromptThresholdAmount(formatUsdValue(res?.depositPromptThresholdAmount));
       setTransactionsEligibleForLoanEligibility(res?.transactionsEligibleForLoanEligibility !== false);
       const reviewPromptThreshold = res?.reviewPromptCompletedTransactionsThreshold;
       setReviewPromptCompletedTransactionsThreshold(
@@ -211,12 +215,14 @@ export default function WalletPolicyConfigPage() {
     const paypalMinimumPayoutRaw = String(paypalMinimumPayoutUsd || '').trim();
     const payoutKycThresholdRaw = String(payoutKycThresholdUsd || '').trim();
     const reviewPromptThresholdRaw = String(reviewPromptCompletedTransactionsThreshold || '').trim();
+    const depositPromptThresholdRaw = String(depositPromptThresholdAmount || '').trim();
     const minParsed = minRaw === '' ? null : Number(minRaw);
     const maxParsed = maxRaw === '' ? null : Number(maxRaw);
     const sendAirtimeMinimumParsed = sendAirtimeMinimumRaw === '' ? null : Number(sendAirtimeMinimumRaw);
     const paypalMinimumPayoutParsed = paypalMinimumPayoutRaw === '' ? null : Number(paypalMinimumPayoutRaw);
     const payoutKycThresholdParsed = payoutKycThresholdRaw === '' ? null : Number(payoutKycThresholdRaw);
     const reviewPromptThresholdParsed = reviewPromptThresholdRaw === '' ? null : Number(reviewPromptThresholdRaw);
+    const depositPromptThresholdParsed = depositPromptThresholdRaw === '' ? null : Number(depositPromptThresholdRaw);
     if (minRaw !== '' && (!Number.isFinite(minParsed) || minParsed <= 0)) {
       setError('Minimum amount must be greater than 0.');
       return;
@@ -248,6 +254,10 @@ export default function WalletPolicyConfigPage() {
       setError(`Review prompt completed transactions threshold must be a positive integer greater than or equal to ${MIN_REVIEW_PROMPT_THRESHOLD}.`);
       return;
     }
+    if (depositPromptThresholdRaw !== '' && (!Number.isFinite(depositPromptThresholdParsed) || depositPromptThresholdParsed <= 0)) {
+      setError('Deposit prompt threshold amount must be a positive amount.');
+      return;
+    }
     setSaving(true);
     setError(null);
     setInfo(null);
@@ -264,6 +274,8 @@ export default function WalletPolicyConfigPage() {
         forcePayoutKycUnlessApproved: Boolean(forcePayoutKycUnlessApproved),
         forceKycBeforeAppUse: Boolean(forceKycBeforeAppUse),
         sendCryptoExternalProviderEnabled: Boolean(sendCryptoExternalProviderEnabled),
+        showDepositPrompt: Boolean(showDepositPrompt),
+        depositPromptThresholdAmount: depositPromptThresholdRaw === '' ? null : depositPromptThresholdParsed.toFixed(2),
         transactionsEligibleForLoanEligibility: Boolean(transactionsEligibleForLoanEligibility),
         reviewPromptCompletedTransactionsThreshold:
           reviewPromptThresholdRaw === '' ? null : reviewPromptThresholdParsed,
@@ -772,6 +784,58 @@ export default function WalletPolicyConfigPage() {
             </div>
             <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
               Leave blank to let backend fallback apply.
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gap: '0.5rem', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ fontWeight: 700 }}>Home Deposit Prompt</div>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  padding: '0.2rem 0.5rem',
+                  borderRadius: '999px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  background: showDepositPrompt ? '#dbeafe' : depositPromptThresholdAmount ? '#ecfccb' : '#f3f4f6',
+                  color: showDepositPrompt ? '#1d4ed8' : depositPromptThresholdAmount ? '#3f6212' : '#374151'
+                }}
+              >
+                {showDepositPrompt ? 'Forced' : depositPromptThresholdAmount ? 'Threshold-based' : 'Client fallback'}
+              </span>
+            </div>
+
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+              <input
+                type="checkbox"
+                checked={showDepositPrompt}
+                onChange={(e) => setShowDepositPrompt(e.target.checked)}
+                disabled={loading || saving}
+              />
+              Force Deposit Prompt
+            </label>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Show the Home deposit prompt for all users regardless of current wallet balance.
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxWidth: '320px' }}>
+              <label htmlFor="depositPromptThresholdAmount">Deposit Prompt Threshold Amount</label>
+              <input
+                id="depositPromptThresholdAmount"
+                type="number"
+                min="0.01"
+                step="0.01"
+                inputMode="decimal"
+                value={depositPromptThresholdAmount}
+                onChange={(e) => setDepositPromptThresholdAmount(e.target.value)}
+                onBlur={() => setDepositPromptThresholdAmount((prev) => formatUsdValue(String(prev || '').trim()))}
+                placeholder="5.00"
+                disabled={loading || saving}
+              />
+              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                Show the Home deposit prompt when wallet balance is below this amount. Leave empty to let the app use its fallback threshold.
+              </div>
             </div>
           </div>
         </div>
