@@ -7,6 +7,7 @@ import { DataTable } from '@/components/DataTable';
 
 const initialFilters = {
   claimed: 'false',
+  audienceType: '',
   platform: '',
   preferredLanguage: '',
   country: '',
@@ -46,6 +47,13 @@ const formatDateTime = (value) => {
 };
 
 const pickCountry = (row) => row?.lastSeenCountry || row?.lastSeenCountryClient || '—';
+const getAudienceBadge = (row) => {
+  if (row?.claimed) return statusBadge('Logged back in', { bg: '#EFF6FF', fg: '#1D4ED8' });
+  if (String(row?.audienceType || '').toUpperCase() === 'SIGNED_OUT_REENGAGEMENT') {
+    return statusBadge('Signed out', { bg: '#FFF7ED', fg: '#C2410C' });
+  }
+  return statusBadge('Pre-signup', { bg: '#ECFDF3', fg: '#15803D' });
+};
 
 const Modal = ({ title, onClose, children }) => (
   <div className="modal-backdrop">
@@ -137,6 +145,7 @@ export default function NotificationAnonymousInstallsPage() {
       { key: 'platform', label: 'Platform', render: (row) => String(row?.platform || '—').toUpperCase() },
       { key: 'deviceName', label: 'Device name', render: (row) => row?.deviceName || '—' },
       { key: 'preferredLanguage', label: 'Language', render: (row) => row?.preferredLanguage || '—' },
+      { key: 'audienceType', label: 'Audience type', render: (row) => getAudienceBadge(row) },
       { key: 'country', label: 'Country', render: (row) => pickCountry(row) },
       {
         key: 'hasPushToken',
@@ -156,6 +165,9 @@ export default function NotificationAnonymousInstallsPage() {
             : statusBadge('Unclaimed', { bg: '#FEF2F2', fg: '#B91C1C' })
       },
       { key: 'claimedAccountId', label: 'Claimed account', render: (row) => row?.claimedAccountId ?? '—' },
+      { key: 'lastAuthenticatedAccountId', label: 'Last auth account', render: (row) => row?.lastAuthenticatedAccountId ?? '—' },
+      { key: 'lastAuthenticatedAt', label: 'Last authenticated', render: (row) => formatDateTime(row?.lastAuthenticatedAt) },
+      { key: 'lastLogoutAt', label: 'Last logout', render: (row) => formatDateTime(row?.lastLogoutAt) },
       { key: 'lastSeenAt', label: 'Last seen', render: (row) => formatDateTime(row?.lastSeenAt) },
       { key: 'createdAt', label: 'Created', render: (row) => formatDateTime(row?.createdAt) },
       {
@@ -185,6 +197,7 @@ export default function NotificationAnonymousInstallsPage() {
 
   const anonymousCampaignHref = useMemo(() => {
     const params = new URLSearchParams();
+    if (String(appliedFilters.audienceType || '').trim()) params.set('audienceType', String(appliedFilters.audienceType).trim());
     if (String(appliedFilters.platform || '').trim()) params.set('platform', String(appliedFilters.platform).trim());
     if (String(appliedFilters.preferredLanguage || '').trim()) params.set('preferredLanguage', String(appliedFilters.preferredLanguage).trim());
     if (String(appliedFilters.country || '').trim()) params.set('country', String(appliedFilters.country).trim());
@@ -249,6 +262,14 @@ export default function NotificationAnonymousInstallsPage() {
               <option value="">All</option>
               <option value="false">Unclaimed</option>
               <option value="true">Claimed</option>
+            </select>
+          </div>
+          <div style={{ display: 'grid', gap: '0.25rem' }}>
+            <label htmlFor="audienceType">Audience type</label>
+            <select id="audienceType" value={filters.audienceType} onChange={(e) => setFilters((prev) => ({ ...prev, audienceType: e.target.value }))}>
+              <option value="">All</option>
+              <option value="PRE_SIGNUP">Pre-signup</option>
+              <option value="SIGNED_OUT_REENGAGEMENT">Signed-out re-engagement</option>
             </select>
           </div>
           <div style={{ display: 'grid', gap: '0.25rem' }}>
@@ -344,6 +365,7 @@ export default function NotificationAnonymousInstallsPage() {
               { label: 'Device ID', value: selected.deviceId },
               { label: 'Platform', value: selected.platform },
               { label: 'Device name', value: selected.deviceName || '—' },
+              { label: 'Audience type', value: String(selected.audienceType || '').toUpperCase() || '—' },
               { label: 'Language', value: selected.preferredLanguage || '—' },
               { label: 'Push token type', value: selected.pushTokenType || '—' },
               { label: 'Push token', value: selected.pushToken || '—' },
@@ -352,6 +374,9 @@ export default function NotificationAnonymousInstallsPage() {
               { label: 'Last seen user agent', value: selected.lastSeenUserAgent || '—' },
               { label: 'Server country', value: selected.lastSeenCountry || '—' },
               { label: 'Client country', value: selected.lastSeenCountryClient || '—' },
+              { label: 'Last authenticated account ID', value: selected.lastAuthenticatedAccountId ?? '—' },
+              { label: 'Last authenticated at', value: formatDateTime(selected.lastAuthenticatedAt) },
+              { label: 'Last logout at', value: formatDateTime(selected.lastLogoutAt) },
               { label: 'Last seen at', value: formatDateTime(selected.lastSeenAt) },
               { label: 'Claimed', value: selected.claimed ? 'Yes' : 'No' },
               { label: 'Claimed at', value: formatDateTime(selected.claimedAt) },

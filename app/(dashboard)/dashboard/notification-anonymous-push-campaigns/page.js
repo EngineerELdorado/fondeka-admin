@@ -39,10 +39,12 @@ export default function NotificationAnonymousPushCampaignsPage() {
   const initialPlatform = String(searchParams?.get('platform') || '').trim().toLowerCase();
   const initialLanguage = String(searchParams?.get('preferredLanguage') || '').trim().toLowerCase();
   const initialCountry = String(searchParams?.get('country') || '').trim().toUpperCase();
+  const initialAudienceType = String(searchParams?.get('audienceType') || '').trim().toUpperCase();
 
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [dataRows, setDataRows] = useState([emptyDataRow]);
+  const [audienceTypesInput, setAudienceTypesInput] = useState(initialAudienceType);
   const [platformsInput, setPlatformsInput] = useState(initialPlatform);
   const [deviceLanguagesInput, setDeviceLanguagesInput] = useState(initialLanguage);
   const [countryCodesInput, setCountryCodesInput] = useState(initialCountry);
@@ -58,10 +60,12 @@ export default function NotificationAnonymousPushCampaignsPage() {
   const audiencePreview = useMemo(() => {
     try {
       const audience = {};
+      const audienceTypes = splitCsv(audienceTypesInput).map((value) => value.toUpperCase());
       const platforms = splitCsv(platformsInput).map((value) => value.toLowerCase());
       const deviceLanguages = splitCsv(deviceLanguagesInput).map((value) => value.toLowerCase());
       const countryCodes = splitCsv(countryCodesInput).map((value) => value.toUpperCase());
       const seenDays = toOptionalInteger(seenWithinDays, { min: 1, label: 'Seen within days' });
+      if (audienceTypes.length) audience.audienceTypes = Array.from(new Set(audienceTypes));
       if (platforms.length) audience.platforms = Array.from(new Set(platforms));
       if (deviceLanguages.length) audience.deviceLanguages = Array.from(new Set(deviceLanguages));
       if (countryCodes.length) audience.countryCodes = Array.from(new Set(countryCodes));
@@ -70,7 +74,7 @@ export default function NotificationAnonymousPushCampaignsPage() {
     } catch (previewError) {
       return { invalid: previewError.message };
     }
-  }, [platformsInput, deviceLanguagesInput, countryCodesInput, seenWithinDays]);
+  }, [audienceTypesInput, platformsInput, deviceLanguagesInput, countryCodesInput, seenWithinDays]);
 
   const payloadPreview = useMemo(() => {
     try {
@@ -148,6 +152,10 @@ export default function NotificationAnonymousPushCampaignsPage() {
           Backend still limits delivery to unclaimed installs with usable push tokens. These filters only narrow that anonymous audience further.
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+          <div style={{ display: 'grid', gap: '0.25rem' }}>
+            <label htmlFor="audienceTypes">Audience types</label>
+            <input id="audienceTypes" value={audienceTypesInput} onChange={(e) => setAudienceTypesInput(e.target.value)} placeholder="PRE_SIGNUP,SIGNED_OUT_REENGAGEMENT" />
+          </div>
           <div style={{ display: 'grid', gap: '0.25rem' }}>
             <label htmlFor="platforms">Platforms</label>
             <input id="platforms" value={platformsInput} onChange={(e) => setPlatformsInput(e.target.value)} placeholder="ios,android" />
