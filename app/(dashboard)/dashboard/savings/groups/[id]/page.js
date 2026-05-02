@@ -41,6 +41,16 @@ const emptyPolicyForm = {
   defaultRulesText: '',
   defaultAfterDays: ''
 };
+const emptyInviteForm = {
+  accountId: '',
+  accountReference: '',
+  email: '',
+  phone: '',
+  rotationOrder: ''
+};
+const emptyMessageForm = {
+  message: ''
+};
 
 const getType = (group) => String(pickFirst(group?.type, group?.groupType, 'UNKNOWN')).toUpperCase();
 const getStatus = (group) => pickFirst(group?.status, group?.groupStatus, 'UNKNOWN');
@@ -84,8 +94,13 @@ export default function GroupSavingDetailPage() {
   const [repayments, setRepayments] = useState([]);
   const [treasuryWithdrawals, setTreasuryWithdrawals] = useState([]);
   const [auditEvents, setAuditEvents] = useState([]);
+  const [invitations, setInvitations] = useState([]);
+  const [joinRequests, setJoinRequests] = useState([]);
+  const [messages, setMessages] = useState([]);
   const [policy, setPolicy] = useState(null);
   const [policyDraft, setPolicyDraft] = useState(emptyPolicyForm);
+  const [inviteDraft, setInviteDraft] = useState(emptyInviteForm);
+  const [messageDraft, setMessageDraft] = useState(emptyMessageForm);
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(false);
   const [savingAction, setSavingAction] = useState('');
@@ -105,7 +120,8 @@ export default function GroupSavingDetailPage() {
       { key: 'members', label: 'Members' },
       { key: 'cycles', label: 'Cycles' },
       { key: 'contributions', label: 'Contributions' },
-      { key: 'payouts', label: 'Payouts' }
+      { key: 'payouts', label: 'Payouts' },
+      { key: 'invitations', label: 'Invitations' }
     ];
     if (isAvec) {
       base.push({ key: 'loans', label: 'Loans' });
@@ -113,6 +129,7 @@ export default function GroupSavingDetailPage() {
       base.push({ key: 'treasury', label: 'Treasury Withdrawals' });
       base.push({ key: 'policy', label: 'Policy' });
     }
+    base.push({ key: 'messages', label: 'Messages' });
     base.push({ key: 'audit', label: 'Audit' });
     return base;
   }, [isAvec]);
@@ -132,7 +149,10 @@ export default function GroupSavingDetailPage() {
         api.groupSavings.repayments.list(groupId),
         api.groupSavings.treasuryWithdrawals.list(groupId),
         api.groupSavings.auditEvents.list(groupId),
-        api.groupSavings.policy.get(groupId)
+        api.groupSavings.policy.get(groupId),
+        api.groupSavings.invitations.list(groupId),
+        api.groupSavings.joinRequests.list(groupId),
+        api.groupSavings.messages.list(groupId)
       ]);
 
       const readList = (index) => {
@@ -156,6 +176,9 @@ export default function GroupSavingDetailPage() {
       setRepayments(readList(6));
       setTreasuryWithdrawals(readList(7));
       setAuditEvents(readList(8));
+      setInvitations(readList(10));
+      setJoinRequests(readList(11));
+      setMessages(readList(12));
 
       const policyValue = results[9];
       const nextPolicy = policyValue?.status === 'fulfilled' ? policyValue.value : null;
@@ -287,6 +310,31 @@ export default function GroupSavingDetailPage() {
     });
   };
 
+  const handleLifecycleAction = async (action) => {
+    if (!groupId) return;
+    setSavingAction(action);
+    setError(null);
+    setInfo(null);
+    try {
+      if (action === 'activate') {
+        await api.groupSavings.activate(groupId);
+        setInfo('Group activated.');
+      } else if (action === 'restart') {
+        await api.groupSavings.restart(groupId);
+        setInfo('Group restarted.');
+      } else if (action === 'delete-group') {
+        await api.groupSavings.remove(groupId);
+        setInfo('Group deleted.');
+      }
+      await loadGroup();
+    } catch (err) {
+      setError(err?.message || `Failed to ${action.replace('-group', '')} group`);
+    } finally {
+      setSavingAction('');
+      setConfirmAction(null);
+    }
+  };
+
   const handlePauseResume = async (action) => {
     if (!groupId) return;
     setSavingAction(action);
@@ -409,6 +457,117 @@ export default function GroupSavingDetailPage() {
     }
   };
 
+  const handleCreateInvitation = async () => {
+    if (!groupId) return;
+    const payload = {};
+    const accountId = inviteDraft.accountId.trim();
+    const accountReference = inviteDraft.accountReference.trim();
+    const email = inviteDraft.email.trim();
+    const phone = inviteDraft.phone.trim();
+    const identifiers = [accountId, accountReference, email, phone].filter(Boolean);
+    if (identifiers.length !== 1) {
+      setError('Provide exactly one invitation target: account ID, account reference, email, or phone.');
+      return;
+    }
+    if (accountId) payload.accountId = Number(accountId);
+    if (accountReference) payload.accountReference = accountReference;
+    if (email) payload.email = email;
+    if (phone) payload.phone = phone;
+    if (inviteDraft.rotationOrder.trim()) payload.rotationOrder = Number(inviteDraft.rotationOrder.trim());
+
+    setSavingAction('create-invitation');
+    setError(null);
+    setInfo(null);
+    try {
+      await api.groupSavings.invitations.create(groupId, payload);
+      setInviteDraft(emptyInviteForm);
+      setInfo('Invitation created.');
+      await loadGroup();
+    } catch (err) {
+      setError(err?.message || 'Failed to create invitation');
+    } finally {
+      setSavingAction('');
+    }
+  };
+
+  const handleApproveInvitation = async (invitationId) => {
+    if (!groupId || !invitationId) return;
+    const actionKey = `approve-invitation-${invitationId}`;
+    setSavingAction(actionKey);
+    setError(null);
+    setInfo(null);
+    try {
+      await api.groupSavings.invitations.approve(groupId, invitationId);
+      setInfo('Invitation approved.');
+      await loadGroup();
+    } catch (err) {
+      setError(err?.message || 'Failed to approve invitation');
+    } finally {
+      setSavingAction('');
+    }
+  };
+
+  const handleJoinRequestAction = async (invitationId, action) => {
+    if (!groupId || !invitationId) return;
+    const actionKey = `${action}-join-request-${invitationId}`;
+    setSavingAction(actionKey);
+    setError(null);
+    setInfo(null);
+    try {
+      if (action === 'approve') {
+        await api.groupSavings.joinRequests.approve(groupId, invitationId);
+        setInfo('Join request approved.');
+      } else {
+        await api.groupSavings.joinRequests.reject(groupId, invitationId);
+        setInfo('Join request rejected.');
+      }
+      await loadGroup();
+    } catch (err) {
+      setError(err?.message || `Failed to ${action} join request`);
+    } finally {
+      setSavingAction('');
+      setConfirmAction(null);
+    }
+  };
+
+  const handleCreateMessage = async () => {
+    if (!groupId || !messageDraft.message.trim()) {
+      setError('Message is required.');
+      return;
+    }
+    setSavingAction('create-message');
+    setError(null);
+    setInfo(null);
+    try {
+      await api.groupSavings.messages.create(groupId, { message: messageDraft.message.trim() });
+      setMessageDraft(emptyMessageForm);
+      setInfo('Message sent.');
+      await loadGroup();
+    } catch (err) {
+      setError(err?.message || 'Failed to send message');
+    } finally {
+      setSavingAction('');
+    }
+  };
+
+  const handleDeleteMessage = async (eventId) => {
+    if (!groupId || !eventId) return;
+    const actionKey = `delete-message-${eventId}`;
+    setSavingAction(actionKey);
+    setError(null);
+    setInfo(null);
+    try {
+      await api.groupSavings.messages.remove(groupId, eventId);
+      setInfo('Message deleted.');
+      await loadGroup();
+    } catch (err) {
+      setError(err?.message || 'Failed to delete message');
+    } finally {
+      setSavingAction('');
+      setConfirmAction(null);
+    }
+  };
+
   const policyWarnings = useMemo(() => {
     const warnings = [];
     const loanThreshold = Number(policyDraft.loanApprovalThresholdPercent);
@@ -488,6 +647,21 @@ export default function GroupSavingDetailPage() {
             <TypeBadge value={getType(group)} />
             <StatusBadge value={getStatus(group)} />
             {canRestore ? <StatusBadge value="DELETED" /> : null}
+            {!canRestore && String(getStatus(group)).toUpperCase() === 'DRAFT' ? (
+              <button type="button" className="btn-primary" disabled={savingAction === 'activate'} onClick={() => setConfirmAction({ type: 'activate' })}>
+                {savingAction === 'activate' ? 'Activating…' : 'Activate'}
+              </button>
+            ) : null}
+            {!canRestore && String(getStatus(group)).toUpperCase() === 'COMPLETED' ? (
+              <button type="button" className="btn-primary" disabled={savingAction === 'restart'} onClick={() => setConfirmAction({ type: 'restart' })}>
+                {savingAction === 'restart' ? 'Restarting…' : 'Restart'}
+              </button>
+            ) : null}
+            {!canRestore ? (
+              <button type="button" className="btn-danger" disabled={savingAction === 'delete-group'} onClick={() => setConfirmAction({ type: 'delete-group' })}>
+                {savingAction === 'delete-group' ? 'Deleting…' : 'Delete'}
+              </button>
+            ) : null}
             {canRestore ? (
               <button type="button" className="btn-primary" disabled={savingAction === 'restore-group'} onClick={() => setConfirmAction({ type: 'restore-group' })}>
                 {savingAction === 'restore-group' ? 'Restoring…' : 'Restore'}
@@ -767,6 +941,106 @@ export default function GroupSavingDetailPage() {
         </SectionCard>
       ) : null}
 
+      {activeTab === 'invitations' ? (
+        <div style={{ display: 'grid', gap: '1rem' }}>
+          <SectionCard title="Create Invitation" description="Send a group invitation using one identifier only: account ID, account reference, email, or phone.">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ display: 'grid', gap: '0.25rem' }}>
+                <label htmlFor="inviteAccountId">Account ID</label>
+                <input id="inviteAccountId" value={inviteDraft.accountId} onChange={(e) => setInviteDraft((prev) => ({ ...prev, accountId: e.target.value }))} placeholder="123" />
+              </div>
+              <div style={{ display: 'grid', gap: '0.25rem' }}>
+                <label htmlFor="inviteAccountReference">Account reference</label>
+                <input id="inviteAccountReference" value={inviteDraft.accountReference} onChange={(e) => setInviteDraft((prev) => ({ ...prev, accountReference: e.target.value }))} placeholder="ACC-12345" />
+              </div>
+              <div style={{ display: 'grid', gap: '0.25rem' }}>
+                <label htmlFor="inviteEmail">Email</label>
+                <input id="inviteEmail" value={inviteDraft.email} onChange={(e) => setInviteDraft((prev) => ({ ...prev, email: e.target.value }))} placeholder="user@example.com" />
+              </div>
+              <div style={{ display: 'grid', gap: '0.25rem' }}>
+                <label htmlFor="invitePhone">Phone</label>
+                <input id="invitePhone" value={inviteDraft.phone} onChange={(e) => setInviteDraft((prev) => ({ ...prev, phone: e.target.value }))} placeholder="+243..." />
+              </div>
+              <div style={{ display: 'grid', gap: '0.25rem' }}>
+                <label htmlFor="inviteRotationOrder">Rotation order</label>
+                <input id="inviteRotationOrder" type="number" value={inviteDraft.rotationOrder} onChange={(e) => setInviteDraft((prev) => ({ ...prev, rotationOrder: e.target.value }))} placeholder="4" />
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button type="button" className="btn-primary" onClick={handleCreateInvitation} disabled={savingAction === 'create-invitation'}>
+                {savingAction === 'create-invitation' ? 'Sending…' : 'Create Invitation'}
+              </button>
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Invitations" description="Approve or inspect pending invitations from the admin owner-equivalent surface.">
+            <DataTable
+              showIndex={false}
+              pageSize={100}
+              columns={[
+                { key: 'target', label: 'Target', render: (row) => pickFirst(row?.accountReference, row?.email, row?.phone, row?.accountId, '—') },
+                { key: 'rotationOrder', label: 'Rotation Order', render: (row) => formatCount(row?.rotationOrder) },
+                { key: 'status', label: 'Status', render: (row) => <StatusBadge value={pickFirst(row?.status, 'UNKNOWN')} /> },
+                { key: 'createdAt', label: 'Created', render: (row) => formatDateTime(row?.createdAt) },
+                {
+                  key: 'actions',
+                  label: 'Actions',
+                  render: (row) => {
+                    const invitationId = pickFirst(row?.id, row?.invitationId);
+                    const isPending = String(pickFirst(row?.status, '')).toUpperCase() === 'PENDING';
+                    const actionKey = `approve-invitation-${invitationId}`;
+                    return isPending && invitationId ? (
+                      <button type="button" className="btn-primary" onClick={() => handleApproveInvitation(invitationId)} disabled={savingAction === actionKey}>
+                        {savingAction === actionKey ? 'Approving…' : 'Approve'}
+                      </button>
+                    ) : (
+                      '—'
+                    );
+                  }
+                }
+              ]}
+              rows={invitations}
+              emptyLabel="No invitations found"
+            />
+          </SectionCard>
+
+          <SectionCard title="Join Requests" description="Approve or reject incoming join requests with confirmation on reject.">
+            <DataTable
+              showIndex={false}
+              pageSize={100}
+              columns={[
+                { key: 'requester', label: 'Requester', render: (row) => pickFirst(row?.accountReference, row?.email, row?.phone, row?.accountId, '—') },
+                { key: 'status', label: 'Status', render: (row) => <StatusBadge value={pickFirst(row?.status, 'UNKNOWN')} /> },
+                { key: 'createdAt', label: 'Created', render: (row) => formatDateTime(row?.createdAt) },
+                {
+                  key: 'actions',
+                  label: 'Actions',
+                  render: (row) => {
+                    const requestId = pickFirst(row?.id, row?.invitationId);
+                    const isPending = String(pickFirst(row?.status, '')).toUpperCase() === 'PENDING';
+                    const approveKey = `approve-join-request-${requestId}`;
+                    return isPending && requestId ? (
+                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <button type="button" className="btn-primary" onClick={() => handleJoinRequestAction(requestId, 'approve')} disabled={savingAction === approveKey}>
+                          {savingAction === approveKey ? 'Approving…' : 'Approve'}
+                        </button>
+                        <button type="button" className="btn-danger" onClick={() => setConfirmAction({ type: 'reject-join-request', requestId })}>
+                          Reject
+                        </button>
+                      </div>
+                    ) : (
+                      '—'
+                    );
+                  }
+                }
+              ]}
+              rows={joinRequests}
+              emptyLabel="No join requests found"
+            />
+          </SectionCard>
+        </div>
+      ) : null}
+
       {activeTab === 'loans' && isAvec ? (
         <SectionCard title="Loans" description="Borrower debt, overdue state, and vote-sensitive AVEC lending visibility.">
           <DataTable
@@ -890,6 +1164,48 @@ export default function GroupSavingDetailPage() {
         </SectionCard>
       ) : null}
 
+      {activeTab === 'messages' ? (
+        <div style={{ display: 'grid', gap: '1rem' }}>
+          <SectionCard title="Send Message" description="Admin can send an operational group message through the owner-equivalent group message surface.">
+            <div style={{ display: 'grid', gap: '0.75rem' }}>
+              <div style={{ display: 'grid', gap: '0.25rem' }}>
+                <label htmlFor="groupMessage">Message</label>
+                <textarea id="groupMessage" rows={4} value={messageDraft.message} onChange={(e) => setMessageDraft({ message: e.target.value })} placeholder="Please complete your contributions this week." />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button type="button" className="btn-primary" onClick={handleCreateMessage} disabled={savingAction === 'create-message'}>
+                  {savingAction === 'create-message' ? 'Sending…' : 'Send Message'}
+                </button>
+              </div>
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Messages" description="Latest group messages. Delete remains behind confirmation because it removes a live event resource.">
+            <div style={{ display: 'grid', gap: '0.75rem' }}>
+              {messages.length === 0 ? <div style={{ color: 'var(--muted)' }}>No messages found.</div> : null}
+              {messages.map((message, index) => {
+                const eventId = pickFirst(message?.id, message?.eventId, `${index}`);
+                const actionKey = `delete-message-${eventId}`;
+                return (
+                  <div key={eventId} className="card" style={{ padding: '0.8rem', display: 'grid', gap: '0.45rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
+                      <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{formatDateTime(pickFirst(message?.createdAt, message?.timestamp))}</div>
+                      <button type="button" className="btn-danger" onClick={() => setConfirmAction({ type: 'delete-message', eventId })} disabled={savingAction === actionKey}>
+                        {savingAction === actionKey ? 'Deleting…' : 'Delete'}
+                      </button>
+                    </div>
+                    <div style={{ fontWeight: 700 }}>{pickFirst(message?.message, message?.body, message?.content, '—')}</div>
+                    <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                      {pickFirst(message?.actorAccountReference, message?.actor, message?.createdByAccountId, 'System')}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </SectionCard>
+        </div>
+      ) : null}
+
       {activeTab === 'audit' ? (
         <SectionCard title="Audit Timeline" description="Reverse chronological event history for disputes, stuck groups, and support explanations.">
           <div style={{ display: 'grid', gap: '0.75rem' }}>
@@ -925,10 +1241,20 @@ export default function GroupSavingDetailPage() {
       {confirmAction ? (
         <AdminModal
           title={
-            confirmAction.type === 'pause'
+            confirmAction.type === 'activate'
+              ? 'Activate group saving?'
+              : confirmAction.type === 'pause'
               ? 'Pause group saving?'
+              : confirmAction.type === 'restart'
+                ? 'Restart group saving?'
               : confirmAction.type === 'resume'
                 ? 'Resume group saving?'
+                : confirmAction.type === 'delete-group'
+                  ? 'Delete group?'
+                  : confirmAction.type === 'reject-join-request'
+                    ? 'Reject join request?'
+                    : confirmAction.type === 'delete-message'
+                      ? 'Delete message?'
                 : confirmAction.type === 'restore-group'
                   ? 'Restore group?'
                   : 'Remove member?'
@@ -938,11 +1264,21 @@ export default function GroupSavingDetailPage() {
         >
           <div style={{ display: 'grid', gap: '1rem' }}>
             <div style={{ color: 'var(--muted)' }}>
-              {confirmAction.type === 'pause'
+              {confirmAction.type === 'activate'
+                ? 'Activate this draft group so it can start operating under the normal customer lifecycle rules.'
+                : confirmAction.type === 'pause'
                 ? 'Pausing blocks contribution payment until the group is resumed. The backend writes an audit event for traceability.'
-                : confirmAction.type === 'resume'
+                : confirmAction.type === 'restart'
+                  ? 'Restarting creates a new round for this completed group. Historical rounds remain in place.'
+                  : confirmAction.type === 'resume'
                   ? 'Resuming re-enables normal group activity and contribution payment. The backend writes an audit event for traceability.'
-                  : confirmAction.type === 'restore-group'
+                  : confirmAction.type === 'delete-group'
+                    ? 'Delete the group from the active admin view. This uses the group-savings lifecycle delete surface, so keep it behind explicit confirmation.'
+                    : confirmAction.type === 'reject-join-request'
+                      ? 'Reject this join request? The requester will not be added to the group.'
+                      : confirmAction.type === 'delete-message'
+                        ? 'Delete this group message event? This removes it from the admin-visible message history.'
+                    : confirmAction.type === 'restore-group'
                     ? 'This will make the soft-deleted group visible again.'
                     : 'Remove this member from the group if allowed by policy and debt state?'}
             </div>
@@ -950,9 +1286,19 @@ export default function GroupSavingDetailPage() {
               <button type="button" className="btn-neutral" onClick={() => setConfirmAction(null)}>
                 Cancel
               </button>
+              {confirmAction.type === 'activate' ? (
+                <button type="button" className="btn-primary" onClick={() => handleLifecycleAction('activate')} disabled={savingAction === 'activate'}>
+                  {savingAction === 'activate' ? 'Activating…' : 'Activate Group'}
+                </button>
+              ) : null}
               {confirmAction.type === 'pause' ? (
                 <button type="button" className="btn-danger" onClick={() => handlePauseResume('pause')} disabled={savingAction === 'pause'}>
                   {savingAction === 'pause' ? 'Pausing…' : 'Pause'}
+                </button>
+              ) : null}
+              {confirmAction.type === 'restart' ? (
+                <button type="button" className="btn-primary" onClick={() => handleLifecycleAction('restart')} disabled={savingAction === 'restart'}>
+                  {savingAction === 'restart' ? 'Restarting…' : 'Restart Group'}
                 </button>
               ) : null}
               {confirmAction.type === 'resume' ? (
@@ -973,6 +1319,31 @@ export default function GroupSavingDetailPage() {
               {confirmAction.type === 'restore-group' ? (
                 <button type="button" className="btn-primary" onClick={handleRestoreGroup} disabled={savingAction === 'restore-group'}>
                   {savingAction === 'restore-group' ? 'Restoring…' : 'Restore'}
+                </button>
+              ) : null}
+              {confirmAction.type === 'reject-join-request' ? (
+                <button
+                  type="button"
+                  className="btn-danger"
+                  onClick={() => handleJoinRequestAction(confirmAction.requestId, 'reject')}
+                  disabled={savingAction === `reject-join-request-${confirmAction.requestId}`}
+                >
+                  {savingAction === `reject-join-request-${confirmAction.requestId}` ? 'Rejecting…' : 'Reject Join Request'}
+                </button>
+              ) : null}
+              {confirmAction.type === 'delete-message' ? (
+                <button
+                  type="button"
+                  className="btn-danger"
+                  onClick={() => handleDeleteMessage(confirmAction.eventId)}
+                  disabled={savingAction === `delete-message-${confirmAction.eventId}`}
+                >
+                  {savingAction === `delete-message-${confirmAction.eventId}` ? 'Deleting…' : 'Delete Message'}
+                </button>
+              ) : null}
+              {confirmAction.type === 'delete-group' ? (
+                <button type="button" className="btn-danger" onClick={() => handleLifecycleAction('delete-group')} disabled={savingAction === 'delete-group'}>
+                  {savingAction === 'delete-group' ? 'Deleting…' : 'Delete Group'}
                 </button>
               ) : null}
             </div>
