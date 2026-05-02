@@ -45,6 +45,26 @@ const calcProgress = (item) => {
   return { total, processed, failed, done, percent };
 };
 
+const renderCampaignTypeBadge = (value) => {
+  const normalized = String(value || 'ACCOUNT').toUpperCase();
+  const isAnonymous = normalized === 'ANONYMOUS';
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        padding: '0.2rem 0.45rem',
+        borderRadius: '999px',
+        fontWeight: 700,
+        fontSize: '12px',
+        color: isAnonymous ? '#7c2d12' : '#1e3a8a',
+        background: isAnonymous ? '#ffedd5' : '#dbeafe'
+      }}
+    >
+      {isAnonymous ? 'Anonymous Push' : 'Account Push'}
+    </span>
+  );
+};
+
 export default function NotificationPushCampaignHistoryPage() {
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
@@ -185,6 +205,7 @@ export default function NotificationPushCampaignHistoryPage() {
           <thead>
             <tr>
               <th className="data-table__cell" style={{ textAlign: 'left', padding: '0.65rem' }}>Campaign ID</th>
+              <th className="data-table__cell" style={{ textAlign: 'left', padding: '0.65rem' }}>Campaign Type</th>
               <th className="data-table__cell" style={{ textAlign: 'left', padding: '0.65rem' }}>Subject</th>
               <th className="data-table__cell" style={{ textAlign: 'left', padding: '0.65rem' }}>Message</th>
               <th className="data-table__cell" style={{ textAlign: 'left', padding: '0.65rem' }}>Created At</th>
@@ -197,7 +218,7 @@ export default function NotificationPushCampaignHistoryPage() {
           <tbody>
             {campaigns.length === 0 && (
               <tr>
-                <td colSpan={8} style={{ padding: '1rem', textAlign: 'center', color: 'var(--muted)' }}>
+                <td colSpan={9} style={{ padding: '1rem', textAlign: 'center', color: 'var(--muted)' }}>
                   {loading ? 'Loading campaigns…' : 'No campaign history found'}
                 </td>
               </tr>
@@ -219,6 +240,7 @@ export default function NotificationPushCampaignHistoryPage() {
                   }}
                 >
                   <td className="data-table__cell" style={{ padding: '0.65rem', fontWeight: 700 }}>{row.campaignId || '—'}</td>
+                  <td className="data-table__cell" style={{ padding: '0.65rem' }}>{renderCampaignTypeBadge(row.campaignType)}</td>
                   <td className="data-table__cell" style={{ padding: '0.65rem' }} title={row.subject || ''}>{truncate(row.subject, 50)}</td>
                   <td className="data-table__cell" style={{ padding: '0.65rem' }} title={row.message || ''}>{truncate(row.message, 70)}</td>
                   <td className="data-table__cell" style={{ padding: '0.65rem' }}>{formatDateTime(row.createdAt)}</td>
@@ -276,6 +298,7 @@ export default function NotificationPushCampaignHistoryPage() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
               <div><strong>Campaign ID:</strong> {selectedCampaign.campaignId || '—'}</div>
+              <div><strong>Campaign type:</strong> {String(selectedCampaign.campaignType || 'ACCOUNT').toUpperCase() === 'ANONYMOUS' ? 'Anonymous Push' : 'Account Push'}</div>
               <div><strong>Status:</strong> {selectedCampaign.completed ? 'Completed' : 'Running'}</div>
               <div><strong>Created:</strong> {formatDateTime(selectedCampaign.createdAt)}</div>
               <div><strong>Updated:</strong> {formatDateTime(selectedCampaign.updatedAt)}</div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
@@ -9,6 +9,18 @@ const DEFAULT_BATCH_SIZE = 50;
 const DEFAULT_BATCH_DELAY_SECONDS = 60;
 const DEFAULT_INITIAL_DELAY_SECONDS = 5;
 const emptyDataRow = { key: '', value: '' };
+const audienceTypeOptions = [
+  { value: 'PRE_SIGNUP', label: 'Pre-signup' },
+  { value: 'SIGNED_OUT_REENGAGEMENT', label: 'Signed-out re-engagement' }
+];
+const platformOptions = [
+  { value: 'ios', label: 'iOS' },
+  { value: 'android', label: 'Android' }
+];
+const languageOptions = [
+  { value: 'en', label: 'English' },
+  { value: 'fr', label: 'French' }
+];
 
 const toOptionalInteger = (value, { min = 0, label = 'Value' } = {}) => {
   const raw = String(value || '').trim();
@@ -28,11 +40,7 @@ const normalizeDataRows = (rows) =>
     }))
     .filter((row) => row.key && row.value);
 
-const splitCsv = (value) =>
-  String(value || '')
-    .split(',')
-    .map((part) => part.trim())
-    .filter(Boolean);
+const toList = (res) => (Array.isArray(res) ? res : res?.content || []);
 
 export default function NotificationAnonymousPushCampaignsPage() {
   const searchParams = useSearchParams();
@@ -44,10 +52,12 @@ export default function NotificationAnonymousPushCampaignsPage() {
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [dataRows, setDataRows] = useState([emptyDataRow]);
-  const [audienceTypesInput, setAudienceTypesInput] = useState(initialAudienceType);
-  const [platformsInput, setPlatformsInput] = useState(initialPlatform);
-  const [deviceLanguagesInput, setDeviceLanguagesInput] = useState(initialLanguage);
-  const [countryCodesInput, setCountryCodesInput] = useState(initialCountry);
+  const [countries, setCountries] = useState([]);
+  const [countryLoading, setCountryLoading] = useState(false);
+  const [selectedAudienceTypes, setSelectedAudienceTypes] = useState(initialAudienceType ? [initialAudienceType] : []);
+  const [selectedPlatforms, setSelectedPlatforms] = useState(initialPlatform ? [initialPlatform] : []);
+  const [selectedDeviceLanguages, setSelectedDeviceLanguages] = useState(initialLanguage ? [initialLanguage] : []);
+  const [selectedCountryCodes, setSelectedCountryCodes] = useState(initialCountry ? [initialCountry] : []);
   const [seenWithinDays, setSeenWithinDays] = useState('');
   const [batchSize, setBatchSize] = useState(String(DEFAULT_BATCH_SIZE));
   const [batchDelaySeconds, setBatchDelaySeconds] = useState(String(DEFAULT_BATCH_DELAY_SECONDS));
@@ -57,13 +67,32 @@ export default function NotificationAnonymousPushCampaignsPage() {
   const [info, setInfo] = useState(null);
   const [createResult, setCreateResult] = useState(null);
 
+  useEffect(() => {
+    let cancelled = false;
+    const loadCountries = async () => {
+      setCountryLoading(true);
+      try {
+        const res = await api.countries.list(new URLSearchParams({ page: '0', size: '400' }));
+        if (!cancelled) setCountries(toList(res));
+      } catch {
+        if (!cancelled) setCountries([]);
+      } finally {
+        if (!cancelled) setCountryLoading(false);
+      }
+    };
+    loadCountries();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const audiencePreview = useMemo(() => {
     try {
       const audience = {};
-      const audienceTypes = splitCsv(audienceTypesInput).map((value) => value.toUpperCase());
-      const platforms = splitCsv(platformsInput).map((value) => value.toLowerCase());
-      const deviceLanguages = splitCsv(deviceLanguagesInput).map((value) => value.toLowerCase());
-      const countryCodes = splitCsv(countryCodesInput).map((value) => value.toUpperCase());
+      const audienceTypes = selectedAudienceTypes.map((value) => String(value || '').trim().toUpperCase()).filter(Boolean);
+      const platforms = selectedPlatforms.map((value) => String(value || '').trim().toLowerCase()).filter(Boolean);
+      const deviceLanguages = selectedDeviceLanguages.map((value) => String(value || '').trim().toLowerCase()).filter(Boolean);
+      const countryCodes = selectedCountryCodes.map((value) => String(value || '').trim().toUpperCase()).filter(Boolean);
       const seenDays = toOptionalInteger(seenWithinDays, { min: 1, label: 'Seen within days' });
       if (audienceTypes.length) audience.audienceTypes = Array.from(new Set(audienceTypes));
       if (platforms.length) audience.platforms = Array.from(new Set(platforms));
@@ -74,7 +103,7 @@ export default function NotificationAnonymousPushCampaignsPage() {
     } catch (previewError) {
       return { invalid: previewError.message };
     }
-  }, [audienceTypesInput, platformsInput, deviceLanguagesInput, countryCodesInput, seenWithinDays]);
+  }, [selectedAudienceTypes, selectedPlatforms, selectedDeviceLanguages, selectedCountryCodes, seenWithinDays]);
 
   const payloadPreview = useMemo(() => {
     try {
@@ -154,19 +183,74 @@ export default function NotificationAnonymousPushCampaignsPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
           <div style={{ display: 'grid', gap: '0.25rem' }}>
             <label htmlFor="audienceTypes">Audience types</label>
-            <input id="audienceTypes" value={audienceTypesInput} onChange={(e) => setAudienceTypesInput(e.target.value)} placeholder="PRE_SIGNUP,SIGNED_OUT_REENGAGEMENT" />
+            <select
+              id="audienceTypes"
+              multiple
+              value={selectedAudienceTypes}
+              onChange={(e) => setSelectedAudienceTypes(Array.from(e.target.selectedOptions).map((opt) => opt.value))}
+              style={{ minHeight: '110px' }}
+            >
+              {audienceTypeOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </div>
           <div style={{ display: 'grid', gap: '0.25rem' }}>
             <label htmlFor="platforms">Platforms</label>
-            <input id="platforms" value={platformsInput} onChange={(e) => setPlatformsInput(e.target.value)} placeholder="ios,android" />
+            <select
+              id="platforms"
+              multiple
+              value={selectedPlatforms}
+              onChange={(e) => setSelectedPlatforms(Array.from(e.target.selectedOptions).map((opt) => opt.value))}
+              style={{ minHeight: '110px' }}
+            >
+              {platformOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </div>
           <div style={{ display: 'grid', gap: '0.25rem' }}>
             <label htmlFor="languages">Device languages</label>
-            <input id="languages" value={deviceLanguagesInput} onChange={(e) => setDeviceLanguagesInput(e.target.value)} placeholder="en,fr" />
+            <select
+              id="languages"
+              multiple
+              value={selectedDeviceLanguages}
+              onChange={(e) => setSelectedDeviceLanguages(Array.from(e.target.selectedOptions).map((opt) => opt.value))}
+              style={{ minHeight: '110px' }}
+            >
+              {languageOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </div>
           <div style={{ display: 'grid', gap: '0.25rem' }}>
             <label htmlFor="countries">Country codes</label>
-            <input id="countries" value={countryCodesInput} onChange={(e) => setCountryCodesInput(e.target.value)} placeholder="CD,RW" />
+            <select
+              id="countries"
+              multiple
+              value={selectedCountryCodes}
+              onChange={(e) => setSelectedCountryCodes(Array.from(e.target.selectedOptions).map((opt) => opt.value))}
+              style={{ minHeight: '110px' }}
+            >
+              {countries.map((country) => {
+                const code = String(country.code || country.countryCode || '').trim().toUpperCase();
+                const name = country.name || country.label || code || 'Country';
+                return (
+                  <option key={code || String(country.id)} value={code}>
+                    {name} ({code || '—'})
+                  </option>
+                );
+              })}
+            </select>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              {countryLoading ? 'Loading countries…' : 'Leave empty to target all countries.'}
+            </div>
           </div>
           <div style={{ display: 'grid', gap: '0.25rem' }}>
             <label htmlFor="seenWithinDays">Seen within days</label>
