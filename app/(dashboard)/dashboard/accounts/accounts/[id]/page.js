@@ -404,6 +404,7 @@ const [account, setAccount] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showOwedBreakdown, setShowOwedBreakdown] = useState(false);
+  const [showDepositPromptBreakdown, setShowDepositPromptBreakdown] = useState(false);
   const [trustedDeviceOverride, setTrustedDeviceOverride] = useState(false);
   const [trustedDeviceSaving, setTrustedDeviceSaving] = useState(false);
   const [trustedDevicePolicy, setTrustedDevicePolicy] = useState({
@@ -1713,11 +1714,6 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     fetchOptions();
   }, []);
 
-  useEffect(() => {
-    if (resolvedAccountId === null || resolvedAccountId === undefined) return;
-    loadDepositPromptFlagReference(resolvedAccountId);
-  }, [resolvedAccountId]);
-
   const openPricingForm = (seed) => {
     setPricingError(null);
     setShowPricingRemove(false);
@@ -2623,11 +2619,26 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     depositPromptFlagAccountOverride === true ? 'Account Override: On' :
     depositPromptFlagAccountOverride === false ? 'Account Override: Off' :
     'Inherited';
+  const depositPromptVisibilitySummary =
+    customPricing?.showDepositPrompt === true
+      ? 'Forced on'
+      : customPricing?.showDepositPrompt === false
+        ? 'Forced off'
+        : accountDepositPromptFeatureFlagStatus;
+  const depositPromptThresholdSummary =
+    customPricing?.depositPromptThresholdAmount !== null && customPricing?.depositPromptThresholdAmount !== undefined
+      ? formatDepositPromptThresholdValue(customPricing.depositPromptThresholdAmount, { empty: '—' })
+      : `Inherited · ${formatDepositPromptThresholdValue(walletPolicyReference?.depositPromptThresholdAmount, { empty: 'Client fallback' })}`;
   const resolvedAccountId = useMemo(() => {
     if (account?.id !== undefined && account?.id !== null) return account.id;
     const num = Number(accountId);
     return Number.isFinite(num) ? num : null;
   }, [account, accountId]);
+
+  useEffect(() => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) return;
+    loadDepositPromptFlagReference(resolvedAccountId);
+  }, [resolvedAccountId]);
 
   useEffect(() => {
     if (resolvedAccountId === null || resolvedAccountId === undefined) return;
@@ -3379,11 +3390,8 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
                 <Badge>{depositPromptOverrideActive ? 'Account Override' : 'Inherited'}</Badge>
-                {customPricing?.depositPromptThresholdAmount !== null && customPricing?.depositPromptThresholdAmount !== undefined && (
-                  <Badge>Threshold Override</Badge>
-                )}
                 <span style={{ color: 'var(--muted)', fontSize: '13px' }}>
-                  Global deposit prompt: {globalDepositPromptStatus}
+                  Deposit prompt default: {globalDepositPromptStatus}
                 </span>
               </div>
               <DetailGrid
@@ -3399,30 +3407,34 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                   { label: 'Max collection', value: customPricing.maxCollectionAmount ?? 'Default' },
                   { label: 'Max payout', value: customPricing.maxPayoutAmount ?? 'Default' },
                   {
-                    label: 'Account deposit prompt override',
-                    value: formatNullableToggle(customPricing.showDepositPrompt)
-                  },
-                  {
-                    label: 'Account deposit prompt threshold override',
-                    value: formatDepositPromptThresholdValue(customPricing.depositPromptThresholdAmount)
-                  },
-                  {
-                    label: 'Feature flag visibility default',
-                    value: globalDepositPromptStatus
-                  },
-                  {
-                    label: 'Feature flag account override',
-                    value: accountDepositPromptFeatureFlagStatus
-                  },
-                  {
-                    label: 'Global deposit prompt threshold',
-                    value: formatDepositPromptThresholdValue(
-                      walletPolicyReference?.depositPromptThresholdAmount,
-                      { empty: 'Client fallback threshold' }
+                    label: 'Deposit prompt',
+                    value: (
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
+                        <span>{depositPromptVisibilitySummary}</span>
+                        <button
+                          type="button"
+                          onClick={() => setShowDepositPromptBreakdown(true)}
+                          aria-label="Show deposit prompt details"
+                          style={{
+                            border: '1px solid var(--border)',
+                            background: 'transparent',
+                            color: 'var(--muted)',
+                            borderRadius: '999px',
+                            width: '1.7rem',
+                            height: '1.7rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            fontWeight: 800,
+                            lineHeight: 1
+                          }}
+                        >
+                          …
+                        </button>
+                      </div>
                     )
-                  },
-                  { label: 'Note', value: customPricing.note ?? '—' },
-                  { label: 'Updated', value: customPricing.updatedAt ? formatDateTime(customPricing.updatedAt) : '—' }
+                  }
                 ]}
               />
             </div>
@@ -4508,31 +4520,9 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       {showPricingForm && (
         <Modal title={`${customPricing ? 'Edit' : 'Add'} custom KYC caps`} onClose={() => (!pricingSaving ? setShowPricingForm(false) : null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                gap: '0.75rem',
-                padding: '0.75rem',
-                border: '1px solid var(--border)',
-                borderRadius: '12px',
-                background: 'var(--panel, transparent)'
-              }}
-            >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>Global deposit prompt</div>
-                <div style={{ fontWeight: 700 }}>{globalDepositPromptStatus}</div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>Feature-flag account override</div>
-                <div style={{ fontWeight: 700 }}>{accountDepositPromptFeatureFlagStatus}</div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>Global threshold</div>
-                <div style={{ fontWeight: 700 }}>
-                  {formatDepositPromptThresholdValue(walletPolicyReference?.depositPromptThresholdAmount, { empty: 'Client fallback threshold' })}
-                </div>
-              </div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Deposit prompt default: {globalDepositPromptStatus} • Account flag: {accountDepositPromptFeatureFlagStatus} • Default threshold:{' '}
+              {formatDepositPromptThresholdValue(walletPolicyReference?.depositPromptThresholdAmount, { empty: 'Client fallback' })}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -4594,9 +4584,6 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                   <option value="ENABLED">Force on</option>
                   <option value="DISABLED">Force off</option>
                 </select>
-                <span style={{ color: 'var(--muted)', fontSize: '12px' }}>
-                  Override the default prompt visibility for this account. Leave unset to inherit the feature-flag and wallet-policy defaults.
-                </span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="pricingDepositPromptThresholdOverride">Account Deposit Prompt Threshold Override</label>
@@ -4609,9 +4596,6 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                   onChange={(e) => setPricingDepositPromptThresholdOverride(e.target.value)}
                   placeholder="Leave empty to inherit the global wallet policy"
                 />
-                <span style={{ color: 'var(--muted)', fontSize: '12px' }}>
-                  Override the default threshold for this account. Leave empty to inherit the global wallet policy.
-                </span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="pricingNote">Note (optional)</label>
@@ -5647,6 +5631,25 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
               Archived amount falls back to the account&apos;s previous debt when no dedicated archived field is returned.
             </div>
+          </div>
+        </Modal>
+      )}
+
+      {showDepositPromptBreakdown && (
+        <Modal title="Deposit prompt details" onClose={() => setShowDepositPromptBreakdown(false)}>
+          <div style={{ display: 'grid', gap: '0.85rem', marginTop: '0.75rem' }}>
+            <DetailGrid
+              rows={[
+                { label: 'Visibility', value: depositPromptVisibilitySummary },
+                { label: 'Threshold', value: depositPromptThresholdSummary },
+                { label: 'Default visibility', value: globalDepositPromptStatus },
+                { label: 'Feature-flag account override', value: accountDepositPromptFeatureFlagStatus },
+                {
+                  label: 'Default threshold',
+                  value: formatDepositPromptThresholdValue(walletPolicyReference?.depositPromptThresholdAmount, { empty: 'Client fallback' })
+                }
+              ]}
+            />
           </div>
         </Modal>
       )}

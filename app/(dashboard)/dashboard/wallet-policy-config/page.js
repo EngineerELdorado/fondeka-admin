@@ -804,7 +804,7 @@ export default function WalletPolicyConfigPage() {
             </div>
 
             <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-              Controls the threshold amount only. Deposit prompt visibility is managed through the `wallet.deposit_prompt` feature flag.
+              Visibility is managed by `wallet.deposit_prompt`.
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxWidth: '320px' }}>
@@ -822,7 +822,7 @@ export default function WalletPolicyConfigPage() {
                 disabled={loading || saving}
               />
               <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-                Show the prompt when wallet balance is below this amount. Leave empty to let the app use its fallback threshold.
+                Show the prompt when balance is below this amount. Leave empty for client fallback.
               </div>
             </div>
           </div>
