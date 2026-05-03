@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import React, { useEffect, useMemo, useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
 
 const resolveAccountId = (row) => {
   if (!row || typeof row !== 'object') return null;
@@ -28,18 +27,10 @@ export function DataTable({
   showAccountQuickNav = true,
   rowStyle
 }) {
-  const { session } = useAuth();
   const isServerPagination = typeof onPageChange === 'function';
   const [localPage, setLocalPage] = useState(0);
   const page = isServerPagination ? Math.max(0, Number(controlledPage) || 0) : localPage;
   const safePageSize = Math.max(1, Number(pageSize) || 20);
-  const accessTokenPayload = session?.tokens?.accessToken?.payload || null;
-  const idTokenPayload = session?.tokens?.idToken?.payload || null;
-  const adminGroups = useMemo(() => {
-    const rawGroups = accessTokenPayload?.['cognito:groups'] || accessTokenPayload?.groups || idTokenPayload?.['cognito:groups'] || idTokenPayload?.groups;
-    return Array.isArray(rawGroups) ? rawGroups.map((group) => String(group).toUpperCase()) : [];
-  }, [accessTokenPayload, idTokenPayload]);
-  const canSeePaginationTotals = adminGroups.includes('SUPER_ADMIN');
 
   const visibleCols = useMemo(() => columns.filter((col) => col.key !== 'id'), [columns]);
   const hasAccountLikeColumn = useMemo(
@@ -126,7 +117,7 @@ export function DataTable({
   const renderPagination = (position) => (
     <div className={`table-pagination table-pagination--${position}`} role="navigation" aria-label={`Table pagination (${position})`}>
       <div className="table-pagination__meta">
-        {canSeePaginationTotals && typeof totalElements === 'number' && totalElements >= 0 ? (
+        {typeof totalElements === 'number' && totalElements >= 0 ? (
           <span className="table-pagination__meta-badge">Total {totalElements.toLocaleString()} records</span>
         ) : null}
       </div>
