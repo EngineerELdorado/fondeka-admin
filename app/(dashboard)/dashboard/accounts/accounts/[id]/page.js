@@ -155,6 +155,18 @@ const formatAuthState = (value) => {
   return Boolean(value) ? 'ON' : 'OFF';
 };
 
+const formatNullableToggle = (value, { nullLabel = 'Inherit global default', trueLabel = 'Forced on', falseLabel = 'Forced off' } = {}) => {
+  if (value === null || value === undefined || value === '') return nullLabel;
+  return Boolean(value) ? trueLabel : falseLabel;
+};
+
+const formatDepositPromptThresholdValue = (value, { empty = 'Inherit global threshold' } = {}) => {
+  if (value === null || value === undefined || value === '') return empty;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return String(value);
+  return parsed.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
 const pickFirstDefined = (...values) => values.find((value) => value !== null && value !== undefined && value !== '');
 
 const resolveOwedAmount = (value) =>
@@ -258,6 +270,8 @@ const normalizeRecoveryStatus = (value) => ({
   unavailableFactors: normalizeFactorList(value?.unavailableFactors),
   status: String(value?.status || 'NONE').toUpperCase()
 });
+
+const DEPOSIT_PROMPT_FEATURE_FLAG_KEY = 'wallet.deposit_prompt';
 const normalizeRecoveryHistoryItem = (value) => ({
   ...value,
   requiredFactors: normalizeFactorList(value?.metadata?.requiredFactors ?? value?.requiredFactors),
@@ -431,6 +445,9 @@ const [notificationDataModal, setNotificationDataModal] = useState(null);
   const [customPricing, setCustomPricing] = useState(null);
   const [customPricingLoading, setCustomPricingLoading] = useState(false);
   const [customPricingMissing, setCustomPricingMissing] = useState(false);
+  const [walletPolicyReference, setWalletPolicyReference] = useState(null);
+  const [depositPromptFlagReference, setDepositPromptFlagReference] = useState(null);
+  const [depositPromptFlagAccountOverride, setDepositPromptFlagAccountOverride] = useState(null);
   const [kycCap, setKycCap] = useState(null);
   const [kycCapLoading, setKycCapLoading] = useState(false);
 
@@ -450,6 +467,8 @@ const [notificationDataModal, setNotificationDataModal] = useState(null);
   const [pricingExtraLoan, setPricingExtraLoan] = useState('');
   const [pricingMaxCollection, setPricingMaxCollection] = useState('');
   const [pricingMaxPayout, setPricingMaxPayout] = useState('');
+  const [pricingShowDepositPromptOverride, setPricingShowDepositPromptOverride] = useState('GLOBAL');
+  const [pricingDepositPromptThresholdOverride, setPricingDepositPromptThresholdOverride] = useState('');
   const [pricingNote, setPricingNote] = useState('');
   const [pricingError, setPricingError] = useState(null);
   const [pricingSaving, setPricingSaving] = useState(false);
@@ -811,6 +830,35 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       }
     } finally {
       setCustomPricingLoading(false);
+    }
+  };
+
+  const loadWalletPolicyReference = async () => {
+    try {
+      const res = await api.walletPolicyConfig.get();
+      setWalletPolicyReference(res || null);
+    } catch {
+      setWalletPolicyReference(null);
+    }
+  };
+
+  const loadDepositPromptFlagReference = async (accountIdValue) => {
+    try {
+      const [flagRes, overridesRes] = await Promise.all([
+        api.featureFlags.get(DEPOSIT_PROMPT_FEATURE_FLAG_KEY),
+        accountIdValue === null || accountIdValue === undefined
+          ? Promise.resolve([])
+          : api.featureFlags.listOverrides(DEPOSIT_PROMPT_FEATURE_FLAG_KEY)
+      ]);
+      setDepositPromptFlagReference(flagRes || null);
+      const overrides = Array.isArray(overridesRes) ? overridesRes : overridesRes?.content || overridesRes?.overrides || [];
+      const matching = overrides.find((entry) => String(entry?.accountId ?? entry?.account_id ?? entry?.id ?? '') === String(accountIdValue));
+      setDepositPromptFlagAccountOverride(
+        matching && (matching.enabled === true || matching.enabled === false) ? Boolean(matching.enabled) : null
+      );
+    } catch {
+      setDepositPromptFlagReference(null);
+      setDepositPromptFlagAccountOverride(null);
     }
   };
 
@@ -1657,12 +1705,18 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         setLoanProducts(toList(loanProductsRes));
         setCryptoProducts(toList(cryptoProductsRes));
         setCryptoNetworks(toList(cryptoNetworksRes));
+        await loadWalletPolicyReference();
       } catch {
         // ignore
       }
     };
     fetchOptions();
   }, []);
+
+  useEffect(() => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) return;
+    loadDepositPromptFlagReference(resolvedAccountId);
+  }, [resolvedAccountId]);
 
   const openPricingForm = (seed) => {
     setPricingError(null);
@@ -1673,8 +1727,43 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     setPricingExtraLoan(source?.extraLoanEligibilityAmount !== undefined && source?.extraLoanEligibilityAmount !== null ? String(source.extraLoanEligibilityAmount) : '0');
     setPricingMaxCollection(source?.maxCollectionAmount !== undefined && source?.maxCollectionAmount !== null ? String(source.maxCollectionAmount) : '');
     setPricingMaxPayout(source?.maxPayoutAmount !== undefined && source?.maxPayoutAmount !== null ? String(source.maxPayoutAmount) : '');
+    setPricingShowDepositPromptOverride(
+      source?.showDepositPrompt === null || source?.showDepositPrompt === undefined ? 'GLOBAL' : source.showDepositPrompt ? 'ENABLED' : 'DISABLED'
+    );
+    setPricingDepositPromptThresholdOverride(
+      source?.depositPromptThresholdAmount !== undefined && source?.depositPromptThresholdAmount !== null ? String(source.depositPromptThresholdAmount) : ''
+    );
     setPricingNote(source?.note ? String(source.note) : '');
   };
+
+  const buildCustomPricingPayload = ({
+    source = customPricing || {},
+    baseLoanEligibilityPercent,
+    extraLoanEligibilityAmount,
+    maxCollectionAmount,
+    maxPayoutAmount,
+    note,
+    cryptoProviderCollectionMinimumUsd,
+    showDepositPrompt,
+    depositPromptThresholdAmount
+  } = {}) => ({
+    baseLoanEligibilityPercent:
+      baseLoanEligibilityPercent !== undefined ? baseLoanEligibilityPercent : (source?.baseLoanEligibilityPercent ?? null),
+    extraLoanEligibilityAmount:
+      extraLoanEligibilityAmount !== undefined ? extraLoanEligibilityAmount : (source?.extraLoanEligibilityAmount ?? 0),
+    maxCollectionAmount:
+      maxCollectionAmount !== undefined ? maxCollectionAmount : (source?.maxCollectionAmount ?? null),
+    maxPayoutAmount:
+      maxPayoutAmount !== undefined ? maxPayoutAmount : (source?.maxPayoutAmount ?? null),
+    cryptoProviderCollectionMinimumUsd:
+      cryptoProviderCollectionMinimumUsd !== undefined ? cryptoProviderCollectionMinimumUsd : (source?.cryptoProviderCollectionMinimumUsd ?? null),
+    showDepositPrompt:
+      showDepositPrompt !== undefined ? showDepositPrompt : (source?.showDepositPrompt ?? null),
+    depositPromptThresholdAmount:
+      depositPromptThresholdAmount !== undefined ? depositPromptThresholdAmount : (source?.depositPromptThresholdAmount ?? null),
+    note:
+      note !== undefined ? note : (source?.note ?? null)
+  });
 
   const submitPricing = async () => {
     setPricingError(null);
@@ -1712,19 +1801,38 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       setPricingError('Max payout amount must be a number (or empty)');
       return;
     }
+
+    let showDepositPrompt = null;
+    if (pricingShowDepositPromptOverride === 'ENABLED') showDepositPrompt = true;
+    if (pricingShowDepositPromptOverride === 'DISABLED') showDepositPrompt = false;
+
+    const depositPromptThresholdRaw = String(pricingDepositPromptThresholdOverride ?? '').trim();
+    let depositPromptThresholdAmount = null;
+    if (depositPromptThresholdRaw) {
+      const parsed = Number(depositPromptThresholdRaw);
+      if (!Number.isFinite(parsed) || parsed <= 0) {
+        setPricingError('Deposit prompt threshold override must be greater than 0, or empty to inherit the global threshold');
+        return;
+      }
+      depositPromptThresholdAmount = parsed;
+    }
+
     setPricingSaving(true);
     try {
-      const payload = {
+      const payload = buildCustomPricingPayload({
         baseLoanEligibilityPercent: baseLoanPercent,
         extraLoanEligibilityAmount: extraLoan,
         maxCollectionAmount: maxCollection,
         maxPayoutAmount: maxPayout,
+        showDepositPrompt,
+        depositPromptThresholdAmount,
         note: pricingNote?.trim() ? pricingNote.trim() : null
-      };
+      });
       await api.accounts.updateCustomPricing(resolvedAccountId, payload);
       pushToast({ tone: 'success', message: 'Custom KYC caps saved' });
       setShowPricingForm(false);
       await loadCustomPricing(resolvedAccountId);
+      await loadWalletPolicyReference();
       await loadAccount();
     } catch (err) {
       const message = err.message || 'Failed to save custom KYC caps';
@@ -1777,14 +1885,9 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     setCryptoCollectionMinimumError(null);
     setCryptoCollectionMinimumInfo(null);
     try {
-      const payload = {
-        baseLoanEligibilityPercent: customPricing?.baseLoanEligibilityPercent ?? null,
-        extraLoanEligibilityAmount: customPricing?.extraLoanEligibilityAmount ?? 0,
-        maxCollectionAmount: customPricing?.maxCollectionAmount ?? null,
-        maxPayoutAmount: customPricing?.maxPayoutAmount ?? null,
-        cryptoProviderCollectionMinimumUsd: trimmed ? Number(trimmed) : null,
-        note: customPricing?.note ?? null
-      };
+      const payload = buildCustomPricingPayload({
+        cryptoProviderCollectionMinimumUsd: trimmed ? Number(trimmed) : null
+      });
       await api.accounts.updateCustomPricing(resolvedAccountId, payload);
       await loadCustomPricing(resolvedAccountId);
       setCryptoCollectionMinimumInfo(trimmed ? `Override set to ${trimmed}.` : 'Override cleared; using the global minimum.');
@@ -2509,6 +2612,17 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
   const txView = transactions || [];
   const cryptoWallets = accountView?.cryptoWallets || [];
   const owedBreakdown = useMemo(() => resolveOwedBreakdown(accountView), [accountView]);
+  const depositPromptOverrideActive =
+    customPricing?.showDepositPrompt !== null && customPricing?.showDepositPrompt !== undefined ||
+    customPricing?.depositPromptThresholdAmount !== null && customPricing?.depositPromptThresholdAmount !== undefined;
+  const globalDepositPromptStatus =
+    depositPromptFlagReference?.enabled === true ? 'Feature Flag: On' :
+    depositPromptFlagReference?.enabled === false ? 'Feature Flag: Off' :
+    'Feature flag unknown';
+  const accountDepositPromptFeatureFlagStatus =
+    depositPromptFlagAccountOverride === true ? 'Account Override: On' :
+    depositPromptFlagAccountOverride === false ? 'Account Override: Off' :
+    'Inherited';
   const resolvedAccountId = useMemo(() => {
     if (account?.id !== undefined && account?.id !== null) return account.id;
     const num = Number(accountId);
@@ -3231,7 +3345,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
             <div style={{ fontWeight: 800 }}>Custom KYC Caps</div>
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-              Per-account overrides for loan eligibility and deposit/withdrawal caps.
+              Per-account overrides for loan eligibility, deposit prompt behavior, and deposit/withdrawal caps.
             </div>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -3262,22 +3376,56 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             <div style={{ color: 'var(--muted)' }}>No custom KYC caps configured.</div>
           )}
           {!customPricingLoading && customPricing && (
-            <DetailGrid
-              rows={[
-                {
-                  label: 'Base loan eligibility %',
-                  value:
-                    customPricing.baseLoanEligibilityPercent !== null && customPricing.baseLoanEligibilityPercent !== undefined
-                      ? customPricing.baseLoanEligibilityPercent
-                      : 'Default policy'
-                },
-                { label: 'Extra loan eligibility', value: customPricing.extraLoanEligibilityAmount },
-                { label: 'Max collection', value: customPricing.maxCollectionAmount ?? 'Default' },
-                { label: 'Max payout', value: customPricing.maxPayoutAmount ?? 'Default' },
-                { label: 'Note', value: customPricing.note ?? '—' },
-                { label: 'Updated', value: customPricing.updatedAt ? formatDateTime(customPricing.updatedAt) : '—' }
-              ]}
-            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                <Badge>{depositPromptOverrideActive ? 'Account Override' : 'Inherited'}</Badge>
+                {customPricing?.depositPromptThresholdAmount !== null && customPricing?.depositPromptThresholdAmount !== undefined && (
+                  <Badge>Threshold Override</Badge>
+                )}
+                <span style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                  Global deposit prompt: {globalDepositPromptStatus}
+                </span>
+              </div>
+              <DetailGrid
+                rows={[
+                  {
+                    label: 'Base loan eligibility %',
+                    value:
+                      customPricing.baseLoanEligibilityPercent !== null && customPricing.baseLoanEligibilityPercent !== undefined
+                        ? customPricing.baseLoanEligibilityPercent
+                        : 'Default policy'
+                  },
+                  { label: 'Extra loan eligibility', value: customPricing.extraLoanEligibilityAmount },
+                  { label: 'Max collection', value: customPricing.maxCollectionAmount ?? 'Default' },
+                  { label: 'Max payout', value: customPricing.maxPayoutAmount ?? 'Default' },
+                  {
+                    label: 'Account deposit prompt override',
+                    value: formatNullableToggle(customPricing.showDepositPrompt)
+                  },
+                  {
+                    label: 'Account deposit prompt threshold override',
+                    value: formatDepositPromptThresholdValue(customPricing.depositPromptThresholdAmount)
+                  },
+                  {
+                    label: 'Feature flag visibility default',
+                    value: globalDepositPromptStatus
+                  },
+                  {
+                    label: 'Feature flag account override',
+                    value: accountDepositPromptFeatureFlagStatus
+                  },
+                  {
+                    label: 'Global deposit prompt threshold',
+                    value: formatDepositPromptThresholdValue(
+                      walletPolicyReference?.depositPromptThresholdAmount,
+                      { empty: 'Client fallback threshold' }
+                    )
+                  },
+                  { label: 'Note', value: customPricing.note ?? '—' },
+                  { label: 'Updated', value: customPricing.updatedAt ? formatDateTime(customPricing.updatedAt) : '—' }
+                ]}
+              />
+            </div>
           )}
 
           <div style={{ marginTop: '0.85rem' }}>
@@ -4360,6 +4508,32 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       {showPricingForm && (
         <Modal title={`${customPricing ? 'Edit' : 'Add'} custom KYC caps`} onClose={() => (!pricingSaving ? setShowPricingForm(false) : null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: '0.75rem',
+                padding: '0.75rem',
+                border: '1px solid var(--border)',
+                borderRadius: '12px',
+                background: 'var(--panel, transparent)'
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>Global deposit prompt</div>
+                <div style={{ fontWeight: 700 }}>{globalDepositPromptStatus}</div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>Feature-flag account override</div>
+                <div style={{ fontWeight: 700 }}>{accountDepositPromptFeatureFlagStatus}</div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>Global threshold</div>
+                <div style={{ fontWeight: 700 }}>
+                  {formatDepositPromptThresholdValue(walletPolicyReference?.depositPromptThresholdAmount, { empty: 'Client fallback threshold' })}
+                </div>
+              </div>
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="extraLoanEligibilityAmount">Extra loan eligibility amount</label>
@@ -4410,6 +4584,36 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                 />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="pricingShowDepositPromptOverride">Account Deposit Prompt Override</label>
+                <select
+                  id="pricingShowDepositPromptOverride"
+                  value={pricingShowDepositPromptOverride}
+                  onChange={(e) => setPricingShowDepositPromptOverride(e.target.value)}
+                >
+                  <option value="GLOBAL">Use global default</option>
+                  <option value="ENABLED">Force on</option>
+                  <option value="DISABLED">Force off</option>
+                </select>
+                <span style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                  Override the default prompt visibility for this account. Leave unset to inherit the feature-flag and wallet-policy defaults.
+                </span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="pricingDepositPromptThresholdOverride">Account Deposit Prompt Threshold Override</label>
+                <input
+                  id="pricingDepositPromptThresholdOverride"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={pricingDepositPromptThresholdOverride}
+                  onChange={(e) => setPricingDepositPromptThresholdOverride(e.target.value)}
+                  placeholder="Leave empty to inherit the global wallet policy"
+                />
+                <span style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                  Override the default threshold for this account. Leave empty to inherit the global wallet policy.
+                </span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="pricingNote">Note (optional)</label>
                 <input id="pricingNote" value={pricingNote} onChange={(e) => setPricingNote(e.target.value)} placeholder="VIP customer" />
               </div>
@@ -4434,7 +4638,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               Remove custom KYC caps for account <span style={{ fontWeight: 900 }}>{accountView?.accountReference || accountView?.id}</span>?
             </div>
             <div style={{ color: 'var(--muted)' }}>
-              This will revert to standard KYC caps/scoring rules for loan eligibility and deposit/withdrawal limits.
+              This will revert this account to the global/default rules for loan eligibility, deposit prompt behavior, and deposit/withdrawal limits.
             </div>
             {pricingError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{pricingError}</div>}
             <div className="modal-actions">

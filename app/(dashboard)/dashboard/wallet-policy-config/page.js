@@ -92,7 +92,6 @@ export default function WalletPolicyConfigPage() {
   const [forceKycBeforeAppUse, setForceKycBeforeAppUse] = useState(false);
   const [sendCryptoExternalProviderEnabled, setSendCryptoExternalProviderEnabled] = useState(false);
   const [reviewPromptCompletedTransactionsThreshold, setReviewPromptCompletedTransactionsThreshold] = useState('');
-  const [showDepositPrompt, setShowDepositPrompt] = useState(false);
   const [depositPromptThresholdAmount, setDepositPromptThresholdAmount] = useState('');
   const [transactionsEligibleForLoanEligibility, setTransactionsEligibleForLoanEligibility] = useState(true);
   const [autoRefundBlockedActions, setAutoRefundBlockedActions] = useState([]);
@@ -157,7 +156,6 @@ export default function WalletPolicyConfigPage() {
       setForcePayoutKycUnlessApproved(Boolean(res?.forcePayoutKycUnlessApproved));
       setForceKycBeforeAppUse(Boolean(res?.forceKycBeforeAppUse));
       setSendCryptoExternalProviderEnabled(Boolean(res?.sendCryptoExternalProviderEnabled));
-      setShowDepositPrompt(Boolean(res?.showDepositPrompt));
       setDepositPromptThresholdAmount(formatUsdValue(res?.depositPromptThresholdAmount));
       setTransactionsEligibleForLoanEligibility(res?.transactionsEligibleForLoanEligibility !== false);
       const reviewPromptThreshold = res?.reviewPromptCompletedTransactionsThreshold;
@@ -274,7 +272,6 @@ export default function WalletPolicyConfigPage() {
         forcePayoutKycUnlessApproved: Boolean(forcePayoutKycUnlessApproved),
         forceKycBeforeAppUse: Boolean(forceKycBeforeAppUse),
         sendCryptoExternalProviderEnabled: Boolean(sendCryptoExternalProviderEnabled),
-        showDepositPrompt: Boolean(showDepositPrompt),
         depositPromptThresholdAmount: depositPromptThresholdRaw === '' ? null : depositPromptThresholdParsed.toFixed(2),
         transactionsEligibleForLoanEligibility: Boolean(transactionsEligibleForLoanEligibility),
         reviewPromptCompletedTransactionsThreshold:
@@ -789,7 +786,7 @@ export default function WalletPolicyConfigPage() {
 
           <div style={{ display: 'grid', gap: '0.5rem', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-              <div style={{ fontWeight: 700 }}>Home Deposit Prompt</div>
+              <div style={{ fontWeight: 700 }}>Home Deposit Prompt Threshold</div>
               <span
                 style={{
                   display: 'inline-flex',
@@ -798,25 +795,16 @@ export default function WalletPolicyConfigPage() {
                   borderRadius: '999px',
                   fontSize: '12px',
                   fontWeight: 700,
-                  background: showDepositPrompt ? '#dbeafe' : depositPromptThresholdAmount ? '#ecfccb' : '#f3f4f6',
-                  color: showDepositPrompt ? '#1d4ed8' : depositPromptThresholdAmount ? '#3f6212' : '#374151'
+                  background: depositPromptThresholdAmount ? '#ecfccb' : '#f3f4f6',
+                  color: depositPromptThresholdAmount ? '#3f6212' : '#374151'
                 }}
               >
-                {showDepositPrompt ? 'Forced' : depositPromptThresholdAmount ? 'Threshold-based' : 'Client fallback'}
+                {depositPromptThresholdAmount ? 'Threshold-based' : 'Client fallback'}
               </span>
             </div>
 
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
-              <input
-                type="checkbox"
-                checked={showDepositPrompt}
-                onChange={(e) => setShowDepositPrompt(e.target.checked)}
-                disabled={loading || saving}
-              />
-              Force Deposit Prompt
-            </label>
             <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-              Show the Home deposit prompt for all users regardless of current wallet balance.
+              Controls the threshold amount only. Deposit prompt visibility is managed through the `wallet.deposit_prompt` feature flag.
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxWidth: '320px' }}>
@@ -834,7 +822,7 @@ export default function WalletPolicyConfigPage() {
                 disabled={loading || saving}
               />
               <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-                Show the Home deposit prompt when wallet balance is below this amount. Leave empty to let the app use its fallback threshold.
+                Show the prompt when wallet balance is below this amount. Leave empty to let the app use its fallback threshold.
               </div>
             </div>
           </div>
