@@ -338,6 +338,7 @@ const paymentMethodActionRuleOptions = [
   'REQUEST_PAYMENT',
   'PAY_REQUEST',
   'SETTLEMENT',
+  'GROUP_SAVING_ROUND_DISTRIBUTION',
   'E_SIM_PURCHASE',
   'E_SIM_TOPUP',
   'SEND_AIRTIME',
@@ -670,6 +671,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     'PERSONAL_SAVING_INTEREST_PAYOUT',
     'GROUP_SAVING_CONTRIBUTION',
     'GROUP_SAVING_PAYOUT',
+    'GROUP_SAVING_ROUND_DISTRIBUTION',
     'WITHDRAW_FROM_WALLET'
   ].sort();
 

@@ -45,6 +45,7 @@ const ACTION_LABELS = {
   pay_water_bill: 'Water',
   loan_request: 'Loan Request',
   loan_disbursement: 'Loan Disbursement',
+  group_saving_round_distribution: 'Group Saving Round Distribution',
   repay_loan: 'Loan Repayment',
   fund_card: 'Card Funding',
   withdraw_from_card: 'Card Withdrawal',
