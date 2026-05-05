@@ -607,7 +607,7 @@ export default function GroupSavingDetailPage() {
             title={reason}
             onClick={() => setConfirmAction({ type: 'remove-member', member: row })}
           >
-            Remove
+            {isAvec ? 'Admin Override Remove' : 'Remove'}
           </button>
         );
       }
@@ -779,7 +779,9 @@ export default function GroupSavingDetailPage() {
           <SectionCard title="Operational Notes" description="Admin does not bypass customer flows. Use these views to inspect state and apply only supported corrective actions.">
             <div style={{ display: 'grid', gap: '0.35rem', color: 'var(--muted)', fontSize: '13px' }}>
               <div>Pause or resume is a group-level operational control and writes audit events.</div>
-              <div>Member removal is allowed only when the member is active and not blocked by unresolved AVEC debt.</div>
+              <div>LIKELEMBA member removal stays simpler and setup-oriented. AVEC member removal is a governed workflow on the customer side.</div>
+              <div>For AVEC, check member-removal policy, vote progress, and unresolved debt before describing a removal as complete.</div>
+              <div>Admin override removal is separate from the owner governance flow and should be treated as an operational override.</div>
               <div>After every admin action, the page refreshes group detail and subresource state.</div>
             </div>
           </SectionCard>
@@ -787,7 +789,14 @@ export default function GroupSavingDetailPage() {
       ) : null}
 
       {activeTab === 'members' ? (
-        <SectionCard title="Members" description="Removal is blocked when unresolved AVEC debt prevents exit.">
+        <SectionCard
+          title="Members"
+          description={
+            isAvec
+              ? 'AVEC owner removal is governance-based. This table keeps the admin override separate and still blocks removal when unresolved AVEC debt prevents exit.'
+              : 'LIKELEMBA removal remains the simpler direct flow during allowed setup stages.'
+          }
+        >
           <DataTable showIndex={false} columns={membersColumns} rows={members} pageSize={100} emptyLabel="No members found" />
         </SectionCard>
       ) : null}
@@ -1156,6 +1165,44 @@ export default function GroupSavingDetailPage() {
             ]}
           />
 
+          <SectionCard
+            title="Member Removal Governance"
+            description="AVEC member removal is not an immediate owner delete. Use these settings to understand whether removal needs votes or owner approval."
+          >
+            <DetailGrid
+              rows={[
+                {
+                  label: 'Member Removal Approval Threshold',
+                  value: pickFirst(policy?.memberRemovalApprovalThresholdPercent, '—')
+                },
+                {
+                  label: 'Member Removal Approval Mode',
+                  value: humanizeEnum(pickFirst(policy?.memberRemovalApprovalMode, '—'))
+                },
+                {
+                  label: 'Enable Member Removal Vote Deadline',
+                  value: pickFirst(policy?.memberRemovalVoteWindowEnabled, null) === null ? '—' : (policy?.memberRemovalVoteWindowEnabled ? 'Yes' : 'No')
+                },
+                {
+                  label: 'Member Removal Vote Window',
+                  value:
+                    pickFirst(policy?.memberRemovalVoteWindowHours, null) === null
+                      ? '—'
+                      : `${pickFirst(policy?.memberRemovalVoteWindowHours, 0)} hours`
+                },
+                {
+                  label: 'Member Removal Voter Scope',
+                  value: humanizeEnum(pickFirst(policy?.memberRemovalVoteEligibilityScope, '—'))
+                }
+              ]}
+            />
+            <div style={{ display: 'grid', gap: '0.35rem', color: 'var(--muted)', fontSize: '13px' }}>
+              <div>Threshold: percentage of eligible approvals required to remove a member.</div>
+              <div>Approval mode: whether removal is decided by voting or direct owner approval.</div>
+              <div>Vote window: how long members have to vote before the request expires or is rejected.</div>
+            </div>
+          </SectionCard>
+
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <button type="button" className="btn-primary" onClick={handleSavePolicy} disabled={savingAction === 'save-policy'}>
               {savingAction === 'save-policy' ? 'Saving…' : 'Save Policy'}
@@ -1280,7 +1327,9 @@ export default function GroupSavingDetailPage() {
                         ? 'Delete this group message event? This removes it from the admin-visible message history.'
                     : confirmAction.type === 'restore-group'
                     ? 'This will make the soft-deleted group visible again.'
-                    : 'Remove this member from the group if allowed by policy and debt state?'}
+                    : isAvec
+                      ? 'This is an admin override removal. The owner-governed AVEC member-removal flow is separate and policy-based.'
+                      : 'Remove this member from the group if allowed by policy and debt state?'}
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
               <button type="button" className="btn-neutral" onClick={() => setConfirmAction(null)}>
@@ -1313,7 +1362,7 @@ export default function GroupSavingDetailPage() {
                   onClick={() => handleRemoveMember(confirmAction.member)}
                   disabled={savingAction === `remove-member-${confirmAction.member?.id}`}
                 >
-                  {savingAction === `remove-member-${confirmAction.member?.id}` ? 'Removing…' : 'Remove Member'}
+                  {savingAction === `remove-member-${confirmAction.member?.id}` ? 'Removing…' : isAvec ? 'Admin Override Remove' : 'Remove Member'}
                 </button>
               ) : null}
               {confirmAction.type === 'restore-group' ? (

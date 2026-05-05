@@ -99,15 +99,6 @@ export default function SavingsFeatureFlagsPage() {
           }
       />
 
-      <SectionCard title="Support Framing" description="Use this language when explaining current savings behavior to support teams and admins.">
-        <div style={{ display: 'grid', gap: '0.35rem', color: 'var(--muted)', fontSize: '13px' }}>
-          <div>Open savings is flexible and normally non-interest-bearing.</div>
-          <div>Locked savings accrues daily interest that becomes payable only at maturity.</div>
-          <div>If a customer breaks a locked saving early, accrued interest is forfeited.</div>
-          <div>Open-savings interest can still be enabled where admin has agreed a negotiated exception.</div>
-        </div>
-      </SectionCard>
-
       {error ? <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div> : null}
       {info ? <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div> : null}
 

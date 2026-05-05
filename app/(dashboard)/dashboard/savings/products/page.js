@@ -188,8 +188,6 @@ export default function SavingProductsPage() {
   const [draft, setDraft] = useState(emptyDraft);
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
-  const [filters, setFilters] = useState({ code: '', title: '', active: '' });
-  const [appliedFilters, setAppliedFilters] = useState({ code: '', title: '', active: '' });
   const lockedDraft = isLockedSavingProduct(draft.code);
   const sortedDraftTiers = useMemo(
     () =>
@@ -206,9 +204,6 @@ export default function SavingProductsPage() {
       const params = new URLSearchParams();
       params.set('page', String(page));
       params.set('size', String(size));
-      if (appliedFilters.code.trim()) params.set('code', appliedFilters.code.trim());
-      if (appliedFilters.title.trim()) params.set('title', appliedFilters.title.trim());
-      if (appliedFilters.active !== '') params.set('active', appliedFilters.active);
       const res = await api.savingProducts.list(params);
       const list = Array.isArray(res) ? res : res?.content || [];
       setRows(list || []);
@@ -223,7 +218,7 @@ export default function SavingProductsPage() {
 
   useEffect(() => {
     fetchRows();
-  }, [page, size, appliedFilters]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const columns = useMemo(
     () => [
@@ -665,68 +660,6 @@ export default function SavingProductsPage() {
           </button>
         }
       />
-
-      <SectionCard title={t('savings.products.searchTitle')} description={t('savings.products.searchDescription')}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
-          <div style={{ display: 'grid', gap: '0.25rem' }}>
-            <label htmlFor="filter-code">Code</label>
-            <input id="filter-code" value={filters.code} onChange={(e) => setFilters((p) => ({ ...p, code: e.target.value }))} placeholder="OPEN_SAVING" />
-          </div>
-          <div style={{ display: 'grid', gap: '0.25rem' }}>
-            <label htmlFor="filter-title">Title</label>
-            <input id="filter-title" value={filters.title} onChange={(e) => setFilters((p) => ({ ...p, title: e.target.value }))} placeholder="Flexible Saver" />
-          </div>
-          <div style={{ display: 'grid', gap: '0.25rem' }}>
-            <label htmlFor="filter-active">Active</label>
-            <select id="filter-active" value={filters.active} onChange={(e) => setFilters((p) => ({ ...p, active: e.target.value }))}>
-              <option value="">{t('common.all')}</option>
-              <option value="true">Active</option>
-              <option value="false">Inactive</option>
-            </select>
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            onClick={() => {
-              setPage(0);
-              setAppliedFilters(filters);
-            }}
-            disabled={loading}
-            className="btn-primary"
-          >
-            {loading ? t('common.refreshing') : t('savings.groups.search')}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              const reset = { code: '', title: '', active: '' };
-              setFilters(reset);
-              setAppliedFilters(reset);
-              setPage(0);
-            }}
-            className="btn-neutral"
-          >
-            {t('savings.groups.reset')}
-          </button>
-        </div>
-      </SectionCard>
-
-      <div className="card" style={{ color: 'var(--muted)', fontSize: '13px' }}>
-        Managing {formatCount(totalElements)} saving products. Use `code` to align product behavior with mobile savings flows such as `OPEN_SAVING` and `LOCKED_SAVING`.
-      </div>
-
-      <SectionCard
-        title={t('savings.products.commercialDefaults')}
-        description={t('savings.products.commercialDefaultsDescription')}
-      >
-        <div style={{ display: 'grid', gap: '0.35rem', color: 'var(--muted)', fontSize: '13px' }}>
-          <div>{t('savings.products.commercialDefault1')}</div>
-          <div>{t('savings.products.commercialDefault2')}</div>
-          <div>{t('savings.products.commercialDefault3')}</div>
-          <div>{t('savings.products.commercialDefault4')}</div>
-        </div>
-      </SectionCard>
 
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
