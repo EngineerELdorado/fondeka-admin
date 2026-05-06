@@ -613,6 +613,11 @@ const [notificationResult, setNotificationResult] = useState(null);
 const [loanEligibility, setLoanEligibility] = useState(null);
 const [loanEligibilityLoading, setLoanEligibilityLoading] = useState(false);
 const [loanEligibilityError, setLoanEligibilityError] = useState(null);
+const [showLegacyEligibilityAdjust, setShowLegacyEligibilityAdjust] = useState(false);
+const [legacyEligibilityAmount, setLegacyEligibilityAmount] = useState('');
+const [legacyEligibilityNote, setLegacyEligibilityNote] = useState('');
+const [legacyEligibilitySaving, setLegacyEligibilitySaving] = useState(false);
+const [legacyEligibilityAdjustError, setLegacyEligibilityAdjustError] = useState(null);
 const [transactionAuthOverride, setTransactionAuthOverride] = useState(false);
 const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
 
@@ -1688,6 +1693,51 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     }
   };
 
+  const openLegacyEligibilityAdjust = () => {
+    setLegacyEligibilityAdjustError(null);
+    setLegacyEligibilityAmount(
+      loanEligibility?.legacyMigratedEligibility !== null && loanEligibility?.legacyMigratedEligibility !== undefined
+        ? String(loanEligibility.legacyMigratedEligibility)
+        : ''
+    );
+    setLegacyEligibilityNote('');
+    setShowLegacyEligibilityAdjust(true);
+  };
+
+  const saveLegacyEligibilityAdjust = async () => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) return;
+    const trimmedAmount = String(legacyEligibilityAmount || '').trim();
+    const trimmedNote = String(legacyEligibilityNote || '').trim();
+    const parsedAmount = Number(trimmedAmount);
+
+    if (!trimmedAmount || !Number.isFinite(parsedAmount) || parsedAmount < 0) {
+      setLegacyEligibilityAdjustError('Legacy amount must be 0 or greater.');
+      return;
+    }
+    if (!trimmedNote) {
+      setLegacyEligibilityAdjustError('A note is required for legacy eligibility adjustments.');
+      return;
+    }
+
+    setLegacyEligibilitySaving(true);
+    setLegacyEligibilityAdjustError(null);
+    try {
+      await api.accounts.updateLegacyLoanEligibilityAmount(resolvedAccountId, {
+        amount: parsedAmount,
+        note: trimmedNote
+      });
+      pushToast({ tone: 'success', message: 'Legacy eligibility amount updated' });
+      setShowLegacyEligibilityAdjust(false);
+      await loadLoanEligibility(resolvedAccountId);
+    } catch (err) {
+      const message = err.message || 'Failed to update legacy eligibility amount';
+      setLegacyEligibilityAdjustError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setLegacyEligibilitySaving(false);
+    }
+  };
+
   useEffect(() => {
     const fetchOptions = async () => {
       try {
@@ -2644,6 +2694,11 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
 
   useEffect(() => {
     if (resolvedAccountId === null || resolvedAccountId === undefined) return;
+    loadLoanEligibility(resolvedAccountId);
+  }, [resolvedAccountId]);
+
+  useEffect(() => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) return;
     loadNotifications(resolvedAccountId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolvedAccountId, notificationsPage, notificationsSize]);
@@ -2955,17 +3010,27 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
             <div style={{ fontWeight: 800 }}>Loan eligibility</div>
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-              Based on completed, unrefunded transactions and custom overrides.
+              Available eligibility is the main number. Legacy migration stays audit-safe through admin adjustment entries, not direct history edits.
             </div>
           </div>
-          <button
-            type="button"
-            className="btn-neutral btn-sm"
-            onClick={() => loadLoanEligibility(resolvedAccountId)}
-            disabled={loanEligibilityLoading || resolvedAccountId === null || resolvedAccountId === undefined}
-          >
-            {loanEligibilityLoading ? 'Loading…' : 'Refresh'}
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn-neutral btn-sm"
+              onClick={() => loadLoanEligibility(resolvedAccountId)}
+              disabled={loanEligibilityLoading || resolvedAccountId === null || resolvedAccountId === undefined}
+            >
+              {loanEligibilityLoading ? 'Loading…' : 'Refresh'}
+            </button>
+            <button
+              type="button"
+              className="btn-primary btn-sm"
+              onClick={openLegacyEligibilityAdjust}
+              disabled={loanEligibilityLoading || !loanEligibility || resolvedAccountId === null || resolvedAccountId === undefined}
+            >
+              Set Legacy Amount
+            </button>
+          </div>
         </div>
 
         <div style={{ marginTop: '0.75rem' }}>
@@ -2973,16 +3038,32 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           {loanEligibilityLoading && <div style={{ color: 'var(--muted)' }}>Loading loan eligibility…</div>}
           {!loanEligibilityLoading && !loanEligibility && <div style={{ color: 'var(--muted)' }}>No eligibility data available.</div>}
           {!loanEligibilityLoading && loanEligibility && (
-            <DetailGrid
-              rows={[
-                { label: 'Account ID', value: loanEligibility.accountId },
-                { label: 'Has completed tx', value: loanEligibility.hasCompletedTransactions ? 'Yes' : 'No' },
-                { label: 'Profit', value: loanEligibility.profit },
-                { label: 'Base eligibility', value: loanEligibility.baseEligibility },
-                { label: 'Extra eligibility', value: loanEligibility.extraEligibility },
-                { label: 'Total eligibility', value: loanEligibility.totalEligibility }
-              ]}
-            />
+            <div style={{ display: 'grid', gap: '0.85rem' }}>
+              <DetailGrid
+                rows={[
+                  { label: 'Available Eligibility', value: formatAmount(loanEligibility.availableEligibility) },
+                  { label: 'Total Earned Eligibility', value: formatAmount(loanEligibility.earnedEligibility) },
+                  { label: 'Outstanding Active Loan Balance', value: formatAmount(loanEligibility.activeLoanBalance) },
+                  { label: 'Archived Debt Balance', value: formatAmount(loanEligibility.archivedDebtBalance) }
+                ]}
+              />
+              <DetailGrid
+                rows={[
+                  { label: 'Account ID', value: loanEligibility.accountId },
+                  { label: 'Has completed tx', value: loanEligibility.hasCompletedTransactions ? 'Yes' : 'No' },
+                  { label: 'Profit', value: formatAmount(loanEligibility.profit) },
+                  { label: 'Base eligibility', value: formatAmount(loanEligibility.baseEligibility) },
+                  { label: 'Extra eligibility', value: formatAmount(loanEligibility.extraEligibility) },
+                  { label: 'Total eligibility', value: formatAmount(loanEligibility.totalEligibility) },
+                  { label: 'Outstanding Loan Balance', value: formatAmount(loanEligibility.outstandingLoanBalance) },
+                  { label: 'Legacy Migrated Eligibility', value: formatAmount(loanEligibility.legacyMigratedEligibility) },
+                  { label: 'Admin Legacy Adjustment', value: formatAmount(loanEligibility.legacyAdjustmentAmount) }
+                ]}
+              />
+              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                Available = Earned - Outstanding. New rule changes affect new completed transactions only and do not rewrite earned history.
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -5632,6 +5713,47 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             />
             <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
               Archived amount falls back to the account&apos;s previous debt when no dedicated archived field is returned.
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showLegacyEligibilityAdjust && (
+        <Modal title="Set Legacy Eligibility Amount" onClose={() => (!legacyEligibilitySaving ? setShowLegacyEligibilityAdjust(false) : null)}>
+          <div style={{ display: 'grid', gap: '0.85rem', marginTop: '0.75rem' }}>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              This sets the effective legacy baseline. Backend records the delta as an admin adjustment entry instead of rewriting the original migration row.
+            </div>
+            <div style={{ display: 'grid', gap: '0.25rem' }}>
+              <label htmlFor="legacyEligibilityAmount">Legacy amount</label>
+              <input
+                id="legacyEligibilityAmount"
+                type="number"
+                min="0"
+                step="0.01"
+                value={legacyEligibilityAmount}
+                onChange={(e) => setLegacyEligibilityAmount(e.target.value)}
+                placeholder="125.50"
+              />
+            </div>
+            <div style={{ display: 'grid', gap: '0.25rem' }}>
+              <label htmlFor="legacyEligibilityNote">Adjustment note</label>
+              <textarea
+                id="legacyEligibilityNote"
+                rows={3}
+                value={legacyEligibilityNote}
+                onChange={(e) => setLegacyEligibilityNote(e.target.value)}
+                placeholder="Support correction after legacy review"
+              />
+            </div>
+            {legacyEligibilityAdjustError ? <div style={{ color: '#b91c1c', fontWeight: 700 }}>{legacyEligibilityAdjustError}</div> : null}
+            <div className="modal-actions">
+              <button type="button" className="btn-neutral" disabled={legacyEligibilitySaving} onClick={() => setShowLegacyEligibilityAdjust(false)}>
+                Cancel
+              </button>
+              <button type="button" className="btn-primary" disabled={legacyEligibilitySaving} onClick={saveLegacyEligibilityAdjust}>
+                {legacyEligibilitySaving ? 'Saving…' : 'Set Legacy Amount'}
+              </button>
             </div>
           </div>
         </Modal>
