@@ -485,6 +485,27 @@ export default function TransactionsPage() {
     return num.toFixed(8).replace(/\.?0+$/, '');
   };
 
+  const formatMoneyAmount = (value) => {
+    if (value === null || value === undefined || value === '') return '—';
+    const num = Number(value);
+    if (!Number.isFinite(num)) return String(value);
+    return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  };
+
+  const hasLoanEligibilitySnapshot = Boolean(
+    selected?.loanEligibilityRecorded ||
+    selected?.loanEligibilityRevenueAmount !== null ||
+    selected?.loanEligibilityRevenueAmount !== undefined ||
+    selected?.loanEligibilityAmount !== null ||
+    selected?.loanEligibilityAmount !== undefined ||
+    selected?.loanEligibilityReversalAmount !== null ||
+    selected?.loanEligibilityReversalAmount !== undefined ||
+    selected?.loanEligibilityNetAmount !== null ||
+    selected?.loanEligibilityNetAmount !== undefined ||
+    selected?.loanEligibilityRuleSource ||
+    selected?.loanEligibilityRuleConfigId
+  );
+
   const copyToClipboard = async (value, label = 'Value') => {
     const text = value === null || value === undefined ? '' : String(value);
     if (!text) return;
@@ -1895,6 +1916,49 @@ export default function TransactionsPage() {
                 ...(showErrorMessage ? [{ label: 'Error message', value: selected?.errorMessage || '—' }] : [])
               ]}
             />
+
+            {hasLoanEligibilitySnapshot && (
+              <div className="card" style={{ padding: '1rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                  <div style={{ fontWeight: 800 }}>Loan eligibility snapshot</div>
+                  <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                    Shows the original earned contribution for this transaction and the current net effect after any later reversal or refund.
+                  </div>
+                </div>
+
+                <div style={{ marginTop: '0.75rem', display: 'grid', gap: '0.6rem' }}>
+                  <DetailGrid
+                    rows={[
+                      { label: 'Recorded', value: selected?.loanEligibilityRecorded === true ? 'Yes' : selected?.loanEligibilityRecorded === false ? 'No' : '—' },
+                      { label: 'Revenue amount', value: formatMoneyAmount(selected?.loanEligibilityRevenueAmount) },
+                      {
+                        label: 'Eligibility % of revenue',
+                        value:
+                          selected?.loanEligibilityPercentOfRevenue === null || selected?.loanEligibilityPercentOfRevenue === undefined
+                            ? '—'
+                            : `${formatMoneyAmount(selected?.loanEligibilityPercentOfRevenue)}%`
+                      },
+                      { label: 'Eligibility amount', value: formatMoneyAmount(selected?.loanEligibilityAmount) },
+                      { label: 'Reversal amount', value: formatMoneyAmount(selected?.loanEligibilityReversalAmount) },
+                      { label: 'Net amount', value: formatMoneyAmount(selected?.loanEligibilityNetAmount) },
+                      { label: 'Rule source', value: selected?.loanEligibilityRuleSource || '—' },
+                      { label: 'Rule config ID', value: selected?.loanEligibilityRuleConfigId ?? '—' },
+                      {
+                        label: 'Untrusted borrower at calculation',
+                        value:
+                          selected?.loanEligibilityUntrustedBorrowerAtCalculation === true
+                            ? 'Yes'
+                            : selected?.loanEligibilityUntrustedBorrowerAtCalculation === false
+                              ? 'No'
+                              : '—'
+                      },
+                      { label: 'Calculated at', value: formatDateTime(selected?.loanEligibilityCalculatedAt) },
+                      { label: 'Reversed at', value: formatDateTime(selected?.loanEligibilityReversedAt) }
+                    ]}
+                  />
+                </div>
+              </div>
+            )}
 
             {normalizeEnumKey(selected?.action) === 'WITHDRAW_FROM_WALLET' && (
               <div className="card" style={{ padding: '1rem' }}>

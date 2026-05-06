@@ -613,6 +613,7 @@ const [notificationResult, setNotificationResult] = useState(null);
 const [loanEligibility, setLoanEligibility] = useState(null);
 const [loanEligibilityLoading, setLoanEligibilityLoading] = useState(false);
 const [loanEligibilityError, setLoanEligibilityError] = useState(null);
+const [showLoanEligibilityDetails, setShowLoanEligibilityDetails] = useState(false);
 const [showLegacyEligibilityAdjust, setShowLegacyEligibilityAdjust] = useState(false);
 const [legacyEligibilityAmount, setLegacyEligibilityAmount] = useState('');
 const [legacyEligibilityNote, setLegacyEligibilityNote] = useState('');
@@ -3012,8 +3013,22 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
               Available eligibility is the main number. Legacy migration stays audit-safe through admin adjustment entries, not direct history edits.
             </div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              {loanEligibilityLoading
+                ? 'Loading…'
+                : loanEligibility
+                  ? `Available eligibility: ${formatAmount(loanEligibility.availableEligibility)}`
+                  : 'No eligibility data available.'}
+            </div>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn-neutral btn-sm"
+              onClick={() => setShowLoanEligibilityDetails((prev) => !prev)}
+            >
+              {showLoanEligibilityDetails ? 'Hide details' : 'Show details'}
+            </button>
             <button
               type="button"
               className="btn-neutral btn-sm"
@@ -3033,6 +3048,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           </div>
         </div>
 
+        {showLoanEligibilityDetails ? (
         <div style={{ marginTop: '0.75rem' }}>
           {loanEligibilityError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{loanEligibilityError}</div>}
           {loanEligibilityLoading && <div style={{ color: 'var(--muted)' }}>Loading loan eligibility…</div>}
@@ -3066,6 +3082,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             </div>
           )}
         </div>
+        ) : null}
       </div>
 
       <div className="card" style={{ padding: '1rem' }}>
