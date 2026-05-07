@@ -1894,7 +1894,16 @@ export default function TransactionsPage() {
                         label: 'Crypto destination address',
                         value: <CopyableValue value={sendCryptoAddressValue} label="Crypto destination address" onCopy={copyToClipboard} />
                       },
-                      { label: 'Crypto amount', value: formatCryptoAmount(cryptoOperationDetails?.cryptoAmount) },
+                      {
+                        label: 'Crypto amount',
+                        value: (
+                          <CopyableValue
+                            value={cryptoOperationDetails?.cryptoAmount !== null && cryptoOperationDetails?.cryptoAmount !== undefined ? formatCryptoAmount(cryptoOperationDetails?.cryptoAmount) : ''}
+                            label="Crypto amount"
+                            onCopy={copyToClipboard}
+                          />
+                        )
+                      },
                       { label: 'Crypto asset', value: cryptoOperationDetails?.cryptoCurrency || '—' },
                       { label: 'Crypto network', value: cryptoOperationDetails?.network || '—' },
                       {
