@@ -291,7 +291,6 @@ export default function EstimatedProcessingTimesPage() {
   };
 
   const validateDraft = () => {
-    if (!draft.paymentProviderName) return 'Payment provider is required.';
     if (draft.minSeconds === '' || draft.maxSeconds === '') return 'Min and max seconds are required.';
     const minValue = Number(draft.minSeconds);
     const maxValue = Number(draft.maxSeconds);
@@ -399,6 +398,9 @@ export default function EstimatedProcessingTimesPage() {
             <option key={name} value={name}>{name}</option>
           ))}
         </select>
+        <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+          Leave empty to create a provider-agnostic fallback row.
+        </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="cryptoNetworkName">Crypto network</label>
@@ -480,9 +482,14 @@ export default function EstimatedProcessingTimesPage() {
           <div style={{ fontWeight: 800, fontSize: '20px' }}>Estimated processing times</div>
           <div style={{ color: 'var(--muted)' }}>Configure estimated processing time windows for transactions.</div>
         </div>
-        <Link href="/dashboard/transactions" className="btn-ghost btn-sm">
-          ← Transactions
-        </Link>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button type="button" onClick={openCreate} className="btn-success btn-sm">
+            Create config
+          </button>
+          <Link href="/dashboard/transactions" className="btn-ghost btn-sm">
+            ← Transactions
+          </Link>
+        </div>
       </div>
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -576,7 +583,6 @@ export default function EstimatedProcessingTimesPage() {
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button type="button" onClick={applyFilters} className="btn-primary">Apply filters</button>
           <button type="button" onClick={clearFilters} className="btn-neutral">Clear</button>
-          <button type="button" onClick={openCreate} className="btn-success">Add config</button>
             </div>
           </>
         )}
