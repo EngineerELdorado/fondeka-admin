@@ -3043,7 +3043,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
             <div style={{ fontWeight: 800 }}>Loan eligibility</div>
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-              Available eligibility is the main number. Legacy migration stays audit-safe through admin adjustment entries, not direct history edits.
+              Available eligibility is the customer-equivalent amount. Legacy migration stays audit-safe through admin adjustment entries, not direct history edits.
             </div>
             <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
               {loanEligibilityLoading
@@ -3100,16 +3100,16 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                   { label: 'Account ID', value: loanEligibility.accountId },
                   { label: 'Has completed tx', value: loanEligibility.hasCompletedTransactions ? 'Yes' : 'No' },
                   { label: 'Profit', value: formatAmount(loanEligibility.profit) },
-                  { label: 'Base eligibility', value: formatAmount(loanEligibility.baseEligibility) },
+                  { label: 'Legacy Base Eligibility', value: formatAmount(loanEligibility.baseEligibility) },
                   { label: 'Extra eligibility', value: formatAmount(loanEligibility.extraEligibility) },
-                  { label: 'Total eligibility', value: formatAmount(loanEligibility.totalEligibility) },
+                  { label: 'Total eligibility (reference)', value: formatAmount(loanEligibility.totalEligibility) },
                   { label: 'Outstanding Loan Balance', value: formatAmount(loanEligibility.outstandingLoanBalance) },
                   { label: 'Legacy Migrated Eligibility', value: formatAmount(loanEligibility.legacyMigratedEligibility) },
                   { label: 'Admin Legacy Adjustment', value: formatAmount(loanEligibility.legacyAdjustmentAmount) }
                 ]}
               />
               <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-                Available = Earned - Outstanding. New rule changes affect new completed transactions only and do not rewrite earned history.
+                Compare the user app against <strong>Available Eligibility</strong>. Legacy Base Eligibility is only the migrated legacy component. New rule changes affect new completed transactions only and do not rewrite earned history.
               </div>
             </div>
           )}
