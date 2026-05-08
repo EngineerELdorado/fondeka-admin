@@ -286,6 +286,20 @@ const normalizeRecoveryHistoryItem = (value) => ({
   supportDecisionReason: value?.metadata?.supportDecisionReason ?? value?.supportDecisionReason ?? null
 });
 
+const formatEffectiveCapSource = (value) => {
+  const normalized = String(value || '').toUpperCase();
+  if (!normalized) return '—';
+  const labels = {
+    ACCOUNT_OVERRIDE: 'Account override',
+    KYC_LEVEL_CAP: 'KYC level cap',
+    GLOBAL_WALLET_POLICY: 'Global wallet policy',
+    GLOBAL_LOAN_POLICY: 'Global loan policy',
+    GLOBAL_UNTRUSTED_LOAN_POLICY: 'Global untrusted loan policy',
+    DEFAULT_ZERO: 'Default zero'
+  };
+  return labels[normalized] || humanizeEnum(normalized);
+};
+
 const createEmptyCardholderForm = () => ({
   firstName: '',
   lastName: '',
@@ -450,8 +464,9 @@ const [notificationDataModal, setNotificationDataModal] = useState(null);
   const [walletPolicyReference, setWalletPolicyReference] = useState(null);
   const [depositPromptFlagReference, setDepositPromptFlagReference] = useState(null);
   const [depositPromptFlagAccountOverride, setDepositPromptFlagAccountOverride] = useState(null);
-  const [kycCap, setKycCap] = useState(null);
-  const [kycCapLoading, setKycCapLoading] = useState(false);
+  const [effectiveCaps, setEffectiveCaps] = useState(null);
+  const [effectiveCapsLoading, setEffectiveCapsLoading] = useState(false);
+  const [effectiveCapsError, setEffectiveCapsError] = useState(null);
 
   const [feeConfigs, setFeeConfigs] = useState([]);
   const [feeConfigsLoading, setFeeConfigsLoading] = useState(false);
@@ -702,7 +717,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       await loadRecoveryHistory(targetId);
       await loadCustomPricing(targetId);
       await loadLoanEligibility(targetId);
-      await loadKycCap(acc?.kycLevel);
+      await loadEffectiveCaps(targetId);
       await loadFeeConfigs(targetId);
       await loadPaymentMethodActionConfigs(targetId);
       await loadBillProductOverrides(targetId);
@@ -873,22 +888,21 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     }
   };
 
-  const loadKycCap = async (kycLevel) => {
-    const num = Number(kycLevel);
-    if (!Number.isFinite(num)) {
-      setKycCap(null);
+  const loadEffectiveCaps = async (id) => {
+    if (!id && id !== 0) {
+      setEffectiveCaps(null);
       return;
     }
-    setKycCapLoading(true);
+    setEffectiveCapsLoading(true);
+    setEffectiveCapsError(null);
     try {
-      const params = new URLSearchParams({ page: '0', size: '1', level: String(num) });
-      const res = await api.kycCaps.list(params);
-      const list = Array.isArray(res) ? res : res?.content || [];
-      setKycCap(list?.[0] || null);
-    } catch {
-      setKycCap(null);
+      const res = await api.accounts.getEffectiveCaps(id);
+      setEffectiveCaps(res || null);
+    } catch (err) {
+      setEffectiveCaps(null);
+      setEffectiveCapsError(err.message || 'Failed to load effective caps');
     } finally {
-      setKycCapLoading(false);
+      setEffectiveCapsLoading(false);
     }
   };
 
@@ -1883,6 +1897,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       pushToast({ tone: 'success', message: 'Custom KYC caps saved' });
       setShowPricingForm(false);
       await loadCustomPricing(resolvedAccountId);
+      await loadEffectiveCaps(resolvedAccountId);
       await loadWalletPolicyReference();
       await loadAccount();
     } catch (err) {
@@ -1904,6 +1919,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       setShowPricingRemove(false);
       setCustomPricing(null);
       setCustomPricingMissing(true);
+      await loadEffectiveCaps(resolvedAccountId);
       await loadAccount();
     } catch (err) {
       const message = err.message || 'Failed to remove custom KYC caps';
@@ -1941,6 +1957,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       });
       await api.accounts.updateCustomPricing(resolvedAccountId, payload);
       await loadCustomPricing(resolvedAccountId);
+      await loadEffectiveCaps(resolvedAccountId);
       setCryptoCollectionMinimumInfo(trimmed ? `Override set to ${trimmed}.` : 'Override cleared; using the global minimum.');
       pushToast({
         tone: 'success',
@@ -3574,94 +3591,144 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
 
           <div style={{ marginTop: '0.85rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-              <div style={{ fontWeight: 800 }}>Effective caps</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                <div style={{ fontWeight: 800 }}>Effective Caps &amp; Policy Inputs</div>
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                  These are the resolved operational limits and policy inputs currently applied to this account. They are not the same as the amount the account can borrow right now.
+                </div>
+              </div>
               <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-                KYC level: {accountView?.kycLevel ?? '—'} {kycCapLoading ? '• loading KYC caps…' : ''}
+                KYC level: {effectiveCaps?.kycLevel ?? accountView?.kycLevel ?? '—'} {effectiveCapsLoading ? '• loading resolved caps…' : ''}
               </div>
             </div>
 
-            {kycCap && (
-              <div style={{ overflowX: 'auto', marginTop: '0.5rem' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '520px' }}>
-                  <thead>
-                    <tr>
-                      {['Limit', 'Base', 'Override (custom)', 'Effective'].map((label) => (
-                        <th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
-                          {label}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(() => {
-                      const eligibleLoanEffective = accountView?.eligibleLoanAmount ?? null;
-                      const extraLoan = customPricing?.extraLoanEligibilityAmount ?? 0;
-                      const eligibleLoanBase =
-                        Number.isFinite(Number(eligibleLoanEffective)) && Number.isFinite(Number(extraLoan))
-                          ? Math.max(0, Number(eligibleLoanEffective) - Number(extraLoan))
-                          : null;
-
-                      const kycCollection = kycCap?.maxCollectionAmount ?? null;
-                      const overrideCollection = customPricing?.maxCollectionAmount ?? null;
-                      const effectiveCollection = (customPricing?.maxCollectionAmount ?? kycCollection) ?? null;
-
-                      const kycPayout = kycCap?.maxPayoutAmount ?? null;
-                      const overridePayout = customPricing?.maxPayoutAmount ?? null;
-                      const effectivePayout = (customPricing?.maxPayoutAmount ?? kycPayout) ?? null;
-
-                      const rows = [
-                        {
-                          label: 'Base loan eligibility %',
-                          base: 'Default policy',
-                          override: customPricing?.baseLoanEligibilityPercent ?? null,
-                          effective: customPricing?.baseLoanEligibilityPercent ?? 'Default policy'
-                        },
-                        {
-                          label: 'Loan eligibility (computed)',
-                          base: eligibleLoanBase,
-                          override: extraLoan,
-                          effective: eligibleLoanEffective
-                        },
-                        {
-                          label: 'Max collection (deposit)',
-                          base: kycCollection,
-                          override: overrideCollection,
-                          effective: effectiveCollection
-                        },
-                        {
-                          label: 'Max payout (withdrawal)',
-                          base: kycPayout,
-                          override: overridePayout,
-                          effective: effectivePayout
-                        }
-                      ];
-
-                      const fmt = (v, { empty = '—', defaultLabel = 'Default' } = {}) => {
-                        if (v === null || v === undefined) return empty;
-                        if (v === defaultLabel) return defaultLabel;
-                        return String(v);
-                      };
-
-                      return rows.map((row) => (
-                        <tr key={row.label} style={{ borderBottom: '1px solid var(--border)' }}>
-                          <td style={{ padding: '0.5rem', fontWeight: 700 }}>{row.label}</td>
-                          <td style={{ padding: '0.5rem' }}>{fmt(row.base)}</td>
-                          <td style={{ padding: '0.5rem' }}>{fmt(row.override, { empty: 'None' })}</td>
-                          <td style={{ padding: '0.5rem' }}>{fmt(row.effective)}</td>
-                        </tr>
-                      ));
-                    })()}
-                  </tbody>
-                </table>
-                <div style={{ marginTop: '0.4rem', color: 'var(--muted)', fontSize: '12px' }}>
-                  Loan eligibility uses the computed `eligibleLoanAmount` from the account record; overrides come from custom KYC caps (`baseLoanEligibilityPercent` and `extraLoanEligibilityAmount`) when set.
-                </div>
+            {effectiveCapsError && <div style={{ marginTop: '0.5rem', color: '#b91c1c', fontWeight: 700 }}>{effectiveCapsError}</div>}
+            {effectiveCapsLoading && <div style={{ marginTop: '0.5rem', color: 'var(--muted)', fontSize: '13px' }}>Loading resolved caps…</div>}
+            {!effectiveCapsLoading && !effectiveCaps && (
+              <div style={{ marginTop: '0.5rem', color: 'var(--muted)', fontSize: '13px' }}>
+                No resolved effective caps available for this account.
               </div>
             )}
+            {!effectiveCapsLoading && effectiveCaps && (
+              <div style={{ marginTop: '0.75rem', display: 'grid', gap: '0.85rem' }}>
+                <div style={{ fontWeight: 700 }}>Operational Limits</div>
+                <DetailGrid
+                  rows={[
+                    {
+                      label: 'KYC max loan amount',
+                      value: (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                          <span>{formatAmount(effectiveCaps.kycMaxLoanAmount)}</span>
+                          <Badge>{formatEffectiveCapSource(effectiveCaps.kycMaxLoanAmountSource)}</Badge>
+                        </span>
+                      )
+                    },
+                    {
+                      label: 'Max collection amount',
+                      value: (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                          <span>{formatAmount(effectiveCaps.maxCollectionAmount)}</span>
+                          <Badge>{formatEffectiveCapSource(effectiveCaps.maxCollectionAmountSource)}</Badge>
+                        </span>
+                      )
+                    },
+                    {
+                      label: 'Max payout amount',
+                      value: (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                          <span>{formatAmount(effectiveCaps.maxPayoutAmount)}</span>
+                          <Badge>{formatEffectiveCapSource(effectiveCaps.maxPayoutAmountSource)}</Badge>
+                        </span>
+                      )
+                    },
+                    {
+                      label: 'Crypto collection minimum',
+                      value: (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                          <span>{formatAmount(effectiveCaps.cryptoProviderCollectionMinimumUsd)}</span>
+                          <Badge>{formatEffectiveCapSource(effectiveCaps.cryptoProviderCollectionMinimumUsdSource)}</Badge>
+                        </span>
+                      )
+                    }
+                  ]}
+                />
 
-            {!kycCapLoading && !kycCap && (
-              <div style={{ marginTop: '0.5rem', color: 'var(--muted)', fontSize: '13px' }}>
-                No KYC cap found for this KYC level; effective limits may be unknown.
+                <div style={{ fontWeight: 700 }}>Behavior &amp; Flags</div>
+                <DetailGrid
+                  rows={[
+                    {
+                      label: 'Transactions eligible for loan eligibility',
+                      value: (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                          <span>
+                            {effectiveCaps.transactionsEligibleForLoanEligibility === true
+                              ? 'Yes'
+                              : effectiveCaps.transactionsEligibleForLoanEligibility === false
+                                ? 'No'
+                                : '—'}
+                          </span>
+                          <Badge>{formatEffectiveCapSource(effectiveCaps.transactionsEligibleForLoanEligibilitySource)}</Badge>
+                        </span>
+                      )
+                    },
+                    {
+                      label: 'Show deposit prompt',
+                      value: (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                          <span>
+                            {effectiveCaps.showDepositPrompt === true
+                              ? 'Yes'
+                              : effectiveCaps.showDepositPrompt === false
+                                ? 'No'
+                                : '—'}
+                          </span>
+                          <Badge>{formatEffectiveCapSource(effectiveCaps.showDepositPromptSource)}</Badge>
+                        </span>
+                      )
+                    },
+                    {
+                      label: 'Deposit prompt threshold',
+                      value: (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                          <span>{formatAmount(effectiveCaps.depositPromptThresholdAmount)}</span>
+                          <Badge>{formatEffectiveCapSource(effectiveCaps.depositPromptThresholdAmountSource)}</Badge>
+                        </span>
+                      )
+                    }
+                  ]}
+                />
+
+                <div style={{ fontWeight: 700 }}>Loan Policy Inputs</div>
+                <DetailGrid
+                  rows={[
+                    {
+                      label: 'Base loan eligibility percent',
+                      value: (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                          <span>
+                            {effectiveCaps.baseLoanEligibilityPercent === null || effectiveCaps.baseLoanEligibilityPercent === undefined
+                              ? '—'
+                              : `${formatAmount(effectiveCaps.baseLoanEligibilityPercent)}%`}
+                          </span>
+                          <Badge>{formatEffectiveCapSource(effectiveCaps.baseLoanEligibilityPercentSource)}</Badge>
+                        </span>
+                      )
+                    },
+                    {
+                      label: 'Extra loan eligibility amount',
+                      value: (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                          <span>{formatAmount(effectiveCaps.extraLoanEligibilityAmount)}</span>
+                          <Badge>{formatEffectiveCapSource(effectiveCaps.extraLoanEligibilityAmountSource)}</Badge>
+                        </span>
+                      )
+                    }
+                  ]}
+                />
+
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                  Use <strong>Available Eligibility</strong> as the current borrowable amount. These values are resolved caps and policy inputs, not current borrowing capacity.
+                </div>
               </div>
             )}
           </div>
