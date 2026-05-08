@@ -487,6 +487,8 @@ const [notificationDataModal, setNotificationDataModal] = useState(null);
   const [feeService, setFeeService] = useState('');
   const [feePmpId, setFeePmpId] = useState('');
   const [feeCountryId, setFeeCountryId] = useState('');
+  const [feeFromCryptoProductId, setFeeFromCryptoProductId] = useState('');
+  const [feeToCryptoProductId, setFeeToCryptoProductId] = useState('');
   const [feeProviderPct, setFeeProviderPct] = useState('');
   const [feeProviderFlat, setFeeProviderFlat] = useState('');
   const [feeOurPct, setFeeOurPct] = useState('');
@@ -1960,6 +1962,8 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     setFeeService(fee?.service || '');
     setFeePmpId(fee?.paymentMethodPaymentProviderId ?? '');
     setFeeCountryId(fee?.countryId ?? '');
+    setFeeFromCryptoProductId(fee?.fromCryptoProductId ?? '');
+    setFeeToCryptoProductId(fee?.toCryptoProductId ?? '');
     setFeeProviderPct(fee?.providerFeePercentage ?? '');
     setFeeProviderFlat(fee?.providerFlatFee ?? '');
     setFeeOurPct(fee?.ourFeePercentage ?? '');
@@ -1974,6 +1978,8 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     setFeeService('');
     setFeePmpId('');
     setFeeCountryId('');
+    setFeeFromCryptoProductId('');
+    setFeeToCryptoProductId('');
     setFeeProviderPct('');
     setFeeProviderFlat('');
     setFeeOurPct('');
@@ -1990,11 +1996,31 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       setFeeConfigsError('Action is required');
       return;
     }
+    const normalizedAction = String(feeAction || '').toUpperCase();
+    const normalizedService = String(feeService || '').toUpperCase();
+    const fromCryptoProductId = feeFromCryptoProductId === '' ? null : Number(feeFromCryptoProductId);
+    const toCryptoProductId = feeToCryptoProductId === '' ? null : Number(feeToCryptoProductId);
+    if ((fromCryptoProductId === null) !== (toCryptoProductId === null)) {
+      setFeeConfigsError('Set both From crypto and To crypto together for account-specific swap pricing.');
+      return;
+    }
+    if (fromCryptoProductId !== null && toCryptoProductId !== null && fromCryptoProductId === toCryptoProductId) {
+      setFeeConfigsError('From crypto and To crypto cannot be the same product.');
+      return;
+    }
+    if (normalizedAction === 'SWAP_CRYPTO') {
+      if (normalizedService !== 'CRYPTO') {
+        setFeeConfigsError('SWAP_CRYPTO account overrides must use service = CRYPTO.');
+        return;
+      }
+    }
     const payload = {
       action: feeAction,
       service: feeService || null,
       paymentMethodPaymentProviderId: feePmpId === '' ? null : Number(feePmpId),
       countryId: feeCountryId === '' ? null : Number(feeCountryId),
+      fromCryptoProductId,
+      toCryptoProductId,
       providerFeePercentage: feeProviderPct === '' ? 0 : Number(feeProviderPct),
       providerFlatFee: feeProviderFlat === '' ? 0 : Number(feeProviderFlat),
       ourFeePercentage: feeOurPct === '' ? 0 : Number(feeOurPct),
@@ -2021,6 +2047,12 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     } finally {
       setFeeSaving(false);
     }
+  };
+
+  const getCryptoProductLabel = (id) => {
+    if (id === null || id === undefined || id === '') return '—';
+    const match = cryptoProducts.find((item) => String(item.id) === String(id));
+    return match?.displayName || match?.name || match?.code || `Crypto #${id}`;
   };
 
   const deleteFee = (fee) => {
@@ -3721,6 +3753,9 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
               Per-account fee rules and fee charging policy exceptions. Leave PMPP blank for account-wide action overrides.
             </div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              For swaps, pricing precedence is: account pair override, then global pair rule, then account-wide swap rule, then global swap rule.
+            </div>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             <button type="button" className="btn-neutral btn-sm" onClick={() => loadFeeConfigs(resolvedAccountId)} disabled={feeConfigsLoading}>
@@ -3741,7 +3776,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '720px' }}>
                 <thead>
                   <tr>
-                          {['Action', 'Service', 'PMPP', 'Country', 'Provider %', 'Provider flat', 'Our %', 'Our flat', 'Fee mode', 'Updated', ''].map((h) => (
+                          {['Action', 'Service', 'From', 'To', 'PMPP', 'Country', 'Provider %', 'Provider flat', 'Our %', 'Our flat', 'Fee mode', 'Updated', ''].map((h) => (
                       <th key={h} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
                         {h}
                       </th>
@@ -3753,6 +3788,8 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                     <tr key={fee.id} style={{ borderBottom: '1px solid var(--border)' }}>
                       <td style={{ padding: '0.45rem' }}>{fee.action}</td>
                       <td style={{ padding: '0.45rem' }}>{fee.service || '—'}</td>
+                      <td style={{ padding: '0.45rem' }}>{fee.fromCryptoProductId ? getCryptoProductLabel(fee.fromCryptoProductId) : '—'}</td>
+                      <td style={{ padding: '0.45rem' }}>{fee.toCryptoProductId ? getCryptoProductLabel(fee.toCryptoProductId) : '—'}</td>
                       <td style={{ padding: '0.45rem' }}>
                         {fee.paymentMethodPaymentProviderId
                           ? (() => {
@@ -5280,6 +5317,9 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
               This applies across fee-bearing flows, not only payouts. Older app versions also use this override when they send no explicit fee mode.
             </div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Account custom swap fees let you override pricing for a specific customer and a specific crypto pair. Pair-specific account rules take priority over global pair pricing and generic account-level swap pricing.
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="feeService">Service</label>
@@ -5294,7 +5334,17 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="feeAction">Action *</label>
-                <select id="feeAction" value={feeAction} onChange={(e) => setFeeAction(e.target.value)}>
+                <select
+                  id="feeAction"
+                  value={feeAction}
+                  onChange={(e) => {
+                    const nextAction = e.target.value;
+                    setFeeAction(nextAction);
+                    if (String(nextAction || '').toUpperCase() === 'SWAP_CRYPTO') {
+                      setFeeService('CRYPTO');
+                    }
+                  }}
+                >
                   <option value="">Select action</option>
                   {actionOptions.map((act) => (
                     <option key={act} value={act}>
@@ -5303,6 +5353,32 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                   ))}
                 </select>
               </div>
+              {String(feeAction || '').toUpperCase() === 'SWAP_CRYPTO' && (
+                <>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <label htmlFor="feeFromCryptoProductId">From crypto</label>
+                    <select id="feeFromCryptoProductId" value={feeFromCryptoProductId} onChange={(e) => setFeeFromCryptoProductId(e.target.value)}>
+                      <option value="">Select source crypto</option>
+                      {cryptoProducts.map((cp) => (
+                        <option key={cp.id} value={cp.id}>
+                          {cp.displayName || cp.name || cp.code || cp.id}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <label htmlFor="feeToCryptoProductId">To crypto</label>
+                    <select id="feeToCryptoProductId" value={feeToCryptoProductId} onChange={(e) => setFeeToCryptoProductId(e.target.value)}>
+                      <option value="">Select destination crypto</option>
+                      {cryptoProducts.map((cp) => (
+                        <option key={cp.id} value={cp.id}>
+                          {cp.displayName || cp.name || cp.code || cp.id}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="feePmpId">Payment method / provider</label>
                 <select id="feePmpId" value={feePmpId} onChange={(e) => setFeePmpId(e.target.value)}>
@@ -5366,6 +5442,11 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                 <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
                   Use inherited default to fall back to the action-level global rule, then to the master global fee mode.
                 </div>
+                {String(feeAction || '').toUpperCase() === 'SWAP_CRYPTO' && (
+                  <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                    For swaps, keep INCLUSIVE. Fees are applied once on the source value before conversion into the destination asset.
+                  </div>
+                )}
               </div>
             </div>
 

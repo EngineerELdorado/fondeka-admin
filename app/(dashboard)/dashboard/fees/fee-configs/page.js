@@ -55,7 +55,9 @@ const initialFilters = {
   billProductId: '',
   billProviderId: '',
   paymentMethodId: '',
-  paymentProviderId: ''
+  paymentProviderId: '',
+  fromCryptoProductId: '',
+  toCryptoProductId: ''
 };
 
 const emptyState = {
@@ -72,7 +74,9 @@ const emptyState = {
   providerFlatFee: '',
   ourFeePercentage: '',
   ourFlatFee: '',
-  feeApplicationMode: ''
+  feeApplicationMode: '',
+  fromCryptoProductId: '',
+  toCryptoProductId: ''
 };
 
 const resolveAction = (state) => (state.action === '__custom' ? state.customAction : state.action);
@@ -96,7 +100,9 @@ const toPayload = (state) => ({
   providerFlatFee: state.providerFlatFee === '' ? null : Number(state.providerFlatFee),
   ourFeePercentage: state.ourFeePercentage === '' ? null : Number(state.ourFeePercentage),
   ourFlatFee: state.ourFlatFee === '' ? null : Number(state.ourFlatFee),
-  feeApplicationMode: state.feeApplicationMode || null
+  feeApplicationMode: state.feeApplicationMode || null,
+  fromCryptoProductId: state.fromCryptoProductId === '' ? null : Number(state.fromCryptoProductId),
+  toCryptoProductId: state.toCryptoProductId === '' ? null : Number(state.toCryptoProductId)
 });
 
 const Modal = ({ title, onClose, children }) => (
@@ -167,6 +173,7 @@ export default function FeeConfigsPage() {
   const [billProviders, setBillProviders] = useState([]);
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [paymentProviders, setPaymentProviders] = useState([]);
+  const [cryptoProducts, setCryptoProducts] = useState([]);
   const [arrangeBy, setArrangeBy] = useState('action');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -182,6 +189,13 @@ export default function FeeConfigsPage() {
   const [showFilters, setShowFilters] = useState(false);
   const resolvedDraftAction = resolveAction(draft);
   const isDraftGiftCardAction = String(resolvedDraftAction || '').toUpperCase() === 'BUY_GIFT_CARD';
+
+  const getCryptoProductLabel = useCallback((value) => {
+    if (!value) return '—';
+    const match = cryptoProducts.find((item) => Number(item.id) === Number(value));
+    if (!match) return `Crypto #${value}`;
+    return match.displayName || match.name || match.code || `Crypto #${value}`;
+  }, [cryptoProducts]);
 
   const activeFilterChips = useMemo(() => {
     const chips = [];
@@ -216,12 +230,18 @@ export default function FeeConfigsPage() {
         case 'paymentProviderId':
           add(`Provider: ${value}`, key);
           break;
+        case 'fromCryptoProductId':
+          add(`From crypto: ${getCryptoProductLabel(value)}`, key);
+          break;
+        case 'toCryptoProductId':
+          add(`To crypto: ${getCryptoProductLabel(value)}`, key);
+          break;
         default:
           break;
       }
     });
     return chips;
-  }, [appliedFilters]);
+  }, [appliedFilters, getCryptoProductLabel]);
 
   const fetchRows = async () => {
     setLoading(true);
@@ -265,14 +285,15 @@ export default function FeeConfigsPage() {
   useEffect(() => {
     const fetchOptions = async () => {
       try {
-        const [pmpRes, countryRes, pmRes, provRes, bpbpRes, billProductRes, billProviderRes] = await Promise.all([
+        const [pmpRes, countryRes, pmRes, provRes, bpbpRes, billProductRes, billProviderRes, cryptoProductRes] = await Promise.all([
           api.paymentMethodPaymentProviders.list(new URLSearchParams({ page: '0', size: '200' })),
           api.countries.list(new URLSearchParams({ page: '0', size: '200' })),
           api.paymentMethods.list(new URLSearchParams({ page: '0', size: '200' })),
           api.paymentProviders.list(new URLSearchParams({ page: '0', size: '200' })),
           api.billProductBillProviders.list(new URLSearchParams({ page: '0', size: '200' })),
           api.billProducts.list(new URLSearchParams({ page: '0', size: '200' })),
-          api.billProviders.list(new URLSearchParams({ page: '0', size: '200' }))
+          api.billProviders.list(new URLSearchParams({ page: '0', size: '200' })),
+          api.cryptoProducts.list(new URLSearchParams({ page: '0', size: '200' }))
         ]);
         const toList = (res) => (Array.isArray(res) ? res : res?.content || []);
         setPmps(toList(pmpRes));
@@ -282,6 +303,7 @@ export default function FeeConfigsPage() {
         setBpbps(toList(bpbpRes));
         setBillProducts(toList(billProductRes));
         setBillProviders(toList(billProviderRes));
+        setCryptoProducts(toList(cryptoProductRes));
       } catch {
         // soft fail for options
       }
@@ -347,6 +369,18 @@ export default function FeeConfigsPage() {
     }
     return arr;
   }, [arrangeBy, rows, getCountryLabel, getPmpLabel, getBpbpLabel]);
+
+  const filteredRows = useMemo(() => {
+    return sortedRows.filter((row) => {
+      if (appliedFilters.fromCryptoProductId && String(row?.fromCryptoProductId || '') !== String(appliedFilters.fromCryptoProductId)) {
+        return false;
+      }
+      if (appliedFilters.toCryptoProductId && String(row?.toCryptoProductId || '') !== String(appliedFilters.toCryptoProductId)) {
+        return false;
+      }
+      return true;
+    });
+  }, [sortedRows, appliedFilters.fromCryptoProductId, appliedFilters.toCryptoProductId]);
 
   const giftCardMappingIds = useMemo(() => {
     const giftProductIds = new Set(
@@ -439,6 +473,16 @@ export default function FeeConfigsPage() {
           </div>
         )
       },
+      {
+        key: 'fromCryptoProductId',
+        label: 'From',
+        render: (row) => (row?.fromCryptoProductId ? getCryptoProductLabel(row.fromCryptoProductId) : 'Fallback/global')
+      },
+      {
+        key: 'toCryptoProductId',
+        label: 'To',
+        render: (row) => (row?.toCryptoProductId ? getCryptoProductLabel(row.toCryptoProductId) : 'Fallback/global')
+      },
       { key: 'providerFeePercentage', label: 'Provider %' },
       { key: 'providerFlatFee', label: 'Provider flat' },
       { key: 'ourFeePercentage', label: 'Our %' },
@@ -476,7 +520,7 @@ export default function FeeConfigsPage() {
         )
       }
     ],
-    [getCountryLabel, getPaymentProviderLabel, getBillProviderLabel, getPmpLabel, getBpbpLabel]
+    [getCountryLabel, getPaymentProviderLabel, getBillProviderLabel, getPmpLabel, getBpbpLabel, getCryptoProductLabel]
   );
 
   const openCreate = () => {
@@ -503,7 +547,9 @@ export default function FeeConfigsPage() {
       providerFlatFee: row.providerFlatFee ?? '',
       ourFeePercentage: row.ourFeePercentage ?? '',
       ourFlatFee: row.ourFlatFee ?? '',
-      feeApplicationMode: row.feeApplicationMode || ''
+      feeApplicationMode: row.feeApplicationMode || '',
+      fromCryptoProductId: normalizeOptionalIdForForm(row.fromCryptoProductId),
+      toCryptoProductId: normalizeOptionalIdForForm(row.toCryptoProductId)
     });
     setShowEdit(true);
     setInfo(null);
@@ -534,10 +580,13 @@ export default function FeeConfigsPage() {
     const invalid = numericFields.find((item) => item.value !== '' && Number(item.value) < 0);
     if (invalid) return 'Fee values cannot be negative.';
     const normalizedAction = String(resolved || '').toUpperCase();
+    const normalizedService = String(state.service || '').toUpperCase();
     const normalizedPaymentProvider = state.paymentProviderId === '' ? null : Number(state.paymentProviderId);
     const normalizedBillProvider = state.billProviderId === '' ? null : Number(state.billProviderId);
     const normalizedPmp = state.paymentMethodPaymentProviderId === '' ? null : Number(state.paymentMethodPaymentProviderId);
     const normalizedBpbp = state.billProductBillProviderId === '' ? null : Number(state.billProductBillProviderId);
+    const normalizedFromCrypto = state.fromCryptoProductId === '' ? null : Number(state.fromCryptoProductId);
+    const normalizedToCrypto = state.toCryptoProductId === '' ? null : Number(state.toCryptoProductId);
     if (normalizedPmp !== null && normalizedPaymentProvider !== null) {
       return 'Choose either Payment Provider or the exact Payment Method Route. Do not set both on the same fee config.';
     }
@@ -550,6 +599,20 @@ export default function FeeConfigsPage() {
     if (normalizedAction === 'BUY_GIFT_CARD' && normalizedBpbp !== null && !giftCardMappingIds.has(Number(normalizedBpbp))) {
       return 'Selected BPBP does not appear to be a gift-card mapping. Use a mapping where bill product has giftCard=true.';
     }
+    if ((normalizedFromCrypto === null) !== (normalizedToCrypto === null)) {
+      return 'Set both From crypto and To crypto together for pair-specific swap pricing.';
+    }
+    if (normalizedFromCrypto !== null && normalizedToCrypto !== null && normalizedFromCrypto === normalizedToCrypto) {
+      return 'From crypto and To crypto cannot be the same product.';
+    }
+    if (normalizedAction === 'SWAP_CRYPTO') {
+      if (normalizedService !== 'CRYPTO') {
+        return 'SWAP_CRYPTO fee rules must use service = CRYPTO.';
+      }
+      if (normalizedFromCrypto === null || normalizedToCrypto === null) {
+        return 'SWAP_CRYPTO fee rules require both From crypto and To crypto.';
+      }
+    }
     const duplicate = rows.find((row) => {
       if (currentId && Number(row?.id) === Number(currentId)) return false;
       const rowAction = String(row?.action || '').toUpperCase();
@@ -558,10 +621,14 @@ export default function FeeConfigsPage() {
       const rowBillProvider = row?.billProviderId === null || row?.billProviderId === undefined ? null : Number(row.billProviderId);
       const rowBpbp = row?.billProductBillProviderId === null || row?.billProductBillProviderId === undefined ? null : Number(row.billProductBillProviderId);
       const rowPmp = row?.paymentMethodPaymentProviderId === null || row?.paymentMethodPaymentProviderId === undefined ? null : Number(row.paymentMethodPaymentProviderId);
+      const rowFromCrypto = row?.fromCryptoProductId === null || row?.fromCryptoProductId === undefined ? null : Number(row.fromCryptoProductId);
+      const rowToCrypto = row?.toCryptoProductId === null || row?.toCryptoProductId === undefined ? null : Number(row.toCryptoProductId);
       return rowPaymentProvider === normalizedPaymentProvider
         && rowBillProvider === normalizedBillProvider
         && rowBpbp === normalizedBpbp
-        && rowPmp === normalizedPmp;
+        && rowPmp === normalizedPmp
+        && rowFromCrypto === normalizedFromCrypto
+        && rowToCrypto === normalizedToCrypto;
     });
     if (duplicate) {
       return `Duplicate scope detected with fee config #${duplicate.id}. Keep one row per layered scope for the same action or actionless default.`;
@@ -676,7 +743,14 @@ export default function FeeConfigsPage() {
         <select
           id="action"
           value={draft.action}
-          onChange={(e) => setDraft((p) => ({ ...p, action: e.target.value, customAction: e.target.value === '__custom' ? p.customAction : '' }))}
+          onChange={(e) =>
+            setDraft((p) => ({
+              ...p,
+              action: e.target.value,
+              customAction: e.target.value === '__custom' ? p.customAction : '',
+              ...(e.target.value === 'SWAP_CRYPTO' ? { service: 'CRYPTO' } : {})
+            }))
+          }
         >
           <option value="">All actions / no action default</option>
           {actionOptions.map((opt) => (
@@ -698,6 +772,43 @@ export default function FeeConfigsPage() {
           Leave action blank to create the default fee for this scope. If both exist, action-specific fees beat `OTHER`, and `OTHER` beats the blank-action default.
         </div>
       </div>
+      {String(resolvedDraftAction || '').toUpperCase() === 'SWAP_CRYPTO' && (
+        <>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="fromCryptoProductId">From Crypto Product</label>
+            <select
+              id="fromCryptoProductId"
+              value={draft.fromCryptoProductId}
+              onChange={(e) => setDraft((p) => ({ ...p, fromCryptoProductId: e.target.value, service: 'CRYPTO' }))}
+            >
+              <option value="">Select source crypto</option>
+              {cryptoProducts.map((product) => (
+                <option key={product.id} value={product.id}>
+                  {product.displayName || product.name || product.code || product.id}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="toCryptoProductId">To Crypto Product</label>
+            <select
+              id="toCryptoProductId"
+              value={draft.toCryptoProductId}
+              onChange={(e) => setDraft((p) => ({ ...p, toCryptoProductId: e.target.value, service: 'CRYPTO' }))}
+            >
+              <option value="">Select destination crypto</option>
+              {cryptoProducts.map((product) => (
+                <option key={product.id} value={product.id}>
+                  {product.displayName || product.name || product.code || product.id}
+                </option>
+              ))}
+            </select>
+            <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+              Swap fees are applied once on the source value before conversion to the destination asset.
+            </div>
+          </div>
+        </>
+      )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="countryId">Country</label>
         <select id="countryId" value={draft.countryId} onChange={(e) => setDraft((p) => ({ ...p, countryId: e.target.value }))}>
@@ -822,6 +933,11 @@ export default function FeeConfigsPage() {
       {isDraftGiftCardAction && (
         <div style={{ gridColumn: '1 / -1', fontSize: '12px', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.55rem 0.65rem' }}>
           Amount model: amount is net gift-card value, fees are added on top, and gross = net + all fees.
+        </div>
+      )}
+      {String(resolvedDraftAction || '').toUpperCase() === 'SWAP_CRYPTO' && (
+        <div style={{ gridColumn: '1 / -1', fontSize: '12px', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.55rem 0.65rem' }}>
+          Pair-specific swap rules override broad swap defaults. Stablecoin-to-stablecoin pairs are seeded at 0% by default, while other seeded pairs start at 5%.
         </div>
       )}
     </div>
@@ -1076,6 +1192,28 @@ export default function FeeConfigsPage() {
               ))}
             </select>
           </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="filterFromCrypto">From Crypto</label>
+            <select id="filterFromCrypto" value={filters.fromCryptoProductId} onChange={(e) => setFilters((p) => ({ ...p, fromCryptoProductId: e.target.value }))}>
+              <option value="">All</option>
+              {cryptoProducts.map((product) => (
+                <option key={product.id} value={product.id}>
+                  {product.displayName || product.name || product.code || product.id}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="filterToCrypto">To Crypto</label>
+            <select id="filterToCrypto" value={filters.toCryptoProductId} onChange={(e) => setFilters((p) => ({ ...p, toCryptoProductId: e.target.value }))}>
+              <option value="">All</option>
+              {cryptoProducts.map((product) => (
+                <option key={product.id} value={product.id}>
+                  {product.displayName || product.name || product.code || product.id}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
             <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
           <button
@@ -1101,7 +1239,7 @@ export default function FeeConfigsPage() {
           >
             Reset
           </button>
-          <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Only applied filters are sent to the API.</span>
+          <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Crypto pair filters are applied in the dashboard when the API does not expose dedicated pair query params.</span>
             </div>
           </>
         )}
@@ -1118,7 +1256,7 @@ export default function FeeConfigsPage() {
         </div>
       )}
 
-      <DataTable columns={columns} rows={sortedRows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No fee configs found" />
+      <DataTable columns={columns} rows={filteredRows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No fee configs found" />
 
       {showCreate && (
         <Modal title="Add fee config" onClose={() => setShowCreate(false)}>
@@ -1160,6 +1298,8 @@ export default function FeeConfigsPage() {
               { label: 'Country', value: getCountryLabel(selected || {}) },
               { label: 'Service', value: selected?.service || 'ALL' },
               { label: 'Action', value: selected?.action },
+              { label: 'From crypto', value: selected?.fromCryptoProductId ? getCryptoProductLabel(selected?.fromCryptoProductId) : 'Fallback/global rule' },
+              { label: 'To crypto', value: selected?.toCryptoProductId ? getCryptoProductLabel(selected?.toCryptoProductId) : 'Fallback/global rule' },
               { label: 'Override specific fees', value: selected?.overrideSpecificFees ? 'Yes' : 'No' },
               { label: 'Provider %', value: selected?.providerFeePercentage },
               { label: 'Provider flat', value: selected?.providerFlatFee },
