@@ -65,12 +65,6 @@ const getUnpaidRevenueValue = (row) => {
   return 0;
 };
 const getNetProfitValue = (row) => getRevenueValue(row) - getReferralCostValue(row);
-const getLoansReimbursedValue = (row) => {
-  const disbursed = Number(row?.loanDisbursedVolume);
-  const outstanding = Number(row?.loansOutstanding);
-  if (!Number.isFinite(disbursed) && !Number.isFinite(outstanding)) return null;
-  return Math.max(0, (Number.isFinite(disbursed) ? disbursed : 0) - (Number.isFinite(outstanding) ? outstanding : 0));
-};
 const CARD_TRANSACTION_ACTIONS = new Set(['FUND_CARD', 'WITHDRAW_FROM_CARD', 'CARD_ONLINE_TRANSACTION']);
 
 const getCardTransactionsValue = (row, dashboardData) => {
@@ -93,7 +87,7 @@ const getCardTransactionsValue = (row, dashboardData) => {
   const count = Number(match);
   return Number.isFinite(count) ? count : null;
 };
-const CURRENCY_METRIC_KEYS = new Set(['loanDisbursedVolume', 'loansOutstanding', 'loansReimbursed']);
+const CURRENCY_METRIC_KEYS = new Set(['loanDisbursedVolume', 'loansOutstanding', 'loanPaidBackVolume']);
 const formatMetricCardValue = (key, value) => (CURRENCY_METRIC_KEYS.has(key) ? formatCurrency(value) : formatNumber(value));
 
 const InlineStat = ({ value, percentage }) => {
@@ -851,7 +845,7 @@ export default function DashboardPage() {
     { key: 'loanDisbursedVolume', label: t('dashboard.loanDisbursedVolume') },
     { key: 'loansOpen', label: t('dashboard.loansOpen') },
     { key: 'loansOutstanding', label: t('dashboard.loansOutstanding') },
-    { key: 'loansReimbursed', label: t('dashboard.loansReimbursed'), getValue: getLoansReimbursedValue },
+    { key: 'loanPaidBackVolume', label: t('dashboard.loansReimbursed') },
     { key: 'esimsPurchased', label: t('dashboard.esimPurchases') },
     { key: 'airtimePurchases', label: t('dashboard.airtimePurchases') },
     { key: 'billPayments', label: t('dashboard.billPayments') },
