@@ -6,6 +6,8 @@ import { api } from '@/lib/api';
 const MIN_COOLDOWN = 1;
 const MAX_COOLDOWN = 1440;
 const MIN_REVIEW_PROMPT_THRESHOLD = 1;
+const DEFAULT_CRYPTO_CURRENCY_OPTIONS = ['BTC', 'ETH', 'USDT', 'USDC', 'BNB', 'SOL', 'EURC'];
+const DEFAULT_CRYPTO_NETWORK_OPTIONS = ['LIGHTNING', 'BTC', 'ERC20', 'BEP20', 'TRC20', 'SOLANA', 'POLYGON', 'BASE', 'ARBITRUM', 'AVALANCHE'];
 const ALLOWED_PAYOUT_ACTIONS = ['WITHDRAW_FROM_WALLET', 'WITHDRAW_FROM_CARD', 'SELL_CRYPTO'];
 const ACTION_OPTIONS = [
   'FUND_WALLET',
@@ -56,6 +58,28 @@ const formatUsdValue = (value) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed.toFixed(2) : String(value);
 };
+const normalizeList = (response) => {
+  if (Array.isArray(response)) return response;
+  if (Array.isArray(response?.items)) return response.items;
+  if (Array.isArray(response?.content)) return response.content;
+  if (Array.isArray(response?.data)) return response.data;
+  if (Array.isArray(response?.results)) return response.results;
+  return [];
+};
+const normalizeRailKeyPart = (value) =>
+  String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '_');
+const normalizeRailMap = (value) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value)
+      .map(([key, enabled]) => [String(key || '').trim().toUpperCase(), enabled === true])
+      .filter(([key]) => key.includes(':'))
+      .sort(([left], [right]) => left.localeCompare(right))
+  );
+};
 const humanizeEnum = (value) =>
   String(value || '')
     .toLowerCase()
@@ -92,6 +116,12 @@ export default function WalletPolicyConfigPage() {
   const [forcePayoutKycUnlessApproved, setForcePayoutKycUnlessApproved] = useState(false);
   const [forceKycBeforeAppUse, setForceKycBeforeAppUse] = useState(false);
   const [sendCryptoExternalProviderEnabled, setSendCryptoExternalProviderEnabled] = useState(false);
+  const [sendCryptoAutoPayoutRails, setSendCryptoAutoPayoutRails] = useState({});
+  const [cryptoProducts, setCryptoProducts] = useState([]);
+  const [cryptoNetworks, setCryptoNetworks] = useState([]);
+  const [railDraftCurrency, setRailDraftCurrency] = useState('');
+  const [railDraftNetwork, setRailDraftNetwork] = useState('');
+  const [railDraftEnabled, setRailDraftEnabled] = useState(true);
   const [reviewPromptCompletedTransactionsThreshold, setReviewPromptCompletedTransactionsThreshold] = useState('');
   const [depositPromptThresholdAmount, setDepositPromptThresholdAmount] = useState('');
   const [transactionsEligibleForLoanEligibility, setTransactionsEligibleForLoanEligibility] = useState(true);
@@ -137,13 +167,54 @@ export default function WalletPolicyConfigPage() {
     return ACTION_OPTIONS.filter((action) => !configured.has(action));
   }, [actionFeeModeEntries]);
 
+  const cryptoCurrencyOptions = useMemo(() => {
+    const known = new Set(DEFAULT_CRYPTO_CURRENCY_OPTIONS);
+    for (const item of cryptoProducts) {
+      const key = normalizeRailKeyPart(item?.code || item?.currency || item?.name || item?.displayName);
+      if (key) known.add(key);
+    }
+    for (const railKey of Object.keys(sendCryptoAutoPayoutRails || {})) {
+      const [currency] = String(railKey).split(':');
+      if (currency) known.add(currency);
+    }
+    return Array.from(known).sort();
+  }, [cryptoProducts, sendCryptoAutoPayoutRails]);
+
+  const cryptoNetworkOptions = useMemo(() => {
+    const known = new Set(DEFAULT_CRYPTO_NETWORK_OPTIONS);
+    for (const item of cryptoNetworks) {
+      const key = normalizeRailKeyPart(item?.cryptoNetworkName || item?.cryptoNetworkCode || item?.name || item?.displayName);
+      if (key) known.add(key);
+    }
+    for (const railKey of Object.keys(sendCryptoAutoPayoutRails || {})) {
+      const parts = String(railKey).split(':');
+      if (parts[1]) known.add(parts[1]);
+    }
+    return Array.from(known).sort();
+  }, [cryptoNetworks, sendCryptoAutoPayoutRails]);
+
+  const railEntries = useMemo(
+    () =>
+      Object.entries(sendCryptoAutoPayoutRails || {})
+        .filter(([key]) => key && key.includes(':'))
+        .sort(([left], [right]) => left.localeCompare(right)),
+    [sendCryptoAutoPayoutRails]
+  );
+
   const loadConfig = async () => {
     setLoading(true);
     setError(null);
     setInfo(null);
     try {
-      const res = await api.walletPolicyConfig.get();
+      const params = new URLSearchParams({ page: '0', size: '250' });
+      const [res, cryptoProductsRes, cryptoNetworksRes] = await Promise.all([
+        api.walletPolicyConfig.get(),
+        api.cryptoProducts.list(params),
+        api.cryptoNetworks.list(params)
+      ]);
       setConfigSnapshot(res || {});
+      setCryptoProducts(normalizeList(cryptoProductsRes));
+      setCryptoNetworks(normalizeList(cryptoNetworksRes));
       const value = res?.interTransferCooldownMinutes;
       setCooldown(value === null || value === undefined ? '' : String(value));
       const incomingActions = Array.isArray(res?.payoutRateLimitActions) ? res.payoutRateLimitActions : [];
@@ -157,6 +228,7 @@ export default function WalletPolicyConfigPage() {
       setForcePayoutKycUnlessApproved(Boolean(res?.forcePayoutKycUnlessApproved));
       setForceKycBeforeAppUse(Boolean(res?.forceKycBeforeAppUse));
       setSendCryptoExternalProviderEnabled(Boolean(res?.sendCryptoExternalProviderEnabled));
+      setSendCryptoAutoPayoutRails(normalizeRailMap(res?.sendCryptoAutoPayoutRails));
       setDepositPromptThresholdAmount(formatUsdValue(res?.depositPromptThresholdAmount));
       setTransactionsEligibleForLoanEligibility(res?.transactionsEligibleForLoanEligibility !== false);
       const reviewPromptThreshold = res?.reviewPromptCompletedTransactionsThreshold;
@@ -215,6 +287,7 @@ export default function WalletPolicyConfigPage() {
     const payoutKycThresholdRaw = String(payoutKycThresholdUsd || '').trim();
     const reviewPromptThresholdRaw = String(reviewPromptCompletedTransactionsThreshold || '').trim();
     const depositPromptThresholdRaw = String(depositPromptThresholdAmount || '').trim();
+    const normalizedSendCryptoAutoPayoutRails = normalizeRailMap(sendCryptoAutoPayoutRails);
     const minParsed = minRaw === '' ? null : Number(minRaw);
     const maxParsed = maxRaw === '' ? null : Number(maxRaw);
     const sendAirtimeMinimumParsed = sendAirtimeMinimumRaw === '' ? null : Number(sendAirtimeMinimumRaw);
@@ -273,6 +346,7 @@ export default function WalletPolicyConfigPage() {
         forcePayoutKycUnlessApproved: Boolean(forcePayoutKycUnlessApproved),
         forceKycBeforeAppUse: Boolean(forceKycBeforeAppUse),
         sendCryptoExternalProviderEnabled: Boolean(sendCryptoExternalProviderEnabled),
+        sendCryptoAutoPayoutRails: normalizedSendCryptoAutoPayoutRails,
         depositPromptThresholdAmount: depositPromptThresholdRaw === '' ? null : depositPromptThresholdParsed.toFixed(2),
         transactionsEligibleForLoanEligibility: Boolean(transactionsEligibleForLoanEligibility),
         reviewPromptCompletedTransactionsThreshold:
@@ -730,11 +804,11 @@ export default function WalletPolicyConfigPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <div style={{ fontWeight: 700 }}>Send crypto via external provider</div>
             <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-              Turn off to route send-crypto transactions to manual intervention instead of external provider execution.
+              The global flag is now the fallback. Exact crypto rails can override it below.
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '12px' }}>
+          <div style={{ display: 'grid', gap: '0.75rem', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '12px' }}>
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
               <input
                 type="checkbox"
@@ -752,6 +826,199 @@ export default function WalletPolicyConfigPage() {
             </div>
             <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
               If later failed or canceled, the customer&apos;s crypto wallet is refunded.
+            </div>
+
+            <div
+              style={{
+                display: 'grid',
+                gap: '0.75rem',
+                paddingTop: '0.75rem',
+                borderTop: '1px solid var(--border)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{ display: 'grid', gap: '0.2rem' }}>
+                  <div style={{ fontWeight: 700 }}>Rail-specific overrides</div>
+                  <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                    Exact `CURRENCY:NETWORK` rules win first. Unlisted rails fall back to the global flag above.
+                  </div>
+                </div>
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    padding: '0.2rem 0.5rem',
+                    borderRadius: '999px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    background: railEntries.length ? '#dbeafe' : '#f3f4f6',
+                    color: railEntries.length ? '#1d4ed8' : '#374151'
+                  }}
+                >
+                  {railEntries.length} rail rule{railEntries.length === 1 ? '' : 's'}
+                </span>
+              </div>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'minmax(160px, 1fr) minmax(160px, 1fr) minmax(180px, 1fr) auto',
+                  gap: '0.6rem',
+                  alignItems: 'end'
+                }}
+              >
+                <div style={{ display: 'grid', gap: '0.25rem' }}>
+                  <label htmlFor="railDraftCurrency">Crypto</label>
+                  <select
+                    id="railDraftCurrency"
+                    value={railDraftCurrency}
+                    onChange={(e) => setRailDraftCurrency(e.target.value)}
+                    disabled={loading || saving}
+                  >
+                    <option value="">Select crypto</option>
+                    {cryptoCurrencyOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ display: 'grid', gap: '0.25rem' }}>
+                  <label htmlFor="railDraftNetwork">Network</label>
+                  <select
+                    id="railDraftNetwork"
+                    value={railDraftNetwork}
+                    onChange={(e) => setRailDraftNetwork(e.target.value)}
+                    disabled={loading || saving}
+                  >
+                    <option value="">Select network</option>
+                    {cryptoNetworkOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ display: 'grid', gap: '0.25rem' }}>
+                  <label htmlFor="railDraftEnabled">Behavior</label>
+                  <select
+                    id="railDraftEnabled"
+                    value={railDraftEnabled ? 'AUTO' : 'MANUAL'}
+                    onChange={(e) => setRailDraftEnabled(e.target.value === 'AUTO')}
+                    disabled={loading || saving}
+                  >
+                    <option value="AUTO">Automatic payout</option>
+                    <option value="MANUAL">Manual intervention</option>
+                  </select>
+                </div>
+
+                <button
+                  type="button"
+                  className="btn-neutral"
+                  disabled={loading || saving}
+                  onClick={() => {
+                    const currency = normalizeRailKeyPart(railDraftCurrency);
+                    const network = normalizeRailKeyPart(railDraftNetwork);
+                    if (!currency || !network) {
+                      setError('Choose both a crypto and a network before adding a rail rule.');
+                      return;
+                    }
+                    const nextKey = `${currency}:${network}`;
+                    setError(null);
+                    setSendCryptoAutoPayoutRails((prev) => ({
+                      ...(prev && typeof prev === 'object' ? prev : {}),
+                      [nextKey]: Boolean(railDraftEnabled)
+                    }));
+                    setRailDraftCurrency('');
+                    setRailDraftNetwork('');
+                    setRailDraftEnabled(true);
+                  }}
+                >
+                  Add rail rule
+                </button>
+              </div>
+
+              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                Example keys: `BTC:LIGHTNING`, `BTC:BTC`, `USDT:ERC20`, `USDT:TRC20`, `ETH:ERC20`.
+              </div>
+
+              {railEntries.length > 0 ? (
+                <div style={{ display: 'grid', gap: '0.6rem' }}>
+                  {railEntries.map(([railKey, enabled]) => {
+                    const [currency, network] = String(railKey).split(':');
+                    return (
+                      <div
+                        key={railKey}
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'minmax(160px, 0.9fr) minmax(160px, 0.9fr) minmax(160px, 1fr) auto',
+                          gap: '0.6rem',
+                          alignItems: 'center',
+                          padding: '0.75rem',
+                          border: '1px solid var(--border)',
+                          borderRadius: '12px'
+                        }}
+                      >
+                        <div style={{ display: 'grid', gap: '0.15rem' }}>
+                          <div style={{ fontWeight: 700 }}>Crypto</div>
+                          <div>{currency || '—'}</div>
+                        </div>
+                        <div style={{ display: 'grid', gap: '0.15rem' }}>
+                          <div style={{ fontWeight: 700 }}>Network</div>
+                          <div>{network || '—'}</div>
+                        </div>
+                        <div style={{ display: 'grid', gap: '0.2rem' }}>
+                          <div style={{ fontWeight: 700 }}>Effective behavior</div>
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              width: 'fit-content',
+                              padding: '0.2rem 0.5rem',
+                              borderRadius: '999px',
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              background: enabled ? '#dcfce7' : '#fee2e2',
+                              color: enabled ? '#166534' : '#b91c1c'
+                            }}
+                          >
+                            {enabled ? 'Automatic payout' : 'Manual intervention'}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn-danger"
+                          onClick={() => {
+                            setError(null);
+                            setSendCryptoAutoPayoutRails((prev) => {
+                              const next = { ...(prev && typeof prev === 'object' ? prev : {}) };
+                              delete next[railKey];
+                              return next;
+                            });
+                          }}
+                          disabled={loading || saving}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div
+                  style={{
+                    padding: '0.85rem',
+                    border: '1px dashed var(--border)',
+                    borderRadius: '12px',
+                    color: 'var(--muted)',
+                    fontSize: '13px'
+                  }}
+                >
+                  No rail-specific overrides configured. All send-crypto rails currently inherit from the global external-provider flag.
+                </div>
+              )}
             </div>
           </div>
         </div>
