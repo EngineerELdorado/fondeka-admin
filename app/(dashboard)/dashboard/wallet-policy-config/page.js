@@ -401,7 +401,7 @@ export default function WalletPolicyConfigPage() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '760px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '1200px' }}>
       <div className="card" style={{ display: 'grid', gap: '0.3rem' }}>
         <div style={{ fontSize: '20px', fontWeight: 800 }}>Wallet Policy Config</div>
         <div style={{ color: 'var(--muted)' }}>
@@ -415,7 +415,15 @@ export default function WalletPolicyConfigPage() {
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
-      <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
+      <div
+        className="card"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
+          gap: '1rem',
+          alignItems: 'start'
+        }}
+      >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="interTransferCooldownMinutes">Inter-transfer cooldown (minutes)</label>
           <input
@@ -1415,7 +1423,7 @@ export default function WalletPolicyConfigPage() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', gridColumn: '1 / -1' }}>
           <button type="button" className="btn-neutral" onClick={loadConfig} disabled={loading || saving}>
             {loading ? 'Refreshing…' : 'Refresh'}
           </button>
