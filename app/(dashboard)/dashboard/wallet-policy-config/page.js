@@ -102,6 +102,7 @@ const autoRefundChipStyle = {
 };
 
 export default function WalletPolicyConfigPage() {
+  const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -401,7 +402,7 @@ export default function WalletPolicyConfigPage() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '1200px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '760px' }}>
       <div className="card" style={{ display: 'grid', gap: '0.3rem' }}>
         <div style={{ fontSize: '20px', fontWeight: 800 }}>Wallet Policy Config</div>
         <div style={{ color: 'var(--muted)' }}>
@@ -415,15 +416,29 @@ export default function WalletPolicyConfigPage() {
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
-      <div
-        className="card"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
-          gap: '1rem',
-          alignItems: 'start'
-        }}
-      >
+      <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          {[
+            { key: 'overview', label: 'Overview' },
+            { key: 'fees', label: 'Fees & Actions' },
+            { key: 'operations', label: 'Operations' },
+            { key: 'crypto', label: 'Crypto & Payouts' },
+            { key: 'app', label: 'App, KYC & Loans' }
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              className={activeTab === tab.key ? 'btn-primary' : 'btn-neutral'}
+              onClick={() => setActiveTab(tab.key)}
+              disabled={loading || saving}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === 'overview' && (
+          <>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="interTransferCooldownMinutes">Inter-transfer cooldown (minutes)</label>
           <input
@@ -441,7 +456,11 @@ export default function WalletPolicyConfigPage() {
             Allowed range: {MIN_COOLDOWN} to {MAX_COOLDOWN} minutes.
           </div>
         </div>
+          </>
+        )}
 
+        {activeTab === 'fees' && (
+          <>
         <div style={{ display: 'grid', gap: '0.5rem' }}>
           <div style={{ fontWeight: 700 }}>Global Fee Mode</div>
           <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
@@ -748,7 +767,11 @@ export default function WalletPolicyConfigPage() {
             </div>
           )}
         </div>
+          </>
+        )}
 
+        {activeTab === 'operations' && (
+          <>
         <div style={{ display: 'grid', gap: '0.5rem' }}>
           <div style={{ fontWeight: 700 }}>Payout rate limit actions</div>
           <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
@@ -912,7 +935,11 @@ export default function WalletPolicyConfigPage() {
             </div>
           </div>
         </div>
+          </>
+        )}
 
+        {activeTab === 'crypto' && (
+          <>
         <div style={{ display: 'grid', gap: '0.75rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <div style={{ fontWeight: 700 }}>Crypto Provider Collection Limits</div>
@@ -1209,7 +1236,11 @@ export default function WalletPolicyConfigPage() {
             </div>
           </div>
         </div>
+          </>
+        )}
 
+        {activeTab === 'app' && (
+          <>
         <div style={{ display: 'grid', gap: '0.75rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <div style={{ fontWeight: 700 }}>App &amp; Engagement Behavior</div>
@@ -1422,8 +1453,10 @@ export default function WalletPolicyConfigPage() {
             />
           </div>
         </div>
+          </>
+        )}
 
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', gridColumn: '1 / -1' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button type="button" className="btn-neutral" onClick={loadConfig} disabled={loading || saving}>
             {loading ? 'Refreshing…' : 'Refresh'}
           </button>
