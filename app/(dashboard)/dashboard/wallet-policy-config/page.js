@@ -129,6 +129,7 @@ export default function WalletPolicyConfigPage() {
   const [autoRefundActionSearch, setAutoRefundActionSearch] = useState('');
   const [globalFeeApplicationMode, setGlobalFeeApplicationMode] = useState('EXCLUSIVE');
   const [actionFeeApplicationModes, setActionFeeApplicationModes] = useState({});
+  const [actionMinimumAmounts, setActionMinimumAmounts] = useState({});
   const [configSnapshot, setConfigSnapshot] = useState(null);
 
   const autoRefundActionOptions = useMemo(() => {
@@ -166,6 +167,20 @@ export default function WalletPolicyConfigPage() {
     const configured = new Set(actionFeeModeEntries.map(([action]) => String(action)));
     return ACTION_OPTIONS.filter((action) => !configured.has(action));
   }, [actionFeeModeEntries]);
+
+  const actionMinimumAmountEntries = useMemo(
+    () =>
+      Object.entries(actionMinimumAmounts || {})
+        .map(([action, amount]) => [String(action || '').trim(), String(amount ?? '').trim()])
+        .filter(([action, amount]) => action && amount !== '')
+        .sort(([left], [right]) => left.localeCompare(right)),
+    [actionMinimumAmounts]
+  );
+
+  const availableActionMinimumAmountActions = useMemo(() => {
+    const configured = new Set(actionMinimumAmountEntries.map(([action]) => String(action)));
+    return ACTION_OPTIONS.filter((action) => !configured.has(action));
+  }, [actionMinimumAmountEntries]);
 
   const cryptoCurrencyOptions = useMemo(() => {
     const known = new Set(DEFAULT_CRYPTO_CURRENCY_OPTIONS);
@@ -244,6 +259,14 @@ export default function WalletPolicyConfigPage() {
           .filter(([action, mode]) => action && FEE_APPLICATION_MODES.has(mode))
       );
       setActionFeeApplicationModes(normalizedActionFeeModes);
+      const incomingActionMinimumAmounts =
+        res?.actionMinimumAmounts && typeof res.actionMinimumAmounts === 'object' ? res.actionMinimumAmounts : {};
+      const normalizedActionMinimumAmounts = Object.fromEntries(
+        Object.entries(incomingActionMinimumAmounts)
+          .map(([action, amount]) => [String(action || '').trim(), formatUsdValue(amount)])
+          .filter(([action, amount]) => action && amount !== '')
+      );
+      setActionMinimumAmounts(normalizedActionMinimumAmounts);
     } catch (err) {
       setError(err?.message || 'Failed to load wallet policy config');
     } finally {
@@ -280,6 +303,18 @@ export default function WalletPolicyConfigPage() {
         .map(([action, mode]) => [String(action || '').trim(), String(mode || '').toUpperCase()])
         .filter(([action, mode]) => action && FEE_APPLICATION_MODES.has(mode))
     );
+    const normalizedActionMinimumAmounts = {};
+    for (const [action, amount] of Object.entries(actionMinimumAmounts || {})) {
+      const normalizedAction = String(action || '').trim();
+      const rawAmount = String(amount ?? '').trim();
+      if (!normalizedAction || rawAmount === '') continue;
+      const parsedAmount = Number(rawAmount);
+      if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+        setError(`Minimum amount for ${humanizeEnum(normalizedAction)} must be a positive amount.`);
+        return;
+      }
+      normalizedActionMinimumAmounts[normalizedAction] = parsedAmount.toFixed(2);
+    }
     const minRaw = String(cryptoProviderCollectionMinimumUsd || '').trim();
     const maxRaw = String(cryptoProviderCollectionMaximumUsd || '').trim();
     const sendAirtimeMinimumRaw = String(sendAirtimeMinimumUsd || '').trim();
@@ -353,7 +388,8 @@ export default function WalletPolicyConfigPage() {
           reviewPromptThresholdRaw === '' ? null : reviewPromptThresholdParsed,
         autoRefundBlockedActions: normalizedAutoRefundBlockedActions,
         globalFeeApplicationMode: globalFeeApplicationMode || 'EXCLUSIVE',
-        actionFeeApplicationModes: normalizedActionFeeModes
+        actionFeeApplicationModes: normalizedActionFeeModes,
+        actionMinimumAmounts: normalizedActionMinimumAmounts
       });
       setInfo('Wallet policy config updated.');
       await loadConfig();
@@ -558,6 +594,149 @@ export default function WalletPolicyConfigPage() {
               }}
             >
               No action-level fee mode defaults configured. All actions currently inherit from the master global fee mode unless a more specific rule exists.
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: 'grid', gap: '0.6rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'grid', gap: '0.2rem' }}>
+              <div style={{ fontWeight: 700 }}>Minimum Amount Per Action</div>
+              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                Configure minimum USD amounts per action. Leave an action out to keep no wallet-policy override for that flow.
+              </div>
+              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                These are generic minimums. Stricter provider or product minimums can still reject later.
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="btn-neutral"
+              disabled={loading || saving || availableActionMinimumAmountActions.length === 0}
+              onClick={() => {
+                const nextAction = availableActionMinimumAmountActions[0];
+                if (!nextAction) return;
+                setError(null);
+                setActionMinimumAmounts((prev) => ({
+                  ...(prev && typeof prev === 'object' ? prev : {}),
+                  [nextAction]: ''
+                }));
+              }}
+            >
+              Add action minimum
+            </button>
+          </div>
+
+          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+            Values must be positive USD amounts like `5.00` or `10.00`.
+          </div>
+
+          {Object.keys(actionMinimumAmounts || {}).length > 0 ? (
+            <div style={{ display: 'grid', gap: '0.6rem' }}>
+              {Object.entries(actionMinimumAmounts || {})
+                .sort(([left], [right]) => String(left).localeCompare(String(right)))
+                .map(([action, amount], index) => (
+                  <div
+                    key={action}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'minmax(220px, 1.3fr) minmax(180px, 1fr) auto',
+                      gap: '0.6rem',
+                      alignItems: 'end',
+                      padding: '0.75rem',
+                      border: '1px solid var(--border)',
+                      borderRadius: '12px'
+                    }}
+                  >
+                    <div style={{ display: 'grid', gap: '0.25rem' }}>
+                      <label htmlFor={`actionMinimumAmounts-action-${index}`}>Action</label>
+                      <select
+                        id={`actionMinimumAmounts-action-${index}`}
+                        value={action}
+                        onChange={(e) => {
+                          const nextAction = String(e.target.value || '').trim();
+                          if (!nextAction || nextAction === action) return;
+                          if (actionMinimumAmounts[nextAction] !== undefined) {
+                            setError(`Minimum amount for ${nextAction} is already configured in wallet policy.`);
+                            return;
+                          }
+                          setError(null);
+                          setActionMinimumAmounts((prev) => {
+                            const next = { ...(prev && typeof prev === 'object' ? prev : {}) };
+                            const currentAmount = next[action] ?? '';
+                            delete next[action];
+                            next[nextAction] = currentAmount;
+                            return next;
+                          });
+                        }}
+                        disabled={loading || saving}
+                      >
+                        {[action, ...availableActionMinimumAmountActions].map((option) => (
+                          <option key={option} value={option}>
+                            {humanizeEnum(option)} ({option})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div style={{ display: 'grid', gap: '0.25rem' }}>
+                      <label htmlFor={`actionMinimumAmounts-value-${index}`}>Minimum amount (USD)</label>
+                      <input
+                        id={`actionMinimumAmounts-value-${index}`}
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        inputMode="decimal"
+                        value={amount}
+                        onChange={(e) => {
+                          const nextValue = e.target.value;
+                          setError(null);
+                          setActionMinimumAmounts((prev) => ({
+                            ...(prev && typeof prev === 'object' ? prev : {}),
+                            [action]: nextValue
+                          }));
+                        }}
+                        onBlur={() => {
+                          setActionMinimumAmounts((prev) => ({
+                            ...(prev && typeof prev === 'object' ? prev : {}),
+                            [action]: formatUsdValue(String((prev && prev[action]) || '').trim())
+                          }));
+                        }}
+                        placeholder="5.00"
+                        disabled={loading || saving}
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      className="btn-danger"
+                      onClick={() => {
+                        setError(null);
+                        setActionMinimumAmounts((prev) => {
+                          const next = { ...(prev && typeof prev === 'object' ? prev : {}) };
+                          delete next[action];
+                          return next;
+                        });
+                      }}
+                      disabled={loading || saving}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+            </div>
+          ) : (
+            <div
+              style={{
+                padding: '0.85rem',
+                border: '1px dashed var(--border)',
+                borderRadius: '12px',
+                color: 'var(--muted)',
+                fontSize: '13px'
+              }}
+            >
+              No action-specific minimum amounts configured.
             </div>
           )}
         </div>
