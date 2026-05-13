@@ -52,6 +52,13 @@ const feeApplicationModeOptions = [
   { value: 'EXCLUSIVE', label: 'Sender pays fees (EXCLUSIVE)' },
   { value: 'INCLUSIVE', label: 'Recipient pays fees (INCLUSIVE)' }
 ];
+const TAB_ITEMS = [
+  { key: 'overview', label: 'Overview' },
+  { key: 'fees', label: 'Fees & Actions' },
+  { key: 'operations', label: 'Operations' },
+  { key: 'crypto', label: 'Crypto & Payouts' },
+  { key: 'app', label: 'App, KYC & Loans' }
+];
 const FEE_APPLICATION_MODES = new Set(feeApplicationModeOptions.map((option) => option.value));
 const formatUsdValue = (value) => {
   if (value === null || value === undefined || value === '') return '';
@@ -402,7 +409,7 @@ export default function WalletPolicyConfigPage() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '760px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%', maxWidth: '100%' }}>
       <div className="card" style={{ display: 'grid', gap: '0.3rem' }}>
         <div style={{ fontSize: '20px', fontWeight: 800 }}>Wallet Policy Config</div>
         <div style={{ color: 'var(--muted)' }}>
@@ -416,19 +423,18 @@ export default function WalletPolicyConfigPage() {
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
-      <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          {[
-            { key: 'overview', label: 'Overview' },
-            { key: 'fees', label: 'Fees & Actions' },
-            { key: 'operations', label: 'Operations' },
-            { key: 'crypto', label: 'Crypto & Payouts' },
-            { key: 'app', label: 'App, KYC & Loans' }
-          ].map((tab) => (
+      <div className="config-tabs-shell">
+        <div className="config-tabs" role="tablist" aria-label="Wallet policy sections">
+          {TAB_ITEMS.map((tab) => (
             <button
               key={tab.key}
+              id={`wallet-policy-tab-${tab.key}`}
               type="button"
-              className={activeTab === tab.key ? 'btn-primary' : 'btn-neutral'}
+              role="tab"
+              aria-selected={activeTab === tab.key}
+              aria-controls={`wallet-policy-panel-${tab.key}`}
+              tabIndex={activeTab === tab.key ? 0 : -1}
+              className={`config-tab${activeTab === tab.key ? ' is-active' : ''}`}
               onClick={() => setActiveTab(tab.key)}
               disabled={loading || saving}
             >
@@ -437,6 +443,13 @@ export default function WalletPolicyConfigPage() {
           ))}
         </div>
 
+        <div
+          id={`wallet-policy-panel-${activeTab}`}
+          className="card config-tab-panel"
+          role="tabpanel"
+          aria-labelledby={`wallet-policy-tab-${activeTab}`}
+          style={{ display: 'grid', gap: '0.75rem' }}
+        >
         {activeTab === 'overview' && (
           <>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -1463,6 +1476,7 @@ export default function WalletPolicyConfigPage() {
           <button type="button" className="btn-primary" onClick={save} disabled={loading || saving}>
             {saving ? 'Saving…' : 'Save'}
           </button>
+        </div>
         </div>
       </div>
     </div>

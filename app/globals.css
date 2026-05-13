@@ -463,6 +463,62 @@ label {
   transform: translateY(-1px);
 }
 
+.config-tabs-shell {
+  display: grid;
+  gap: 0;
+}
+
+.config-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.45rem;
+  padding: 0.85rem 0.85rem 0;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 16px 16px 0 0;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 90%, var(--bg) 10%) 0%, var(--surface) 100%);
+}
+
+.config-tab {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-bottom: none;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 14px 14px 0 0;
+  padding: 0.8rem 1rem 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.config-tab:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+
+.config-tab.is-active {
+  color: var(--text);
+  background: var(--surface);
+  border-color: var(--border);
+  position: relative;
+  z-index: 1;
+}
+
+.config-tab:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.config-tab-panel {
+  width: 100%;
+  border-top-left-radius: 0;
+}
+
 .toast-viewport {
   position: fixed;
   top: 1rem;
@@ -645,6 +701,20 @@ label {
 
   .dashboard-chart {
     height: 200px;
+  }
+
+  .config-tabs {
+    padding: 0.7rem 0.7rem 0;
+  }
+
+  .config-tab {
+    flex: 1 1 calc(50% - 0.45rem);
+    min-width: 0;
+    text-align: center;
+  }
+
+  .config-tab-panel {
+    border-top-right-radius: 0;
   }
 }
 
