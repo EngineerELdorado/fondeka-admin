@@ -138,6 +138,7 @@ export default function WalletPolicyConfigPage() {
   const [globalFeeApplicationMode, setGlobalFeeApplicationMode] = useState('EXCLUSIVE');
   const [actionFeeApplicationModes, setActionFeeApplicationModes] = useState({});
   const [actionMinimumAmounts, setActionMinimumAmounts] = useState({});
+  const [actionMaximumAmounts, setActionMaximumAmounts] = useState({});
   const [configSnapshot, setConfigSnapshot] = useState(null);
 
   const autoRefundActionOptions = useMemo(() => {
@@ -185,10 +186,35 @@ export default function WalletPolicyConfigPage() {
     [actionMinimumAmounts]
   );
 
-  const availableActionMinimumAmountActions = useMemo(() => {
-    const configured = new Set(actionMinimumAmountEntries.map(([action]) => String(action)));
+  const actionMaximumAmountEntries = useMemo(
+    () =>
+      Object.entries(actionMaximumAmounts || {})
+        .map(([action, amount]) => [String(action || '').trim(), String(amount ?? '').trim()])
+        .filter(([action, amount]) => action && amount !== '')
+        .sort(([left], [right]) => left.localeCompare(right)),
+    [actionMaximumAmounts]
+  );
+
+  const actionAmountLimitEntries = useMemo(() => {
+    const actions = new Set([
+      ...actionMinimumAmountEntries.map(([action]) => String(action)),
+      ...actionMaximumAmountEntries.map(([action]) => String(action))
+    ]);
+    return Array.from(actions)
+      .sort((left, right) => left.localeCompare(right))
+      .map((action) => [
+        action,
+        {
+          minimum: String(actionMinimumAmounts?.[action] ?? '').trim(),
+          maximum: String(actionMaximumAmounts?.[action] ?? '').trim()
+        }
+      ]);
+  }, [actionMaximumAmountEntries, actionMaximumAmounts, actionMinimumAmountEntries, actionMinimumAmounts]);
+
+  const availableActionAmountLimitActions = useMemo(() => {
+    const configured = new Set(actionAmountLimitEntries.map(([action]) => String(action)));
     return ACTION_OPTIONS.filter((action) => !configured.has(action));
-  }, [actionMinimumAmountEntries]);
+  }, [actionAmountLimitEntries]);
 
   const cryptoCurrencyOptions = useMemo(() => {
     const known = new Set(DEFAULT_CRYPTO_CURRENCY_OPTIONS);
@@ -275,6 +301,14 @@ export default function WalletPolicyConfigPage() {
           .filter(([action, amount]) => action && amount !== '')
       );
       setActionMinimumAmounts(normalizedActionMinimumAmounts);
+      const incomingActionMaximumAmounts =
+        res?.actionMaximumAmounts && typeof res.actionMaximumAmounts === 'object' ? res.actionMaximumAmounts : {};
+      const normalizedActionMaximumAmounts = Object.fromEntries(
+        Object.entries(incomingActionMaximumAmounts)
+          .map(([action, amount]) => [String(action || '').trim(), formatUsdValue(amount)])
+          .filter(([action, amount]) => action && amount !== '')
+      );
+      setActionMaximumAmounts(normalizedActionMaximumAmounts);
     } catch (err) {
       setError(err?.message || 'Failed to load wallet policy config');
     } finally {
@@ -316,12 +350,41 @@ export default function WalletPolicyConfigPage() {
       const normalizedAction = String(action || '').trim();
       const rawAmount = String(amount ?? '').trim();
       if (!normalizedAction || rawAmount === '') continue;
+      if (!ACTION_OPTIONS.includes(normalizedAction)) {
+        setError(`Unknown action key in minimum amounts: ${normalizedAction}.`);
+        return;
+      }
       const parsedAmount = Number(rawAmount);
       if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
         setError(`Minimum amount for ${humanizeEnum(normalizedAction)} must be a positive amount.`);
         return;
       }
       normalizedActionMinimumAmounts[normalizedAction] = parsedAmount.toFixed(2);
+    }
+    const normalizedActionMaximumAmounts = {};
+    for (const [action, amount] of Object.entries(actionMaximumAmounts || {})) {
+      const normalizedAction = String(action || '').trim();
+      const rawAmount = String(amount ?? '').trim();
+      if (!normalizedAction || rawAmount === '') continue;
+      if (!ACTION_OPTIONS.includes(normalizedAction)) {
+        setError(`Unknown action key in maximum amounts: ${normalizedAction}.`);
+        return;
+      }
+      const parsedAmount = Number(rawAmount);
+      if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+        setError(`Maximum amount for ${humanizeEnum(normalizedAction)} must be a positive amount.`);
+        return;
+      }
+      normalizedActionMaximumAmounts[normalizedAction] = parsedAmount.toFixed(2);
+    }
+    for (const action of ACTION_OPTIONS) {
+      const minimumAmount = normalizedActionMinimumAmounts[action];
+      const maximumAmount = normalizedActionMaximumAmounts[action];
+      if (minimumAmount === undefined || maximumAmount === undefined) continue;
+      if (Number(minimumAmount) > Number(maximumAmount)) {
+        setError(`Minimum amount for ${humanizeEnum(action)} must be less than or equal to the maximum amount.`);
+        return;
+      }
     }
     const minRaw = String(cryptoProviderCollectionMinimumUsd || '').trim();
     const maxRaw = String(cryptoProviderCollectionMaximumUsd || '').trim();
@@ -397,7 +460,8 @@ export default function WalletPolicyConfigPage() {
         autoRefundBlockedActions: normalizedAutoRefundBlockedActions,
         globalFeeApplicationMode: globalFeeApplicationMode || 'EXCLUSIVE',
         actionFeeApplicationModes: normalizedActionFeeModes,
-        actionMinimumAmounts: normalizedActionMinimumAmounts
+        actionMinimumAmounts: normalizedActionMinimumAmounts,
+        actionMaximumAmounts: normalizedActionMaximumAmounts
       });
       setInfo('Wallet policy config updated.');
       await loadConfig();
@@ -641,47 +705,49 @@ export default function WalletPolicyConfigPage() {
         <div style={{ display: 'grid', gap: '0.6rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
             <div style={{ display: 'grid', gap: '0.2rem' }}>
-              <div style={{ fontWeight: 700 }}>Minimum Amount Per Action</div>
+              <div style={{ fontWeight: 700 }}>Amount Limits Per Action</div>
               <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-                Configure minimum USD amounts per action. Leave an action out to keep no wallet-policy override for that flow.
+                Configure minimum and maximum USD amounts per action. Leave either field blank to keep no wallet-policy override for that bound.
               </div>
               <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-                These are generic minimums. Stricter provider or product minimums can still reject later.
+                These are generic wallet-policy limits. Stricter provider or product limits can still reject later.
               </div>
             </div>
 
             <button
               type="button"
               className="btn-neutral"
-              disabled={loading || saving || availableActionMinimumAmountActions.length === 0}
+              disabled={loading || saving || availableActionAmountLimitActions.length === 0}
               onClick={() => {
-                const nextAction = availableActionMinimumAmountActions[0];
+                const nextAction = availableActionAmountLimitActions[0];
                 if (!nextAction) return;
                 setError(null);
                 setActionMinimumAmounts((prev) => ({
                   ...(prev && typeof prev === 'object' ? prev : {}),
                   [nextAction]: ''
                 }));
+                setActionMaximumAmounts((prev) => ({
+                  ...(prev && typeof prev === 'object' ? prev : {}),
+                  [nextAction]: ''
+                }));
               }}
             >
-              Add action minimum
+              Add action limit
             </button>
           </div>
 
           <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-            Values must be positive USD amounts like `5.00` or `10.00`.
+            Values must be positive USD amounts like `5.00` or `10.00`. If both values are set for one action, minimum must be less than or equal to maximum.
           </div>
 
-          {Object.keys(actionMinimumAmounts || {}).length > 0 ? (
+          {actionAmountLimitEntries.length > 0 ? (
             <div style={{ display: 'grid', gap: '0.6rem' }}>
-              {Object.entries(actionMinimumAmounts || {})
-                .sort(([left], [right]) => String(left).localeCompare(String(right)))
-                .map(([action, amount], index) => (
+              {actionAmountLimitEntries.map(([action, limits], index) => (
                   <div
                     key={action}
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: 'minmax(220px, 1.3fr) minmax(180px, 1fr) auto',
+                      gridTemplateColumns: 'minmax(220px, 1.3fr) minmax(180px, 1fr) minmax(180px, 1fr) auto',
                       gap: '0.6rem',
                       alignItems: 'end',
                       padding: '0.75rem',
@@ -697,8 +763,8 @@ export default function WalletPolicyConfigPage() {
                         onChange={(e) => {
                           const nextAction = String(e.target.value || '').trim();
                           if (!nextAction || nextAction === action) return;
-                          if (actionMinimumAmounts[nextAction] !== undefined) {
-                            setError(`Minimum amount for ${nextAction} is already configured in wallet policy.`);
+                          if (actionMinimumAmounts[nextAction] !== undefined || actionMaximumAmounts[nextAction] !== undefined) {
+                            setError(`Amount limits for ${nextAction} are already configured in wallet policy.`);
                             return;
                           }
                           setError(null);
@@ -709,10 +775,17 @@ export default function WalletPolicyConfigPage() {
                             next[nextAction] = currentAmount;
                             return next;
                           });
+                          setActionMaximumAmounts((prev) => {
+                            const next = { ...(prev && typeof prev === 'object' ? prev : {}) };
+                            const currentAmount = next[action] ?? '';
+                            delete next[action];
+                            next[nextAction] = currentAmount;
+                            return next;
+                          });
                         }}
                         disabled={loading || saving}
                       >
-                        {[action, ...availableActionMinimumAmountActions].map((option) => (
+                        {[action, ...availableActionAmountLimitActions].map((option) => (
                           <option key={option} value={option}>
                             {humanizeEnum(option)} ({option})
                           </option>
@@ -728,7 +801,7 @@ export default function WalletPolicyConfigPage() {
                         min="0.01"
                         step="0.01"
                         inputMode="decimal"
-                        value={amount}
+                        value={limits.minimum}
                         onChange={(e) => {
                           const nextValue = e.target.value;
                           setError(null);
@@ -748,12 +821,45 @@ export default function WalletPolicyConfigPage() {
                       />
                     </div>
 
+                    <div style={{ display: 'grid', gap: '0.25rem' }}>
+                      <label htmlFor={`actionMaximumAmounts-value-${index}`}>Maximum amount (USD)</label>
+                      <input
+                        id={`actionMaximumAmounts-value-${index}`}
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        inputMode="decimal"
+                        value={limits.maximum}
+                        onChange={(e) => {
+                          const nextValue = e.target.value;
+                          setError(null);
+                          setActionMaximumAmounts((prev) => ({
+                            ...(prev && typeof prev === 'object' ? prev : {}),
+                            [action]: nextValue
+                          }));
+                        }}
+                        onBlur={() => {
+                          setActionMaximumAmounts((prev) => ({
+                            ...(prev && typeof prev === 'object' ? prev : {}),
+                            [action]: formatUsdValue(String((prev && prev[action]) || '').trim())
+                          }));
+                        }}
+                        placeholder="500.00"
+                        disabled={loading || saving}
+                      />
+                    </div>
+
                     <button
                       type="button"
                       className="btn-danger"
                       onClick={() => {
                         setError(null);
                         setActionMinimumAmounts((prev) => {
+                          const next = { ...(prev && typeof prev === 'object' ? prev : {}) };
+                          delete next[action];
+                          return next;
+                        });
+                        setActionMaximumAmounts((prev) => {
                           const next = { ...(prev && typeof prev === 'object' ? prev : {}) };
                           delete next[action];
                           return next;
@@ -776,7 +882,7 @@ export default function WalletPolicyConfigPage() {
                 fontSize: '13px'
               }}
             >
-              No action-specific minimum amounts configured.
+              No action-specific amount limits configured.
             </div>
           )}
         </div>
