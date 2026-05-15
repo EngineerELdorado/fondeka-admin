@@ -420,8 +420,10 @@ const [account, setAccount] = useState(null);
   const [error, setError] = useState(null);
   const [showOwedBreakdown, setShowOwedBreakdown] = useState(false);
   const [showDepositPromptBreakdown, setShowDepositPromptBreakdown] = useState(false);
-  const [trustedDeviceOverride, setTrustedDeviceOverride] = useState(false);
-  const [trustedDeviceSaving, setTrustedDeviceSaving] = useState(false);
+const [trustedDeviceOverride, setTrustedDeviceOverride] = useState(false);
+const [trustedDeviceSaving, setTrustedDeviceSaving] = useState(false);
+const [collectionSourceRiskBypass, setCollectionSourceRiskBypass] = useState(false);
+const [collectionSourceRiskBypassSaving, setCollectionSourceRiskBypassSaving] = useState(false);
   const [trustedDevicePolicy, setTrustedDevicePolicy] = useState({
     maxTrustedDevicesOverride: '',
     effectiveMaxTrustedDevices: null,
@@ -1079,6 +1081,10 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
   }, [account?.enforceTrustedDevice]);
 
   useEffect(() => {
+    setCollectionSourceRiskBypass(Boolean(account?.collectionSourceRiskBypass));
+  }, [account?.collectionSourceRiskBypass]);
+
+  useEffect(() => {
     const tx = resolveTransactionAuthValues(account);
     if (tx.accountLevel === undefined) return;
     setTransactionAuthOverride(Boolean(tx.accountLevel));
@@ -1376,6 +1382,30 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       pushToast({ tone: 'error', message });
     } finally {
       setTrustedDevicePolicySaving(false);
+    }
+  };
+
+  const saveCollectionSourceRiskBypass = async () => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) {
+      pushToast({ tone: 'error', message: 'No account loaded' });
+      return;
+    }
+    setCollectionSourceRiskBypassSaving(true);
+    setError(null);
+    try {
+      const res = await api.accounts.update(resolvedAccountId, { collectionSourceRiskBypass: collectionSourceRiskBypass });
+      const nextValue = res?.collectionSourceRiskBypass ?? collectionSourceRiskBypass;
+      setAccount((prev) => (prev ? { ...prev, collectionSourceRiskBypass: Boolean(nextValue) } : prev));
+      pushToast({
+        tone: 'success',
+        message: `Collection source risk bypass ${nextValue ? 'enabled' : 'disabled'}`
+      });
+    } catch (err) {
+      const message = err.message || 'Failed to update collection source risk bypass';
+      setError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setCollectionSourceRiskBypassSaving(false);
     }
   };
 
@@ -2864,6 +2894,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           { label: 'Created at', value: formatDateTime(accountView?.createdAt) },
           { label: 'KYC status', value: accountView?.kycStatus },
           { label: 'Blacklist', value: <BlacklistBadge blacklisted={Boolean(accountView?.blacklisted)} /> },
+          { label: 'Collection source risk bypass', value: accountView?.collectionSourceRiskBypass ? 'Enabled' : 'Disabled' },
           { label: 'Balance', value: accountView?.balance },
           {
             label: 'Amount owed',
@@ -3290,6 +3321,45 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               Clear override
             </button>
           </div>
+        </div>
+      </div>
+
+      <div className="card" style={{ padding: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+            <div style={{ fontWeight: 800 }}>Collection Source Risk Bypass</div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              This account will not be blocked or blacklisted by collection source risk thresholds.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+              <input
+                type="checkbox"
+                checked={collectionSourceRiskBypass}
+                onChange={(e) => setCollectionSourceRiskBypass(e.target.checked)}
+              />
+              {collectionSourceRiskBypass ? 'Enabled' : 'Disabled'}
+            </label>
+            <button
+              type="button"
+              className="btn-primary btn-sm"
+              onClick={saveCollectionSourceRiskBypass}
+              disabled={collectionSourceRiskBypassSaving || resolvedAccountId === null || resolvedAccountId === undefined}
+            >
+              {collectionSourceRiskBypassSaving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
+        <div style={{ marginTop: '0.75rem' }}>
+          <DetailGrid
+            rows={[
+              {
+                label: 'collectionSourceRiskBypass',
+                value: accountView?.collectionSourceRiskBypass ? 'Enabled' : 'Disabled'
+              }
+            ]}
+          />
         </div>
       </div>
 
@@ -4942,9 +5012,10 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                   value={cardholderForm.identity.backIdImage}
                   onChange={(e) => updateCardholderIdentity('backIdImage', e.target.value)}
                   placeholder="https://image.com/id-back.jpg"
-                />
-              </div>
-            </div>
+          />
+        </div>
+      </div>
+
             <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Provide either BVN or ID number.</div>
 
             <div style={{ fontWeight: 700 }}>Personal details</div>

@@ -9,6 +9,8 @@ const MIN_REVIEW_PROMPT_THRESHOLD = 1;
 const DEFAULT_CRYPTO_CURRENCY_OPTIONS = ['BTC', 'ETH', 'USDT', 'USDC', 'BNB', 'SOL', 'EURC'];
 const DEFAULT_CRYPTO_NETWORK_OPTIONS = ['LIGHTNING', 'BTC', 'ERC20', 'BEP20', 'TRC20', 'SOLANA', 'POLYGON', 'BASE', 'ARBITRUM', 'AVALANCHE'];
 const ALLOWED_PAYOUT_ACTIONS = ['WITHDRAW_FROM_WALLET', 'WITHDRAW_FROM_CARD', 'SELL_CRYPTO'];
+const PAYMENT_METHOD_TYPE_OPTIONS = ['MOBILE_MONEY', 'CRYPTO', 'BALANCE', 'CREDIT', 'AIRTIME', 'BANK'];
+const COLLECTION_SOURCE_RISK_CONSEQUENCE_OPTIONS = ['WARNING', 'BLACKLIST'];
 const ACTION_OPTIONS = [
   'FUND_WALLET',
   'WITHDRAW_FROM_WALLET',
@@ -94,6 +96,68 @@ const humanizeEnum = (value) =>
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
+const normalizePositiveIntegerString = (value) => String(value ?? '').trim();
+const createEmptyCollectionSourceRiskThreshold = () => ({
+  maxDistinctSources: '',
+  windowMinutes: '',
+  consequence: 'WARNING'
+});
+const createEmptyCollectionSourceRiskRule = () => ({
+  action: '',
+  paymentMethodType: '',
+  paymentMethodId: '',
+  thresholds: [createEmptyCollectionSourceRiskThreshold()]
+});
+const normalizeCollectionSourceRiskThresholdDraft = (threshold) => {
+  if (!threshold || typeof threshold !== 'object') return null;
+  const maxDistinctSources = normalizePositiveIntegerString(threshold.maxDistinctSources);
+  const windowMinutes = normalizePositiveIntegerString(threshold.windowMinutes);
+  const consequence = String(threshold.consequence || '').trim().toUpperCase();
+  if (!maxDistinctSources || !windowMinutes) return null;
+  return {
+    maxDistinctSources,
+    windowMinutes,
+    consequence: COLLECTION_SOURCE_RISK_CONSEQUENCE_OPTIONS.includes(consequence) ? consequence : 'BLACKLIST'
+  };
+};
+const compareCollectionSourceRiskThresholds = (left, right) => {
+  const maxDelta = Number(left?.maxDistinctSources || 0) - Number(right?.maxDistinctSources || 0);
+  if (maxDelta !== 0) return maxDelta;
+  const windowDelta = Number(left?.windowMinutes || 0) - Number(right?.windowMinutes || 0);
+  if (windowDelta !== 0) return windowDelta;
+  return String(left?.consequence || '').localeCompare(String(right?.consequence || ''));
+};
+const normalizeCollectionSourceRiskRuleDraft = (rule) => {
+  if (!rule || typeof rule !== 'object') return null;
+  const action = String(rule.action || '').trim();
+  const paymentMethodType = String(rule.paymentMethodType || '').trim().toUpperCase();
+  const paymentMethodIdRaw = String(rule.paymentMethodId ?? '').trim();
+  const thresholdsSource = Array.isArray(rule.thresholds) && rule.thresholds.length
+    ? rule.thresholds
+    : rule.maxDistinctSources !== null && rule.maxDistinctSources !== undefined && rule.windowMinutes !== null && rule.windowMinutes !== undefined
+      ? [{
+          maxDistinctSources: rule.maxDistinctSources,
+          windowMinutes: rule.windowMinutes,
+          consequence: rule.consequence || 'BLACKLIST'
+        }]
+      : [];
+  const thresholds = thresholdsSource
+    .map((threshold) => normalizeCollectionSourceRiskThresholdDraft(threshold))
+    .filter(Boolean)
+    .sort(compareCollectionSourceRiskThresholds);
+  return {
+    action,
+    paymentMethodType: PAYMENT_METHOD_TYPE_OPTIONS.includes(paymentMethodType) ? paymentMethodType : '',
+    paymentMethodId: paymentMethodIdRaw,
+    thresholds: thresholds.length ? thresholds : [createEmptyCollectionSourceRiskThreshold()]
+  };
+};
+const normalizeCollectionSourceRiskRulesFromResponse = (value) => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((rule) => normalizeCollectionSourceRiskRuleDraft(rule))
+    .filter((rule) => rule && (rule.action || rule.paymentMethodType || rule.paymentMethodId || rule.thresholds.length));
+};
 
 const autoRefundChipStyle = {
   display: 'inline-flex',
@@ -127,6 +191,7 @@ export default function WalletPolicyConfigPage() {
   const [sendCryptoAutoPayoutRails, setSendCryptoAutoPayoutRails] = useState({});
   const [cryptoProducts, setCryptoProducts] = useState([]);
   const [cryptoNetworks, setCryptoNetworks] = useState([]);
+  const [paymentMethods, setPaymentMethods] = useState([]);
   const [railDraftCurrency, setRailDraftCurrency] = useState('');
   const [railDraftNetwork, setRailDraftNetwork] = useState('');
   const [railDraftEnabled, setRailDraftEnabled] = useState(true);
@@ -139,6 +204,7 @@ export default function WalletPolicyConfigPage() {
   const [actionFeeApplicationModes, setActionFeeApplicationModes] = useState({});
   const [actionMinimumAmounts, setActionMinimumAmounts] = useState({});
   const [actionMaximumAmounts, setActionMaximumAmounts] = useState({});
+  const [collectionSourceRiskRules, setCollectionSourceRiskRules] = useState([]);
   const [configSnapshot, setConfigSnapshot] = useState(null);
 
   const autoRefundActionOptions = useMemo(() => {
@@ -250,20 +316,41 @@ export default function WalletPolicyConfigPage() {
     [sendCryptoAutoPayoutRails]
   );
 
+  const paymentMethodOptions = useMemo(
+    () =>
+      normalizeList(paymentMethods)
+        .map((method) => {
+          const id = method?.id;
+          if (id === null || id === undefined) return null;
+          const type = String(method?.type || '').trim().toUpperCase();
+          const name = String(method?.displayName || method?.name || '').trim();
+          return {
+            value: String(id),
+            type,
+            label: name ? `${name} (#${id}${type ? ` · ${humanizeEnum(type)}` : ''})` : `#${id}${type ? ` · ${humanizeEnum(type)}` : ''}`
+          };
+        })
+        .filter(Boolean)
+        .sort((left, right) => left.label.localeCompare(right.label)),
+    [paymentMethods]
+  );
+
   const loadConfig = async () => {
     setLoading(true);
     setError(null);
     setInfo(null);
     try {
       const params = new URLSearchParams({ page: '0', size: '250' });
-      const [res, cryptoProductsRes, cryptoNetworksRes] = await Promise.all([
+      const [res, cryptoProductsRes, cryptoNetworksRes, paymentMethodsRes] = await Promise.all([
         api.walletPolicyConfig.get(),
         api.cryptoProducts.list(params),
-        api.cryptoNetworks.list(params)
+        api.cryptoNetworks.list(params),
+        api.paymentMethods.list(params)
       ]);
       setConfigSnapshot(res || {});
       setCryptoProducts(normalizeList(cryptoProductsRes));
       setCryptoNetworks(normalizeList(cryptoNetworksRes));
+      setPaymentMethods(normalizeList(paymentMethodsRes));
       const value = res?.interTransferCooldownMinutes;
       setCooldown(value === null || value === undefined ? '' : String(value));
       const incomingActions = Array.isArray(res?.payoutRateLimitActions) ? res.payoutRateLimitActions : [];
@@ -309,6 +396,7 @@ export default function WalletPolicyConfigPage() {
           .filter(([action, amount]) => action && amount !== '')
       );
       setActionMaximumAmounts(normalizedActionMaximumAmounts);
+      setCollectionSourceRiskRules(normalizeCollectionSourceRiskRulesFromResponse(res?.collectionSourceRiskRules));
     } catch (err) {
       setError(err?.message || 'Failed to load wallet policy config');
     } finally {
@@ -436,6 +524,75 @@ export default function WalletPolicyConfigPage() {
       setError('Deposit prompt threshold amount must be a positive amount.');
       return;
     }
+    const normalizedCollectionSourceRiskRules = [];
+    const collectionSourceRiskRuleKeys = new Set();
+    for (const [ruleIndex, rawRule] of (Array.isArray(collectionSourceRiskRules) ? collectionSourceRiskRules : []).entries()) {
+      const rule = normalizeCollectionSourceRiskRuleDraft(rawRule) || createEmptyCollectionSourceRiskRule();
+      if (!rule.action) {
+        setError(`Collection source risk rule ${ruleIndex + 1} must include an action.`);
+        return;
+      }
+      if (!ACTION_OPTIONS.includes(rule.action)) {
+        setError(`Collection source risk rule ${ruleIndex + 1} uses an unknown action: ${rule.action}.`);
+        return;
+      }
+      const normalizedPaymentMethodType = rule.paymentMethodType ? String(rule.paymentMethodType).trim().toUpperCase() : null;
+      if (normalizedPaymentMethodType && !PAYMENT_METHOD_TYPE_OPTIONS.includes(normalizedPaymentMethodType)) {
+        setError(`Collection source risk rule ${ruleIndex + 1} uses an unknown payment method type: ${normalizedPaymentMethodType}.`);
+        return;
+      }
+      const paymentMethodIdRaw = String(rule.paymentMethodId ?? '').trim();
+      const normalizedPaymentMethodId = paymentMethodIdRaw === '' ? null : Number(paymentMethodIdRaw);
+      if (paymentMethodIdRaw !== '' && (!Number.isInteger(normalizedPaymentMethodId) || normalizedPaymentMethodId <= 0)) {
+        setError(`Collection source risk rule ${ruleIndex + 1} must use a valid payment method.`);
+        return;
+      }
+      const scopeKey = [rule.action, normalizedPaymentMethodType || '', normalizedPaymentMethodId || ''].join('|');
+      if (collectionSourceRiskRuleKeys.has(scopeKey)) {
+        setError(`Collection source risk rule ${ruleIndex + 1} duplicates another rule with the same action and scope.`);
+        return;
+      }
+      collectionSourceRiskRuleKeys.add(scopeKey);
+      if (!Array.isArray(rule.thresholds) || rule.thresholds.length === 0) {
+        setError(`Collection source risk rule ${ruleIndex + 1} must include at least one threshold.`);
+        return;
+      }
+      const thresholdKeys = new Set();
+      const normalizedThresholds = [];
+      for (const [thresholdIndex, threshold] of rule.thresholds.entries()) {
+        const maxDistinctSourcesRaw = normalizePositiveIntegerString(threshold?.maxDistinctSources);
+        const windowMinutesRaw = normalizePositiveIntegerString(threshold?.windowMinutes);
+        const consequence = String(threshold?.consequence || '').trim().toUpperCase();
+        const maxDistinctSources = Number(maxDistinctSourcesRaw);
+        const windowMinutes = Number(windowMinutesRaw);
+        if (!Number.isInteger(maxDistinctSources) || maxDistinctSources <= 0) {
+          setError(`Collection source risk rule ${ruleIndex + 1}, threshold ${thresholdIndex + 1}: max distinct sources must be a positive integer.`);
+          return;
+        }
+        if (!Number.isInteger(windowMinutes) || windowMinutes <= 0) {
+          setError(`Collection source risk rule ${ruleIndex + 1}, threshold ${thresholdIndex + 1}: window minutes must be a positive integer.`);
+          return;
+        }
+        if (!COLLECTION_SOURCE_RISK_CONSEQUENCE_OPTIONS.includes(consequence)) {
+          setError(`Collection source risk rule ${ruleIndex + 1}, threshold ${thresholdIndex + 1}: consequence must be WARNING or BLACKLIST.`);
+          return;
+        }
+        const thresholdKey = [maxDistinctSources, windowMinutes, consequence].join('|');
+        if (thresholdKeys.has(thresholdKey)) {
+          setError(`Collection source risk rule ${ruleIndex + 1} contains a duplicate threshold row.`);
+          return;
+        }
+        thresholdKeys.add(thresholdKey);
+        normalizedThresholds.push({ maxDistinctSources, windowMinutes, consequence });
+      }
+      normalizedThresholds.sort(compareCollectionSourceRiskThresholds);
+      normalizedCollectionSourceRiskRules.push({
+        action: rule.action,
+        paymentMethodType: normalizedPaymentMethodType,
+        paymentMethodId: normalizedPaymentMethodId,
+        thresholds: normalizedThresholds
+      });
+    }
     setSaving(true);
     setError(null);
     setInfo(null);
@@ -461,7 +618,8 @@ export default function WalletPolicyConfigPage() {
         globalFeeApplicationMode: globalFeeApplicationMode || 'EXCLUSIVE',
         actionFeeApplicationModes: normalizedActionFeeModes,
         actionMinimumAmounts: normalizedActionMinimumAmounts,
-        actionMaximumAmounts: normalizedActionMaximumAmounts
+        actionMaximumAmounts: normalizedActionMaximumAmounts,
+        collectionSourceRiskRules: normalizedCollectionSourceRiskRules
       });
       setInfo('Wallet policy config updated.');
       await loadConfig();
@@ -1053,6 +1211,320 @@ export default function WalletPolicyConfigPage() {
               Empty selection means no actions are blocked from auto-refund.
             </div>
           </div>
+        </div>
+
+        <div style={{ display: 'grid', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'grid', gap: '0.2rem' }}>
+              <div style={{ fontWeight: 700 }}>Collection Source Risk Rules</div>
+              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                Distinct-source protection for recent non-completed collection attempts. Use a lower WARNING threshold for cooldown behavior, then a higher BLACKLIST threshold for stronger enforcement.
+              </div>
+              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                Resolution order is exact payment method, then payment method type, then action-only.
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="btn-neutral"
+              disabled={loading || saving}
+              onClick={() => {
+                setError(null);
+                setCollectionSourceRiskRules((prev) => [...(Array.isArray(prev) ? prev : []), createEmptyCollectionSourceRiskRule()]);
+              }}
+            >
+              Add rule
+            </button>
+          </div>
+
+          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+            Recommended default: `3 in 5 min → WARNING`, then `5 in 5 min → BLACKLIST`.
+          </div>
+
+          {collectionSourceRiskRules.length > 0 ? (
+            <div style={{ display: 'grid', gap: '0.85rem' }}>
+              {collectionSourceRiskRules.map((rule, ruleIndex) => (
+                <div
+                  key={`collection-source-risk-rule-${ruleIndex}`}
+                  style={{
+                    display: 'grid',
+                    gap: '0.75rem',
+                    padding: '0.85rem',
+                    border: '1px solid var(--border)',
+                    borderRadius: '12px'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div style={{ fontWeight: 700 }}>Rule {ruleIndex + 1}</div>
+                    <button
+                      type="button"
+                      className="btn-danger"
+                      onClick={() => {
+                        setError(null);
+                        setCollectionSourceRiskRules((prev) => prev.filter((_, index) => index !== ruleIndex));
+                      }}
+                      disabled={loading || saving}
+                    >
+                      Remove rule
+                    </button>
+                  </div>
+
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                      gap: '0.75rem'
+                    }}
+                  >
+                    <div style={{ display: 'grid', gap: '0.25rem' }}>
+                      <label htmlFor={`collectionSourceRiskRules-action-${ruleIndex}`}>Action</label>
+                      <select
+                        id={`collectionSourceRiskRules-action-${ruleIndex}`}
+                        value={rule.action}
+                        onChange={(e) => {
+                          const nextValue = e.target.value;
+                          setError(null);
+                          setCollectionSourceRiskRules((prev) =>
+                            prev.map((item, index) => (index === ruleIndex ? { ...item, action: nextValue } : item))
+                          );
+                        }}
+                        disabled={loading || saving}
+                      >
+                        <option value="">Select action</option>
+                        {ACTION_OPTIONS.map((option) => (
+                          <option key={option} value={option}>
+                            {humanizeEnum(option)} ({option})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div style={{ display: 'grid', gap: '0.25rem' }}>
+                      <label htmlFor={`collectionSourceRiskRules-type-${ruleIndex}`}>Payment method type</label>
+                      <select
+                        id={`collectionSourceRiskRules-type-${ruleIndex}`}
+                        value={rule.paymentMethodType}
+                        onChange={(e) => {
+                          const nextValue = e.target.value;
+                          setError(null);
+                          setCollectionSourceRiskRules((prev) =>
+                            prev.map((item, index) => (index === ruleIndex ? { ...item, paymentMethodType: nextValue } : item))
+                          );
+                        }}
+                        disabled={loading || saving}
+                      >
+                        <option value="">Any type</option>
+                        {PAYMENT_METHOD_TYPE_OPTIONS.map((option) => (
+                          <option key={option} value={option}>
+                            {humanizeEnum(option)} ({option})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div style={{ display: 'grid', gap: '0.25rem' }}>
+                      <label htmlFor={`collectionSourceRiskRules-method-${ruleIndex}`}>Exact payment method</label>
+                      <select
+                        id={`collectionSourceRiskRules-method-${ruleIndex}`}
+                        value={rule.paymentMethodId}
+                        onChange={(e) => {
+                          const nextValue = e.target.value;
+                          setError(null);
+                          setCollectionSourceRiskRules((prev) =>
+                            prev.map((item, index) => (index === ruleIndex ? { ...item, paymentMethodId: nextValue } : item))
+                          );
+                        }}
+                        disabled={loading || saving}
+                      >
+                        <option value="">Any method</option>
+                        {paymentMethodOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                        If set, this rule becomes the most specific match for that method.
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gap: '0.6rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'grid', gap: '0.2rem' }}>
+                        <div style={{ fontWeight: 700 }}>Thresholds</div>
+                        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                          Thresholds are shown from lowest to highest. Each rule needs at least one threshold.
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="btn-neutral"
+                        disabled={loading || saving}
+                        onClick={() => {
+                          setError(null);
+                          setCollectionSourceRiskRules((prev) =>
+                            prev.map((item, index) =>
+                              index === ruleIndex
+                                ? {
+                                    ...item,
+                                    thresholds: [...(Array.isArray(item.thresholds) ? item.thresholds : []), createEmptyCollectionSourceRiskThreshold()]
+                                      .sort(compareCollectionSourceRiskThresholds)
+                                  }
+                                : item
+                            )
+                          );
+                        }}
+                      >
+                        Add threshold
+                      </button>
+                    </div>
+
+                    {(Array.isArray(rule.thresholds) ? rule.thresholds : []).map((threshold, thresholdIndex) => (
+                      <div
+                        key={`collection-source-risk-threshold-${ruleIndex}-${thresholdIndex}`}
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'minmax(180px, 1fr) minmax(180px, 1fr) minmax(180px, 1fr) auto',
+                          gap: '0.6rem',
+                          alignItems: 'end',
+                          padding: '0.75rem',
+                          border: '1px solid var(--border)',
+                          borderRadius: '12px'
+                        }}
+                      >
+                        <div style={{ display: 'grid', gap: '0.25rem' }}>
+                          <label htmlFor={`collectionSourceRiskRules-maxDistinctSources-${ruleIndex}-${thresholdIndex}`}>Max distinct sources</label>
+                          <input
+                            id={`collectionSourceRiskRules-maxDistinctSources-${ruleIndex}-${thresholdIndex}`}
+                            type="number"
+                            min="1"
+                            step="1"
+                            inputMode="numeric"
+                            value={threshold.maxDistinctSources}
+                            onChange={(e) => {
+                              const nextValue = e.target.value;
+                              setError(null);
+                              setCollectionSourceRiskRules((prev) =>
+                                prev.map((item, index) =>
+                                  index === ruleIndex
+                                    ? {
+                                        ...item,
+                                        thresholds: (item.thresholds || []).map((entry, entryIndex) =>
+                                          entryIndex === thresholdIndex ? { ...entry, maxDistinctSources: nextValue } : entry
+                                        )
+                                      }
+                                    : item
+                                )
+                              );
+                            }}
+                            disabled={loading || saving}
+                          />
+                        </div>
+
+                        <div style={{ display: 'grid', gap: '0.25rem' }}>
+                          <label htmlFor={`collectionSourceRiskRules-windowMinutes-${ruleIndex}-${thresholdIndex}`}>Window (minutes)</label>
+                          <input
+                            id={`collectionSourceRiskRules-windowMinutes-${ruleIndex}-${thresholdIndex}`}
+                            type="number"
+                            min="1"
+                            step="1"
+                            inputMode="numeric"
+                            value={threshold.windowMinutes}
+                            onChange={(e) => {
+                              const nextValue = e.target.value;
+                              setError(null);
+                              setCollectionSourceRiskRules((prev) =>
+                                prev.map((item, index) =>
+                                  index === ruleIndex
+                                    ? {
+                                        ...item,
+                                        thresholds: (item.thresholds || []).map((entry, entryIndex) =>
+                                          entryIndex === thresholdIndex ? { ...entry, windowMinutes: nextValue } : entry
+                                        )
+                                      }
+                                    : item
+                                )
+                              );
+                            }}
+                            disabled={loading || saving}
+                          />
+                        </div>
+
+                        <div style={{ display: 'grid', gap: '0.25rem' }}>
+                          <label htmlFor={`collectionSourceRiskRules-consequence-${ruleIndex}-${thresholdIndex}`}>Consequence</label>
+                          <select
+                            id={`collectionSourceRiskRules-consequence-${ruleIndex}-${thresholdIndex}`}
+                            value={threshold.consequence}
+                            onChange={(e) => {
+                              const nextValue = e.target.value;
+                              setError(null);
+                              setCollectionSourceRiskRules((prev) =>
+                                prev.map((item, index) =>
+                                  index === ruleIndex
+                                    ? {
+                                        ...item,
+                                        thresholds: (item.thresholds || [])
+                                          .map((entry, entryIndex) =>
+                                            entryIndex === thresholdIndex ? { ...entry, consequence: nextValue } : entry
+                                          )
+                                          .sort(compareCollectionSourceRiskThresholds)
+                                      }
+                                    : item
+                                )
+                              );
+                            }}
+                            disabled={loading || saving}
+                          >
+                            {COLLECTION_SOURCE_RISK_CONSEQUENCE_OPTIONS.map((option) => (
+                              <option key={option} value={option}>
+                                {humanizeEnum(option)}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <button
+                          type="button"
+                          className="btn-danger"
+                          onClick={() => {
+                            setError(null);
+                            setCollectionSourceRiskRules((prev) =>
+                              prev.map((item, index) =>
+                                index === ruleIndex
+                                  ? {
+                                      ...item,
+                                      thresholds: (item.thresholds || []).filter((_, entryIndex) => entryIndex !== thresholdIndex)
+                                    }
+                                  : item
+                              )
+                            );
+                          }}
+                          disabled={loading || saving}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div
+              style={{
+                padding: '0.85rem',
+                border: '1px dashed var(--border)',
+                borderRadius: '12px',
+                color: 'var(--muted)',
+                fontSize: '13px'
+              }}
+            >
+              No collection source risk rules configured. Add a rule to define warning and blacklist thresholds per action, payment method type, or exact payment method.
+            </div>
+          )}
         </div>
           </>
         )}
