@@ -36,6 +36,11 @@ const emptyEditDraft = {
   balance: '',
   status: ''
 };
+const emptyInterventionDraft = {
+  reason: '',
+  note: '',
+  withdrawnAt: ''
+};
 
 const SAVING_PRODUCT_CODE_LOCKED = 'LOCKED_SAVING';
 
@@ -178,8 +183,10 @@ export default function PersonalSavingsPage() {
   const [editing, setEditing] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
   const [approvalSaving, setApprovalSaving] = useState(false);
-  const [restoreSaving, setRestoreSaving] = useState(false);
   const [editError, setEditError] = useState(null);
+  const [interventionDraft, setInterventionDraft] = useState(emptyInterventionDraft);
+  const [interventionConfig, setInterventionConfig] = useState(null);
+  const [interventionSaving, setInterventionSaving] = useState(false);
 
   const selectedProduct = useMemo(
     () => products.find((product) => String(product?.id) === String(editDraft.savingProductId)),
@@ -245,6 +252,15 @@ export default function PersonalSavingsPage() {
     }
   }, [isLockedSavingDraft, editDraft.endsAt]);
 
+  const reloadSavingDetail = async (savingId, fallbackRow = null) => {
+    const [savingRes, activityRes] = await Promise.all([
+      api.savings.get(savingId),
+      api.savingActivities.list(new URLSearchParams({ page: '0', size: '100', savingId: String(savingId) }))
+    ]);
+    setDetail(savingRes || fallbackRow);
+    setActivities(Array.isArray(activityRes) ? activityRes : activityRes?.content || []);
+  };
+
   const openDetail = async (row) => {
     const id = getSavingId(row);
     if (!id) return;
@@ -281,6 +297,16 @@ export default function PersonalSavingsPage() {
     });
     setEditError(null);
     setEditing(true);
+  };
+
+  const openInterventionModal = (config) => {
+    setInterventionDraft({
+      reason: '',
+      note: '',
+      withdrawnAt: config?.type === 'force-close' ? toInputDateTime(new Date()) : ''
+    });
+    setInterventionConfig(config);
+    setError(null);
   };
 
   const validateEditDraft = () => {
@@ -322,12 +348,7 @@ export default function PersonalSavingsPage() {
         balance: editDraft.balance === '' ? null : Number(editDraft.balance),
         status: editDraft.status || null
       });
-      const [savingRes, activityRes] = await Promise.all([
-        api.savings.get(savingId),
-        api.savingActivities.list(new URLSearchParams({ page: '0', size: '100', savingId: String(savingId) }))
-      ]);
-      setDetail(savingRes);
-      setActivities(Array.isArray(activityRes) ? activityRes : activityRes?.content || []);
+      await reloadSavingDetail(savingId, detail);
       setEditing(false);
       setEditError(null);
       await fetchRows();
@@ -338,71 +359,44 @@ export default function PersonalSavingsPage() {
     }
   };
 
-  const handleSetEarlyWithdrawalApproval = async (approved) => {
-    if (!detail) return;
-    setApprovalSaving(true);
-    setError(null);
-    try {
-      const savingId = getSavingId(detail);
-      await api.savings.update(savingId, {
-        name: detail?.name ?? null,
-        description: detail?.description ?? null,
-        internalReference: detail?.internalReference ?? getReference(detail) ?? null,
-        startsAt: toIsoString(pickFirst(detail?.startsAt, detail?.startDate, detail?.createdAt, detail?.createdDate)),
-        endsAt: isLockedSavingProduct(pickFirst(detail?.savingProduct?.code, getProductCode(detail)))
-          ? toIsoString(pickFirst(detail?.endsAt, detail?.endDate, detail?.lockedUntil, detail?.maturityDate))
-          : null,
-        accountId: Number(pickFirst(detail?.accountId, 0)) || 0,
-        savingProductId: Number(pickFirst(detail?.savingProductId, detail?.savingProduct?.id, 0)) || 0,
-        balance: pickFirst(detail?.balance, detail?.principalBalance, null),
-        status: detail?.status ?? null,
-        earlyWithdrawalApproved: approved
-      });
-      const [savingRes, activityRes] = await Promise.all([
-        api.savings.get(savingId),
-        api.savingActivities.list(new URLSearchParams({ page: '0', size: '100', savingId: String(savingId) }))
-      ]);
-      setDetail(savingRes);
-      setActivities(Array.isArray(activityRes) ? activityRes : activityRes?.content || []);
-      await fetchRows();
-    } catch (err) {
-      setError(err?.message || `Failed to ${approved ? 'approve' : 'revoke'} early withdrawal`);
-    } finally {
-      setApprovalSaving(false);
+  const handleRunIntervention = async () => {
+    if (!interventionConfig?.saving) return;
+    const reason = interventionDraft.reason.trim();
+    if (!reason) {
+      setError('Reason is required.');
+      return;
     }
-  };
-
-  const handleRestoreSaving = async (saving) => {
-    if (!saving) return;
-    setRestoreSaving(true);
+    const saving = interventionConfig.saving;
+    const savingId = getSavingId(saving);
+    if (!savingId) return;
+    const payload = {
+      reason,
+      ...(interventionDraft.note.trim() ? { note: interventionDraft.note.trim() } : {}),
+      ...(interventionConfig.type === 'force-close' && interventionDraft.withdrawnAt ? { withdrawnAt: new Date(interventionDraft.withdrawnAt).toISOString() } : {})
+    };
+    setInterventionSaving(true);
     setError(null);
     try {
-      const savingId = getSavingId(saving);
-      await api.savings.update(savingId, {
-        name: saving?.name ?? null,
-        description: saving?.description ?? null,
-        internalReference: saving?.internalReference ?? getReference(saving) ?? null,
-        startsAt: toIsoString(pickFirst(saving?.startsAt, saving?.startDate, saving?.createdAt, saving?.createdDate)),
-        endsAt: isLockedSavingProduct(pickFirst(saving?.savingProduct?.code, getProductCode(saving)))
-          ? toIsoString(pickFirst(saving?.endsAt, saving?.endDate, saving?.lockedUntil, saving?.maturityDate))
-          : null,
-        accountId: Number(pickFirst(saving?.accountId, 0)) || 0,
-        savingProductId: Number(pickFirst(saving?.savingProductId, saving?.savingProduct?.id, 0)) || 0,
-        balance: pickFirst(saving?.balance, saving?.principalBalance, null),
-        status: saving?.status ?? null,
-        deleted: false
-      });
-      const [savingRes, activityRes] = await Promise.all([
-        api.savings.get(savingId),
-        api.savingActivities.list(new URLSearchParams({ page: '0', size: '100', savingId: String(savingId) }))
-      ]);
-      setDetail(savingRes);
-      setActivities(Array.isArray(activityRes) ? activityRes : activityRes?.content || []);
+      if (interventionConfig.type === 'force-close') {
+        await api.savings.forceClose(savingId, payload);
+      } else if (interventionConfig.type === 'reopen') {
+        await api.savings.reopen(savingId, payload);
+      } else if (interventionConfig.type === 'approve-early-withdrawal') {
+        setApprovalSaving(true);
+        await api.savings.approveEarlyWithdrawal(savingId, payload);
+      } else if (interventionConfig.type === 'revoke-early-withdrawal') {
+        setApprovalSaving(true);
+        await api.savings.revokeEarlyWithdrawal(savingId, payload);
+      }
+      await reloadSavingDetail(savingId, saving);
       await fetchRows();
+      setInterventionConfig(null);
+      setInterventionDraft(emptyInterventionDraft);
     } catch (err) {
-      setError(err?.message || 'Failed to restore saving');
+      setError(err?.message || 'Failed to run saving intervention');
     } finally {
-      setRestoreSaving(false);
+      setInterventionSaving(false);
+      setApprovalSaving(false);
     }
   };
 
@@ -484,15 +478,15 @@ export default function PersonalSavingsPage() {
                   if (!id) return;
                   try {
                     const full = await api.savings.get(id);
-                    await handleRestoreSaving(full || row);
+                    openInterventionModal({ type: 'reopen', saving: full || row, title: 'Restore saving' });
                   } catch {
-                    await handleRestoreSaving(row);
+                    openInterventionModal({ type: 'reopen', saving: row, title: 'Restore saving' });
                   }
                 }}
                 className="btn-success"
-                disabled={restoreSaving}
+                disabled={interventionSaving}
               >
-                {restoreSaving ? 'Restoring…' : 'Restore'}
+                {interventionSaving ? 'Restoring…' : 'Restore'}
               </button>
             ) : null}
           </div>
@@ -580,18 +574,53 @@ export default function PersonalSavingsPage() {
                     ) : null}
                     <StatusBadge value={isMaturedSaving(detail) ? 'MATURED' : 'PRE_MATURITY'} />
                     {isDeletedSaving(detail) ? (
-                      <button type="button" className="btn-success" onClick={() => handleRestoreSaving(detail)} disabled={restoreSaving}>
-                        {restoreSaving ? 'Restoring…' : t('savings.personal.restoreSaving')}
+                      <button
+                        type="button"
+                        className="btn-success"
+                        onClick={() => openInterventionModal({ type: 'reopen', saving: detail, title: 'Restore saving' })}
+                        disabled={interventionSaving}
+                      >
+                        {interventionSaving ? 'Restoring…' : t('savings.personal.restoreSaving')}
                       </button>
                     ) : null}
                     {String(getProductCode(detail) || '').toUpperCase() === SAVING_PRODUCT_CODE_LOCKED && !earlyWithdrawalAllowedByProduct && !getEarlyWithdrawalApprovedAt(detail) ? (
-                      <button type="button" className="btn-primary" onClick={() => handleSetEarlyWithdrawalApproval(true)} disabled={approvalSaving}>
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        onClick={() => openInterventionModal({ type: 'approve-early-withdrawal', saving: detail, title: 'Approve early withdrawal' })}
+                        disabled={approvalSaving || interventionSaving}
+                      >
                         {approvalSaving ? 'Saving…' : t('savings.personal.approveEarlyWithdrawal')}
                       </button>
                     ) : null}
                     {String(getProductCode(detail) || '').toUpperCase() === SAVING_PRODUCT_CODE_LOCKED && getEarlyWithdrawalApprovedAt(detail) ? (
-                      <button type="button" className="btn-neutral" onClick={() => handleSetEarlyWithdrawalApproval(false)} disabled={approvalSaving}>
+                      <button
+                        type="button"
+                        className="btn-neutral"
+                        onClick={() => openInterventionModal({ type: 'revoke-early-withdrawal', saving: detail, title: 'Revoke early withdrawal approval' })}
+                        disabled={approvalSaving || interventionSaving}
+                      >
                         {approvalSaving ? 'Saving…' : t('savings.personal.revokeApproval')}
+                      </button>
+                    ) : null}
+                    {!isDeletedSaving(detail) ? (
+                      <button
+                        type="button"
+                        className="btn-danger"
+                        onClick={() => openInterventionModal({ type: 'force-close', saving: detail, title: 'Force close saving' })}
+                        disabled={interventionSaving}
+                      >
+                        Force Close
+                      </button>
+                    ) : null}
+                    {!isDeletedSaving(detail) && String(getStatus(detail)).toUpperCase() === 'COMPLETED' ? (
+                      <button
+                        type="button"
+                        className="btn-success"
+                        onClick={() => openInterventionModal({ type: 'reopen', saving: detail, title: 'Reopen saving' })}
+                        disabled={interventionSaving}
+                      >
+                        Reopen
                       </button>
                     ) : null}
                     <button type="button" className="btn-primary" onClick={() => openEdit(detail)}>
@@ -849,6 +878,65 @@ export default function PersonalSavingsPage() {
       )}
 
       {editing && editError ? <BottomSheetNotice title={t('savings.personal.couldNotUpdate')} message={editError} onClose={() => setEditError(null)} /> : null}
+
+      {interventionConfig ? (
+        <AdminModal
+          title={interventionConfig.title || 'Saving intervention'}
+          onClose={() => {
+            if (interventionSaving) return;
+            setInterventionConfig(null);
+            setInterventionDraft(emptyInterventionDraft);
+          }}
+          width={720}
+        >
+          <div style={{ display: 'grid', gap: '0.85rem' }}>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Reason is required for audit. Add a note when this override depends on provider reconciliation or manual support handling.
+            </div>
+            <div style={{ display: 'grid', gap: '0.25rem' }}>
+              <label htmlFor="savingInterventionReason">Reason</label>
+              <input
+                id="savingInterventionReason"
+                value={interventionDraft.reason}
+                onChange={(e) => setInterventionDraft((prev) => ({ ...prev, reason: e.target.value }))}
+                placeholder="Manual reconciliation"
+              />
+            </div>
+            <div style={{ display: 'grid', gap: '0.25rem' }}>
+              <label htmlFor="savingInterventionNote">Note</label>
+              <textarea
+                id="savingInterventionNote"
+                rows={3}
+                value={interventionDraft.note}
+                onChange={(e) => setInterventionDraft((prev) => ({ ...prev, note: e.target.value }))}
+                placeholder="Provider callback was missed"
+              />
+            </div>
+            {interventionConfig.type === 'force-close' ? (
+              <div style={{ display: 'grid', gap: '0.25rem' }}>
+                <label htmlFor="savingInterventionWithdrawnAt">Withdrawn at</label>
+                <input
+                  id="savingInterventionWithdrawnAt"
+                  type="datetime-local"
+                  value={interventionDraft.withdrawnAt}
+                  onChange={(e) => setInterventionDraft((prev) => ({ ...prev, withdrawnAt: e.target.value }))}
+                />
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                  Leave empty to let the backend use the current time.
+                </div>
+              </div>
+            ) : null}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button type="button" className="btn-neutral" onClick={() => setInterventionConfig(null)} disabled={interventionSaving}>
+                Cancel
+              </button>
+              <button type="button" className="btn-primary" onClick={handleRunIntervention} disabled={interventionSaving}>
+                {interventionSaving ? 'Saving…' : 'Confirm'}
+              </button>
+            </div>
+          </div>
+        </AdminModal>
+      ) : null}
     </div>
   );
 }

@@ -51,6 +51,12 @@ const emptyInviteForm = {
 const emptyMessageForm = {
   message: ''
 };
+const emptyInterventionDraft = {
+  reason: '',
+  note: '',
+  externalReference: '',
+  completionNote: ''
+};
 
 const getType = (group) => String(pickFirst(group?.type, group?.groupType, 'UNKNOWN')).toUpperCase();
 const getStatus = (group) => pickFirst(group?.status, group?.groupStatus, 'UNKNOWN');
@@ -66,6 +72,11 @@ const getDeletedAt = (group) => pickFirst(group?.deletedAt);
 const getRoundNumber = (row) => pickFirst(row?.roundNumber, row?.round?.number);
 const getCycleNumber = (row) => pickFirst(row?.cycleNumber, row?.cycle?.cycleNumber);
 const getCycleId = (row) => pickFirst(row?.cycleId, row?.cycle?.id);
+const getContributionId = (row) => pickFirst(row?.contributionId, row?.id);
+const getPayoutId = (row) => pickFirst(row?.payoutId, row?.id);
+const getLoanId = (row) => pickFirst(row?.loanId, row?.id);
+const getRepaymentId = (row) => pickFirst(row?.repaymentId, row?.id);
+const getTreasuryWithdrawalId = (row) => pickFirst(row?.withdrawalId, row?.id);
 const getMemberId = (row) => pickFirst(row?.memberId, row?.groupMemberId, row?.member?.id);
 const getContributionStatus = (row) => String(pickFirst(row?.status, 'UNKNOWN')).toUpperCase();
 const isPendingContribution = (row) => getContributionStatus(row) === 'PENDING';
@@ -98,6 +109,7 @@ export default function GroupSavingDetailPage() {
   const [joinRequests, setJoinRequests] = useState([]);
   const [messages, setMessages] = useState([]);
   const [policy, setPolicy] = useState(null);
+  const [policyChanges, setPolicyChanges] = useState([]);
   const [policyDraft, setPolicyDraft] = useState(emptyPolicyForm);
   const [inviteDraft, setInviteDraft] = useState(emptyInviteForm);
   const [messageDraft, setMessageDraft] = useState(emptyMessageForm);
@@ -107,6 +119,8 @@ export default function GroupSavingDetailPage() {
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
+  const [interventionConfig, setInterventionConfig] = useState(null);
+  const [interventionDraft, setInterventionDraft] = useState(emptyInterventionDraft);
   const [selectedReminderCycleKey, setSelectedReminderCycleKey] = useState('');
   const [selectedReminderMemberIds, setSelectedReminderMemberIds] = useState([]);
 
@@ -150,6 +164,7 @@ export default function GroupSavingDetailPage() {
         api.groupSavings.treasuryWithdrawals.list(groupId),
         api.groupSavings.auditEvents.list(groupId),
         api.groupSavings.policy.get(groupId),
+        api.groupSavings.policyChanges.list(groupId),
         api.groupSavings.invitations.list(groupId),
         api.groupSavings.joinRequests.list(groupId),
         api.groupSavings.messages.list(groupId)
@@ -176,9 +191,10 @@ export default function GroupSavingDetailPage() {
       setRepayments(readList(6));
       setTreasuryWithdrawals(readList(7));
       setAuditEvents(readList(8));
-      setInvitations(readList(10));
-      setJoinRequests(readList(11));
-      setMessages(readList(12));
+      setPolicyChanges(readList(10));
+      setInvitations(readList(11));
+      setJoinRequests(readList(12));
+      setMessages(readList(13));
 
       const policyValue = results[9];
       const nextPolicy = policyValue?.status === 'fulfilled' ? policyValue.value : null;
@@ -308,6 +324,58 @@ export default function GroupSavingDetailPage() {
         ? filtered.filter((item) => item !== normalizedMemberId)
         : [...filtered, normalizedMemberId];
     });
+  };
+
+  const openInterventionModal = (config) => {
+    setInterventionDraft(emptyInterventionDraft);
+    setInterventionConfig(config);
+    setError(null);
+    setInfo(null);
+  };
+
+  const runIntervention = async () => {
+    if (!groupId || !interventionConfig) return;
+    const reason = interventionDraft.reason.trim();
+    if (!reason) {
+      setError('Reason is required.');
+      return;
+    }
+    const payload = {
+      reason,
+      ...(interventionDraft.note.trim() ? { note: interventionDraft.note.trim() } : {}),
+      ...(interventionDraft.externalReference.trim() ? { externalReference: interventionDraft.externalReference.trim() } : {}),
+      ...(interventionDraft.completionNote.trim() ? { completionNote: interventionDraft.completionNote.trim() } : {})
+    };
+    const actionKey = interventionConfig.actionKey;
+    setSavingAction(actionKey);
+    setError(null);
+    setInfo(null);
+    try {
+      await interventionConfig.run(payload);
+      setInfo(interventionConfig.successMessage || 'Action completed.');
+      setInterventionConfig(null);
+      setInterventionDraft(emptyInterventionDraft);
+      await loadGroup();
+    } catch (err) {
+      setError(err?.message || 'Failed to complete admin action');
+    } finally {
+      setSavingAction('');
+    }
+  };
+
+  const runDirectAction = async (actionKey, request, successMessage, fallbackError) => {
+    setSavingAction(actionKey);
+    setError(null);
+    setInfo(null);
+    try {
+      await request();
+      setInfo(successMessage);
+      await loadGroup();
+    } catch (err) {
+      setError(err?.message || fallbackError);
+    } finally {
+      setSavingAction('');
+    }
   };
 
   const handleLifecycleAction = async (action) => {
@@ -813,7 +881,94 @@ export default function GroupSavingDetailPage() {
               { key: 'status', label: 'Status', render: (row) => <StatusBadge value={pickFirst(row?.status, 'UNKNOWN')} /> },
               { key: 'paid', label: 'Paid', render: (row) => formatCount(row?.paidContributionCount) },
               { key: 'pending', label: 'Pending', render: (row) => formatCount(row?.pendingContributionCount) },
-              { key: 'overdue', label: 'Overdue', render: (row) => formatCount(row?.overdueContributionCount) }
+              { key: 'overdue', label: 'Overdue', render: (row) => formatCount(row?.overdueContributionCount) },
+              {
+                key: 'actions',
+                label: 'Actions',
+                render: (row) => {
+                  const cycleId = getCycleId(row);
+                  if (!cycleId) return '—';
+                  return (
+                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        className="btn-neutral"
+                        onClick={() =>
+                          openInterventionModal({
+                            actionKey: `reconcile-funding-${cycleId}`,
+                            title: `Reconcile funding for ${formatRoundCycleLabel(row)}`,
+                            successMessage: 'Cycle funding reconciled.',
+                            run: (payload) => api.groupSavings.cycles.reconcileFunding(groupId, cycleId, payload)
+                          })
+                        }
+                        disabled={Boolean(savingAction)}
+                      >
+                        Reconcile Funding
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        onClick={() =>
+                          openInterventionModal({
+                            actionKey: `force-mark-funded-${cycleId}`,
+                            title: `Force mark funded for ${formatRoundCycleLabel(row)}`,
+                            successMessage: 'Cycle marked funded.',
+                            run: (payload) => api.groupSavings.cycles.forceMarkFunded(groupId, cycleId, payload)
+                          })
+                        }
+                        disabled={Boolean(savingAction)}
+                      >
+                        Force Mark Funded
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        onClick={() =>
+                          openInterventionModal({
+                            actionKey: `release-payout-${cycleId}`,
+                            title: `Release payout for ${formatRoundCycleLabel(row)}`,
+                            successMessage: 'Payout release triggered.',
+                            run: () => api.groupSavings.cycles.releasePayout(groupId, cycleId)
+                          })
+                        }
+                        disabled={Boolean(savingAction)}
+                      >
+                        Release Payout
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-neutral"
+                        onClick={() =>
+                          openInterventionModal({
+                            actionKey: `repair-release-payout-${cycleId}`,
+                            title: `Repair payout release for ${formatRoundCycleLabel(row)}`,
+                            successMessage: 'Payout repair triggered.',
+                            run: (payload) => api.groupSavings.cycles.repairReleasePayout(groupId, cycleId, payload)
+                          })
+                        }
+                        disabled={Boolean(savingAction)}
+                      >
+                        Repair Payout
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-danger"
+                        onClick={() =>
+                          openInterventionModal({
+                            actionKey: `force-release-payout-${cycleId}`,
+                            title: `Force release payout for ${formatRoundCycleLabel(row)}`,
+                            successMessage: 'Force payout release triggered.',
+                            run: (payload) => api.groupSavings.cycles.forceReleasePayout(groupId, cycleId, payload)
+                          })
+                        }
+                        disabled={Boolean(savingAction)}
+                      >
+                        Force Release
+                      </button>
+                    </div>
+                  );
+                }
+              }
             ]}
             rows={cycles}
             emptyLabel="No cycles found"
@@ -905,18 +1060,85 @@ export default function GroupSavingDetailPage() {
                   const pending = isPendingContribution(row);
                   const cycleId = getCycleId(row);
                   const memberId = getMemberId(row);
+                  const contributionId = getContributionId(row);
                   const actionKey = `remind-member-${cycleId}-${memberId}`;
-                  return pending && cycleId && memberId ? (
-                    <button
-                      type="button"
-                      className="btn-neutral"
-                      onClick={() => handleRemindMember(row)}
-                      disabled={savingAction === actionKey}
-                    >
-                      {savingAction === actionKey ? 'Queueing…' : 'Remind'}
-                    </button>
-                  ) : (
-                    '—'
+                  return (
+                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                      {pending && cycleId && memberId ? (
+                        <button
+                          type="button"
+                          className="btn-neutral"
+                          onClick={() => handleRemindMember(row)}
+                          disabled={savingAction === actionKey}
+                        >
+                          {savingAction === actionKey ? 'Queueing…' : 'Remind'}
+                        </button>
+                      ) : null}
+                      {contributionId ? (
+                        <>
+                          <button
+                            type="button"
+                            className="btn-primary"
+                            onClick={() =>
+                              openInterventionModal({
+                                actionKey: `complete-contribution-${contributionId}`,
+                                title: `Complete contribution ${contributionId}`,
+                                successMessage: 'Contribution payment completed.',
+                                run: (payload) => api.groupSavings.contributions.completePayment(groupId, contributionId, payload)
+                              })
+                            }
+                            disabled={Boolean(savingAction)}
+                          >
+                            Complete Payment
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-danger"
+                            onClick={() =>
+                              openInterventionModal({
+                                actionKey: `force-fail-contribution-${contributionId}`,
+                                title: `Force fail contribution ${contributionId}`,
+                                successMessage: 'Contribution forced to failed.',
+                                run: (payload) => api.groupSavings.contributions.forceFail(groupId, contributionId, payload)
+                              })
+                            }
+                            disabled={Boolean(savingAction)}
+                          >
+                            Force Fail
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-danger"
+                            onClick={() =>
+                              openInterventionModal({
+                                actionKey: `force-cancel-contribution-${contributionId}`,
+                                title: `Force cancel contribution ${contributionId}`,
+                                successMessage: 'Contribution canceled.',
+                                run: (payload) => api.groupSavings.contributions.forceCancel(groupId, contributionId, payload)
+                              })
+                            }
+                            disabled={Boolean(savingAction)}
+                          >
+                            Force Cancel
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-neutral"
+                            onClick={() =>
+                              openInterventionModal({
+                                actionKey: `reopen-contribution-${contributionId}`,
+                                title: `Reopen contribution ${contributionId} for retry`,
+                                successMessage: 'Contribution reopened for retry.',
+                                run: (payload) => api.groupSavings.contributions.reopenForRetry(groupId, contributionId, payload)
+                              })
+                            }
+                            disabled={Boolean(savingAction)}
+                          >
+                            Reopen Retry
+                          </button>
+                        </>
+                      ) : !pending ? '—' : null}
+                    </div>
                   );
                 }
               }
@@ -942,7 +1164,37 @@ export default function GroupSavingDetailPage() {
               { key: 'amount', label: 'Amount', render: (row) => formatMoney(pickFirst(row?.amount, row?.payoutAmount)) },
               { key: 'status', label: 'Status', render: (row) => <StatusBadge value={pickFirst(row?.status, 'UNKNOWN')} /> },
               { key: 'transactionId', label: 'Transaction ID', render: (row) => pickFirst(row?.transactionId, row?.transaction?.id, '—') },
-              { key: 'paidAt', label: 'Paid Date', render: (row) => formatDateTime(pickFirst(row?.paidAt, row?.createdAt)) }
+              { key: 'paidAt', label: 'Paid Date', render: (row) => formatDateTime(pickFirst(row?.paidAt, row?.createdAt)) },
+              {
+                key: 'actions',
+                label: 'Actions',
+                render: (row) => {
+                  const payoutId = getPayoutId(row);
+                  if (!payoutId) return '—';
+                  return (
+                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                      <button type="button" className="btn-primary" onClick={() => openInterventionModal({
+                        actionKey: `force-complete-payout-${payoutId}`,
+                        title: `Force complete payout ${payoutId}`,
+                        successMessage: 'Payout force-completed.',
+                        run: (payload) => api.groupSavings.payouts.forceComplete(groupId, payoutId, payload)
+                      })} disabled={Boolean(savingAction)}>Force Complete</button>
+                      <button type="button" className="btn-danger" onClick={() => openInterventionModal({
+                        actionKey: `force-fail-payout-${payoutId}`,
+                        title: `Force fail payout ${payoutId}`,
+                        successMessage: 'Payout force-failed.',
+                        run: (payload) => api.groupSavings.payouts.forceFail(groupId, payoutId, payload)
+                      })} disabled={Boolean(savingAction)}>Force Fail</button>
+                      <button type="button" className="btn-danger" onClick={() => openInterventionModal({
+                        actionKey: `force-cancel-payout-${payoutId}`,
+                        title: `Force cancel payout ${payoutId}`,
+                        successMessage: 'Payout force-canceled.',
+                        run: (payload) => api.groupSavings.payouts.forceCancel(groupId, payoutId, payload)
+                      })} disabled={Boolean(savingAction)}>Force Cancel</button>
+                    </div>
+                  );
+                }
+              }
             ]}
             rows={payouts}
             emptyLabel="No payouts found"
@@ -1065,7 +1317,61 @@ export default function GroupSavingDetailPage() {
               { key: 'scheduled', label: 'Scheduled Repayments', render: (row) => formatCount(row?.scheduledRepaymentCount) },
               { key: 'paid', label: 'Paid Repayments', render: (row) => formatCount(row?.paidRepaymentCount) },
               { key: 'overdue', label: 'Overdue Repayments', render: (row) => formatCount(row?.overdueRepaymentCount) },
-              { key: 'oldestOverdueDays', label: 'Oldest Overdue Days', render: (row) => formatCount(row?.oldestOverdueDays) }
+              { key: 'oldestOverdueDays', label: 'Oldest Overdue Days', render: (row) => formatCount(row?.oldestOverdueDays) },
+              {
+                key: 'actions',
+                label: 'Actions',
+                render: (row) => {
+                  const loanId = getLoanId(row);
+                  if (!loanId) return '—';
+                  return (
+                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        onClick={() => runDirectAction(`approve-loan-${loanId}`, () => api.groupSavings.loans.approve(groupId, loanId), 'Loan approved.', 'Failed to approve loan')}
+                        disabled={Boolean(savingAction)}
+                      >
+                        {savingAction === `approve-loan-${loanId}` ? 'Approving…' : 'Approve'}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        onClick={() => runDirectAction(`disburse-loan-${loanId}`, () => api.groupSavings.loans.disburse(groupId, loanId), 'Loan disbursement triggered.', 'Failed to disburse loan')}
+                        disabled={Boolean(savingAction)}
+                      >
+                        {savingAction === `disburse-loan-${loanId}` ? 'Disbursing…' : 'Disburse'}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-danger"
+                        onClick={() => runDirectAction(`reject-loan-${loanId}`, () => api.groupSavings.loans.reject(groupId, loanId), 'Loan rejected.', 'Failed to reject loan')}
+                        disabled={Boolean(savingAction)}
+                      >
+                        {savingAction === `reject-loan-${loanId}` ? 'Rejecting…' : 'Reject'}
+                      </button>
+                      <button type="button" className="btn-neutral" onClick={() => openInterventionModal({
+                        actionKey: `force-approve-loan-${loanId}`,
+                        title: `Force approve loan ${loanId}`,
+                        successMessage: 'Loan force-approved.',
+                        run: (payload) => api.groupSavings.loans.forceApprove(groupId, loanId, payload)
+                      })} disabled={Boolean(savingAction)}>Force Approve</button>
+                      <button type="button" className="btn-neutral" onClick={() => openInterventionModal({
+                        actionKey: `force-reject-loan-${loanId}`,
+                        title: `Force reject loan ${loanId}`,
+                        successMessage: 'Loan force-rejected.',
+                        run: (payload) => api.groupSavings.loans.forceReject(groupId, loanId, payload)
+                      })} disabled={Boolean(savingAction)}>Force Reject</button>
+                      <button type="button" className="btn-neutral" onClick={() => openInterventionModal({
+                        actionKey: `force-disburse-loan-${loanId}`,
+                        title: `Force disburse loan ${loanId}`,
+                        successMessage: 'Loan force-disbursed.',
+                        run: (payload) => api.groupSavings.loans.forceDisburse(groupId, loanId, payload)
+                      })} disabled={Boolean(savingAction)}>Force Disburse</button>
+                    </div>
+                  );
+                }
+              }
             ]}
             rows={loans}
             emptyLabel="No loans found"
@@ -1087,7 +1393,26 @@ export default function GroupSavingDetailPage() {
               { key: 'amountPaid', label: 'Amount Paid', render: (row) => formatMoney(pickFirst(row?.amountPaid, row?.paidAmount)) },
               { key: 'status', label: 'Status', render: (row) => <StatusBadge value={pickFirst(row?.status, 'UNKNOWN')} /> },
               { key: 'overdue', label: 'Overdue', render: (row) => (Boolean(pickFirst(row?.overdue, row?.isOverdue, false)) ? 'Yes' : 'No') },
-              { key: 'daysOverdue', label: 'Days Overdue', render: (row) => formatCount(row?.daysOverdue) }
+              { key: 'daysOverdue', label: 'Days Overdue', render: (row) => formatCount(row?.daysOverdue) },
+              {
+                key: 'actions',
+                label: 'Actions',
+                render: (row) => {
+                  const loanId = getLoanId(row);
+                  const repaymentId = getRepaymentId(row);
+                  if (!loanId || !repaymentId) return '—';
+                  return (
+                    <button type="button" className="btn-primary" onClick={() => openInterventionModal({
+                      actionKey: `complete-repayment-${repaymentId}`,
+                      title: `Complete repayment ${repaymentId}`,
+                      successMessage: 'Repayment payment completed.',
+                      run: (payload) => api.groupSavings.loans.completeRepaymentPayment(groupId, loanId, repaymentId, payload)
+                    })} disabled={Boolean(savingAction)}>
+                      Complete Payment
+                    </button>
+                  );
+                }
+              }
             ]}
             rows={repayments}
             emptyLabel="No repayments found"
@@ -1106,7 +1431,88 @@ export default function GroupSavingDetailPage() {
               { key: 'status', label: 'Status', render: (row) => <StatusBadge value={pickFirst(row?.status, 'UNKNOWN')} /> },
               { key: 'approvalCount', label: 'Approvals', render: (row) => `${formatCount(row?.approvalCount)} / ${formatCount(row?.requiredApprovals)}` },
               { key: 'paidAt', label: 'Paid Date', render: (row) => formatDateTime(pickFirst(row?.paidAt, row?.completedAt)) },
-              { key: 'transactionReference', label: 'Transaction Ref', render: (row) => pickFirst(row?.transactionReference, row?.transactionId, '—') }
+              { key: 'transactionReference', label: 'Transaction Ref', render: (row) => pickFirst(row?.transactionReference, row?.transactionId, '—') },
+              {
+                key: 'actions',
+                label: 'Actions',
+                render: (row) => {
+                  const withdrawalId = getTreasuryWithdrawalId(row);
+                  if (!withdrawalId) return '—';
+                  return (
+                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        onClick={() =>
+                          runDirectAction(
+                            `approve-withdrawal-${withdrawalId}`,
+                            () => api.groupSavings.treasuryWithdrawals.approve(groupId, withdrawalId),
+                            'Treasury withdrawal approved.',
+                            'Failed to approve withdrawal'
+                          )
+                        }
+                        disabled={Boolean(savingAction)}
+                      >
+                        {savingAction === `approve-withdrawal-${withdrawalId}` ? 'Approving…' : 'Approve'}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        onClick={() =>
+                          runDirectAction(
+                            `disburse-withdrawal-${withdrawalId}`,
+                            () => api.groupSavings.treasuryWithdrawals.disburse(groupId, withdrawalId),
+                            'Treasury withdrawal disbursement triggered.',
+                            'Failed to disburse withdrawal'
+                          )
+                        }
+                        disabled={Boolean(savingAction)}
+                      >
+                        {savingAction === `disburse-withdrawal-${withdrawalId}` ? 'Disbursing…' : 'Disburse'}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-danger"
+                        onClick={() =>
+                          runDirectAction(
+                            `reject-withdrawal-${withdrawalId}`,
+                            () => api.groupSavings.treasuryWithdrawals.reject(groupId, withdrawalId),
+                            'Treasury withdrawal rejected.',
+                            'Failed to reject withdrawal'
+                          )
+                        }
+                        disabled={Boolean(savingAction)}
+                      >
+                        {savingAction === `reject-withdrawal-${withdrawalId}` ? 'Rejecting…' : 'Reject'}
+                      </button>
+                      <button type="button" className="btn-neutral" onClick={() => openInterventionModal({
+                        actionKey: `force-approve-withdrawal-${withdrawalId}`,
+                        title: `Force approve treasury withdrawal ${withdrawalId}`,
+                        successMessage: 'Treasury withdrawal force-approved.',
+                        run: (payload) => api.groupSavings.treasuryWithdrawals.forceApprove(groupId, withdrawalId, payload)
+                      })} disabled={Boolean(savingAction)}>Force Approve</button>
+                      <button type="button" className="btn-neutral" onClick={() => openInterventionModal({
+                        actionKey: `force-reject-withdrawal-${withdrawalId}`,
+                        title: `Force reject treasury withdrawal ${withdrawalId}`,
+                        successMessage: 'Treasury withdrawal force-rejected.',
+                        run: (payload) => api.groupSavings.treasuryWithdrawals.forceReject(groupId, withdrawalId, payload)
+                      })} disabled={Boolean(savingAction)}>Force Reject</button>
+                      <button type="button" className="btn-neutral" onClick={() => openInterventionModal({
+                        actionKey: `force-disburse-withdrawal-${withdrawalId}`,
+                        title: `Force disburse treasury withdrawal ${withdrawalId}`,
+                        successMessage: 'Treasury withdrawal force-disbursed.',
+                        run: (payload) => api.groupSavings.treasuryWithdrawals.forceDisburse(groupId, withdrawalId, payload)
+                      })} disabled={Boolean(savingAction)}>Force Disburse</button>
+                      <button type="button" className="btn-neutral" onClick={() => openInterventionModal({
+                        actionKey: `repair-disbursement-withdrawal-${withdrawalId}`,
+                        title: `Repair treasury disbursement ${withdrawalId}`,
+                        successMessage: 'Treasury disbursement repair triggered.',
+                        run: (payload) => api.groupSavings.treasuryWithdrawals.repairDisbursement(groupId, withdrawalId, payload)
+                      })} disabled={Boolean(savingAction)}>Repair Disbursement</button>
+                    </div>
+                  );
+                }
+              }
             ]}
             rows={treasuryWithdrawals}
             emptyLabel="No treasury withdrawals found"
@@ -1203,6 +1609,80 @@ export default function GroupSavingDetailPage() {
             </div>
           </SectionCard>
 
+          <SectionCard
+            title="Policy Change Requests"
+            description="Requested AVEC policy changes can be canceled here when ops needs to stop a pending governance change."
+          >
+            <DataTable
+              showIndex={false}
+              pageSize={100}
+              columns={[
+                { key: 'id', label: 'Change ID', render: (row) => pickFirst(row?.id, row?.policyChangeId, '—') },
+                { key: 'status', label: 'Status', render: (row) => <StatusBadge value={pickFirst(row?.status, 'UNKNOWN')} /> },
+                { key: 'requestedAt', label: 'Requested', render: (row) => formatDateTime(pickFirst(row?.requestedAt, row?.createdAt)) },
+                { key: 'summary', label: 'Summary', render: (row) => pickFirst(row?.summary, row?.description, humanizeEnum(pickFirst(row?.changeType, row?.type, 'POLICY_CHANGE'))) },
+                {
+                  key: 'actions',
+                  label: 'Actions',
+                  render: (row) => {
+                    const policyChangeId = pickFirst(row?.id, row?.policyChangeId);
+                    const status = String(pickFirst(row?.status, '')).toUpperCase();
+                    if (!policyChangeId || !status.includes('REQUEST')) return '—';
+                    return (
+                      <button
+                        type="button"
+                        className="btn-danger"
+                        onClick={() => openInterventionModal({
+                          actionKey: `cancel-policy-change-${policyChangeId}`,
+                          title: `Cancel policy change ${policyChangeId}`,
+                          successMessage: 'Policy change canceled.',
+                          run: (payload) => api.groupSavings.policyChanges.cancel(groupId, policyChangeId, payload)
+                        })}
+                        disabled={Boolean(savingAction)}
+                      >
+                        Cancel Change
+                      </button>
+                    );
+                  }
+                }
+              ]}
+              rows={policyChanges}
+              emptyLabel="No policy changes found"
+            />
+          </SectionCard>
+
+          <SectionCard
+            title="Settlement Controls"
+            description="Use these only for end-of-round repair or deficit handling. Every action requires an operator reason."
+          >
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button type="button" className="btn-primary" onClick={() => openInterventionModal({
+                actionKey: 'settlement-distribute',
+                title: 'Distribute settlement',
+                successMessage: 'Settlement distribution triggered.',
+                run: (payload) => api.groupSavings.settlements.distribute(groupId, payload)
+              })} disabled={Boolean(savingAction)}>Distribute</button>
+              <button type="button" className="btn-neutral" onClick={() => openInterventionModal({
+                actionKey: 'settlement-force-distribute',
+                title: 'Force distribute settlement',
+                successMessage: 'Force settlement distribution triggered.',
+                run: (payload) => api.groupSavings.settlements.forceDistribute(groupId, payload)
+              })} disabled={Boolean(savingAction)}>Force Distribute</button>
+              <button type="button" className="btn-danger" onClick={() => openInterventionModal({
+                actionKey: 'settlement-close-deficit',
+                title: 'Close settlement with deficit',
+                successMessage: 'Settlement close-with-deficit triggered.',
+                run: (payload) => api.groupSavings.settlements.closeWithDeficit(groupId, payload)
+              })} disabled={Boolean(savingAction)}>Close With Deficit</button>
+              <button type="button" className="btn-danger" onClick={() => openInterventionModal({
+                actionKey: 'settlement-force-close-deficit',
+                title: 'Force close settlement with deficit',
+                successMessage: 'Force close-with-deficit triggered.',
+                run: (payload) => api.groupSavings.settlements.forceCloseWithDeficit(groupId, payload)
+              })} disabled={Boolean(savingAction)}>Force Close Deficit</button>
+            </div>
+          </SectionCard>
+
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <button type="button" className="btn-primary" onClick={handleSavePolicy} disabled={savingAction === 'save-policy'}>
               {savingAction === 'save-policy' ? 'Saving…' : 'Save Policy'}
@@ -1283,6 +1763,71 @@ export default function GroupSavingDetailPage() {
               ))}
           </div>
         </SectionCard>
+      ) : null}
+
+      {interventionConfig ? (
+        <AdminModal
+          title={interventionConfig.title || 'Group saving intervention'}
+          onClose={() => {
+            if (Boolean(savingAction)) return;
+            setInterventionConfig(null);
+            setInterventionDraft(emptyInterventionDraft);
+          }}
+          width={720}
+        >
+          <div style={{ display: 'grid', gap: '0.85rem' }}>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Reason is required for all admin overrides, repairs, and reconciliation actions. Add provider evidence in the optional fields when you are completing or reconciling linked transactions.
+            </div>
+            <div style={{ display: 'grid', gap: '0.25rem' }}>
+              <label htmlFor="groupInterventionReason">Reason</label>
+              <input
+                id="groupInterventionReason"
+                value={interventionDraft.reason}
+                onChange={(e) => setInterventionDraft((prev) => ({ ...prev, reason: e.target.value }))}
+                placeholder="Manual reconciliation"
+              />
+            </div>
+            <div style={{ display: 'grid', gap: '0.25rem' }}>
+              <label htmlFor="groupInterventionNote">Note</label>
+              <textarea
+                id="groupInterventionNote"
+                rows={3}
+                value={interventionDraft.note}
+                onChange={(e) => setInterventionDraft((prev) => ({ ...prev, note: e.target.value }))}
+                placeholder="Ops override after provider investigation"
+              />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ display: 'grid', gap: '0.25rem' }}>
+                <label htmlFor="groupInterventionExternalReference">External reference</label>
+                <input
+                  id="groupInterventionExternalReference"
+                  value={interventionDraft.externalReference}
+                  onChange={(e) => setInterventionDraft((prev) => ({ ...prev, externalReference: e.target.value }))}
+                  placeholder="PROVIDER-123"
+                />
+              </div>
+              <div style={{ display: 'grid', gap: '0.25rem' }}>
+                <label htmlFor="groupInterventionCompletionNote">Completion note</label>
+                <input
+                  id="groupInterventionCompletionNote"
+                  value={interventionDraft.completionNote}
+                  onChange={(e) => setInterventionDraft((prev) => ({ ...prev, completionNote: e.target.value }))}
+                  placeholder="Marked complete from provider dashboard"
+                />
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button type="button" className="btn-neutral" onClick={() => setInterventionConfig(null)} disabled={Boolean(savingAction)}>
+                Cancel
+              </button>
+              <button type="button" className="btn-primary" onClick={runIntervention} disabled={Boolean(savingAction)}>
+                {Boolean(savingAction) ? 'Saving…' : 'Confirm'}
+              </button>
+            </div>
+          </div>
+        </AdminModal>
       ) : null}
 
       {confirmAction ? (
