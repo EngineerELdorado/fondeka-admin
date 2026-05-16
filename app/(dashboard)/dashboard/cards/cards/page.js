@@ -32,6 +32,18 @@ const emptyIssueState = {
   grossAmount: ''
 };
 
+const emptyAdjustmentDraft = {
+  amount: '',
+  currency: 'USD',
+  note: '',
+  usePaymentMethod: false,
+  applyFees: true,
+  paymentMethodId: '',
+  accountRef: '',
+  networkId: '',
+  feeApplicationMode: 'EXCLUSIVE'
+};
+
 const emptyFilters = {
   status: '',
   issued: '',
@@ -149,9 +161,13 @@ export default function CardsPage() {
   const [showIssue, setShowIssue] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
+  const [showAdjustment, setShowAdjustment] = useState(false);
   const [draft, setDraft] = useState(emptyState);
   const [issueDraft, setIssueDraft] = useState(emptyIssueState);
+  const [adjustmentDraft, setAdjustmentDraft] = useState(emptyAdjustmentDraft);
+  const [adjustmentMode, setAdjustmentMode] = useState('fund');
   const [issueLoading, setIssueLoading] = useState(false);
+  const [adjustmentLoading, setAdjustmentLoading] = useState(false);
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [confirmBlock, setConfirmBlock] = useState(null);
@@ -166,6 +182,7 @@ export default function CardsPage() {
   const [providerTxPage, setProviderTxPage] = useState('1');
   const [providerTxStartDate, setProviderTxStartDate] = useState('');
   const [providerTxEndDate, setProviderTxEndDate] = useState('');
+  const [paymentMethods, setPaymentMethods] = useState([]);
   const providerTxLastRequestRef = useRef(new Map());
 
   const formatDateTime = (value) => {
@@ -209,6 +226,19 @@ export default function CardsPage() {
     if (num === null) return amountInCents ?? '—';
     return formatMoney(num / 100, currency);
   };
+
+  const paymentMethodOptions = useMemo(
+    () =>
+      paymentMethods
+        .map((method) => {
+          const id = method?.id;
+          const name = method?.displayName || method?.name || method?.paymentMethodName || `Payment method ${id}`;
+          const type = method?.type ? ` (${method.type})` : '';
+          return { value: String(id), label: `${name}${type}` };
+        })
+        .filter((option) => option.value && option.value !== 'undefined'),
+    [paymentMethods]
+  );
 
   const formatProviderDateTime = (value) => {
     if (!value) return '—';
@@ -269,6 +299,19 @@ export default function CardsPage() {
   useEffect(() => {
     fetchRows();
   }, [page, size, appliedFilters]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const fetchPaymentMethods = async () => {
+      try {
+        const res = await api.paymentMethods.list(new URLSearchParams({ page: '0', size: '200' }));
+        const list = Array.isArray(res) ? res : res?.content || [];
+        setPaymentMethods(list || []);
+      } catch (err) {
+        setError((prev) => prev || err?.message || 'Failed to load payment methods');
+      }
+    };
+    fetchPaymentMethods();
+  }, []);
 
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
@@ -381,6 +424,14 @@ export default function CardsPage() {
     setProviderTxPage('1');
     setProviderTxStartDate('');
     setProviderTxEndDate('');
+  };
+
+  const openAdjustment = (mode) => {
+    setAdjustmentMode(mode);
+    setAdjustmentDraft(emptyAdjustmentDraft);
+    setShowAdjustment(true);
+    setError(null);
+    setInfo(null);
   };
 
   const loadProviderDetails = async (cardId) => {
@@ -598,6 +649,69 @@ export default function CardsPage() {
       setError(err.message);
     } finally {
       setCardActionLoading(false);
+    }
+  };
+
+  const handleCardAdjustment = async () => {
+    if (!selected?.id) return;
+    const amount = Number(adjustmentDraft.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setError('Amount must be greater than 0.');
+      return;
+    }
+
+    const payload = {
+      amount,
+      currency: String(adjustmentDraft.currency || 'USD').trim().toUpperCase() || 'USD',
+      ...(String(adjustmentDraft.note || '').trim() ? { note: adjustmentDraft.note.trim() } : {})
+    };
+
+    if (adjustmentDraft.usePaymentMethod) {
+      const paymentMethodId = Number(adjustmentDraft.paymentMethodId);
+      if (!Number.isInteger(paymentMethodId) || paymentMethodId <= 0) {
+        setError('Payment method is required when payment method mode is enabled.');
+        return;
+      }
+      payload.applyFees = Boolean(adjustmentDraft.applyFees);
+      payload.paymentMethod = {
+        id: paymentMethodId,
+        ...(String(adjustmentDraft.accountRef || '').trim() ? { accountRef: adjustmentDraft.accountRef.trim() } : {}),
+        ...(Number.isInteger(Number(adjustmentDraft.networkId)) && Number(adjustmentDraft.networkId) > 0
+          ? { networkId: Number(adjustmentDraft.networkId) }
+          : {}),
+        ...(String(adjustmentDraft.feeApplicationMode || '').trim()
+          ? { feeApplicationMode: adjustmentDraft.feeApplicationMode.trim().toUpperCase() }
+          : {})
+      };
+    }
+
+    setAdjustmentLoading(true);
+    setError(null);
+    setInfo(null);
+    try {
+      const res = adjustmentMode === 'fund'
+        ? await api.cards.fund(selected.id, payload)
+        : await api.cards.withdraw(selected.id, payload);
+      const transactionId = res?.transactionId || res?.id || null;
+      const providerTransactionId = res?.providerTransactionId || null;
+      const status = res?.status || null;
+      const feesApplied = res?.feesApplied;
+      const actionLabel = adjustmentMode === 'fund' ? 'Card funding submitted.' : 'Card withdrawal submitted.';
+      const detailParts = [
+        transactionId ? `Transaction ID: ${transactionId}` : null,
+        providerTransactionId ? `Provider ref: ${providerTransactionId}` : null,
+        status ? `Status: ${status}` : null,
+        typeof feesApplied === 'boolean' ? `Fees applied: ${feesApplied ? 'Yes' : 'No'}` : null
+      ].filter(Boolean);
+      setInfo(detailParts.length ? `${actionLabel} ${detailParts.join(' • ')}` : actionLabel);
+      setShowAdjustment(false);
+      setAdjustmentDraft(emptyAdjustmentDraft);
+      await fetchRows();
+      await loadProviderDetails(selected.id);
+    } catch (err) {
+      setError(err?.message || `Failed to ${adjustmentMode} card`);
+    } finally {
+      setAdjustmentLoading(false);
     }
   };
 
@@ -956,6 +1070,161 @@ export default function CardsPage() {
         </Modal>
       )}
 
+      {showAdjustment && selected?.id ? (
+        <Modal
+          title={adjustmentMode === 'fund' ? `Fund card ${selected.id}` : `Withdraw from card ${selected.id}`}
+          onClose={() => {
+            if (adjustmentLoading) return;
+            setShowAdjustment(false);
+            setAdjustmentDraft(emptyAdjustmentDraft);
+          }}
+        >
+          <div style={{ display: 'grid', gap: '0.85rem' }}>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              {adjustmentMode === 'fund'
+                ? 'Choose direct admin adjustment for a bonus top-up, or enable payment method mode to fund through a real payment rail.'
+                : 'Choose direct admin adjustment for an admin debit, or enable payment method mode to send funds out through a real payment rail.'}
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Add an operator note when you need the reason stored on the transaction.
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="cardAdjustmentAmount">Amount</label>
+                <input
+                  id="cardAdjustmentAmount"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={adjustmentDraft.amount}
+                  onChange={(e) => setAdjustmentDraft((prev) => ({ ...prev, amount: e.target.value }))}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="cardAdjustmentCurrency">Currency</label>
+                <input
+                  id="cardAdjustmentCurrency"
+                  value={adjustmentDraft.currency}
+                  onChange={(e) => setAdjustmentDraft((prev) => ({ ...prev, currency: e.target.value.toUpperCase() }))}
+                  placeholder="USD"
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="cardAdjustmentNote">Admin note</label>
+              <textarea
+                id="cardAdjustmentNote"
+                rows={3}
+                value={adjustmentDraft.note}
+                onChange={(e) => setAdjustmentDraft((prev) => ({ ...prev, note: e.target.value }))}
+                placeholder={adjustmentMode === 'fund' ? 'manual bonus for loyalty campaign' : 'recover outstanding balance'}
+              />
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <input
+                id="cardAdjustmentUsePaymentMethod"
+                type="checkbox"
+                checked={adjustmentDraft.usePaymentMethod}
+                onChange={(e) =>
+                  setAdjustmentDraft((prev) => ({
+                    ...prev,
+                    usePaymentMethod: e.target.checked
+                  }))
+                }
+              />
+              <label htmlFor="cardAdjustmentUsePaymentMethod">Use payment method</label>
+            </div>
+
+            {adjustmentDraft.usePaymentMethod ? (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <label htmlFor="cardAdjustmentPaymentMethod">Payment method</label>
+                    <select
+                      id="cardAdjustmentPaymentMethod"
+                      value={adjustmentDraft.paymentMethodId}
+                      onChange={(e) => setAdjustmentDraft((prev) => ({ ...prev, paymentMethodId: e.target.value }))}
+                    >
+                      <option value="">Select payment method</option>
+                      {paymentMethodOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <label htmlFor="cardAdjustmentAccountRef">Account ref</label>
+                    <input
+                      id="cardAdjustmentAccountRef"
+                      value={adjustmentDraft.accountRef}
+                      onChange={(e) => setAdjustmentDraft((prev) => ({ ...prev, accountRef: e.target.value }))}
+                      placeholder="243900000000"
+                    />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <label htmlFor="cardAdjustmentNetworkId">Network ID</label>
+                    <input
+                      id="cardAdjustmentNetworkId"
+                      type="number"
+                      min={1}
+                      value={adjustmentDraft.networkId}
+                      onChange={(e) => setAdjustmentDraft((prev) => ({ ...prev, networkId: e.target.value }))}
+                      placeholder="Optional"
+                    />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <label htmlFor="cardAdjustmentFeeMode">Fee mode</label>
+                    <select
+                      id="cardAdjustmentFeeMode"
+                      value={adjustmentDraft.feeApplicationMode}
+                      onChange={(e) => setAdjustmentDraft((prev) => ({ ...prev, feeApplicationMode: e.target.value }))}
+                    >
+                      <option value="EXCLUSIVE">EXCLUSIVE</option>
+                      <option value="INCLUSIVE">INCLUSIVE</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <input
+                    id="cardAdjustmentApplyFees"
+                    type="checkbox"
+                    checked={adjustmentDraft.applyFees}
+                    onChange={(e) => setAdjustmentDraft((prev) => ({ ...prev, applyFees: e.target.checked }))}
+                  />
+                  <label htmlFor="cardAdjustmentApplyFees">Apply normal user fees</label>
+                </div>
+              </>
+            ) : (
+              <div className="card" style={{ padding: '0.75rem', color: 'var(--muted)' }}>
+                Direct admin adjustment. No payment method is sent, no fees are applied, and your note is stored on the resulting transaction when provided.
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button type="button" onClick={() => setShowAdjustment(false)} className="btn-neutral" disabled={adjustmentLoading}>
+                Cancel
+              </button>
+              <button type="button" onClick={handleCardAdjustment} className="btn-primary" disabled={adjustmentLoading}>
+                {adjustmentLoading
+                  ? 'Submitting…'
+                  : adjustmentMode === 'fund'
+                    ? adjustmentDraft.usePaymentMethod
+                      ? 'Charge and fund'
+                      : 'Direct admin bonus'
+                    : adjustmentDraft.usePaymentMethod
+                      ? 'Send via payment method'
+                      : 'Direct admin debit'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      ) : null}
+
       {showDetail && (
         <Modal title={`Details ${selected?.id}`} onClose={() => setShowDetail(false)}>
           <div style={{ display: 'grid', gap: '0.75rem' }}>
@@ -976,6 +1245,22 @@ export default function CardsPage() {
                 <span style={{ color: 'var(--muted)', fontSize: '12px' }}>•••• {selected?.last4 || '—'}</span>
               </div>
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="btn-success btn-sm"
+                  onClick={() => openAdjustment('fund')}
+                  disabled={adjustmentLoading}
+                >
+                  Fund card
+                </button>
+                <button
+                  type="button"
+                  className="btn-danger btn-sm"
+                  onClick={() => openAdjustment('withdraw')}
+                  disabled={adjustmentLoading}
+                >
+                  Withdraw from card
+                </button>
                 {canAdminBlock(selected) ? (
                   <button
                     type="button"
