@@ -42,6 +42,7 @@ const navItems = [
   { href: '/dashboard/kyc-default-levels', labelKey: 'layout.nav.kycDefaults' },
   { href: '/dashboard/feature-flags', labelKey: 'layout.nav.featureFlags' },
   { href: '/dashboard/wallet-policy-config', labelKey: 'layout.nav.walletPolicyConfig' },
+  { href: '/dashboard/guide-videos', labelKey: 'layout.nav.guideVideos' },
   { href: '/dashboard/registration-policy-config', labelKey: 'layout.nav.registrationPolicyConfig' },
   { href: '/dashboard/app-version', labelKey: 'layout.nav.appVersion' },
   { href: '/dashboard/announcements', labelKey: 'layout.nav.announcements' },
