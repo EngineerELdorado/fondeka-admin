@@ -824,7 +824,7 @@ export default function FeatureFlagsPage() {
                 color: 'var(--text)'
               }}
             >
-              {t('featureFlags.manageOverrides')}
+              {t('featureFlags.overrides')}
             </button>
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
               <input
@@ -1055,7 +1055,7 @@ export default function FeatureFlagsPage() {
                   color: 'var(--text)'
                 }}
               >
-                {t('featureFlags.manageOverrides')}
+                {t('featureFlags.overrides')}
               </button>
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
                 <input
@@ -1155,7 +1155,7 @@ export default function FeatureFlagsPage() {
                   color: 'var(--text)'
                 }}
               >
-                {t('featureFlags.manageOverrides')}
+                {t('featureFlags.overrides')}
               </button>
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
                 <input
@@ -1242,7 +1242,7 @@ export default function FeatureFlagsPage() {
                       color: 'var(--text)'
                     }}
                   >
-                    {t('featureFlags.manageOverrides')}
+                    {t('featureFlags.overrides')}
                   </button>
                   <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
                     <input
@@ -1329,7 +1329,7 @@ export default function FeatureFlagsPage() {
                       color: 'var(--text)'
                     }}
                   >
-                    {t('featureFlags.manageOverrides')}
+                    {t('featureFlags.overrides')}
                   </button>
                   <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
                     <input
@@ -1416,7 +1416,7 @@ export default function FeatureFlagsPage() {
                       color: 'var(--text)'
                     }}
                   >
-                    {t('featureFlags.manageOverrides')}
+                    {t('featureFlags.overrides')}
                   </button>
                   <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
                     <input
@@ -1490,7 +1490,7 @@ export default function FeatureFlagsPage() {
                           color: 'var(--text)'
                         }}
                       >
-                        {flag.key === SAVINGS_ENABLED_KEY ? t('featureFlags.manageOverrides') : t('featureFlags.overrides')}
+                        {t('featureFlags.overrides')}
                       </button>
                       <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
                         <input
