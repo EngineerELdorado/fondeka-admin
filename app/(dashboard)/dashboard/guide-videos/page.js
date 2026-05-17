@@ -3,8 +3,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 
-const emptyLocaleRow = { locale: 'en', url: '' };
-const emptyRegistryRow = { key: '', locales: [{ ...emptyLocaleRow }] };
+let nextRegistryRowId = 1;
+let nextLocaleRowId = 1;
+
+const createLocaleRow = (locale = 'en', url = '') => ({
+  id: `locale-${nextLocaleRowId++}`,
+  locale,
+  url
+});
+
+const createRegistryRow = (key = '', locales = [createLocaleRow()]) => ({
+  id: `registry-${nextRegistryRowId++}`,
+  key,
+  locales
+});
+
 const suggestedKeys = ['PERSONAL', 'LIKELEMBA', 'AVEC', 'CARDS', 'LOANS', 'CRYPTO'];
 const suggestedLocales = ['en', 'fr', 'default'];
 
@@ -27,16 +40,10 @@ const normalizeRegistry = (value) => {
       const localeRows =
         locales && typeof locales === 'object' && !Array.isArray(locales)
           ? Object.entries(locales)
-              .map(([locale, url]) => ({
-                locale: String(locale || '').trim().toLowerCase(),
-                url: String(url || '').trim()
-              }))
+              .map(([locale, url]) => createLocaleRow(String(locale || '').trim().toLowerCase(), String(url || '').trim()))
               .filter((row) => row.locale || row.url)
           : [];
-      return {
-        key: String(key || '').trim().toUpperCase(),
-        locales: localeRows.length ? localeRows : [{ ...emptyLocaleRow }]
-      };
+      return createRegistryRow(String(key || '').trim().toUpperCase(), localeRows.length ? localeRows : [createLocaleRow()]);
     })
     .filter((row) => row.key || row.locales.some((entry) => entry.locale || entry.url))
     .sort((a, b) => a.key.localeCompare(b.key));
@@ -187,7 +194,7 @@ export default function GuideVideosPage() {
               type="button"
               className="btn-primary"
               onClick={() => {
-                setRows((prev) => [...prev, { ...emptyRegistryRow, locales: [{ ...emptyLocaleRow }] }]);
+                setRows((prev) => [...prev, createRegistryRow()]);
                 setError(null);
                 setInfo(null);
               }}
@@ -208,7 +215,7 @@ export default function GuideVideosPage() {
               type="button"
               className="btn-neutral btn-sm"
               onClick={() => {
-                setRows((prev) => [...prev, { key, locales: [{ ...emptyLocaleRow }] }]);
+                setRows((prev) => [...prev, createRegistryRow(key)]);
                 setError(null);
                 setInfo(null);
               }}
@@ -231,7 +238,7 @@ export default function GuideVideosPage() {
               const duplicateLocales = duplicateLocalesByRow[rowIndex] || new Set();
 
               return (
-                <div key={`${normalizedKey || 'row'}-${rowIndex}`} className="card" style={{ padding: '0.9rem', display: 'grid', gap: '0.75rem' }}>
+                <div key={row.id} className="card" style={{ padding: '0.9rem', display: 'grid', gap: '0.75rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
                     <div style={{ display: 'grid', gap: '0.25rem', minWidth: '240px', flex: '1 1 260px' }}>
                       <label>Key</label>
@@ -253,7 +260,7 @@ export default function GuideVideosPage() {
                         onClick={() =>
                           setRows((prev) =>
                             prev.map((item, index) =>
-                              index === rowIndex ? { ...item, locales: [...item.locales, { ...emptyLocaleRow }] } : item
+                              index === rowIndex ? { ...item, locales: [...item.locales, createLocaleRow()] } : item
                             )
                           )
                         }
@@ -290,7 +297,7 @@ export default function GuideVideosPage() {
                           const normalizedLocale = String(entry.locale || '').trim().toLowerCase();
                           const hasDuplicateLocale = normalizedLocale && duplicateLocales.has(normalizedLocale);
                           return (
-                            <tr key={`${normalizedKey || 'row'}-${normalizedLocale || 'locale'}-${localeIndex}`} style={{ borderBottom: '1px solid var(--border)' }}>
+                            <tr key={entry.id} style={{ borderBottom: '1px solid var(--border)' }}>
                               <td style={{ padding: '0.6rem', verticalAlign: 'top' }}>
                                 <div style={{ display: 'grid', gap: '0.25rem' }}>
                                   <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 132px', gap: '0.35rem' }}>
@@ -354,7 +361,7 @@ export default function GuideVideosPage() {
                                               ...item,
                                               locales:
                                                 item.locales.length === 1
-                                                  ? [{ ...emptyLocaleRow }]
+                                                  ? [createLocaleRow()]
                                                   : item.locales.filter((_, currentLocaleIndex) => currentLocaleIndex !== localeIndex)
                                             }
                                           : item
