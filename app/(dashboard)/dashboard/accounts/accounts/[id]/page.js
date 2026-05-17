@@ -2926,7 +2926,10 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               </div>
             )
           },
-          { label: 'Eligible loan', value: accountView?.eligibleLoanAmount }
+          {
+            label: 'Eligible loan',
+            value: loanEligibility ? formatAmount(loanEligibility.earnedEligibility) : accountView?.eligibleLoanAmount
+          }
         ]}
       />
 

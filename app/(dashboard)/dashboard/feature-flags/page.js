@@ -180,7 +180,14 @@ export default function FeatureFlagsPage() {
   const [confirm, setConfirm] = useState(null);
   const [draftKey, setDraftKey] = useState('');
   const [draftEnabled, setDraftEnabled] = useState(true);
+  const [draftDisabledMessageEn, setDraftDisabledMessageEn] = useState('');
+  const [draftDisabledMessageFr, setDraftDisabledMessageFr] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [editDialog, setEditDialog] = useState(null);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editDraftEnabled, setEditDraftEnabled] = useState(true);
+  const [editDraftDisabledMessageEn, setEditDraftDisabledMessageEn] = useState('');
+  const [editDraftDisabledMessageFr, setEditDraftDisabledMessageFr] = useState('');
   const [overrideDialog, setOverrideDialog] = useState(null);
   const [overridesLoading, setOverridesLoading] = useState(false);
   const [overridesSaving, setOverridesSaving] = useState(false);
@@ -336,6 +343,44 @@ export default function FeatureFlagsPage() {
 
   const formatResolvedDisplayLabel = (key) => (isActionLimitKey(key) ? formatActionLabel(key) : formatResolvedLabel(key));
 
+  const syncFlagInState = (key, payload) => {
+    setFlags((prev) => {
+      const nextFlag = {
+        key,
+        enabled: Boolean(payload?.enabled),
+        disabledMessageEn: payload?.disabledMessageEn ?? '',
+        disabledMessageFr: payload?.disabledMessageFr ?? ''
+      };
+      const exists = prev.some((flag) => flag.key === key);
+      if (exists) {
+        return prev.map((flag) => (flag.key === key ? { ...flag, ...nextFlag } : flag));
+      }
+      return [nextFlag, ...prev];
+    });
+  };
+
+  const loadFlagDetail = async (key, fallbackFlag = null) => {
+    try {
+      const res = await api.featureFlags.get(key);
+      return {
+        key,
+        enabled: Boolean(res?.enabled),
+        disabledMessageEn: res?.disabledMessageEn ?? '',
+        disabledMessageFr: res?.disabledMessageFr ?? ''
+      };
+    } catch (err) {
+      if (err?.status === 404) {
+        return {
+          key,
+          enabled: Boolean(fallbackFlag?.enabled),
+          disabledMessageEn: fallbackFlag?.disabledMessageEn ?? '',
+          disabledMessageFr: fallbackFlag?.disabledMessageFr ?? ''
+        };
+      }
+      throw err;
+    }
+  };
+
   const loadFlags = async () => {
     setLoading(true);
     setError(null);
@@ -414,8 +459,18 @@ export default function FeatureFlagsPage() {
     setError(null);
     setInfo(null);
     try {
-      const res = await api.featureFlags.update(key, { enabled: nextEnabled });
-      setFlags((prev) => prev.map((flag) => (flag.key === key ? { ...flag, enabled: Boolean(res?.enabled) } : flag)));
+      const detail = await loadFlagDetail(key, current);
+      const payload = {
+        enabled: nextEnabled,
+        disabledMessageEn: detail.disabledMessageEn ?? '',
+        disabledMessageFr: detail.disabledMessageFr ?? ''
+      };
+      const res = await api.featureFlags.update(key, payload);
+      syncFlagInState(key, {
+        enabled: Boolean(res?.enabled),
+        disabledMessageEn: res?.disabledMessageEn ?? payload.disabledMessageEn,
+        disabledMessageFr: res?.disabledMessageFr ?? payload.disabledMessageFr
+      });
       setInfo(`${formatResolvedDisplayLabel(key)} ${res?.enabled ? 'enabled' : 'disabled'}.`);
     } catch (err) {
       setError(err.message);
@@ -436,8 +491,18 @@ export default function FeatureFlagsPage() {
     setError(null);
     setInfo(null);
     try {
-      const res = await api.featureFlags.update(key, { enabled: false });
-      setFlags((prev) => prev.map((flag) => (flag.key === key ? { ...flag, enabled: Boolean(res?.enabled) } : flag)));
+      const detail = await loadFlagDetail(key, current);
+      const payload = {
+        enabled: false,
+        disabledMessageEn: detail.disabledMessageEn ?? '',
+        disabledMessageFr: detail.disabledMessageFr ?? ''
+      };
+      const res = await api.featureFlags.update(key, payload);
+      syncFlagInState(key, {
+        enabled: Boolean(res?.enabled),
+        disabledMessageEn: res?.disabledMessageEn ?? payload.disabledMessageEn,
+        disabledMessageFr: res?.disabledMessageFr ?? payload.disabledMessageFr
+      });
       setInfo(`${formatResolvedDisplayLabel(key)} disabled.`);
     } catch (err) {
       setError(err.message);
@@ -476,17 +541,22 @@ export default function FeatureFlagsPage() {
     setError(null);
     setInfo(null);
     try {
-      const res = await api.featureFlags.update(key, { enabled: draftEnabled });
-      setFlags((prev) => {
-        const exists = prev.some((flag) => flag.key === key);
-        if (exists) {
-          return prev.map((flag) => (flag.key === key ? { ...flag, enabled: Boolean(res?.enabled) } : flag));
-        }
-        return [{ key, enabled: Boolean(res?.enabled) }, ...prev];
+      const payload = {
+        enabled: draftEnabled,
+        disabledMessageEn: draftDisabledMessageEn,
+        disabledMessageFr: draftDisabledMessageFr
+      };
+      const res = await api.featureFlags.update(key, payload);
+      syncFlagInState(key, {
+        enabled: Boolean(res?.enabled),
+        disabledMessageEn: res?.disabledMessageEn ?? payload.disabledMessageEn,
+        disabledMessageFr: res?.disabledMessageFr ?? payload.disabledMessageFr
       });
       setInfo(`${formatResolvedDisplayLabel(key)} ${res?.enabled ? 'enabled' : 'disabled'}.`);
       setDraftKey('');
       setDraftEnabled(true);
+      setDraftDisabledMessageEn('');
+      setDraftDisabledMessageFr('');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -519,6 +589,52 @@ export default function FeatureFlagsPage() {
       setSpreadActionEnabled(true);
     } catch (err) {
       setError(err?.message || 'Failed to save crypto spread action flag.');
+    } finally {
+      setSavingKey('');
+    }
+  };
+
+  const openEditDialog = async (flag) => {
+    if (!flag?.key) return;
+    setEditDialog({ key: flag.key });
+    setEditLoading(true);
+    setError(null);
+    setInfo(null);
+    try {
+      const detail = await loadFlagDetail(flag.key, flag);
+      setEditDraftEnabled(Boolean(detail.enabled));
+      setEditDraftDisabledMessageEn(detail.disabledMessageEn ?? '');
+      setEditDraftDisabledMessageFr(detail.disabledMessageFr ?? '');
+    } catch (err) {
+      setEditDialog(null);
+      setError(err?.message || 'Failed to load feature flag details.');
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const handleSaveEditDialog = async () => {
+    const key = editDialog?.key;
+    if (!key || savingKey === key) return;
+    const payload = {
+      enabled: Boolean(editDraftEnabled),
+      disabledMessageEn: editDraftDisabledMessageEn,
+      disabledMessageFr: editDraftDisabledMessageFr
+    };
+    setSavingKey(key);
+    setError(null);
+    setInfo(null);
+    try {
+      const res = await api.featureFlags.update(key, payload);
+      syncFlagInState(key, {
+        enabled: Boolean(res?.enabled),
+        disabledMessageEn: res?.disabledMessageEn ?? payload.disabledMessageEn,
+        disabledMessageFr: res?.disabledMessageFr ?? payload.disabledMessageFr
+      });
+      setInfo(`${formatResolvedDisplayLabel(key)} saved.`);
+      setEditDialog(null);
+    } catch (err) {
+      setError(err?.message || 'Failed to save feature flag.');
     } finally {
       setSavingKey('');
     }
@@ -677,10 +793,25 @@ export default function FeatureFlagsPage() {
             <div style={{ fontWeight: 800 }}>Crypto spread</div>
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{CRYPTO_SPREAD_GLOBAL_KEY}</div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <button
-              type="button"
-              onClick={() => openOverridesDialog(CRYPTO_SPREAD_GLOBAL_KEY)}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <button
+                type="button"
+                onClick={() => openEditDialog(cryptoSpreadGlobalFlag)}
+                disabled={savingKey === CRYPTO_SPREAD_GLOBAL_KEY}
+                style={{
+                  border: `1px solid var(--border)`,
+                  background: 'var(--surface)',
+                  padding: '0.45rem 0.7rem',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  color: 'var(--text)'
+                }}
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => openOverridesDialog(CRYPTO_SPREAD_GLOBAL_KEY)}
               disabled={savingKey === CRYPTO_SPREAD_GLOBAL_KEY}
               style={{
                 border: `1px solid var(--border)`,
@@ -753,6 +884,21 @@ export default function FeatureFlagsPage() {
                 <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{flag.key}</div>
               </div>
               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => openEditDialog(flag)}
+                  disabled={savingKey === flag.key}
+                  style={{
+                    border: `1px solid var(--border)`,
+                    background: 'var(--surface)',
+                    padding: '0.45rem 0.7rem',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    color: 'var(--text)'
+                  }}
+                >
+                  Edit
+                </button>
                 <button
                   type="button"
                   onClick={() => openOverridesDialog(flag.key)}
@@ -841,6 +987,31 @@ export default function FeatureFlagsPage() {
             {t('featureFlags.save')}
           </button>
         </div>
+        <div style={{ display: 'grid', gap: '0.65rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="draftDisabledMessageEn">Disabled message (English)</label>
+            <textarea
+              id="draftDisabledMessageEn"
+              rows={3}
+              value={draftDisabledMessageEn}
+              onChange={(e) => setDraftDisabledMessageEn(e.target.value)}
+              placeholder="Optional. Shown to users when this feature is disabled."
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="draftDisabledMessageFr">Disabled message (French)</label>
+            <textarea
+              id="draftDisabledMessageFr"
+              rows={3}
+              value={draftDisabledMessageFr}
+              onChange={(e) => setDraftDisabledMessageFr(e.target.value)}
+              placeholder="Optional. Shown to users when this feature is disabled."
+            />
+          </div>
+          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+            Optional. Shown to users when this feature is disabled. If left empty, the app will use the default maintenance message.
+          </div>
+        </div>
         <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
           Supported keys: {SUPPORTED_KEYS.join(', ')}
         </div>
@@ -854,6 +1025,21 @@ export default function FeatureFlagsPage() {
               <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{CRYPTO_COLLECTION_GATE_KEY}</div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <button
+                type="button"
+                onClick={() => openEditDialog(cryptoCollectionGateFlag)}
+                disabled={savingKey === CRYPTO_COLLECTION_GATE_KEY}
+                style={{
+                  border: `1px solid var(--border)`,
+                  background: 'var(--surface)',
+                  padding: '0.45rem 0.7rem',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  color: 'var(--text)'
+                }}
+              >
+                Edit
+              </button>
               <button
                 type="button"
                 onClick={() => openOverridesDialog(CRYPTO_COLLECTION_GATE_KEY)}
@@ -898,15 +1084,32 @@ export default function FeatureFlagsPage() {
               <div style={{ fontWeight: 800 }}>{t('featureFlags.cryptoPublicTitle')}</div>
               <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY}</div>
             </div>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
-              <input
-                type="checkbox"
-                checked={Boolean(cryptoCollectionPublicEndpointsFlag.enabled)}
-                onChange={() => handleToggle(CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY)}
-                disabled={loading || savingKey === CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY}
-              />
-              {cryptoCollectionPublicEndpointsFlag.enabled ? t('featureFlags.publicLinksBypassGate') : t('featureFlags.publicLinksEnforceGate')}
-            </label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => openEditDialog(cryptoCollectionPublicEndpointsFlag)}
+                disabled={savingKey === CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY}
+                style={{
+                  border: `1px solid var(--border)`,
+                  background: 'var(--surface)',
+                  padding: '0.45rem 0.7rem',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                color: 'var(--text)'
+              }}
+              >
+                Edit
+              </button>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(cryptoCollectionPublicEndpointsFlag.enabled)}
+                  onChange={() => handleToggle(CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY)}
+                  disabled={loading || savingKey === CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY}
+                />
+                {cryptoCollectionPublicEndpointsFlag.enabled ? t('featureFlags.publicLinksBypassGate') : t('featureFlags.publicLinksEnforceGate')}
+              </label>
+            </div>
           </div>
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
             {t('featureFlags.cryptoPublicHelp')}
@@ -922,6 +1125,21 @@ export default function FeatureFlagsPage() {
               <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{INTER_TRANSFER_FLAG_KEY}</div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => openEditDialog(interTransferFlag)}
+                disabled={savingKey === INTER_TRANSFER_FLAG_KEY}
+                style={{
+                  border: `1px solid var(--border)`,
+                  background: 'var(--surface)',
+                  padding: '0.45rem 0.7rem',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  color: 'var(--text)'
+                }}
+              >
+                Edit
+              </button>
               <button
                 type="button"
                 onClick={() => openOverridesDialog(INTER_TRANSFER_FLAG_KEY)}
@@ -996,6 +1214,21 @@ export default function FeatureFlagsPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                   <button
                     type="button"
+                    onClick={() => openEditDialog(item.flag)}
+                    disabled={savingKey === item.key}
+                    style={{
+                      border: `1px solid var(--border)`,
+                      background: 'var(--surface)',
+                      padding: '0.45rem 0.7rem',
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      color: 'var(--text)'
+                    }}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => openOverridesDialog(item.key)}
                     disabled={savingKey === item.key}
                     style={{
@@ -1066,6 +1299,21 @@ export default function FeatureFlagsPage() {
                   <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{item.key}</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => openEditDialog(item.flag)}
+                    disabled={savingKey === item.key}
+                    style={{
+                      border: `1px solid var(--border)`,
+                      background: 'var(--surface)',
+                      padding: '0.45rem 0.7rem',
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      color: 'var(--text)'
+                    }}
+                  >
+                    Edit
+                  </button>
                   <button
                     type="button"
                     onClick={() => openOverridesDialog(item.key)}
@@ -1140,6 +1388,21 @@ export default function FeatureFlagsPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                   <button
                     type="button"
+                    onClick={() => openEditDialog(item.flag)}
+                    disabled={savingKey === item.key}
+                    style={{
+                      border: `1px solid var(--border)`,
+                      background: 'var(--surface)',
+                      padding: '0.45rem 0.7rem',
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      color: 'var(--text)'
+                    }}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => openOverridesDialog(item.key)}
                     disabled={savingKey === item.key}
                     style={{
@@ -1197,6 +1460,21 @@ export default function FeatureFlagsPage() {
                       <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{flag.key}</div>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={() => openEditDialog(flag)}
+                        disabled={savingKey === flag.key}
+                        style={{
+                          border: `1px solid var(--border)`,
+                          background: 'var(--surface)',
+                          padding: '0.45rem 0.7rem',
+                          borderRadius: '10px',
+                          cursor: 'pointer',
+                          color: 'var(--text)'
+                        }}
+                      >
+                        Edit
+                      </button>
                       <button
                         type="button"
                         onClick={() => openOverridesDialog(flag.key)}
@@ -1274,6 +1552,21 @@ export default function FeatureFlagsPage() {
                         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                           <button
                             type="button"
+                            onClick={() => openEditDialog(flag)}
+                            disabled={savingKey === flag.key}
+                            style={{
+                              border: `1px solid var(--border)`,
+                              background: 'var(--surface)',
+                              padding: '0.45rem 0.7rem',
+                              borderRadius: '10px',
+                              cursor: 'pointer',
+                              color: 'var(--text)'
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => openOverridesDialog(flag.key)}
                             disabled={savingKey === flag.key}
                             style={{
@@ -1334,6 +1627,21 @@ export default function FeatureFlagsPage() {
                       <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{flag.key}</div>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <button
+                        type="button"
+                        onClick={() => openEditDialog(flag)}
+                        disabled={savingKey === flag.key}
+                        style={{
+                          border: `1px solid var(--border)`,
+                          background: 'var(--surface)',
+                          padding: '0.45rem 0.7rem',
+                          borderRadius: '10px',
+                          cursor: 'pointer',
+                          color: 'var(--text)'
+                        }}
+                      >
+                        Edit
+                      </button>
                       <button
                         type="button"
                         onClick={() => openOverridesDialog(flag.key)}
@@ -1407,6 +1715,92 @@ export default function FeatureFlagsPage() {
                 {t('featureFlags.disable')}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {editDialog && (
+        <div className="modal-backdrop">
+          <div className="modal-surface" style={{ width: 'min(760px, 96vw)', display: 'grid', gap: '0.85rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.25rem', borderBottom: '1px solid var(--border)' }}>
+              <div style={{ fontWeight: 800 }}>Edit feature flag</div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (savingKey === editDialog.key) return;
+                  setEditDialog(null);
+                }}
+                style={{ border: 'none', background: 'transparent', fontSize: '18px', cursor: 'pointer', color: 'var(--text)' }}
+              >
+                ×
+              </button>
+            </div>
+            {editLoading ? (
+              <div style={{ color: 'var(--muted)' }}>Loading feature flag details…</div>
+            ) : (
+              <>
+                <div style={{ color: 'var(--muted)' }}>
+                  Feature: <strong>{editDialog.key}</strong>
+                </div>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+                  <input
+                    type="checkbox"
+                    checked={editDraftEnabled}
+                    onChange={(e) => setEditDraftEnabled(e.target.checked)}
+                    disabled={savingKey === editDialog.key}
+                  />
+                  {editDraftEnabled ? t('featureFlags.enabled') : t('featureFlags.disabled')}
+                </label>
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                  Messages are stored independently from the toggle and are used only when the feature is disabled.
+                </div>
+                <div style={{ display: 'grid', gap: '0.65rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <label htmlFor="editDisabledMessageEn">Disabled message (English)</label>
+                    <textarea
+                      id="editDisabledMessageEn"
+                      rows={4}
+                      value={editDraftDisabledMessageEn}
+                      onChange={(e) => setEditDraftDisabledMessageEn(e.target.value)}
+                      disabled={savingKey === editDialog.key}
+                      placeholder="Optional. Shown to users when this feature is disabled."
+                    />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <label htmlFor="editDisabledMessageFr">Disabled message (French)</label>
+                    <textarea
+                      id="editDisabledMessageFr"
+                      rows={4}
+                      value={editDraftDisabledMessageFr}
+                      onChange={(e) => setEditDraftDisabledMessageFr(e.target.value)}
+                      disabled={savingKey === editDialog.key}
+                      placeholder="Optional. Shown to users when this feature is disabled."
+                    />
+                  </div>
+                  <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                    Optional. Shown to users when this feature is disabled. If left empty, the app will use the default maintenance message.
+                  </div>
+                </div>
+                <div className="modal-actions">
+                  <button
+                    type="button"
+                    onClick={() => setEditDialog(null)}
+                    disabled={savingKey === editDialog.key}
+                    style={{ border: `1px solid var(--border)`, background: 'var(--surface)', padding: '0.6rem 0.85rem', borderRadius: '10px', cursor: 'pointer' }}
+                  >
+                    {t('featureFlags.cancel')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveEditDialog}
+                    disabled={savingKey === editDialog.key}
+                    style={{ border: `1px solid var(--border)`, background: 'var(--surface)', padding: '0.6rem 0.85rem', borderRadius: '10px', cursor: 'pointer', fontWeight: 600 }}
+                  >
+                    {savingKey === editDialog.key ? t('common.refreshing') : t('featureFlags.save')}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

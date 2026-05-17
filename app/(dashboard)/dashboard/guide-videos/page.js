@@ -3,14 +3,42 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 
-const emptyRow = { key: '', url: '' };
+const emptyLocaleRow = { locale: 'en', url: '' };
+const emptyRegistryRow = { key: '', locales: [{ ...emptyLocaleRow }] };
 const suggestedKeys = ['PERSONAL', 'LIKELEMBA', 'AVEC', 'CARDS', 'LOANS', 'CRYPTO'];
+const suggestedLocales = ['en', 'fr', 'default'];
 
-const normalizeRows = (value) => {
+const updateRowLocaleValue = (rows, rowIndex, localeIndex, locale) =>
+  rows.map((item, index) =>
+    index === rowIndex
+      ? {
+          ...item,
+          locales: item.locales.map((localeItem, currentLocaleIndex) =>
+            currentLocaleIndex === localeIndex ? { ...localeItem, locale } : localeItem
+          )
+        }
+      : item
+  );
+
+const normalizeRegistry = (value) => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
   return Object.entries(value)
-    .map(([key, url]) => ({ key: String(key || '').trim(), url: String(url || '').trim() }))
-    .filter((row) => row.key || row.url)
+    .map(([key, locales]) => {
+      const localeRows =
+        locales && typeof locales === 'object' && !Array.isArray(locales)
+          ? Object.entries(locales)
+              .map(([locale, url]) => ({
+                locale: String(locale || '').trim().toLowerCase(),
+                url: String(url || '').trim()
+              }))
+              .filter((row) => row.locale || row.url)
+          : [];
+      return {
+        key: String(key || '').trim().toUpperCase(),
+        locales: localeRows.length ? localeRows : [{ ...emptyLocaleRow }]
+      };
+    })
+    .filter((row) => row.key || row.locales.some((entry) => entry.locale || entry.url))
     .sort((a, b) => a.key.localeCompare(b.key));
 };
 
@@ -35,7 +63,7 @@ export default function GuideVideosPage() {
     setError(null);
     try {
       const res = await api.guideVideos.get();
-      setRows(normalizeRows(res));
+      setRows(normalizeRegistry(res));
     } catch (err) {
       setError(err?.message || 'Failed to load guide videos.');
     } finally {
@@ -57,28 +85,61 @@ export default function GuideVideosPage() {
     return new Set([...counts.entries()].filter(([, count]) => count > 1).map(([key]) => key));
   }, [rows]);
 
+  const duplicateLocalesByRow = useMemo(
+    () =>
+      rows.map((row) => {
+        const counts = new Map();
+        row.locales.forEach((entry) => {
+          const normalizedLocale = String(entry.locale || '').trim().toLowerCase();
+          if (!normalizedLocale) return;
+          counts.set(normalizedLocale, (counts.get(normalizedLocale) || 0) + 1);
+        });
+        return new Set([...counts.entries()].filter(([, count]) => count > 1).map(([locale]) => locale));
+      }),
+    [rows]
+  );
+
   const handleSave = async () => {
     const payload = {};
-    for (const row of rows) {
+
+    for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+      const row = rows[rowIndex];
       const key = String(row.key || '').trim().toUpperCase();
-      const url = String(row.url || '').trim();
       if (!key) {
         setError('Key must not be blank.');
-        return;
-      }
-      if (!url) {
-        setError(`Video URL must not be blank for ${key}.`);
-        return;
-      }
-      if (!isValidHttpUrl(url)) {
-        setError(`Video URL must be a valid http or https link for ${key}.`);
         return;
       }
       if (payload[key]) {
         setError(`Duplicate key detected: ${key}.`);
         return;
       }
-      payload[key] = url;
+
+      const localeMap = {};
+      for (let localeIndex = 0; localeIndex < row.locales.length; localeIndex += 1) {
+        const entry = row.locales[localeIndex];
+        const locale = String(entry.locale || '').trim().toLowerCase();
+        const url = String(entry.url || '').trim();
+
+        if (!locale) {
+          setError(`Locale must not be blank for ${key}.`);
+          return;
+        }
+        if (!url) {
+          setError(`Video URL must not be blank for ${key} (${locale}).`);
+          return;
+        }
+        if (!isValidHttpUrl(url)) {
+          setError(`Video URL must be a valid http or https link for ${key} (${locale}).`);
+          return;
+        }
+        if (localeMap[locale]) {
+          setError(`Duplicate locale detected for ${key}: ${locale}.`);
+          return;
+        }
+        localeMap[locale] = url;
+      }
+
+      payload[key] = localeMap;
     }
 
     setSaving(true);
@@ -100,7 +161,10 @@ export default function GuideVideosPage() {
       <div className="card" style={{ display: 'grid', gap: '0.35rem' }}>
         <div style={{ fontSize: '20px', fontWeight: 800 }}>Guide Videos</div>
         <div style={{ color: 'var(--muted)' }}>
-          Manage the key-to-video-URL registry used by the mobile app. Saving replaces the full registry, so this screen always sends the complete map.
+          Manage the locale-specific key-to-video registry used by the mobile app. Saving replaces the full registry, so this screen always sends the complete nested map.
+        </div>
+        <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+          Customer fallback order is `exact locale` → `default` → `en` → `first available URL`.
         </div>
       </div>
 
@@ -112,7 +176,7 @@ export default function GuideVideosPage() {
           <div>
             <div style={{ fontWeight: 800 }}>Registry</div>
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-              Keys are free-form, but URLs must be valid `http` or `https` links.
+              Keys are free-form. Each key can define multiple locale URLs like `en`, `fr`, or `default`.
             </div>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -123,13 +187,13 @@ export default function GuideVideosPage() {
               type="button"
               className="btn-primary"
               onClick={() => {
-                setRows((prev) => [...prev, emptyRow]);
+                setRows((prev) => [...prev, { ...emptyRegistryRow, locales: [{ ...emptyLocaleRow }] }]);
                 setError(null);
                 setInfo(null);
               }}
               disabled={loading || saving}
             >
-              Add row
+              Add key
             </button>
             <button type="button" className="btn-success" onClick={handleSave} disabled={loading || saving}>
               {saving ? 'Saving…' : 'Save all'}
@@ -144,7 +208,7 @@ export default function GuideVideosPage() {
               type="button"
               className="btn-neutral btn-sm"
               onClick={() => {
-                setRows((prev) => [...prev, { key, url: '' }]);
+                setRows((prev) => [...prev, { key, locales: [{ ...emptyLocaleRow }] }]);
                 setError(null);
                 setInfo(null);
               }}
@@ -157,75 +221,160 @@ export default function GuideVideosPage() {
 
         {loading ? (
           <div style={{ color: 'var(--muted)' }}>Loading guide videos…</div>
+        ) : rows.length === 0 ? (
+          <div style={{ color: 'var(--muted)' }}>No guide videos configured yet.</div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '760px' }}>
-              <thead>
-                <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
-                  <th style={{ padding: '0.6rem' }}>Key</th>
-                  <th style={{ padding: '0.6rem' }}>Video URL</th>
-                  <th style={{ padding: '0.6rem' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} style={{ padding: '0.9rem', color: 'var(--muted)' }}>
-                      No guide videos configured yet.
-                    </td>
-                  </tr>
-                ) : (
-                  rows.map((row, index) => {
-                    const normalizedKey = String(row.key || '').trim().toUpperCase();
-                    const hasDuplicate = normalizedKey && duplicateKeys.has(normalizedKey);
-                    return (
-                      <tr key={`${normalizedKey || 'row'}-${index}`} style={{ borderBottom: '1px solid var(--border)' }}>
-                        <td style={{ padding: '0.6rem', verticalAlign: 'top' }}>
-                          <div style={{ display: 'grid', gap: '0.25rem' }}>
-                            <input
-                              value={row.key}
-                              placeholder="PERSONAL"
-                              onChange={(e) =>
-                                setRows((prev) => prev.map((item, rowIndex) => (rowIndex === index ? { ...item, key: e.target.value.toUpperCase() } : item)))
-                              }
-                            />
-                            {hasDuplicate ? <div style={{ color: '#b91c1c', fontSize: '12px' }}>Duplicate key</div> : null}
-                          </div>
-                        </td>
-                        <td style={{ padding: '0.6rem', verticalAlign: 'top' }}>
-                          <div style={{ display: 'grid', gap: '0.25rem' }}>
-                            <input
-                              value={row.url}
-                              placeholder="https://www.youtube.com/watch?v=..."
-                              onChange={(e) =>
-                                setRows((prev) => prev.map((item, rowIndex) => (rowIndex === index ? { ...item, url: e.target.value } : item)))
-                              }
-                            />
-                            {row.url && !isValidHttpUrl(row.url) ? (
-                              <div style={{ color: '#b91c1c', fontSize: '12px' }}>Use a valid http or https URL</div>
-                            ) : null}
-                          </div>
-                        </td>
-                        <td style={{ padding: '0.6rem', verticalAlign: 'top' }}>
-                          <button
-                            type="button"
-                            className="btn-danger"
-                            onClick={() => {
-                              setRows((prev) => prev.filter((_, rowIndex) => rowIndex !== index));
-                              setError(null);
-                              setInfo(null);
-                            }}
-                            disabled={saving}
-                          >
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+          <div style={{ display: 'grid', gap: '0.85rem' }}>
+            {rows.map((row, rowIndex) => {
+              const normalizedKey = String(row.key || '').trim().toUpperCase();
+              const hasDuplicateKey = normalizedKey && duplicateKeys.has(normalizedKey);
+              const duplicateLocales = duplicateLocalesByRow[rowIndex] || new Set();
+
+              return (
+                <div key={`${normalizedKey || 'row'}-${rowIndex}`} className="card" style={{ padding: '0.9rem', display: 'grid', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                    <div style={{ display: 'grid', gap: '0.25rem', minWidth: '240px', flex: '1 1 260px' }}>
+                      <label>Key</label>
+                      <input
+                        value={row.key}
+                        placeholder="PERSONAL"
+                        onChange={(e) =>
+                          setRows((prev) =>
+                            prev.map((item, index) => (index === rowIndex ? { ...item, key: e.target.value.toUpperCase() } : item))
+                          )
+                        }
+                      />
+                      {hasDuplicateKey ? <div style={{ color: '#b91c1c', fontSize: '12px' }}>Duplicate key</div> : null}
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        className="btn-neutral btn-sm"
+                        onClick={() =>
+                          setRows((prev) =>
+                            prev.map((item, index) =>
+                              index === rowIndex ? { ...item, locales: [...item.locales, { ...emptyLocaleRow }] } : item
+                            )
+                          )
+                        }
+                        disabled={saving}
+                      >
+                        Add locale
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-danger btn-sm"
+                        onClick={() => {
+                          setRows((prev) => prev.filter((_, index) => index !== rowIndex));
+                          setError(null);
+                          setInfo(null);
+                        }}
+                        disabled={saving}
+                      >
+                        Delete key
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '720px' }}>
+                      <thead>
+                        <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
+                          <th style={{ padding: '0.6rem' }}>Locale</th>
+                          <th style={{ padding: '0.6rem' }}>Video URL</th>
+                          <th style={{ padding: '0.6rem' }}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {row.locales.map((entry, localeIndex) => {
+                          const normalizedLocale = String(entry.locale || '').trim().toLowerCase();
+                          const hasDuplicateLocale = normalizedLocale && duplicateLocales.has(normalizedLocale);
+                          return (
+                            <tr key={`${normalizedKey || 'row'}-${normalizedLocale || 'locale'}-${localeIndex}`} style={{ borderBottom: '1px solid var(--border)' }}>
+                              <td style={{ padding: '0.6rem', verticalAlign: 'top' }}>
+                                <div style={{ display: 'grid', gap: '0.25rem' }}>
+                                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 132px', gap: '0.35rem' }}>
+                                    <input
+                                      value={entry.locale}
+                                      placeholder="Type locale, e.g. en"
+                                      onChange={(e) => setRows((prev) => updateRowLocaleValue(prev, rowIndex, localeIndex, e.target.value.toLowerCase()))}
+                                    />
+                                    <select
+                                      value={suggestedLocales.includes(normalizedLocale) ? normalizedLocale : ''}
+                                      onChange={(e) => {
+                                        if (!e.target.value) return;
+                                        setRows((prev) => updateRowLocaleValue(prev, rowIndex, localeIndex, e.target.value));
+                                      }}
+                                    >
+                                      <option value="">Quick pick…</option>
+                                      {suggestedLocales.map((locale) => (
+                                        <option key={locale} value={locale}>
+                                          {locale}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  {hasDuplicateLocale ? <div style={{ color: '#b91c1c', fontSize: '12px' }}>Duplicate locale</div> : null}
+                                </div>
+                              </td>
+                              <td style={{ padding: '0.6rem', verticalAlign: 'top' }}>
+                                <div style={{ display: 'grid', gap: '0.25rem' }}>
+                                  <input
+                                    value={entry.url}
+                                    placeholder="https://www.youtube.com/watch?v=..."
+                                    onChange={(e) =>
+                                      setRows((prev) =>
+                                        prev.map((item, index) =>
+                                          index === rowIndex
+                                            ? {
+                                                ...item,
+                                                locales: item.locales.map((localeItem, currentLocaleIndex) =>
+                                                  currentLocaleIndex === localeIndex ? { ...localeItem, url: e.target.value } : localeItem
+                                                )
+                                              }
+                                            : item
+                                        )
+                                      )
+                                    }
+                                  />
+                                  {entry.url && !isValidHttpUrl(entry.url) ? (
+                                    <div style={{ color: '#b91c1c', fontSize: '12px' }}>Use a valid http or https URL</div>
+                                  ) : null}
+                                </div>
+                              </td>
+                              <td style={{ padding: '0.6rem', verticalAlign: 'top' }}>
+                                <button
+                                  type="button"
+                                  className="btn-danger"
+                                  onClick={() =>
+                                    setRows((prev) =>
+                                      prev.map((item, index) =>
+                                        index === rowIndex
+                                          ? {
+                                              ...item,
+                                              locales:
+                                                item.locales.length === 1
+                                                  ? [{ ...emptyLocaleRow }]
+                                                  : item.locales.filter((_, currentLocaleIndex) => currentLocaleIndex !== localeIndex)
+                                            }
+                                          : item
+                                      )
+                                    )
+                                  }
+                                  disabled={saving}
+                                >
+                                  Delete locale
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
