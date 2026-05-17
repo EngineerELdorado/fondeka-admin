@@ -8,7 +8,9 @@ const LABELS = {
   trusted_device_enforcement: 'Enforce Trusted Device',
   auto_refund: 'Auto Refunds',
   'crypto.external.collection.verified_only': 'Restrict crypto collection to verified users',
-  'crypto.external.collection.allow_public_endpoints': 'Allow public crypto payment links'
+  'crypto.external.collection.allow_public_endpoints': 'Allow public crypto payment links',
+  'personal_saving.interest_payout.locked.enabled': 'Locked Interest Payout',
+  'personal_saving.interest_payout.open.enabled': 'Open Interest Payout'
 };
 
 const WARNINGS = {
