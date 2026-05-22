@@ -2929,6 +2929,10 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           {
             label: 'Eligible loan',
             value: loanEligibility ? formatAmount(loanEligibility.earnedEligibility) : accountView?.eligibleLoanAmount
+          },
+          {
+            label: 'Total profit',
+            value: loanEligibility ? formatAmount(loanEligibility.profit) : '—'
           }
         ]}
       />
