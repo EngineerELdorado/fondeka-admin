@@ -96,6 +96,10 @@ const SUPPORTED_KEYS = [
 const CRYPTO_COLLECTION_GATE_KEY = 'crypto.external.collection.verified_only';
 const CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY = 'crypto.external.collection.allow_public_endpoints';
 const CRYPTO_COLLECTION_GATE_KYC_STATUSES = ['APPROVED', 'PROVISIONALLY_APPROVED'];
+const GENERIC_DISABLED_MESSAGE_HELP =
+  'Optional. Shown to users when this feature is disabled. If left empty, the app will use the default maintenance message.';
+const SAVINGS_DISABLED_MESSAGE_HELP =
+  'Optional. Shown to users in accountData.savingsAccess.message when savings is globally disabled. If left empty, the app will receive the default savings unavailable message.';
 
 const formatKeyPart = (value) =>
   String(value || '')
@@ -120,6 +124,13 @@ const formatActionLabel = (key) => {
   const action = actionFromLimitKey(key);
   return ACTION_LABELS[action] || formatKeyPart(action);
 };
+
+const getDisabledMessagePlaceholder = (key) =>
+  key === SAVINGS_ENABLED_KEY
+    ? 'Optional. Shown to users when savings is globally disabled.'
+    : 'Optional. Shown to users when this feature is disabled.';
+
+const getDisabledMessageHelp = (key) => (key === SAVINGS_ENABLED_KEY ? SAVINGS_DISABLED_MESSAGE_HELP : GENERIC_DISABLED_MESSAGE_HELP);
 
 const isCryptoSpreadActionKey = (key) => String(key || '').startsWith(CRYPTO_SPREAD_ACTION_PREFIX);
 const actionFromCryptoSpreadKey = (key) => String(key || '').replace(CRYPTO_SPREAD_ACTION_PREFIX, '');
@@ -997,7 +1008,7 @@ export default function FeatureFlagsPage() {
               rows={3}
               value={draftDisabledMessageEn}
               onChange={(e) => setDraftDisabledMessageEn(e.target.value)}
-              placeholder="Optional. Shown to users when this feature is disabled."
+              placeholder={getDisabledMessagePlaceholder(draftKey.trim())}
             />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -1007,11 +1018,11 @@ export default function FeatureFlagsPage() {
               rows={3}
               value={draftDisabledMessageFr}
               onChange={(e) => setDraftDisabledMessageFr(e.target.value)}
-              placeholder="Optional. Shown to users when this feature is disabled."
+              placeholder={getDisabledMessagePlaceholder(draftKey.trim())}
             />
           </div>
           <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-            Optional. Shown to users when this feature is disabled. If left empty, the app will use the default maintenance message.
+            {getDisabledMessageHelp(draftKey.trim())}
           </div>
         </div>
         <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
@@ -1519,8 +1530,9 @@ export default function FeatureFlagsPage() {
                     </div>
                   </div>
                   {flag.key === SAVINGS_ENABLED_KEY && (
-                    <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-                      {t('featureFlags.savingsResolution')}
+                    <div style={{ display: 'grid', gap: '0.25rem', color: 'var(--muted)', fontSize: '12px' }}>
+                      <div>{t('featureFlags.savingsResolution')}</div>
+                      <div>{SAVINGS_DISABLED_MESSAGE_HELP}</div>
                     </div>
                   )}
                 </div>
@@ -1765,7 +1777,7 @@ export default function FeatureFlagsPage() {
                       value={editDraftDisabledMessageEn}
                       onChange={(e) => setEditDraftDisabledMessageEn(e.target.value)}
                       disabled={savingKey === editDialog.key}
-                      placeholder="Optional. Shown to users when this feature is disabled."
+                      placeholder={getDisabledMessagePlaceholder(editDialog.key)}
                     />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -1776,11 +1788,11 @@ export default function FeatureFlagsPage() {
                       value={editDraftDisabledMessageFr}
                       onChange={(e) => setEditDraftDisabledMessageFr(e.target.value)}
                       disabled={savingKey === editDialog.key}
-                      placeholder="Optional. Shown to users when this feature is disabled."
+                      placeholder={getDisabledMessagePlaceholder(editDialog.key)}
                     />
                   </div>
                   <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-                    Optional. Shown to users when this feature is disabled. If left empty, the app will use the default maintenance message.
+                    {getDisabledMessageHelp(editDialog.key)}
                   </div>
                 </div>
                 <div className="modal-actions">
