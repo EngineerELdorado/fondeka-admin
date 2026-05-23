@@ -19,7 +19,8 @@ const initialFilters = {
   hasCryptoWalletBalance: '',
   startDate: '',
   endDate: '',
-  blacklisted: ''
+  blacklisted: '',
+  invitedThroughReferral: ''
 };
 
 const defaultSort = {
@@ -109,6 +110,23 @@ const Badge = ({ children }) => (
     }}
   >
     {children}
+  </span>
+);
+
+const ReferralBadge = ({ referred }) => (
+  <span
+    style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      padding: '0.2rem 0.5rem',
+      borderRadius: '999px',
+      fontSize: '12px',
+      fontWeight: 700,
+      background: referred ? '#ecfdf3' : '#e5e7eb',
+      color: referred ? '#15803d' : '#374151'
+    }}
+  >
+    {referred ? 'Referred' : 'Direct'}
   </span>
 );
 
@@ -284,7 +302,7 @@ export default function AccountsListPage() {
         } else if (['startDate', 'endDate'].includes(key)) {
           const ts = Date.parse(value);
           if (!Number.isNaN(ts)) params.set(key, String(ts));
-        } else if (['blacklisted', 'hasWalletBalance', 'hasCryptoWalletBalance'].includes(key)) {
+        } else if (['blacklisted', 'hasWalletBalance', 'hasCryptoWalletBalance', 'invitedThroughReferral'].includes(key)) {
           const normalized = typeof value === 'string' ? value.toLowerCase() : value;
           if (normalized === true || normalized === 'true') params.set(key, 'true');
           else if (normalized === false || normalized === 'false') params.set(key, 'false');
@@ -315,6 +333,15 @@ export default function AccountsListPage() {
         kycProvider: item.kycProvider,
         kycLevel: item.kycLevel,
         blacklisted: item.blacklisted,
+        invitedThroughReferral: item.invitedThroughReferral === true,
+        inviterAccountId: item.inviterAccountId ?? null,
+        inviterAccountReference: item.inviterAccountReference ?? null,
+        inviterUserReference: item.inviterUserReference ?? null,
+        inviterFirstName: item.inviterFirstName ?? null,
+        inviterLastName: item.inviterLastName ?? null,
+        inviterUsername: item.inviterUsername ?? null,
+        inviterEmail: item.inviterEmail ?? null,
+        inviterPhoneNumber: item.inviterPhoneNumber ?? null,
         createdAt: item.createdAt,
         balance: item.balance,
         cryptoBalance: sumCryptoWalletBalances(item.cryptoWallets || []),
@@ -425,6 +452,9 @@ export default function AccountsListPage() {
         case 'blacklisted':
           add(`Blacklisted: ${value === true || value === 'true' ? 'Yes' : 'No'}`, key);
           break;
+        case 'invitedThroughReferral':
+          add(`Referral: ${value === true || value === 'true' ? 'Referred only' : 'Direct only'}`, key);
+          break;
         default:
           break;
       }
@@ -433,6 +463,7 @@ export default function AccountsListPage() {
   }, [appliedFilters]);
 
   const blacklistedCount = useMemo(() => rows.filter((row) => Boolean(row?.blacklisted)).length, [rows]);
+  const referredCount = useMemo(() => rows.filter((row) => Boolean(row?.invitedThroughReferral)).length, [rows]);
   const appliedSortLabel = useMemo(() => {
     const sortByLabel =
       {
@@ -452,6 +483,7 @@ export default function AccountsListPage() {
       { key: 'email', label: 'Email' },
       { key: 'phone', label: t('accounts.phone') },
       { key: 'countryName', label: t('common.country') },
+      { key: 'invitedThroughReferral', label: 'Referral', render: (row) => <ReferralBadge referred={Boolean(row.invitedThroughReferral)} /> },
       { key: 'balance', label: 'Balance' },
       { key: 'cryptoBalance', label: t('accounts.cryptoBalance'), render: (row) => formatAmount(row.cryptoBalance) },
       { key: 'owedLoans', label: t('accounts.amountOwed'), render: (row) => formatAmount(row.owedLoansAmount ?? row.owedLoans) },
@@ -1050,6 +1082,14 @@ export default function AccountsListPage() {
                 </select>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="invitedThroughReferral">Referral</label>
+                <select id="invitedThroughReferral" value={filters.invitedThroughReferral} onChange={(e) => setFilters((p) => ({ ...p, invitedThroughReferral: e.target.value }))}>
+                  <option value="">{t('common.all')}</option>
+                  <option value="true">Referred only</option>
+                  <option value="false">Direct only</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="hasWalletBalance">{t('accounts.hasFiatWalletBalance')}</label>
                 <select
                   id="hasWalletBalance"
@@ -1165,6 +1205,7 @@ export default function AccountsListPage() {
       <div className="card" style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
         <Badge>{t('accounts.visibleRows')}: {rows.length}</Badge>
         <Badge>{t('accounts.blacklistedVisible')}: {blacklistedCount}</Badge>
+        <Badge>Referred: {referredCount}</Badge>
         <Badge>{t('accounts.activeSort')}: {appliedSortLabel}</Badge>
         <span style={{ color: 'var(--muted)', fontSize: '13px' }}>{t('accounts.blacklistedFilterHint')}</span>
       </div>

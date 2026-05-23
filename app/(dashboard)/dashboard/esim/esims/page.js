@@ -479,7 +479,7 @@ export default function EsimsPage() {
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
-      <DataTable columns={columns} rows={displayRows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No eSIMs found" />
+      <DataTable columns={columns} rows={displayRows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No eSIMs found" compactEmptyState />
 
       {showCreate && (
         <Modal title="Add eSIM" onClose={() => setShowCreate(false)}>

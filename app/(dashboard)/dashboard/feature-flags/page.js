@@ -148,6 +148,11 @@ const normalizeOverride = (entry) => {
   if (!entry || typeof entry !== 'object') return null;
   const accountId = entry.accountId ?? entry.account_id ?? entry.id ?? entry?.account?.id ?? '';
   const email = entry.email ?? entry.emailAddress ?? entry.accountEmail ?? entry?.account?.email ?? '';
+  const firstName = entry.firstName ?? entry.accountFirstName ?? entry?.account?.firstName ?? '';
+  const lastName = entry.lastName ?? entry.accountLastName ?? entry?.account?.lastName ?? '';
+  const username = entry.username ?? entry.accountUsername ?? entry?.account?.username ?? '';
+  const accountReference = entry.accountReference ?? entry?.account?.accountReference ?? '';
+  const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
   if ((accountId === null || accountId === undefined || accountId === '') && !email) return null;
   const hasAccount = accountId !== null && accountId !== undefined && accountId !== '';
   const normalizedTarget = hasAccount ? String(accountId) : String(email);
@@ -158,6 +163,10 @@ const normalizeOverride = (entry) => {
     email: hasAccount ? '' : String(email),
     targetType,
     targetLabel: hasAccount ? `Account ${accountId}` : `Email ${email}`,
+    displayName: fullName || username || '',
+    displayEmail: hasAccount ? String(email || '') : String(email || ''),
+    username: String(username || ''),
+    accountReference: String(accountReference || ''),
     enabled: Boolean(entry.enabled)
   };
 };
@@ -180,6 +189,24 @@ const normalizeCountryOverride = (entry) => {
 const getOverrideErrorMessage = (err, fallback) => {
   if (err?.status === 404) return 'Account or email not found';
   return err?.message || fallback;
+};
+
+const withOverrideIdentity = async (entry) => {
+  if (!entry || entry.targetType !== 'account' || !entry.accountId) return entry;
+  if (entry.displayName || entry.displayEmail) return entry;
+  try {
+    const account = await api.accounts.get(entry.accountId);
+    const fullName = [account?.firstName, account?.lastName].filter(Boolean).join(' ').trim();
+    return {
+      ...entry,
+      displayName: fullName || account?.username || '',
+      displayEmail: account?.email || '',
+      username: account?.username || '',
+      accountReference: entry.accountReference || account?.accountReference || ''
+    };
+  } catch {
+    return entry;
+  }
 };
 
 export default function FeatureFlagsPage() {
@@ -2042,7 +2069,16 @@ export default function FeatureFlagsPage() {
                     style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.55rem 0.65rem' }}
                   >
                     <div>
-                      <div style={{ fontWeight: 700 }}>{entry.targetLabel}</div>
+                      <div style={{ fontWeight: 700 }}>
+                        {entry.displayName || entry.displayEmail ? `${entry.displayName || entry.displayEmail}` : entry.targetLabel}
+                      </div>
+                      {entry.targetType === 'account' && (entry.displayEmail || entry.username || entry.accountReference || entry.accountId) ? (
+                        <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                          {[entry.displayEmail, entry.username ? `@${entry.username}` : '', entry.accountReference, entry.accountId ? `Account ${entry.accountId}` : '']
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </div>
+                      ) : null}
                       <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
                         {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? (entry.enabled ? t('featureFlags.overrideGateEnforced') : t('featureFlags.overrideAllowCollection')) : entry.enabled ? t('featureFlags.forcedOn') : t('featureFlags.forcedOff')}
                       </div>
@@ -2104,17 +2140,19 @@ export default function FeatureFlagsPage() {
   );
 }
   const loadOverrideEntries = async (key) => {
-    const [accountRes, countryRes] = await Promise.all([
+  const [accountRes, countryRes] = await Promise.all([
       api.featureFlags.listOverrides(key),
       api.featureFlags.listCountryOverrides(key).catch((err) => {
         if (err?.status === 404) return [];
         throw err;
       })
     ]);
-    return [
+    const normalized = [
       ...(Array.isArray(accountRes) ? accountRes : []).map(normalizeOverride),
       ...(Array.isArray(countryRes) ? countryRes : []).map(normalizeCountryOverride)
-    ]
+    ].filter(Boolean);
+    const enriched = await Promise.all(normalized.map(withOverrideIdentity));
+    return enriched
       .filter(Boolean)
       .sort((a, b) => a.targetLabel.localeCompare(b.targetLabel));
   };

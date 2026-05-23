@@ -17,6 +17,7 @@ export function DataTable({
   columns,
   rows,
   emptyLabel = 'No data to display.',
+  compactEmptyState = false,
   showIndex = true,
   pageSize = 20,
   page: controlledPage,
@@ -45,6 +46,8 @@ export function DataTable({
   const canSeeTotals = adminGroups.includes('SUPER_ADMIN') || adminGroups.includes('ADMIN');
 
   const visibleCols = useMemo(() => columns.filter((col) => col.key !== 'id'), [columns]);
+  const isEmpty = rows.length === 0;
+  const shouldCompactEmptyState = compactEmptyState && isEmpty;
   const hasAccountLikeColumn = useMemo(
     () => visibleCols.some((col) => ['accountId', 'accountReference', 'account'].includes(String(col?.key || ''))),
     [visibleCols]
@@ -154,8 +157,8 @@ export function DataTable({
 
   return (
     <div className="card table-scroll">
-      {renderPagination('top')}
-      <div className="table-scroll__hint">Swipe to see more</div>
+      {!shouldCompactEmptyState ? renderPagination('top') : null}
+      {!shouldCompactEmptyState ? <div className="table-scroll__hint">Swipe to see more</div> : null}
       <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
           <tr>
@@ -179,9 +182,12 @@ export function DataTable({
           </tr>
         </thead>
         <tbody>
-          {rows.length === 0 && (
+          {isEmpty && (
             <tr>
-              <td colSpan={(showIndex ? 1 : 0) + effectiveCols.length} style={{ padding: '1rem', textAlign: 'center', color: 'var(--muted)' }}>
+              <td
+                colSpan={(showIndex ? 1 : 0) + effectiveCols.length}
+                style={{ padding: shouldCompactEmptyState ? '0.75rem 1rem' : '1rem', textAlign: 'center', color: 'var(--muted)' }}
+              >
                 {emptyLabel}
               </td>
             </tr>

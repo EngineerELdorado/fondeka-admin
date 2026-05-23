@@ -2938,6 +2938,34 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       />
 
       <div className="card" style={{ padding: '1rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <div style={{ fontWeight: 800 }}>Referral Attribution</div>
+          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+            {accountView?.invitedThroughReferral ? 'This account was created through a referral binding.' : 'Not referred.'}
+          </div>
+        </div>
+
+        {accountView?.invitedThroughReferral ? (
+          <div style={{ marginTop: '0.75rem' }}>
+            <DetailGrid
+              rows={[
+                { label: 'Inviter account ID', value: accountView?.inviterAccountId },
+                { label: 'Inviter account reference', value: accountView?.inviterAccountReference },
+                { label: 'Inviter user reference', value: accountView?.inviterUserReference },
+                {
+                  label: 'Inviter name',
+                  value: [accountView?.inviterFirstName, accountView?.inviterLastName].filter(Boolean).join(' ') || '—'
+                },
+                { label: 'Inviter username', value: accountView?.inviterUsername },
+                { label: 'Inviter email', value: accountView?.inviterEmail },
+                { label: 'Inviter phone', value: accountView?.inviterPhoneNumber }
+              ]}
+            />
+          </div>
+        ) : null}
+      </div>
+
+      <div className="card" style={{ padding: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
             <div style={{ fontWeight: 800 }}>Account country</div>
