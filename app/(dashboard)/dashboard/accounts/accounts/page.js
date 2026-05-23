@@ -455,7 +455,6 @@ export default function AccountsListPage() {
       { key: 'balance', label: 'Balance' },
       { key: 'cryptoBalance', label: t('accounts.cryptoBalance'), render: (row) => formatAmount(row.cryptoBalance) },
       { key: 'owedLoans', label: t('accounts.amountOwed'), render: (row) => formatAmount(row.owedLoansAmount ?? row.owedLoans) },
-      { key: 'eligibleLoanAmount', label: t('accounts.eligibleLoan') },
       { key: 'createdAt', label: 'Created at', render: (row) => formatDateTime(row.createdAt) },
       {
         key: 'actions',
