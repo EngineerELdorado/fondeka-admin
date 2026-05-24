@@ -66,6 +66,17 @@ export default function GuideVideosPage() {
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsEnabled, setSettingsEnabled] = useState(true);
   const [excludedKeys, setExcludedKeys] = useState([]);
+  const [overrideDialogOpen, setOverrideDialogOpen] = useState(false);
+  const [overrideAccountId, setOverrideAccountId] = useState('');
+  const [overrideEmail, setOverrideEmail] = useState('');
+  const [overrideLoading, setOverrideLoading] = useState(false);
+  const [overrideSaving, setOverrideSaving] = useState(false);
+  const [overrideLoaded, setOverrideLoaded] = useState(false);
+  const [overrideCustomized, setOverrideCustomized] = useState(false);
+  const [overrideEnabled, setOverrideEnabled] = useState(true);
+  const [overrideExcludedKeys, setOverrideExcludedKeys] = useState([]);
+  const [overrideError, setOverrideError] = useState(null);
+  const [overrideInfo, setOverrideInfo] = useState(null);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
 
@@ -145,6 +156,105 @@ export default function GuideVideosPage() {
       setError(err?.message || 'Failed to save guide video settings.');
     } finally {
       setSettingsSaving(false);
+    }
+  };
+
+  const resetOverrideDialog = () => {
+    setOverrideAccountId('');
+    setOverrideEmail('');
+    setOverrideLoaded(false);
+    setOverrideCustomized(false);
+    setOverrideEnabled(true);
+    setOverrideExcludedKeys([]);
+    setOverrideError(null);
+    setOverrideInfo(null);
+  };
+
+  const loadOverride = async () => {
+    const accountId = String(overrideAccountId || '').trim();
+    const email = String(overrideEmail || '').trim();
+    if (!accountId) {
+      setOverrideError('Account ID is required.');
+      return;
+    }
+    setOverrideLoading(true);
+    setOverrideError(null);
+    setOverrideInfo(null);
+    try {
+      const res = email
+        ? await api.accounts.guideVideoSettings.getByEmail(accountId, email)
+        : await api.accounts.guideVideoSettings.get(accountId);
+      setOverrideLoaded(true);
+      setOverrideCustomized(Boolean(res?.customized));
+      setOverrideEnabled(res?.enabled !== false);
+      setOverrideExcludedKeys(Array.isArray(res?.excludedKeys) ? res.excludedKeys.map((key) => String(key || '').trim().toUpperCase()).filter(Boolean) : []);
+      setOverrideInfo(Boolean(res?.customized) ? 'Loaded account-specific override.' : 'This account is currently using global settings.');
+    } catch (err) {
+      setOverrideLoaded(false);
+      setOverrideCustomized(false);
+      setOverrideEnabled(true);
+      setOverrideExcludedKeys([]);
+      setOverrideError(err?.message || 'Failed to load guide video override.');
+    } finally {
+      setOverrideLoading(false);
+    }
+  };
+
+  const saveOverride = async () => {
+    const accountId = String(overrideAccountId || '').trim();
+    const email = String(overrideEmail || '').trim();
+    if (!accountId) {
+      setOverrideError('Account ID is required.');
+      return;
+    }
+    setOverrideSaving(true);
+    setOverrideError(null);
+    setOverrideInfo(null);
+    try {
+      const payload = {
+        enabled: overrideEnabled,
+        excludedKeys: [...new Set(overrideExcludedKeys.map((key) => String(key || '').trim().toUpperCase()).filter(Boolean))]
+      };
+      const res = email
+        ? await api.accounts.guideVideoSettings.updateByEmail(accountId, email, payload)
+        : await api.accounts.guideVideoSettings.update(accountId, payload);
+      setOverrideLoaded(true);
+      setOverrideCustomized(Boolean(res?.customized ?? true));
+      setOverrideEnabled(res?.enabled !== false);
+      setOverrideExcludedKeys(Array.isArray(res?.excludedKeys) ? res.excludedKeys.map((key) => String(key || '').trim().toUpperCase()).filter(Boolean) : payload.excludedKeys);
+      setOverrideInfo('Guide video override saved.');
+    } catch (err) {
+      setOverrideError(err?.message || 'Failed to save guide video override.');
+    } finally {
+      setOverrideSaving(false);
+    }
+  };
+
+  const deleteOverride = async () => {
+    const accountId = String(overrideAccountId || '').trim();
+    const email = String(overrideEmail || '').trim();
+    if (!accountId) {
+      setOverrideError('Account ID is required.');
+      return;
+    }
+    setOverrideSaving(true);
+    setOverrideError(null);
+    setOverrideInfo(null);
+    try {
+      if (email) {
+        await api.accounts.guideVideoSettings.removeByEmail(accountId, email);
+      } else {
+        await api.accounts.guideVideoSettings.remove(accountId);
+      }
+      setOverrideLoaded(true);
+      setOverrideCustomized(false);
+      setOverrideEnabled(true);
+      setOverrideExcludedKeys([]);
+      setOverrideInfo('Override cleared. Global settings now apply.');
+    } catch (err) {
+      setOverrideError(err?.message || 'Failed to clear guide video override.');
+    } finally {
+      setOverrideSaving(false);
     }
   };
 
@@ -232,6 +342,17 @@ export default function GuideVideosPage() {
             <button type="button" className="btn-neutral" onClick={loadSettings} disabled={settingsLoading || settingsSaving}>
               {settingsLoading ? 'Refreshing…' : 'Reload settings'}
             </button>
+            <button
+              type="button"
+              className="btn-neutral"
+              onClick={() => {
+                resetOverrideDialog();
+                setOverrideDialogOpen(true);
+              }}
+              disabled={settingsSaving}
+            >
+              Overrides
+            </button>
             <button type="button" className="btn-success" onClick={handleSaveSettings} disabled={settingsLoading || settingsSaving}>
               {settingsSaving ? 'Saving…' : 'Save settings'}
             </button>
@@ -281,6 +402,98 @@ export default function GuideVideosPage() {
           )}
         </div>
       </div>
+
+      {overrideDialogOpen ? (
+        <div className="modal-backdrop">
+          <div className="modal-surface" style={{ width: 'min(860px, 96vw)', display: 'grid', gap: '0.85rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.25rem', borderBottom: '1px solid var(--border)' }}>
+              <div style={{ fontWeight: 800 }}>Guide Video Overrides</div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (overrideLoading || overrideSaving) return;
+                  setOverrideDialogOpen(false);
+                }}
+                style={{ border: 'none', background: 'transparent', fontSize: '18px', cursor: 'pointer', color: 'var(--text)' }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Enter an account ID and optionally an email. If email is provided, the override is resolved through the account email lookup flow before applying guide-video settings.
+            </div>
+
+            {overrideError ? <div style={{ color: '#b91c1c', fontWeight: 700 }}>{overrideError}</div> : null}
+            {overrideInfo ? <div style={{ color: '#15803d', fontWeight: 700 }}>{overrideInfo}</div> : null}
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+              <label style={{ display: 'grid', gap: '0.25rem' }}>
+                <span>Account ID</span>
+                <input value={overrideAccountId} onChange={(e) => setOverrideAccountId(e.target.value)} placeholder="123" />
+              </label>
+              <label style={{ display: 'grid', gap: '0.25rem' }}>
+                <span>Email</span>
+                <input value={overrideEmail} onChange={(e) => setOverrideEmail(e.target.value)} placeholder="qa@fondeka.test" />
+              </label>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button type="button" className="btn-neutral" onClick={loadOverride} disabled={overrideLoading || overrideSaving}>
+                {overrideLoading ? 'Loading…' : 'Load override'}
+              </button>
+              <button type="button" className="btn-success" onClick={saveOverride} disabled={overrideLoading || overrideSaving || !overrideAccountId.trim()}>
+                {overrideSaving ? 'Saving…' : 'Save override'}
+              </button>
+              <button type="button" className="btn-danger" onClick={deleteOverride} disabled={overrideLoading || overrideSaving || !overrideAccountId.trim()}>
+                Use global settings
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                <input type="checkbox" checked={overrideCustomized} readOnly />
+                {overrideCustomized ? 'Customized for this target' : 'Using global settings'}
+              </label>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                <input type="checkbox" checked={overrideEnabled} onChange={(e) => setOverrideEnabled(e.target.checked)} disabled={overrideLoading || overrideSaving} />
+                {overrideEnabled ? 'Guide videos enabled' : 'Guide videos disabled'}
+              </label>
+            </div>
+
+            <div style={{ display: 'grid', gap: '0.45rem' }}>
+              <div style={{ fontWeight: 700 }}>Excluded guide keys</div>
+              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                Check only the guide keys you want hidden for this account override.
+              </div>
+              {availableKeys.length === 0 ? (
+                <div style={{ color: 'var(--muted)' }}>No configured guide keys yet. Add registry entries first.</div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.5rem' }}>
+                  {availableKeys.map((key) => {
+                    const checked = overrideExcludedKeys.includes(key);
+                    return (
+                      <label key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 0.75rem', border: '1px solid var(--border)', borderRadius: '10px' }}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) =>
+                            setOverrideExcludedKeys((prev) =>
+                              e.target.checked ? [...prev, key] : prev.filter((item) => item !== key)
+                            )
+                          }
+                          disabled={overrideLoading || overrideSaving}
+                        />
+                        <span style={{ fontWeight: 600 }}>{key}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="card" style={{ display: 'grid', gap: '0.85rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
