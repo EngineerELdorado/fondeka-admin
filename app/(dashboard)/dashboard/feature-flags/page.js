@@ -189,6 +189,43 @@ const normalizeCountryOverride = (entry) => {
   };
 };
 
+function CollapsibleSection({ title, subtitle = null, count = null, borderColor = null, children, defaultOpen = false }) {
+  return (
+    <details
+      open={defaultOpen}
+      className="card"
+      style={{
+        maxWidth: '720px',
+        display: 'grid',
+        gap: '0.75rem',
+        borderColor: borderColor || 'var(--border)'
+      }}
+    >
+      <summary
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '1rem',
+          flexWrap: 'wrap',
+          cursor: 'pointer',
+          listStyle: 'none'
+        }}
+      >
+        <div style={{ display: 'grid', gap: '0.2rem' }}>
+          <div style={{ fontWeight: 800 }}>{title}</div>
+          {subtitle ? <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{subtitle}</div> : null}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--muted)', fontSize: '12px' }}>
+          {count !== null ? <span>{count}</span> : null}
+          <span>Expand</span>
+        </div>
+      </summary>
+      <div style={{ display: 'grid', gap: '0.75rem' }}>{children}</div>
+    </details>
+  );
+}
+
 const getOverrideErrorMessage = (err, fallback) => {
   if (err?.status === 404) return 'Account or email not found';
   return err?.message || fallback;
@@ -1004,8 +1041,7 @@ export default function FeatureFlagsPage() {
         </div>
       )}
 
-      <div className="card" style={{ maxWidth: '720px', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        <div style={{ fontWeight: 700 }}>{t('featureFlags.createUpdate')}</div>
+      <CollapsibleSection title={t('featureFlags.createUpdate')}>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: '0.65rem', alignItems: 'end' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="flagKey">{t('featureFlags.key')}</label>
@@ -1060,56 +1096,54 @@ export default function FeatureFlagsPage() {
         <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
           Supported keys: {SUPPORTED_KEYS.join(', ')}
         </div>
-      </div>
+      </CollapsibleSection>
 
       {cryptoCollectionGateFlag && (
-        <div className="card" style={{ maxWidth: '720px', display: 'grid', gap: '0.75rem', borderColor: '#f59e0b' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-            <div>
-              <div style={{ fontWeight: 800 }}>{t('featureFlags.cryptoVerifiedTitle')}</div>
-              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{CRYPTO_COLLECTION_GATE_KEY}</div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <button
-                type="button"
-                onClick={() => openEditDialog(cryptoCollectionGateFlag)}
-                disabled={savingKey === CRYPTO_COLLECTION_GATE_KEY}
-                style={{
-                  border: `1px solid var(--border)`,
-                  background: 'var(--surface)',
-                  padding: '0.45rem 0.7rem',
-                  borderRadius: '10px',
-                  cursor: 'pointer',
-                  color: 'var(--text)'
-                }}
-              >
-                Edit
-              </button>
-              <button
-                type="button"
-                onClick={() => openOverridesDialog(CRYPTO_COLLECTION_GATE_KEY)}
-                disabled={savingKey === CRYPTO_COLLECTION_GATE_KEY}
-                style={{
-                  border: `1px solid var(--border)`,
-                  background: 'var(--surface)',
-                  padding: '0.45rem 0.7rem',
-                  borderRadius: '10px',
-                  cursor: 'pointer',
-                  color: 'var(--text)'
-                }}
-              >
-                {t('featureFlags.overrides')}
-              </button>
-              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
-                <input
-                  type="checkbox"
-                  checked={Boolean(cryptoCollectionGateFlag.enabled)}
-                  onChange={() => handleToggle(CRYPTO_COLLECTION_GATE_KEY)}
-                  disabled={loading || savingKey === CRYPTO_COLLECTION_GATE_KEY}
-                />
-                {cryptoCollectionGateFlag.enabled ? `ON · ${t('featureFlags.enabled')}` : `OFF · ${t('featureFlags.disabled')}`}
-              </label>
-            </div>
+        <CollapsibleSection
+          title={t('featureFlags.cryptoVerifiedTitle')}
+          subtitle={CRYPTO_COLLECTION_GATE_KEY}
+          borderColor="#f59e0b"
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => openEditDialog(cryptoCollectionGateFlag)}
+              disabled={savingKey === CRYPTO_COLLECTION_GATE_KEY}
+              style={{
+                border: `1px solid var(--border)`,
+                background: 'var(--surface)',
+                padding: '0.45rem 0.7rem',
+                borderRadius: '10px',
+                cursor: 'pointer',
+                color: 'var(--text)'
+              }}
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              onClick={() => openOverridesDialog(CRYPTO_COLLECTION_GATE_KEY)}
+              disabled={savingKey === CRYPTO_COLLECTION_GATE_KEY}
+              style={{
+                border: `1px solid var(--border)`,
+                background: 'var(--surface)',
+                padding: '0.45rem 0.7rem',
+                borderRadius: '10px',
+                cursor: 'pointer',
+                color: 'var(--text)'
+              }}
+            >
+              {t('featureFlags.overrides')}
+            </button>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+              <input
+                type="checkbox"
+                checked={Boolean(cryptoCollectionGateFlag.enabled)}
+                onChange={() => handleToggle(CRYPTO_COLLECTION_GATE_KEY)}
+                disabled={loading || savingKey === CRYPTO_COLLECTION_GATE_KEY}
+              />
+              {cryptoCollectionGateFlag.enabled ? `ON · ${t('featureFlags.enabled')}` : `OFF · ${t('featureFlags.disabled')}`}
+            </label>
           </div>
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
             {t('featureFlags.cryptoVerifiedHelp', { statuses: CRYPTO_COLLECTION_GATE_KYC_STATUSES.join(' or ') })}
@@ -1119,57 +1153,54 @@ export default function FeatureFlagsPage() {
             <div>Override `enabled=false` for an account/email to allow collection while global gate is ON.</div>
             <div>Override `enabled=true` for an account/email to enforce the gate for that target.</div>
           </div>
-        </div>
+        </CollapsibleSection>
       )}
 
       {cryptoCollectionPublicEndpointsFlag && (
-        <div className="card" style={{ maxWidth: '720px', display: 'grid', gap: '0.75rem', borderColor: '#0284c7' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-            <div>
-              <div style={{ fontWeight: 800 }}>{t('featureFlags.cryptoPublicTitle')}</div>
-              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY}</div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                onClick={() => openEditDialog(cryptoCollectionPublicEndpointsFlag)}
-                disabled={savingKey === CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY}
-                style={{
-                  border: `1px solid var(--border)`,
-                  background: 'var(--surface)',
-                  padding: '0.45rem 0.7rem',
-                  borderRadius: '10px',
-                  cursor: 'pointer',
+        <CollapsibleSection
+          title={t('featureFlags.cryptoPublicTitle')}
+          subtitle={CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY}
+          borderColor="#0284c7"
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => openEditDialog(cryptoCollectionPublicEndpointsFlag)}
+              disabled={savingKey === CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY}
+              style={{
+                border: `1px solid var(--border)`,
+                background: 'var(--surface)',
+                padding: '0.45rem 0.7rem',
+                borderRadius: '10px',
+                cursor: 'pointer',
                 color: 'var(--text)'
               }}
-              >
-                Edit
-              </button>
-              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
-                <input
-                  type="checkbox"
-                  checked={Boolean(cryptoCollectionPublicEndpointsFlag.enabled)}
-                  onChange={() => handleToggle(CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY)}
-                  disabled={loading || savingKey === CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY}
-                />
-                {cryptoCollectionPublicEndpointsFlag.enabled ? t('featureFlags.publicLinksBypassGate') : t('featureFlags.publicLinksEnforceGate')}
-              </label>
-            </div>
+            >
+              Edit
+            </button>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+              <input
+                type="checkbox"
+                checked={Boolean(cryptoCollectionPublicEndpointsFlag.enabled)}
+                onChange={() => handleToggle(CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY)}
+                disabled={loading || savingKey === CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY}
+              />
+              {cryptoCollectionPublicEndpointsFlag.enabled ? t('featureFlags.publicLinksBypassGate') : t('featureFlags.publicLinksEnforceGate')}
+            </label>
           </div>
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
             {t('featureFlags.cryptoPublicHelp')}
           </div>
-        </div>
+        </CollapsibleSection>
       )}
 
       {interTransferFlag && (
-        <div className="card" style={{ maxWidth: '720px', display: 'grid', gap: '0.75rem', borderColor: '#14b8a6' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-            <div>
-              <div style={{ fontWeight: 800 }}>{t('featureFlags.internalTransferTitle')}</div>
-              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{INTER_TRANSFER_FLAG_KEY}</div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <CollapsibleSection
+          title={t('featureFlags.internalTransferTitle')}
+          subtitle={INTER_TRANSFER_FLAG_KEY}
+          borderColor="#14b8a6"
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
               <button
                 type="button"
                 onClick={() => openEditDialog(interTransferFlag)}
@@ -1209,7 +1240,6 @@ export default function FeatureFlagsPage() {
                 />
                 {interTransferFlag.enabled ? t('featureFlags.transfersAllowed') : t('featureFlags.transfersBlocked')}
               </label>
-            </div>
           </div>
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
             {t('featureFlags.internalTransferHelp')}
@@ -1217,12 +1247,11 @@ export default function FeatureFlagsPage() {
           <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
             {t('featureFlags.internalTransferOverridesHelp')}
           </div>
-        </div>
+        </CollapsibleSection>
       )}
 
       {transactionAuthGlobalFlag && transactionAuthAndroidFlag && transactionAuthIosFlag && (
-        <div className="card" style={{ maxWidth: '720px', display: 'grid', gap: '0.75rem', borderColor: '#f97316' }}>
-          <div style={{ fontWeight: 800 }}>{t('featureFlags.payoutAuthTitle')}</div>
+        <CollapsibleSection title={t('featureFlags.payoutAuthTitle')} borderColor="#f97316">
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
             {t('featureFlags.payoutAuthHelp')}
           </div>
@@ -1307,12 +1336,11 @@ export default function FeatureFlagsPage() {
             <div>{t('featureFlags.platformOverridesHelp')}</div>
             <div>{t('featureFlags.recoveryHelp')}</div>
           </div>
-        </div>
+        </CollapsibleSection>
       )}
 
       {appOpenAuthGlobalFlag && appOpenAuthAndroidFlag && appOpenAuthIosFlag && (
-        <div className="card" style={{ maxWidth: '720px', display: 'grid', gap: '0.75rem', borderColor: '#0ea5e9' }}>
-          <div style={{ fontWeight: 800 }}>{t('featureFlags.appOpenTitle')}</div>
+        <CollapsibleSection title={t('featureFlags.appOpenTitle')} borderColor="#0ea5e9">
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
             {t('featureFlags.appOpenHelp')}
           </div>
@@ -1394,12 +1422,11 @@ export default function FeatureFlagsPage() {
             <div>{t('featureFlags.appOpenOverrides')}</div>
             <div>{t('featureFlags.appOpenRollout')}</div>
           </div>
-        </div>
+        </CollapsibleSection>
       )}
 
       {trustedDeviceGlobalFlag && trustedDeviceAndroidFlag && trustedDeviceIosFlag && (
-        <div className="card" style={{ maxWidth: '720px', display: 'grid', gap: '0.75rem', borderColor: '#f59e0b' }}>
-          <div style={{ fontWeight: 800 }}>{t('featureFlags.trustedDeviceTitle')}</div>
+        <CollapsibleSection title={t('featureFlags.trustedDeviceTitle')} borderColor="#f59e0b">
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
             {t('featureFlags.globalOffIgnored')}
           </div>
@@ -1481,19 +1508,16 @@ export default function FeatureFlagsPage() {
             <div>{t('featureFlags.platformOverridesHelp')}</div>
             <div>{t('featureFlags.recoveryHelp')}</div>
           </div>
-        </div>
+        </CollapsibleSection>
       )}
 
       {!loading && savingsFlags.length > 0 && (
-        <div className="card" style={{ maxWidth: '720px', display: 'grid', gap: '0.75rem', borderColor: '#16a34a' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-            <div>
-              <div style={{ fontWeight: 800 }}>{t('featureFlags.savings')}</div>
-              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{t('featureFlags.savingsDescription')}</div>
-            </div>
-            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{savingsFlags.length} flags</div>
-          </div>
-
+        <CollapsibleSection
+          title={t('featureFlags.savings')}
+          subtitle={t('featureFlags.savingsDescription')}
+          count={`${savingsFlags.length} flags`}
+          borderColor="#16a34a"
+        >
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             {savingsFlags.map((flag) => {
               const label = formatResolvedLabel(flag.key);
@@ -1571,7 +1595,7 @@ export default function FeatureFlagsPage() {
               );
             })}
           </div>
-        </div>
+        </CollapsibleSection>
       )}
 
       <div style={{ display: 'grid', gap: '0.85rem', maxWidth: '720px' }}>
@@ -1579,11 +1603,7 @@ export default function FeatureFlagsPage() {
         {!loading && otherFlags.length === 0 && <div className="card">{t('featureFlags.none')}</div>}
         {groupedFlags.map((group) => (
           <Fragment key={group.key}>
-            <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontWeight: 800 }}>{group.label}</div>
-                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{group.flags.length} flags</div>
-              </div>
+            <CollapsibleSection title={group.label} count={`${group.flags.length} flags`}>
               <div style={{ display: 'grid', gap: '0.75rem' }}>
                 {group.flags.map((flag) => {
                   const label = formatResolvedLabel(flag.key);
@@ -1652,17 +1672,13 @@ export default function FeatureFlagsPage() {
                   );
                 })}
               </div>
-            </div>
+            </CollapsibleSection>
             {SHOW_CRYPTO_SPREAD_SECTION && group.key === 'crypto' && renderCryptoSpreadSection()}
           </Fragment>
         ))}
 
         {!loading && actionLimitFlags.length > 0 && (
-          <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontWeight: 800 }}>Action Limit Settings</div>
-              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{actionLimitFlags.length} actions</div>
-            </div>
+          <CollapsibleSection title="Action Limit Settings" count={`${actionLimitFlags.length} actions`}>
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{ACTION_LIMIT_EXPLANATION}</div>
             <div style={{ display: 'grid', gap: '0.75rem' }}>
               {actionLimitFlags.map((flag) => (
@@ -1728,7 +1744,7 @@ export default function FeatureFlagsPage() {
                 </div>
               ))}
             </div>
-          </div>
+          </CollapsibleSection>
         )}
       </div>
 
