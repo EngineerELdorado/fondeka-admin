@@ -58,12 +58,68 @@ const isValidHttpUrl = (value) => {
   }
 };
 
+const compactKeySummary = (keys) => {
+  if (!keys.length) return 'None';
+  if (keys.length <= 3) return keys.join(', ');
+  return `${keys.slice(0, 3).join(', ')} +${keys.length - 3} more`;
+};
+
+function GuideKeySelector({ keys, selectedKeys, onToggle, disabled, helperText }) {
+  if (keys.length === 0) {
+    return <div style={{ color: 'var(--muted)' }}>No configured guide keys yet. Add registry entries first.</div>;
+  }
+
+  return (
+    <div style={{ display: 'grid', gap: '0.45rem' }}>
+      <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{helperText}</div>
+      <div style={{ fontSize: '13px', color: 'var(--muted)' }}>
+        Excluded: <span style={{ color: 'var(--text)', fontWeight: 700 }}>{compactKeySummary(selectedKeys)}</span>
+      </div>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr',
+          gap: '0.45rem',
+          padding: '0.85rem',
+          border: '1px solid var(--border)',
+          borderRadius: '12px'
+        }}
+      >
+        {keys.map((key) => {
+          const checked = selectedKeys.includes(key);
+          return (
+            <label
+              key={key}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '0.75rem',
+                minHeight: '32px'
+              }}
+            >
+              <span style={{ fontSize: '14px' }}>{key}</span>
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={(e) => onToggle(key, e.target.checked)}
+                disabled={disabled}
+              />
+            </label>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function GuideVideosPage() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsExpanded, setSettingsExpanded] = useState(false);
   const [settingsEnabled, setSettingsEnabled] = useState(true);
   const [excludedKeys, setExcludedKeys] = useState([]);
   const [overrideDialogOpen, setOverrideDialogOpen] = useState(false);
@@ -337,8 +393,23 @@ export default function GuideVideosPage() {
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
               When disabled, no guide videos are returned to the client app. Excluded keys stay configured in the registry but are hidden from users.
             </div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px', marginTop: '0.2rem' }}>
+              {settingsLoading
+                ? 'Loading current settings…'
+                : settingsEnabled
+                  ? `Enabled. Hidden keys: ${excludedKeys.length ? compactKeySummary(excludedKeys) : 'none'}.`
+                  : 'Disabled globally for all users.'}
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'grid', gap: '0.5rem', justifyItems: 'start' }}>
+            <button
+              type="button"
+              className="btn-neutral"
+              onClick={() => setSettingsExpanded((prev) => !prev)}
+              disabled={settingsLoading && !settingsExpanded}
+            >
+              {settingsExpanded ? 'Hide settings' : 'Show settings'}
+            </button>
             <button type="button" className="btn-neutral" onClick={loadSettings} disabled={settingsLoading || settingsSaving}>
               {settingsLoading ? 'Refreshing…' : 'Reload settings'}
             </button>
@@ -359,48 +430,36 @@ export default function GuideVideosPage() {
           </div>
         </div>
 
-        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
-          <input
-            type="checkbox"
-            checked={settingsEnabled}
-            onChange={(e) => setSettingsEnabled(e.target.checked)}
-            disabled={settingsLoading || settingsSaving}
-          />
-          Enable guide videos
-        </label>
+        {settingsExpanded ? (
+          <>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+              <input
+                type="checkbox"
+                checked={settingsEnabled}
+                onChange={(e) => setSettingsEnabled(e.target.checked)}
+                disabled={settingsLoading || settingsSaving}
+              />
+              Enable guide videos
+            </label>
 
-        <div style={{ display: 'grid', gap: '0.45rem' }}>
-          <div style={{ fontWeight: 700 }}>Excluded guide keys</div>
-          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-            Available keys come from the registry below. Excluded keys remain configured but are removed from the customer response.
-          </div>
-          {settingsLoading ? (
-            <div style={{ color: 'var(--muted)' }}>Loading guide video settings…</div>
-          ) : availableKeys.length === 0 ? (
-            <div style={{ color: 'var(--muted)' }}>No configured guide keys yet. Add registry entries first.</div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.5rem' }}>
-              {availableKeys.map((key) => {
-                const checked = excludedKeys.includes(key);
-                return (
-                  <label key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 0.75rem', border: '1px solid var(--border)', borderRadius: '10px' }}>
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={(e) =>
-                        setExcludedKeys((prev) =>
-                          e.target.checked ? [...prev, key] : prev.filter((item) => item !== key)
-                        )
-                      }
-                      disabled={settingsSaving}
-                    />
-                    <span style={{ fontWeight: 600 }}>{key}</span>
-                  </label>
-                );
-              })}
-            </div>
-          )}
-        </div>
+            {settingsLoading ? (
+              <div style={{ color: 'var(--muted)' }}>Loading guide video settings…</div>
+            ) : (
+              <div style={{ display: 'grid', gap: '0.45rem' }}>
+                <div style={{ fontWeight: 700 }}>Excluded guide keys</div>
+                <GuideKeySelector
+                  keys={availableKeys}
+                  selectedKeys={excludedKeys}
+                  disabled={settingsSaving}
+                  helperText="Available keys come from the registry below. Excluded keys remain configured but are removed from the customer response."
+                  onToggle={(key, checked) =>
+                    setExcludedKeys((prev) => (checked ? [...prev, key] : prev.filter((item) => item !== key)))
+                  }
+                />
+              </div>
+            )}
+          </>
+        ) : null}
       </div>
 
       {overrideDialogOpen ? (
@@ -450,7 +509,7 @@ export default function GuideVideosPage() {
               </button>
             </div>
 
-            <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ display: 'grid', gap: '0.5rem' }}>
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
                 <input type="checkbox" checked={overrideCustomized} readOnly />
                 {overrideCustomized ? 'Customized for this target' : 'Using global settings'}
@@ -463,33 +522,15 @@ export default function GuideVideosPage() {
 
             <div style={{ display: 'grid', gap: '0.45rem' }}>
               <div style={{ fontWeight: 700 }}>Excluded guide keys</div>
-              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-                Check only the guide keys you want hidden for this account override.
-              </div>
-              {availableKeys.length === 0 ? (
-                <div style={{ color: 'var(--muted)' }}>No configured guide keys yet. Add registry entries first.</div>
-              ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.5rem' }}>
-                  {availableKeys.map((key) => {
-                    const checked = overrideExcludedKeys.includes(key);
-                    return (
-                      <label key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 0.75rem', border: '1px solid var(--border)', borderRadius: '10px' }}>
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={(e) =>
-                            setOverrideExcludedKeys((prev) =>
-                              e.target.checked ? [...prev, key] : prev.filter((item) => item !== key)
-                            )
-                          }
-                          disabled={overrideLoading || overrideSaving}
-                        />
-                        <span style={{ fontWeight: 600 }}>{key}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              )}
+              <GuideKeySelector
+                keys={availableKeys}
+                selectedKeys={overrideExcludedKeys}
+                disabled={overrideLoading || overrideSaving}
+                helperText="Check only the guide keys you want hidden for this account override."
+                onToggle={(key, checked) =>
+                  setOverrideExcludedKeys((prev) => (checked ? [...prev, key] : prev.filter((item) => item !== key)))
+                }
+              />
             </div>
           </div>
         </div>
