@@ -8,9 +8,7 @@ const LABELS = {
   trusted_device_enforcement: 'Enforce Trusted Device',
   auto_refund: 'Auto Refunds',
   'crypto.external.collection.verified_only': 'Restrict crypto collection to verified users',
-  'crypto.external.collection.allow_public_endpoints': 'Allow public crypto payment links',
-  'personal_saving.interest_payout.locked.enabled': 'Locked Interest Payout',
-  'personal_saving.interest_payout.open.enabled': 'Open Interest Payout'
+  'crypto.external.collection.allow_public_endpoints': 'Allow public crypto payment links'
 };
 
 const WARNINGS = {
@@ -23,6 +21,7 @@ const ACTION_LIMIT_WARNING = 'Disabling limit checks may allow transactions abov
 const ACTION_LIMIT_EXPLANATION = 'If disabled, amount limits (KYC caps or custom limits) are not enforced for this action.';
 const CRYPTO_SPREAD_GLOBAL_KEY = 'crypto.spread.enabled';
 const CRYPTO_SPREAD_ACTION_PREFIX = 'crypto.spread.action.';
+const SHOW_CRYPTO_SPREAD_SECTION = false;
 const INTER_TRANSFER_FLAG_KEY = 'wallet.inter_transfer.enabled';
 const TRUSTED_DEVICE_GLOBAL_KEY = 'trusted_device_enforcement';
 const TRUSTED_DEVICE_ANDROID_KEY = 'trusted_device_enforcement.android';
@@ -34,6 +33,10 @@ const APP_OPEN_AUTH_GLOBAL_KEY = 'app_open_auth_enforcement';
 const APP_OPEN_AUTH_ANDROID_KEY = 'app_open_auth_enforcement.android';
 const APP_OPEN_AUTH_IOS_KEY = 'app_open_auth_enforcement.ios';
 const SAVINGS_ENABLED_KEY = 'savings.enabled';
+const HIDDEN_FEATURE_FLAG_KEYS = new Set([
+  'personal_saving.interest_payout.open.enabled',
+  'personal_saving.interest_payout.locked.enabled'
+]);
 
 const ACTION_LABELS = {
   fund_wallet: 'Wallet Deposit',
@@ -309,6 +312,7 @@ export default function FeatureFlagsPage() {
     () =>
       flags.filter(
         (flag) =>
+          !HIDDEN_FEATURE_FLAG_KEYS.has(String(flag.key)) &&
           String(flag.key) !== CRYPTO_COLLECTION_GATE_KEY &&
           String(flag.key) !== CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY &&
           String(flag.key) !== CRYPTO_SPREAD_GLOBAL_KEY &&
@@ -331,6 +335,7 @@ export default function FeatureFlagsPage() {
   const savingsFlags = useMemo(
     () =>
       flags
+        .filter((flag) => !HIDDEN_FEATURE_FLAG_KEYS.has(String(flag.key)))
         .filter((flag) => !isActionLimitKey(flag.key))
         .filter((flag) => isSavingsRelatedKey(flag.key))
         .sort((a, b) => String(a.key || '').localeCompare(String(b.key || ''))),
@@ -1648,7 +1653,7 @@ export default function FeatureFlagsPage() {
                 })}
               </div>
             </div>
-            {group.key === 'crypto' && renderCryptoSpreadSection()}
+            {SHOW_CRYPTO_SPREAD_SECTION && group.key === 'crypto' && renderCryptoSpreadSection()}
           </Fragment>
         ))}
 
