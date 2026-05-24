@@ -640,6 +640,12 @@ const [legacyEligibilitySaving, setLegacyEligibilitySaving] = useState(false);
 const [legacyEligibilityAdjustError, setLegacyEligibilityAdjustError] = useState(null);
 const [transactionAuthOverride, setTransactionAuthOverride] = useState(false);
 const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
+const [guideVideoSettings, setGuideVideoSettings] = useState({ customized: false, enabled: true, excludedKeys: [] });
+const [guideVideoSettingsLoading, setGuideVideoSettingsLoading] = useState(false);
+const [guideVideoSettingsSaving, setGuideVideoSettingsSaving] = useState(false);
+const [guideVideoSettingsError, setGuideVideoSettingsError] = useState(null);
+const [guideVideoSettingsInfo, setGuideVideoSettingsInfo] = useState(null);
+const [guideVideoRegistryKeys, setGuideVideoRegistryKeys] = useState([]);
 
   const paymentMethodTypeConflicts = useMemo(
     () => paymentMethodIncludeTypes.filter((type) => paymentMethodExcludeTypes.includes(type)),
@@ -722,6 +728,8 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       await loadCustomPricing(targetId);
       await loadLoanEligibility(targetId);
       await loadEffectiveCaps(targetId);
+      await loadGuideVideoRegistryKeys();
+      await loadGuideVideoSettings(targetId);
       await loadFeeConfigs(targetId);
       await loadPaymentMethodActionConfigs(targetId);
       await loadBillProductOverrides(targetId);
@@ -765,6 +773,38 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       }
     } finally {
       setTrustedDevicePolicyLoading(false);
+    }
+  };
+
+  const loadGuideVideoRegistryKeys = async () => {
+    try {
+      const res = await api.guideVideos.get();
+      const keys = res && typeof res === 'object' && !Array.isArray(res) ? Object.keys(res).map((key) => String(key || '').trim().toUpperCase()).filter(Boolean).sort((a, b) => a.localeCompare(b)) : [];
+      setGuideVideoRegistryKeys(keys);
+    } catch {
+      setGuideVideoRegistryKeys([]);
+    }
+  };
+
+  const loadGuideVideoSettings = async (id) => {
+    if (!id && id !== 0) {
+      setGuideVideoSettings({ customized: false, enabled: true, excludedKeys: [] });
+      return;
+    }
+    setGuideVideoSettingsLoading(true);
+    setGuideVideoSettingsError(null);
+    try {
+      const res = await api.accounts.guideVideoSettings.get(id);
+      setGuideVideoSettings({
+        customized: Boolean(res?.customized),
+        enabled: res?.enabled !== false,
+        excludedKeys: Array.isArray(res?.excludedKeys) ? res.excludedKeys.map((key) => String(key || '').trim().toUpperCase()).filter(Boolean) : []
+      });
+    } catch (err) {
+      setGuideVideoSettings({ customized: false, enabled: true, excludedKeys: [] });
+      setGuideVideoSettingsError(err?.message || 'Failed to load guide video settings');
+    } finally {
+      setGuideVideoSettingsLoading(false);
     }
   };
 
@@ -1484,6 +1524,66 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       pushToast({ tone: 'error', message });
     } finally {
       setTransactionAuthSaving(false);
+    }
+  };
+
+  const saveGuideVideoSettings = async () => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) {
+      pushToast({ tone: 'error', message: 'No account loaded' });
+      return;
+    }
+    setGuideVideoSettingsSaving(true);
+    setGuideVideoSettingsError(null);
+    setGuideVideoSettingsInfo(null);
+    try {
+      if (!guideVideoSettings.customized) {
+        await api.accounts.guideVideoSettings.remove(resolvedAccountId);
+        await loadGuideVideoSettings(resolvedAccountId);
+        setGuideVideoSettingsInfo('Account now uses global guide video settings.');
+        pushToast({ tone: 'success', message: 'Guide video settings reset to global behavior' });
+        return;
+      }
+      const payload = {
+        customized: true,
+        enabled: Boolean(guideVideoSettings.enabled),
+        excludedKeys: [...new Set((guideVideoSettings.excludedKeys || []).map((key) => String(key || '').trim().toUpperCase()).filter(Boolean))]
+      };
+      const res = await api.accounts.guideVideoSettings.update(resolvedAccountId, payload);
+      setGuideVideoSettings({
+        customized: Boolean(res?.customized),
+        enabled: res?.enabled !== false,
+        excludedKeys: Array.isArray(res?.excludedKeys) ? res.excludedKeys.map((key) => String(key || '').trim().toUpperCase()).filter(Boolean) : []
+      });
+      setGuideVideoSettingsInfo(payload.customized ? 'Guide video override saved for this account.' : 'Account now uses global guide video settings.');
+      pushToast({ tone: 'success', message: payload.customized ? 'Guide video override saved' : 'Guide video settings reset to global behavior' });
+    } catch (err) {
+      const message = err?.message || 'Failed to save guide video settings';
+      setGuideVideoSettingsError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setGuideVideoSettingsSaving(false);
+    }
+  };
+
+  const clearGuideVideoSettingsOverride = async () => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) {
+      pushToast({ tone: 'error', message: 'No account loaded' });
+      return;
+    }
+    setGuideVideoSettingsSaving(true);
+    setGuideVideoSettingsError(null);
+    setGuideVideoSettingsInfo(null);
+    try {
+      await api.accounts.guideVideoSettings.remove(resolvedAccountId);
+      await loadGuideVideoSettings(resolvedAccountId);
+      setGuideVideoSettingsInfo('Guide video override cleared. Global settings now apply to this account.');
+      pushToast({ tone: 'success', message: 'Guide video override cleared' });
+    } catch (err) {
+      const message = err?.message || 'Failed to clear guide video override';
+      setGuideVideoSettingsError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setGuideVideoSettingsSaving(false);
     }
   };
 
@@ -2963,6 +3063,119 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             />
           </div>
         ) : null}
+      </div>
+
+      <div className="card" style={{ padding: '1rem', display: 'grid', gap: '0.85rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+            <div style={{ fontWeight: 800 }}>Guide Video Settings</div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Global guide-video settings apply by default. Enable customization only when this account should receive different guide-video behavior.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn-neutral btn-sm"
+              onClick={() => loadGuideVideoSettings(resolvedAccountId)}
+              disabled={guideVideoSettingsLoading || guideVideoSettingsSaving || resolvedAccountId === null || resolvedAccountId === undefined}
+            >
+              {guideVideoSettingsLoading ? 'Refreshing…' : 'Refresh'}
+            </button>
+            <button
+              type="button"
+              className="btn-primary btn-sm"
+              onClick={saveGuideVideoSettings}
+              disabled={guideVideoSettingsLoading || guideVideoSettingsSaving || resolvedAccountId === null || resolvedAccountId === undefined}
+            >
+              {guideVideoSettingsSaving ? 'Saving…' : 'Save override'}
+            </button>
+            <button
+              type="button"
+              className="btn-neutral btn-sm"
+              onClick={clearGuideVideoSettingsOverride}
+              disabled={guideVideoSettingsLoading || guideVideoSettingsSaving || !guideVideoSettings.customized || resolvedAccountId === null || resolvedAccountId === undefined}
+            >
+              Use global settings
+            </button>
+          </div>
+        </div>
+
+        {guideVideoSettingsError ? <div style={{ color: '#b91c1c', fontWeight: 700 }}>{guideVideoSettingsError}</div> : null}
+        {guideVideoSettingsInfo ? <div style={{ color: '#15803d', fontWeight: 700 }}>{guideVideoSettingsInfo}</div> : null}
+
+        <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+            <input
+              type="checkbox"
+              checked={guideVideoSettings.customized}
+              onChange={(e) =>
+                setGuideVideoSettings((prev) => ({
+                  ...prev,
+                  customized: e.target.checked
+                }))
+              }
+              disabled={guideVideoSettingsLoading || guideVideoSettingsSaving}
+            />
+            {guideVideoSettings.customized ? 'Customized for this account' : 'Using global settings'}
+          </label>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, opacity: guideVideoSettings.customized ? 1 : 0.65 }}>
+            <input
+              type="checkbox"
+              checked={guideVideoSettings.enabled}
+              onChange={(e) =>
+                setGuideVideoSettings((prev) => ({
+                  ...prev,
+                  enabled: e.target.checked
+                }))
+              }
+              disabled={guideVideoSettingsLoading || guideVideoSettingsSaving || !guideVideoSettings.customized}
+            />
+            {guideVideoSettings.enabled ? 'Guide videos enabled' : 'Guide videos disabled'}
+          </label>
+        </div>
+
+        <div style={{ display: 'grid', gap: '0.45rem' }}>
+          <div style={{ fontWeight: 700 }}>Excluded guide keys</div>
+          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+            If customization is enabled, checked keys stay configured globally but are hidden for this account.
+          </div>
+          {guideVideoRegistryKeys.length === 0 ? (
+            <div style={{ color: 'var(--muted)' }}>No guide video keys configured globally yet.</div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.5rem' }}>
+              {guideVideoRegistryKeys.map((key) => {
+                const checked = guideVideoSettings.excludedKeys.includes(key);
+                return (
+                  <label key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 0.75rem', border: '1px solid var(--border)', borderRadius: '10px', opacity: guideVideoSettings.customized ? 1 : 0.65 }}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) =>
+                        setGuideVideoSettings((prev) => ({
+                          ...prev,
+                          excludedKeys: e.target.checked
+                            ? [...prev.excludedKeys, key]
+                            : prev.excludedKeys.filter((item) => item !== key)
+                        }))
+                      }
+                      disabled={guideVideoSettingsLoading || guideVideoSettingsSaving || !guideVideoSettings.customized}
+                    />
+                    <span style={{ fontWeight: 600 }}>{key}</span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <DetailGrid
+          rows={[
+            { label: 'Customized', value: guideVideoSettings.customized ? 'Yes' : 'No' },
+            { label: 'Enabled', value: guideVideoSettings.enabled ? 'Yes' : 'No' },
+            { label: 'Excluded Keys', value: guideVideoSettings.excludedKeys.length ? guideVideoSettings.excludedKeys.join(', ') : 'None' }
+          ]}
+        />
       </div>
 
       <div className="card" style={{ padding: '1rem' }}>

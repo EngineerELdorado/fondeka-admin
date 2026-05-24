@@ -62,6 +62,10 @@ export default function GuideVideosPage() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsEnabled, setSettingsEnabled] = useState(true);
+  const [excludedKeys, setExcludedKeys] = useState([]);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
 
@@ -78,8 +82,23 @@ export default function GuideVideosPage() {
     }
   };
 
+  const loadSettings = async () => {
+    setSettingsLoading(true);
+    setError(null);
+    try {
+      const res = await api.guideVideos.getSettings();
+      setSettingsEnabled(res?.enabled !== false);
+      setExcludedKeys(Array.isArray(res?.excludedKeys) ? res.excludedKeys.map((key) => String(key || '').trim().toUpperCase()).filter(Boolean) : []);
+    } catch (err) {
+      setError(err?.message || 'Failed to load guide video settings.');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadRegistry();
+    loadSettings();
   }, []);
 
   const duplicateKeys = useMemo(() => {
@@ -105,6 +124,29 @@ export default function GuideVideosPage() {
       }),
     [rows]
   );
+
+  const availableKeys = useMemo(() => {
+    const normalized = rows.map((row) => String(row.key || '').trim().toUpperCase()).filter(Boolean);
+    return [...new Set(normalized)].sort((a, b) => a.localeCompare(b));
+  }, [rows]);
+
+  const handleSaveSettings = async () => {
+    setSettingsSaving(true);
+    setError(null);
+    setInfo(null);
+    try {
+      await api.guideVideos.updateSettings({
+        enabled: settingsEnabled,
+        excludedKeys: [...new Set(excludedKeys.map((key) => String(key || '').trim().toUpperCase()).filter(Boolean))]
+      });
+      setInfo('Guide video settings saved.');
+      await loadSettings();
+    } catch (err) {
+      setError(err?.message || 'Failed to save guide video settings.');
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
 
   const handleSave = async () => {
     const payload = {};
@@ -177,6 +219,68 @@ export default function GuideVideosPage() {
 
       {error ? <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div> : null}
       {info ? <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div> : null}
+
+      <div className="card" style={{ display: 'grid', gap: '0.85rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontWeight: 800 }}>Guide Video Settings</div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              When disabled, no guide videos are returned to the client app. Excluded keys stay configured in the registry but are hidden from users.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button type="button" className="btn-neutral" onClick={loadSettings} disabled={settingsLoading || settingsSaving}>
+              {settingsLoading ? 'Refreshing…' : 'Reload settings'}
+            </button>
+            <button type="button" className="btn-success" onClick={handleSaveSettings} disabled={settingsLoading || settingsSaving}>
+              {settingsSaving ? 'Saving…' : 'Save settings'}
+            </button>
+          </div>
+        </div>
+
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+          <input
+            type="checkbox"
+            checked={settingsEnabled}
+            onChange={(e) => setSettingsEnabled(e.target.checked)}
+            disabled={settingsLoading || settingsSaving}
+          />
+          Enable guide videos
+        </label>
+
+        <div style={{ display: 'grid', gap: '0.45rem' }}>
+          <div style={{ fontWeight: 700 }}>Excluded guide keys</div>
+          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+            Available keys come from the registry below. Excluded keys remain configured but are removed from the customer response.
+          </div>
+          {settingsLoading ? (
+            <div style={{ color: 'var(--muted)' }}>Loading guide video settings…</div>
+          ) : availableKeys.length === 0 ? (
+            <div style={{ color: 'var(--muted)' }}>No configured guide keys yet. Add registry entries first.</div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.5rem' }}>
+              {availableKeys.map((key) => {
+                const checked = excludedKeys.includes(key);
+                return (
+                  <label key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 0.75rem', border: '1px solid var(--border)', borderRadius: '10px' }}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) =>
+                        setExcludedKeys((prev) =>
+                          e.target.checked ? [...prev, key] : prev.filter((item) => item !== key)
+                        )
+                      }
+                      disabled={settingsSaving}
+                    />
+                    <span style={{ fontWeight: 600 }}>{key}</span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
 
       <div className="card" style={{ display: 'grid', gap: '0.85rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
