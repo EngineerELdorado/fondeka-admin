@@ -127,6 +127,8 @@ export default function NotificationPushCampaignsPage() {
   const [selectedPaymentProviderIds, setSelectedPaymentProviderIds] = useState([]);
   const [selectedTransactionServices, setSelectedTransactionServices] = useState([]);
   const [selectedTransactionActions, setSelectedTransactionActions] = useState([]);
+  const [accountCreatedFrom, setAccountCreatedFrom] = useState('');
+  const [accountCreatedTo, setAccountCreatedTo] = useState('');
 
   const [launchLoading, setLaunchLoading] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
@@ -203,6 +205,12 @@ export default function NotificationPushCampaignsPage() {
     const paymentProviderIds = selectedPaymentProviderIds.map((value) => Number(value)).filter((value) => Number.isInteger(value));
     const transactionServices = Array.from(new Set(selectedTransactionServices.map((value) => String(value || '').trim()).filter(Boolean)));
     const transactionActions = Array.from(new Set(selectedTransactionActions.map((value) => String(value || '').trim()).filter(Boolean)));
+    const createdFrom = String(accountCreatedFrom || '').trim();
+    const createdTo = String(accountCreatedTo || '').trim();
+
+    if (createdFrom && createdTo && createdFrom > createdTo) {
+      throw new Error('Created from cannot be after Created to.');
+    }
 
     const audience = {};
     if (countryIds.length) audience.countryIds = countryIds;
@@ -239,6 +247,8 @@ export default function NotificationPushCampaignsPage() {
     if (paymentProviderIds.length) audience.paymentProviderIds = paymentProviderIds;
     if (transactionServices.length) audience.transactionServices = transactionServices;
     if (transactionActions.length) audience.transactionActions = transactionActions;
+    if (createdFrom) audience.accountCreatedFrom = createdFrom;
+    if (createdTo) audience.accountCreatedTo = createdTo;
 
     if (Object.keys(audience).length === 0) return undefined;
     return audience;
@@ -264,7 +274,9 @@ export default function NotificationPushCampaignsPage() {
     selectedPaymentMethodIds,
     selectedPaymentProviderIds,
     selectedTransactionServices,
-    selectedTransactionActions
+    selectedTransactionActions,
+    accountCreatedFrom,
+    accountCreatedTo
   ]);
 
   const payloadPreview = useMemo(() => {
@@ -679,6 +691,23 @@ export default function NotificationPushCampaignsPage() {
                         </select>
                       </label>
                     ))}
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gap: '0.35rem' }}>
+                  <div style={{ fontWeight: 700 }}>Account creation date</div>
+                  <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                    Day-level filters evaluated in UTC. From is inclusive from the start of the day. To is inclusive through the end of the day.
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+                    <label style={{ display: 'grid', gap: '0.35rem' }}>
+                      <span>Created from</span>
+                      <input type="date" value={accountCreatedFrom} onChange={(e) => setAccountCreatedFrom(e.target.value)} />
+                    </label>
+                    <label style={{ display: 'grid', gap: '0.35rem' }}>
+                      <span>Created to</span>
+                      <input type="date" value={accountCreatedTo} onChange={(e) => setAccountCreatedTo(e.target.value)} />
+                    </label>
                   </div>
                 </div>
 

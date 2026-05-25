@@ -100,6 +100,7 @@ const SUPPORTED_KEYS = [
 
 const CRYPTO_COLLECTION_GATE_KEY = 'crypto.external.collection.verified_only';
 const CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY = 'crypto.external.collection.allow_public_endpoints';
+const NOTIFICATION_PERMISSION_WELCOME_KEY = 'notification.permission.request_on_welcome_screen';
 const CRYPTO_COLLECTION_GATE_KYC_STATUSES = ['APPROVED', 'PROVISIONALLY_APPROVED'];
 const GENERIC_DISABLED_MESSAGE_HELP =
   'Optional. Shown to users when this feature is disabled. If left empty, the app will use the default maintenance message.';
@@ -297,6 +298,11 @@ export default function FeatureFlagsPage() {
     [flags]
   );
 
+  const notificationPermissionWelcomeFlag = useMemo(
+    () => flags.find((flag) => String(flag.key) === NOTIFICATION_PERMISSION_WELCOME_KEY),
+    [flags]
+  );
+
   const cryptoSpreadGlobalFlag = useMemo(
     () => flags.find((flag) => String(flag.key) === CRYPTO_SPREAD_GLOBAL_KEY),
     [flags]
@@ -358,6 +364,7 @@ export default function FeatureFlagsPage() {
           !isHiddenFeatureFlag(flag.key) &&
           String(flag.key) !== CRYPTO_COLLECTION_GATE_KEY &&
           String(flag.key) !== CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY &&
+          String(flag.key) !== NOTIFICATION_PERMISSION_WELCOME_KEY &&
           String(flag.key) !== CRYPTO_SPREAD_GLOBAL_KEY &&
           String(flag.key) !== INTER_TRANSFER_FLAG_KEY &&
           String(flag.key) !== TRUSTED_DEVICE_GLOBAL_KEY &&
@@ -478,6 +485,7 @@ export default function FeatureFlagsPage() {
       const list = Array.isArray(res) ? res : [];
       const hasCryptoCollectionGate = list.some((flag) => String(flag?.key) === CRYPTO_COLLECTION_GATE_KEY);
       const hasPublicEndpointsFlag = list.some((flag) => String(flag?.key) === CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY);
+      const hasNotificationPermissionWelcomeFlag = list.some((flag) => String(flag?.key) === NOTIFICATION_PERMISSION_WELCOME_KEY);
       const hasCryptoSpreadGlobal = list.some((flag) => String(flag?.key) === CRYPTO_SPREAD_GLOBAL_KEY);
       const hasInterTransferFlag = list.some((flag) => String(flag?.key) === INTER_TRANSFER_FLAG_KEY);
       const hasTrustedGlobalFlag = list.some((flag) => String(flag?.key) === TRUSTED_DEVICE_GLOBAL_KEY);
@@ -489,6 +497,7 @@ export default function FeatureFlagsPage() {
       const defaults = [];
       if (!hasCryptoCollectionGate) defaults.push({ key: CRYPTO_COLLECTION_GATE_KEY, enabled: true, isDefault: true });
       if (!hasPublicEndpointsFlag) defaults.push({ key: CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY, enabled: true, isDefault: true });
+      if (!hasNotificationPermissionWelcomeFlag) defaults.push({ key: NOTIFICATION_PERMISSION_WELCOME_KEY, enabled: true, isDefault: true });
       if (!hasCryptoSpreadGlobal) defaults.push({ key: CRYPTO_SPREAD_GLOBAL_KEY, enabled: true, isDefault: true });
       if (!hasInterTransferFlag) defaults.push({ key: INTER_TRANSFER_FLAG_KEY, enabled: true, isDefault: true });
       if (!hasTrustedGlobalFlag) defaults.push({ key: TRUSTED_DEVICE_GLOBAL_KEY, enabled: true, isDefault: true });
@@ -1197,6 +1206,32 @@ export default function FeatureFlagsPage() {
           </div>
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
             {t('featureFlags.cryptoPublicHelp')}
+          </div>
+        </CollapsibleSection>
+      )}
+
+      {notificationPermissionWelcomeFlag && (
+        <CollapsibleSection
+          title="Request notification permission on Welcome screen"
+          subtitle={NOTIFICATION_PERMISSION_WELCOME_KEY}
+          borderColor="#2563eb"
+        >
+          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+            When enabled, the app asks for notification permission before signup/login on the Welcome screen.
+          </div>
+          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+            When disabled, the app skips the early prompt and asks later after the user is authenticated.
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+              <input
+                type="checkbox"
+                checked={Boolean(notificationPermissionWelcomeFlag.enabled)}
+                onChange={() => handleToggle(NOTIFICATION_PERMISSION_WELCOME_KEY)}
+                disabled={loading || savingKey === NOTIFICATION_PERMISSION_WELCOME_KEY}
+              />
+              {notificationPermissionWelcomeFlag.enabled ? t('featureFlags.enabled') : t('featureFlags.disabled')}
+            </label>
           </div>
         </CollapsibleSection>
       )}
