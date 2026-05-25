@@ -34,9 +34,11 @@ const APP_OPEN_AUTH_ANDROID_KEY = 'app_open_auth_enforcement.android';
 const APP_OPEN_AUTH_IOS_KEY = 'app_open_auth_enforcement.ios';
 const SAVINGS_ENABLED_KEY = 'savings.enabled';
 const HIDDEN_FEATURE_FLAG_KEYS = new Set([
+  'requesting_loan.enabled',
   'personal_saving.interest_payout.open.enabled',
   'personal_saving.interest_payout.locked.enabled'
 ]);
+const HIDDEN_FEATURE_FLAG_GROUP_KEYS = new Set(['country', 'province', 'municipality', 'town', 'relograde', 'payment_method_network']);
 
 const ACTION_LABELS = {
   fund_wallet: 'Wallet Deposit',
@@ -145,6 +147,10 @@ const normalizeActionToken = (value) => String(value || '').trim().toLowerCase()
 const isSavingsRelatedKey = (key) => {
   const raw = String(key || '');
   return raw === SAVINGS_ENABLED_KEY || raw.startsWith('personal_saving.') || raw.startsWith('group_saving.') || raw.startsWith('savings.');
+};
+const isHiddenFeatureFlag = (key) => {
+  const raw = String(key || '');
+  return HIDDEN_FEATURE_FLAG_KEYS.has(raw) || raw.startsWith('payment.method.');
 };
 
 const normalizeOverride = (entry) => {
@@ -349,7 +355,7 @@ export default function FeatureFlagsPage() {
     () =>
       flags.filter(
         (flag) =>
-          !HIDDEN_FEATURE_FLAG_KEYS.has(String(flag.key)) &&
+          !isHiddenFeatureFlag(flag.key) &&
           String(flag.key) !== CRYPTO_COLLECTION_GATE_KEY &&
           String(flag.key) !== CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY &&
           String(flag.key) !== CRYPTO_SPREAD_GLOBAL_KEY &&
@@ -372,7 +378,7 @@ export default function FeatureFlagsPage() {
   const savingsFlags = useMemo(
     () =>
       flags
-        .filter((flag) => !HIDDEN_FEATURE_FLAG_KEYS.has(String(flag.key)))
+        .filter((flag) => !isHiddenFeatureFlag(flag.key))
         .filter((flag) => !isActionLimitKey(flag.key))
         .filter((flag) => isSavingsRelatedKey(flag.key))
         .sort((a, b) => String(a.key || '').localeCompare(String(b.key || ''))),
@@ -396,6 +402,7 @@ export default function FeatureFlagsPage() {
       .forEach((flag) => {
         const rawKey = String(flag.key || '');
         const groupKey = rawKey.includes('.') ? rawKey.split('.')[0] : 'modules';
+        if (HIDDEN_FEATURE_FLAG_GROUP_KEYS.has(groupKey)) return;
         const list = groups.get(groupKey) || [];
         list.push(flag);
         groups.set(groupKey, list);

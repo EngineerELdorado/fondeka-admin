@@ -357,6 +357,7 @@ export default function DashboardPage() {
   const [countries, setCountries] = useState([]);
   const [showHoldings, setShowHoldings] = useState(false);
   const [showRevenueBreakdown, setShowRevenueBreakdown] = useState(false);
+  const [showSavingsBreakdown, setShowSavingsBreakdown] = useState(false);
   const [staleMinutes, setStaleMinutes] = useState(3);
   const [staleMinutesMode, setStaleMinutesMode] = useState('preset');
   const [fundedStuckReport, setFundedStuckReport] = useState(null);
@@ -541,6 +542,7 @@ export default function DashboardPage() {
   const metrics = data?.metrics || {};
   const timeseries = data?.timeseries || [];
   const holdings = data?.holdings || {};
+  const savingsAggregates = data?.savingsAggregates || {};
   const fundedStuckFundedCount = Number(fundedStuckReport?.fundedCount) || 0;
   const fundedStuckExecutingCount = Number(fundedStuckReport?.executingCount) || 0;
   const fundedStuckUnknownCount = Number(fundedStuckReport?.unknownCount) || 0;
@@ -767,10 +769,15 @@ export default function DashboardPage() {
       onClick: () => setShowHoldings(true)
     },
     {
-      label: t('dashboard.transactions'),
-      value: formatNumber(totals.totalCount),
-      sub: `Volume ${formatCurrency(totals.totalVolume)}`,
-      onClick: () => goToTransactions()
+      label: 'Savings blances',
+      value: formatCurrency(savingsAggregates.currentAllLiabilityWithAccruedInterest),
+      sub: 'Includes interests',
+      tone: '#7c3aed',
+      onClick: () => setShowSavingsBreakdown(true),
+      menu: {
+        label: 'Savings breakdown',
+        onClick: () => setShowSavingsBreakdown(true)
+      }
     },
     {
       label: t('dashboard.completed'),
@@ -790,6 +797,7 @@ export default function DashboardPage() {
       value: formatCurrency(totalNetProfit),
       sub: t('dashboard.afterCosts'),
       tone: '#15803d',
+      onClick: () => setShowRevenueBreakdown(true),
       menu: {
         label: t('dashboard.revenueBreakdown'),
         onClick: () => setShowRevenueBreakdown(true)
@@ -1702,6 +1710,65 @@ export default function DashboardPage() {
                   <div style={{ fontWeight: 800, fontSize: '18px' }}>{item.value}</div>
                 </div>
               ))}
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showSavingsBreakdown && (
+        <Modal title="Savings aggregates" onClose={() => setShowSavingsBreakdown(false)}>
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Totals reflect the current dashboard filters across accounts. Historical fields show money that has passed through savings over time. Current liability fields show what is still owed right now.
+            </div>
+            <div style={{ display: 'grid', gap: '0.5rem' }}>
+              <div style={{ fontWeight: 800 }}>Historical savings and contributions</div>
+              <Table
+                columns={[
+                  { key: 'label', label: 'Metric' },
+                  { key: 'amount', label: 'Amount', render: (row) => formatCurrency(row.amount) }
+                ]}
+                rows={[
+                  { label: 'Open savings deposited', amount: savingsAggregates.openSavings },
+                  { label: 'Locked savings deposited', amount: savingsAggregates.lockedSavings },
+                  { label: 'Likelemba contributions', amount: savingsAggregates.likelemba },
+                  { label: 'AVEC contributions', amount: savingsAggregates.avec },
+                  { label: 'All', amount: savingsAggregates.all }
+                ]}
+              />
+            </div>
+            <div style={{ display: 'grid', gap: '0.5rem' }}>
+              <div style={{ fontWeight: 800 }}>Current savings liability</div>
+              <Table
+                columns={[
+                  { key: 'label', label: 'Metric' },
+                  { key: 'amount', label: 'Amount', render: (row) => formatCurrency(row.amount) }
+                ]}
+                rows={[
+                  { label: 'Open savings current principal', amount: savingsAggregates.currentOpenSavingsLiability },
+                  { label: 'Locked savings current principal', amount: savingsAggregates.currentLockedSavingsLiability },
+                  { label: 'Likelemba current treasury', amount: savingsAggregates.currentLikelembaLiability },
+                  { label: 'AVEC current treasury', amount: savingsAggregates.currentAvecLiability },
+                  { label: 'Current total liability', amount: savingsAggregates.currentAllLiability }
+                ]}
+              />
+            </div>
+            <div style={{ display: 'grid', gap: '0.5rem' }}>
+              <div style={{ fontWeight: 800 }}>Accrued interest</div>
+              <Table
+                columns={[
+                  { key: 'label', label: 'Metric' },
+                  { key: 'amount', label: 'Amount', render: (row) => formatCurrency(row.amount) }
+                ]}
+                rows={[
+                  { label: 'Open savings accrued interest', amount: savingsAggregates.openSavingsAccruedInterest },
+                  { label: 'Locked savings accrued interest', amount: savingsAggregates.lockedSavingsAccruedInterest },
+                  { label: 'Likelemba accrued interest', amount: savingsAggregates.likelembaAccruedInterest },
+                  { label: 'AVEC accrued interest', amount: savingsAggregates.avecAccruedInterest },
+                  { label: 'All accrued interest', amount: savingsAggregates.allAccruedInterest },
+                  { label: 'Current liability including accrued interest', amount: savingsAggregates.currentAllLiabilityWithAccruedInterest }
+                ]}
+              />
             </div>
           </div>
         </Modal>
