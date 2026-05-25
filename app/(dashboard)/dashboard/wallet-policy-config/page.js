@@ -1171,8 +1171,7 @@ export default function WalletPolicyConfigPage() {
                       <label
                         key={action}
                         style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
+                          display: 'grid',
                           gap: '0.45rem',
                           minWidth: 0,
                           padding: '0.4rem 0.45rem',
@@ -1180,6 +1179,9 @@ export default function WalletPolicyConfigPage() {
                           background: checked ? 'var(--accent-soft)' : 'transparent'
                         }}
                       >
+                        <span style={{ overflowWrap: 'anywhere' }}>
+                          {humanizeEnum(action)} <span style={{ color: 'var(--muted)' }}>({action})</span>
+                        </span>
                         <input
                           type="checkbox"
                           checked={checked}
@@ -1194,9 +1196,6 @@ export default function WalletPolicyConfigPage() {
                           }}
                           disabled={loading || saving}
                         />
-                        <span style={{ overflowWrap: 'anywhere' }}>
-                          {humanizeEnum(action)} <span style={{ color: 'var(--muted)' }}>({action})</span>
-                        </span>
                       </label>
                     );
                   })}
