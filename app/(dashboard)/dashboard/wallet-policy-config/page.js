@@ -1058,7 +1058,8 @@ export default function WalletPolicyConfigPage() {
             {ALLOWED_PAYOUT_ACTIONS.map((action) => {
               const checked = payoutRateLimitActions.includes(action);
               return (
-                <label key={action} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
+                <label key={action} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-start', gap: '0.45rem' }}>
+                  <span>{action}</span>
                   <input
                     type="checkbox"
                     checked={checked}
@@ -1072,8 +1073,8 @@ export default function WalletPolicyConfigPage() {
                       });
                     }}
                     disabled={loading || saving}
+                    style={{ margin: 0 }}
                   />
-                  {action}
                 </label>
               );
             })}
@@ -1155,11 +1156,11 @@ export default function WalletPolicyConfigPage() {
                 <div
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                    gap: '0.35rem',
+                    gridTemplateColumns: '1fr',
+                    gap: 0,
                     maxHeight: '220px',
                     overflow: 'auto',
-                    padding: '0.6rem',
+                    padding: 0,
                     border: '1px solid var(--border)',
                     borderRadius: '12px',
                     background: 'color-mix(in srgb, var(--surface) 96%, var(--bg) 4%)'
@@ -1172,14 +1173,14 @@ export default function WalletPolicyConfigPage() {
                         key={action}
                         style={{
                           display: 'grid',
-                          gap: '0.45rem',
+                          gap: 0,
                           minWidth: 0,
-                          padding: '0.4rem 0.45rem',
-                          borderRadius: '10px',
+                          padding: 0,
+                          borderRadius: '6px',
                           background: checked ? 'var(--accent-soft)' : 'transparent'
                         }}
                       >
-                        <span style={{ overflowWrap: 'anywhere' }}>
+                        <span style={{ overflowWrap: 'anywhere', lineHeight: 1 }}>
                           {humanizeEnum(action)} <span style={{ color: 'var(--muted)' }}>({action})</span>
                         </span>
                         <input
@@ -1195,6 +1196,7 @@ export default function WalletPolicyConfigPage() {
                             });
                           }}
                           disabled={loading || saving}
+                          style={{ margin: 0 }}
                         />
                       </label>
                     );
