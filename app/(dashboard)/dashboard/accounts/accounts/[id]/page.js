@@ -1095,8 +1095,8 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
   }, [account, account?.enforceAuth, account?.enforceTransactionAuth, account?.enforce_transaction_auth, account?.enforceAuthAccount, account?.enforceTransactionAuthAccount, account?.enforce_transaction_auth_account]);
 
   useEffect(() => {
-    setAppVersionOverride(account?.customAppVersion ?? '');
-  }, [account?.customAppVersion]);
+    setAppVersionOverride(account?.customBackendAppVersion ?? account?.customAppVersion ?? '');
+  }, [account?.customBackendAppVersion, account?.customAppVersion]);
 
   useEffect(() => {
     setPhoneNumberDraft(account?.phoneNumber || account?.phone || '');
@@ -3062,10 +3062,18 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
             <div style={{ fontWeight: 800 }}>App Version</div>
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-              Effective version: <span style={{ fontWeight: 700 }}>{accountView?.appVersion ?? '—'}</span>
+              Backend version: <span style={{ fontWeight: 700 }}>{accountView?.backendAppVersion ?? accountView?.appVersion ?? '—'}</span>
             </div>
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-              {accountView?.customAppVersion ? `Override: ${accountView.customAppVersion}` : 'Using global version'}
+              {accountView?.customBackendAppVersion ?? accountView?.customAppVersion
+                ? `Custom backend version: ${accountView?.customBackendAppVersion ?? accountView?.customAppVersion}`
+                : 'Using global backend version'}
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Mobile app version: <span style={{ fontWeight: 700 }}>{accountView?.mobileAppVersion ?? accountView?.lastSeenClientVersion ?? 'Not yet reported'}</span>
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Mobile app version seen at: <span style={{ fontWeight: 700 }}>{accountView?.mobileAppVersionAt ?? accountView?.lastSeenClientVersionAt ? formatDateTime(accountView?.mobileAppVersionAt ?? accountView?.lastSeenClientVersionAt) : 'Unknown'}</span>
             </div>
           </div>
           <button type="button" className="btn-neutral btn-sm" onClick={loadAccount} disabled={loading}>
@@ -3104,7 +3112,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               appVersionSaving ||
               resolvedAccountId === null ||
               resolvedAccountId === undefined ||
-              !accountView?.customAppVersion
+              !(accountView?.customBackendAppVersion ?? accountView?.customAppVersion)
             }
           >
             Clear override
