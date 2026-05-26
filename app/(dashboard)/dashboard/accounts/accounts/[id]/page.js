@@ -408,6 +408,14 @@ const createEmptyProviderRoutingForm = () => ({
   active: true
 });
 const normalizeEnumValue = (value) => (typeof value === 'string' ? value.trim().toUpperCase() : '');
+const formatFeeAmountRange = (minAmount, maxAmount) => {
+  const hasMin = minAmount !== null && minAmount !== undefined && minAmount !== '';
+  const hasMax = maxAmount !== null && maxAmount !== undefined && maxAmount !== '';
+  if (!hasMin && !hasMax) return 'Default';
+  if (hasMin && hasMax) return `${Number(minAmount).toFixed(2)} - ${Number(maxAmount).toFixed(2)}`;
+  if (hasMin) return `>= ${Number(minAmount).toFixed(2)}`;
+  return `<= ${Number(maxAmount).toFixed(2)}`;
+};
 
 export default function AccountDetailPage() {
   const params = useParams();
@@ -508,6 +516,8 @@ const [notificationDataModal, setNotificationDataModal] = useState(null);
   const [feeProviderFlat, setFeeProviderFlat] = useState('');
   const [feeOurPct, setFeeOurPct] = useState('');
   const [feeOurFlat, setFeeOurFlat] = useState('');
+  const [feeMinAmount, setFeeMinAmount] = useState('');
+  const [feeMaxAmount, setFeeMaxAmount] = useState('');
   const [feeApplicationMode, setFeeApplicationMode] = useState('');
   const [feeSaving, setFeeSaving] = useState(false);
   const [paymentMethodActionConfigs, setPaymentMethodActionConfigs] = useState([]);
@@ -1987,6 +1997,8 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     setFeeProviderFlat(fee?.providerFlatFee ?? '');
     setFeeOurPct(fee?.ourFeePercentage ?? '');
     setFeeOurFlat(fee?.ourFlatFee ?? '');
+    setFeeMinAmount(fee?.minAmount ?? '');
+    setFeeMaxAmount(fee?.maxAmount ?? '');
     setFeeApplicationMode(fee?.feeApplicationMode || '');
     setShowFeeForm(true);
   };
@@ -2003,6 +2015,8 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     setFeeProviderFlat('');
     setFeeOurPct('');
     setFeeOurFlat('');
+    setFeeMinAmount('');
+    setFeeMaxAmount('');
     setFeeApplicationMode('');
   };
 
@@ -2033,6 +2047,10 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         return;
       }
     }
+    if (feeMinAmount !== '' && feeMaxAmount !== '' && Number(feeMinAmount) > Number(feeMaxAmount)) {
+      setFeeConfigsError('Minimum amount cannot be greater than maximum amount.');
+      return;
+    }
     const payload = {
       action: feeAction,
       service: feeService || null,
@@ -2044,6 +2062,8 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       providerFlatFee: feeProviderFlat === '' ? 0 : Number(feeProviderFlat),
       ourFeePercentage: feeOurPct === '' ? 0 : Number(feeOurPct),
       ourFlatFee: feeOurFlat === '' ? 0 : Number(feeOurFlat),
+      minAmount: feeMinAmount === '' ? null : Number(feeMinAmount),
+      maxAmount: feeMaxAmount === '' ? null : Number(feeMaxAmount),
       feeApplicationMode: feeApplicationMode || null
     };
     setFeeSaving(true);
@@ -3880,7 +3900,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '720px' }}>
                 <thead>
                   <tr>
-                          {['Action', 'Service', 'From', 'To', 'PMPP', 'Country', 'Provider %', 'Provider flat', 'Our %', 'Our flat', 'Fee mode', 'Updated', ''].map((h) => (
+                          {['Action', 'Service', 'From', 'To', 'PMPP', 'Country', 'Provider %', 'Provider flat', 'Our %', 'Our flat', 'Amount range', 'Fee mode', 'Updated', ''].map((h) => (
                       <th key={h} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
                         {h}
                       </th>
@@ -3910,6 +3930,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                             <td style={{ padding: '0.45rem' }}>{fee.providerFlatFee}</td>
                             <td style={{ padding: '0.45rem' }}>{fee.ourFeePercentage}</td>
                             <td style={{ padding: '0.45rem' }}>{fee.ourFlatFee}</td>
+                            <td style={{ padding: '0.45rem' }}>{formatFeeAmountRange(fee.minAmount, fee.maxAmount)}</td>
                             <td style={{ padding: '0.45rem' }}>
                               {String(fee.feeApplicationMode || '').toUpperCase() === 'INCLUSIVE'
                                 ? 'Recipient pays'
@@ -5526,6 +5547,14 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                 <input id="feeOurFlat" type="number" step="0.01" value={feeOurFlat} onChange={(e) => setFeeOurFlat(e.target.value)} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="feeMinAmount">Minimum amount</label>
+                <input id="feeMinAmount" type="number" min={0} step="0.01" value={feeMinAmount} onChange={(e) => setFeeMinAmount(e.target.value)} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="feeMaxAmount">Maximum amount</label>
+                <input id="feeMaxAmount" type="number" min={0} step="0.01" value={feeMaxAmount} onChange={(e) => setFeeMaxAmount(e.target.value)} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="feeApplicationMode">Account fee application override</label>
                 <select id="feeApplicationMode" value={feeApplicationMode} onChange={(e) => setFeeApplicationMode(e.target.value)}>
                   <option value="">Use inherited default</option>
@@ -5553,6 +5582,10 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                   </div>
                 )}
               </div>
+            </div>
+
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Leave both empty to make this the default fee for the scope. Set only minimum for amounts at or above that value. Set only maximum for amounts at or below that value. Set both to apply only within that range.
             </div>
 
             <div className="modal-actions">

@@ -87,7 +87,7 @@ const getCardTransactionsValue = (row, dashboardData) => {
   const count = Number(match);
   return Number.isFinite(count) ? count : null;
 };
-const CURRENCY_METRIC_KEYS = new Set(['loanDisbursedVolume', 'loansOutstanding', 'loanPaidBackVolume']);
+const CURRENCY_METRIC_KEYS = new Set(['loanDisbursedVolume', 'loansOutstanding', 'loansOutstandingLate', 'loansOutstandingCurrent', 'loanPaidBackVolume']);
 const formatMetricCardValue = (key, value) => (CURRENCY_METRIC_KEYS.has(key) ? formatCurrency(value) : formatNumber(value));
 
 const InlineStat = ({ value, percentage }) => {
@@ -358,6 +358,7 @@ export default function DashboardPage() {
   const [showHoldings, setShowHoldings] = useState(false);
   const [showRevenueBreakdown, setShowRevenueBreakdown] = useState(false);
   const [showSavingsBreakdown, setShowSavingsBreakdown] = useState(false);
+  const [showLoanBreakdown, setShowLoanBreakdown] = useState(false);
   const [staleMinutes, setStaleMinutes] = useState(3);
   const [staleMinutesMode, setStaleMinutesMode] = useState('preset');
   const [fundedStuckReport, setFundedStuckReport] = useState(null);
@@ -849,11 +850,22 @@ export default function DashboardPage() {
   const metricCards = [
     { key: 'cardsIssued', label: t('dashboard.cardsIssued') },
     { key: 'cardTransactions', label: t('dashboard.cardTransactions'), getValue: getCardTransactionsValue },
-    { key: 'loansDisbursed', label: t('dashboard.loansDisbursed') },
-    { key: 'loanDisbursedVolume', label: t('dashboard.loanDisbursedVolume') },
-    { key: 'loansOpen', label: t('dashboard.loansOpen') },
-    { key: 'loansOutstanding', label: t('dashboard.loansOutstanding') },
-    { key: 'loanPaidBackVolume', label: t('dashboard.loansReimbursed') },
+    { key: 'loansDisbursed', label: t('dashboard.loansDisbursed'), onClick: () => setShowLoanBreakdown(true) },
+    { key: 'loanDisbursedVolume', label: t('dashboard.loanDisbursedVolume'), onClick: () => setShowLoanBreakdown(true) },
+    { key: 'loansOpen', label: t('dashboard.loansOpen'), onClick: () => setShowLoanBreakdown(true) },
+    {
+      key: 'loansOutstandingCurrent',
+      label: 'Current outstanding',
+      sub: `Current open loans ${formatNumber(metrics?.loansOpenCurrent)}`,
+      onClick: () => setShowLoanBreakdown(true)
+    },
+    {
+      key: 'loansOutstandingLate',
+      label: 'Late outstanding',
+      sub: `Late open loans ${formatNumber(metrics?.loansOpenLate)}`,
+      onClick: () => setShowLoanBreakdown(true)
+    },
+    { key: 'loanPaidBackVolume', label: t('dashboard.loansReimbursed'), onClick: () => setShowLoanBreakdown(true) },
     { key: 'esimsPurchased', label: t('dashboard.esimPurchases') },
     { key: 'airtimePurchases', label: t('dashboard.airtimePurchases') },
     { key: 'billPayments', label: t('dashboard.billPayments') },
@@ -1370,9 +1382,25 @@ export default function DashboardPage() {
             <div style={{ fontWeight: 800 }}>{t('dashboard.keyMetrics')}</div>
             <div className="dashboard-metrics-grid">
               {metricCards.map((m) => (
-                <div key={m.key} style={{ padding: '0.75rem', border: `1px solid var(--border)`, borderRadius: '12px', display: 'grid', gap: '0.15rem', background: 'color-mix(in srgb, var(--surface) 90%, var(--accent-soft) 10%)' }}>
+                <div
+                  key={m.key}
+                  style={{
+                    padding: '0.75rem',
+                    border: `1px solid var(--border)`,
+                    borderRadius: '12px',
+                    display: 'grid',
+                    gap: '0.15rem',
+                    background: 'color-mix(in srgb, var(--surface) 90%, var(--accent-soft) 10%)',
+                    cursor: m.onClick ? 'pointer' : 'default'
+                  }}
+                  onClick={m.onClick}
+                  role={m.onClick ? 'button' : undefined}
+                  tabIndex={m.onClick ? 0 : undefined}
+                  onKeyDown={m.onClick ? (e) => (e.key === 'Enter' || e.key === ' ') && m.onClick() : undefined}
+                >
                   <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{m.label}</div>
                   <div style={{ fontWeight: 800, fontSize: '18px' }}>{formatMetricCardValue(m.key, m.getValue ? m.getValue(metrics, data) : metrics?.[m.key])}</div>
+                  {m.sub ? <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{m.sub}</div> : null}
                 </div>
               ))}
             </div>
@@ -1386,9 +1414,25 @@ export default function DashboardPage() {
             <div style={{ fontWeight: 800 }}>{t('dashboard.keyMetrics')}</div>
             <div className="dashboard-metrics-grid">
               {metricCards.map((m) => (
-                <div key={m.key} style={{ padding: '0.75rem', border: `1px solid var(--border)`, borderRadius: '12px', display: 'grid', gap: '0.15rem', background: 'color-mix(in srgb, var(--surface) 90%, var(--accent-soft) 10%)' }}>
+                <div
+                  key={m.key}
+                  style={{
+                    padding: '0.75rem',
+                    border: `1px solid var(--border)`,
+                    borderRadius: '12px',
+                    display: 'grid',
+                    gap: '0.15rem',
+                    background: 'color-mix(in srgb, var(--surface) 90%, var(--accent-soft) 10%)',
+                    cursor: m.onClick ? 'pointer' : 'default'
+                  }}
+                  onClick={m.onClick}
+                  role={m.onClick ? 'button' : undefined}
+                  tabIndex={m.onClick ? 0 : undefined}
+                  onKeyDown={m.onClick ? (e) => (e.key === 'Enter' || e.key === ' ') && m.onClick() : undefined}
+                >
                   <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{m.label}</div>
                   <div style={{ fontWeight: 800, fontSize: '18px' }}>{formatMetricCardValue(m.key, m.getValue ? m.getValue(metrics, data) : metrics?.[m.key])}</div>
+                  {m.sub ? <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{m.sub}</div> : null}
                 </div>
               ))}
             </div>
@@ -1770,6 +1814,52 @@ export default function DashboardPage() {
                 ]}
               />
             </div>
+          </div>
+        </Modal>
+      )}
+
+      {showLoanBreakdown && (
+        <Modal title="Loan details" onClose={() => setShowLoanBreakdown(false)}>
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Outstanding loans are split between loans still within their normal repayment period and loans that are already late.
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+              {[
+                { label: 'Outstanding loans', value: formatCurrency(metrics?.loansOutstanding), sub: `Open loans ${formatNumber(metrics?.loansOpen)}` },
+                { label: 'Late outstanding', value: formatCurrency(metrics?.loansOutstandingLate), sub: `Late open loans ${formatNumber(metrics?.loansOpenLate)}` },
+                { label: 'Current outstanding', value: formatCurrency(metrics?.loansOutstandingCurrent), sub: `Current open loans ${formatNumber(metrics?.loansOpenCurrent)}` },
+                { label: t('dashboard.loanDisbursedVolume'), value: formatCurrency(metrics?.loanDisbursedVolume), sub: `${t('dashboard.loansDisbursed')} ${formatNumber(metrics?.loansDisbursed)}` },
+                { label: t('dashboard.loansReimbursed'), value: formatCurrency(metrics?.loanPaidBackVolume), sub: 'Historical repaid volume' }
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  style={{
+                    display: 'grid',
+                    gap: '0.15rem',
+                    padding: '0.6rem',
+                    border: '1px solid var(--border)',
+                    borderRadius: '10px'
+                  }}
+                >
+                  <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{item.label}</div>
+                  <div style={{ fontWeight: 800, fontSize: '18px' }}>{item.value}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{item.sub}</div>
+                </div>
+              ))}
+            </div>
+            <Table
+              columns={[
+                { key: 'label', label: 'Section' },
+                { key: 'openLoans', label: 'Open loans', render: (row) => formatNumber(row.openLoans) },
+                { key: 'outstanding', label: 'Outstanding volume', render: (row) => formatCurrency(row.outstanding) }
+              ]}
+              rows={[
+                { label: 'Outstanding loans', openLoans: metrics?.loansOpen, outstanding: metrics?.loansOutstanding },
+                { label: 'Late outstanding', openLoans: metrics?.loansOpenLate, outstanding: metrics?.loansOutstandingLate },
+                { label: 'Current outstanding', openLoans: metrics?.loansOpenCurrent, outstanding: metrics?.loansOutstandingCurrent }
+              ]}
+            />
           </div>
         </Modal>
       )}

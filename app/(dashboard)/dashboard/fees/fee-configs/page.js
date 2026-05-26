@@ -74,9 +74,20 @@ const emptyState = {
   providerFlatFee: '',
   ourFeePercentage: '',
   ourFlatFee: '',
+  minAmount: '',
+  maxAmount: '',
   feeApplicationMode: '',
   fromCryptoProductId: '',
   toCryptoProductId: ''
+};
+
+const formatAmountRange = (minAmount, maxAmount) => {
+  const hasMin = minAmount !== null && minAmount !== undefined && minAmount !== '';
+  const hasMax = maxAmount !== null && maxAmount !== undefined && maxAmount !== '';
+  if (!hasMin && !hasMax) return 'Default';
+  if (hasMin && hasMax) return `${Number(minAmount).toFixed(2)} - ${Number(maxAmount).toFixed(2)}`;
+  if (hasMin) return `>= ${Number(minAmount).toFixed(2)}`;
+  return `<= ${Number(maxAmount).toFixed(2)}`;
 };
 
 const resolveAction = (state) => (state.action === '__custom' ? state.customAction : state.action);
@@ -100,6 +111,8 @@ const toPayload = (state) => ({
   providerFlatFee: state.providerFlatFee === '' ? null : Number(state.providerFlatFee),
   ourFeePercentage: state.ourFeePercentage === '' ? null : Number(state.ourFeePercentage),
   ourFlatFee: state.ourFlatFee === '' ? null : Number(state.ourFlatFee),
+  minAmount: state.minAmount === '' ? null : Number(state.minAmount),
+  maxAmount: state.maxAmount === '' ? null : Number(state.maxAmount),
   feeApplicationMode: state.feeApplicationMode || null,
   fromCryptoProductId: state.fromCryptoProductId === '' ? null : Number(state.fromCryptoProductId),
   toCryptoProductId: state.toCryptoProductId === '' ? null : Number(state.toCryptoProductId)
@@ -488,6 +501,11 @@ export default function FeeConfigsPage() {
       { key: 'ourFeePercentage', label: 'Our %' },
       { key: 'ourFlatFee', label: 'Our flat' },
       {
+        key: 'amountRange',
+        label: 'Amount range',
+        render: (row) => formatAmountRange(row?.minAmount, row?.maxAmount)
+      },
+      {
         key: 'feeApplicationMode',
         label: 'Fee mode',
         render: (row) => {
@@ -547,6 +565,8 @@ export default function FeeConfigsPage() {
       providerFlatFee: row.providerFlatFee ?? '',
       ourFeePercentage: row.ourFeePercentage ?? '',
       ourFlatFee: row.ourFlatFee ?? '',
+      minAmount: row.minAmount ?? '',
+      maxAmount: row.maxAmount ?? '',
       feeApplicationMode: row.feeApplicationMode || '',
       fromCryptoProductId: normalizeOptionalIdForForm(row.fromCryptoProductId),
       toCryptoProductId: normalizeOptionalIdForForm(row.toCryptoProductId)
@@ -575,10 +595,15 @@ export default function FeeConfigsPage() {
       { key: 'providerFeePercentage', value: state.providerFeePercentage },
       { key: 'providerFlatFee', value: state.providerFlatFee },
       { key: 'ourFeePercentage', value: state.ourFeePercentage },
-      { key: 'ourFlatFee', value: state.ourFlatFee }
+      { key: 'ourFlatFee', value: state.ourFlatFee },
+      { key: 'minAmount', value: state.minAmount },
+      { key: 'maxAmount', value: state.maxAmount }
     ];
     const invalid = numericFields.find((item) => item.value !== '' && Number(item.value) < 0);
     if (invalid) return 'Fee values cannot be negative.';
+    if (state.minAmount !== '' && state.maxAmount !== '' && Number(state.minAmount) > Number(state.maxAmount)) {
+      return 'Minimum amount cannot be greater than maximum amount.';
+    }
     const normalizedAction = String(resolved || '').toUpperCase();
     const normalizedService = String(state.service || '').toUpperCase();
     const normalizedPaymentProvider = state.paymentProviderId === '' ? null : Number(state.paymentProviderId);
@@ -587,6 +612,8 @@ export default function FeeConfigsPage() {
     const normalizedBpbp = state.billProductBillProviderId === '' ? null : Number(state.billProductBillProviderId);
     const normalizedFromCrypto = state.fromCryptoProductId === '' ? null : Number(state.fromCryptoProductId);
     const normalizedToCrypto = state.toCryptoProductId === '' ? null : Number(state.toCryptoProductId);
+    const normalizedMinAmount = state.minAmount === '' ? null : Number(state.minAmount);
+    const normalizedMaxAmount = state.maxAmount === '' ? null : Number(state.maxAmount);
     if (normalizedPmp !== null && normalizedPaymentProvider !== null) {
       return 'Choose either Payment Provider or the exact Payment Method Route. Do not set both on the same fee config.';
     }
@@ -623,12 +650,16 @@ export default function FeeConfigsPage() {
       const rowPmp = row?.paymentMethodPaymentProviderId === null || row?.paymentMethodPaymentProviderId === undefined ? null : Number(row.paymentMethodPaymentProviderId);
       const rowFromCrypto = row?.fromCryptoProductId === null || row?.fromCryptoProductId === undefined ? null : Number(row.fromCryptoProductId);
       const rowToCrypto = row?.toCryptoProductId === null || row?.toCryptoProductId === undefined ? null : Number(row.toCryptoProductId);
+      const rowMinAmount = row?.minAmount === null || row?.minAmount === undefined || row?.minAmount === '' ? null : Number(row.minAmount);
+      const rowMaxAmount = row?.maxAmount === null || row?.maxAmount === undefined || row?.maxAmount === '' ? null : Number(row.maxAmount);
       return rowPaymentProvider === normalizedPaymentProvider
         && rowBillProvider === normalizedBillProvider
         && rowBpbp === normalizedBpbp
         && rowPmp === normalizedPmp
         && rowFromCrypto === normalizedFromCrypto
-        && rowToCrypto === normalizedToCrypto;
+        && rowToCrypto === normalizedToCrypto
+        && rowMinAmount === normalizedMinAmount
+        && rowMaxAmount === normalizedMaxAmount;
     });
     if (duplicate) {
       return `Duplicate scope detected with fee config #${duplicate.id}. Keep one row per layered scope for the same action or actionless default.`;
@@ -892,6 +923,17 @@ export default function FeeConfigsPage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="ourFlatFee">Our flat</label>
         <input id="ourFlatFee" type="number" min={0} value={draft.ourFlatFee} onChange={(e) => setDraft((p) => ({ ...p, ourFlatFee: e.target.value }))} />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="minAmount">Minimum amount</label>
+        <input id="minAmount" type="number" min={0} step="0.01" value={draft.minAmount} onChange={(e) => setDraft((p) => ({ ...p, minAmount: e.target.value }))} />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="maxAmount">Maximum amount</label>
+        <input id="maxAmount" type="number" min={0} step="0.01" value={draft.maxAmount} onChange={(e) => setDraft((p) => ({ ...p, maxAmount: e.target.value }))} />
+      </div>
+      <div style={{ gridColumn: '1 / -1', fontSize: '12px', color: 'var(--muted)' }}>
+        Leave both empty to make this the default fee for the scope. Set only minimum for amounts at or above that value. Set only maximum for amounts at or below that value. Set both to apply only within that range.
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="feeApplicationMode">Fee application mode</label>
@@ -1305,6 +1347,9 @@ export default function FeeConfigsPage() {
               { label: 'Provider flat', value: selected?.providerFlatFee },
               { label: 'Our %', value: selected?.ourFeePercentage },
               { label: 'Our flat', value: selected?.ourFlatFee },
+              { label: 'Amount range', value: formatAmountRange(selected?.minAmount, selected?.maxAmount) },
+              { label: 'Minimum amount', value: selected?.minAmount ?? '—' },
+              { label: 'Maximum amount', value: selected?.maxAmount ?? '—' },
               {
                 label: 'Fee application mode',
                 value:
