@@ -1828,8 +1828,16 @@ export default function DashboardPage() {
               {[
                 { label: 'Total disbursed', value: formatCurrency(metrics?.loanDisbursedVolume), sub: `Loans disbursed ${formatNumber(metrics?.loansDisbursed)}` },
                 { label: 'Outstanding loans', value: formatCurrency(metrics?.loansOutstanding), sub: `Open loans ${formatNumber(metrics?.loansOpen)}` },
-                { label: 'Late outstanding', value: formatCurrency(metrics?.loansOutstandingLate), sub: `Late open loans ${formatNumber(metrics?.loansOpenLate)}` },
-                { label: 'Current outstanding', value: formatCurrency(metrics?.loansOutstandingCurrent), sub: `Current open loans ${formatNumber(metrics?.loansOpenCurrent)}` },
+                {
+                  label: 'Late loans',
+                  value: formatCurrency(metrics?.loansOutstandingLate),
+                  sub: `Open loans ${formatNumber(metrics?.loansOpenLate)} (${formatPercentage(metrics?.loansOpenLatePercentage)}) • Outstanding ${formatPercentage(metrics?.loansOutstandingLatePercentage)}`
+                },
+                {
+                  label: 'Current loans',
+                  value: formatCurrency(metrics?.loansOutstandingCurrent),
+                  sub: `Open loans ${formatNumber(metrics?.loansOpenCurrent)} (${formatPercentage(metrics?.loansOpenCurrentPercentage)}) • Outstanding ${formatPercentage(metrics?.loansOutstandingCurrentPercentage)}`
+                },
                 { label: t('dashboard.loansReimbursed'), value: formatCurrency(metrics?.loanPaidBackVolume), sub: 'Historical repaid volume' }
               ].map((item) => (
                 <div
@@ -1852,14 +1860,16 @@ export default function DashboardPage() {
               columns={[
                 { key: 'label', label: 'Section' },
                 { key: 'count', label: 'Count', render: (row) => (row.count === null || row.count === undefined ? '—' : formatNumber(row.count)) },
-                { key: 'volume', label: 'Volume', render: (row) => formatCurrency(row.volume) }
+                { key: 'countPercentage', label: 'Open loans %', render: (row) => (row.countPercentage === null || row.countPercentage === undefined ? '—' : formatPercentage(row.countPercentage)) },
+                { key: 'volume', label: 'Volume', render: (row) => formatCurrency(row.volume) },
+                { key: 'volumePercentage', label: 'Outstanding amount %', render: (row) => (row.volumePercentage === null || row.volumePercentage === undefined ? '—' : formatPercentage(row.volumePercentage)) }
               ]}
               rows={[
-                { label: 'Total disbursed', count: metrics?.loansDisbursed, volume: metrics?.loanDisbursedVolume },
-                { label: 'Outstanding loans', count: metrics?.loansOpen, volume: metrics?.loansOutstanding },
-                { label: 'Late outstanding', count: metrics?.loansOpenLate, volume: metrics?.loansOutstandingLate },
-                { label: 'Current outstanding', count: metrics?.loansOpenCurrent, volume: metrics?.loansOutstandingCurrent },
-                { label: 'Total reimbursed', count: null, volume: metrics?.loanPaidBackVolume }
+                { label: 'Total disbursed', count: metrics?.loansDisbursed, countPercentage: null, volume: metrics?.loanDisbursedVolume, volumePercentage: null },
+                { label: 'Outstanding loans', count: metrics?.loansOpen, countPercentage: null, volume: metrics?.loansOutstanding, volumePercentage: null },
+                { label: 'Late loans', count: metrics?.loansOpenLate, countPercentage: metrics?.loansOpenLatePercentage, volume: metrics?.loansOutstandingLate, volumePercentage: metrics?.loansOutstandingLatePercentage },
+                { label: 'Current loans', count: metrics?.loansOpenCurrent, countPercentage: metrics?.loansOpenCurrentPercentage, volume: metrics?.loansOutstandingCurrent, volumePercentage: metrics?.loansOutstandingCurrentPercentage },
+                { label: 'Total reimbursed', count: null, countPercentage: null, volume: metrics?.loanPaidBackVolume, volumePercentage: null }
               ]}
             />
           </div>
