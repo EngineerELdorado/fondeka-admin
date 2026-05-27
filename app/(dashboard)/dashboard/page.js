@@ -1822,14 +1822,14 @@ export default function DashboardPage() {
         <Modal title="Loan details" onClose={() => setShowLoanBreakdown(false)}>
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-              Outstanding loans are split between loans still within their normal repayment period and loans that are already late.
+              This view combines overall loan volume, open-loan counts, outstanding balances, and the late/current split.
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
               {[
+                { label: 'Total disbursed', value: formatCurrency(metrics?.loanDisbursedVolume), sub: `Loans disbursed ${formatNumber(metrics?.loansDisbursed)}` },
                 { label: 'Outstanding loans', value: formatCurrency(metrics?.loansOutstanding), sub: `Open loans ${formatNumber(metrics?.loansOpen)}` },
                 { label: 'Late outstanding', value: formatCurrency(metrics?.loansOutstandingLate), sub: `Late open loans ${formatNumber(metrics?.loansOpenLate)}` },
                 { label: 'Current outstanding', value: formatCurrency(metrics?.loansOutstandingCurrent), sub: `Current open loans ${formatNumber(metrics?.loansOpenCurrent)}` },
-                { label: t('dashboard.loanDisbursedVolume'), value: formatCurrency(metrics?.loanDisbursedVolume), sub: `${t('dashboard.loansDisbursed')} ${formatNumber(metrics?.loansDisbursed)}` },
                 { label: t('dashboard.loansReimbursed'), value: formatCurrency(metrics?.loanPaidBackVolume), sub: 'Historical repaid volume' }
               ].map((item) => (
                 <div
@@ -1851,13 +1851,15 @@ export default function DashboardPage() {
             <Table
               columns={[
                 { key: 'label', label: 'Section' },
-                { key: 'openLoans', label: 'Open loans', render: (row) => formatNumber(row.openLoans) },
-                { key: 'outstanding', label: 'Outstanding volume', render: (row) => formatCurrency(row.outstanding) }
+                { key: 'count', label: 'Count', render: (row) => (row.count === null || row.count === undefined ? '—' : formatNumber(row.count)) },
+                { key: 'volume', label: 'Volume', render: (row) => formatCurrency(row.volume) }
               ]}
               rows={[
-                { label: 'Outstanding loans', openLoans: metrics?.loansOpen, outstanding: metrics?.loansOutstanding },
-                { label: 'Late outstanding', openLoans: metrics?.loansOpenLate, outstanding: metrics?.loansOutstandingLate },
-                { label: 'Current outstanding', openLoans: metrics?.loansOpenCurrent, outstanding: metrics?.loansOutstandingCurrent }
+                { label: 'Total disbursed', count: metrics?.loansDisbursed, volume: metrics?.loanDisbursedVolume },
+                { label: 'Outstanding loans', count: metrics?.loansOpen, volume: metrics?.loansOutstanding },
+                { label: 'Late outstanding', count: metrics?.loansOpenLate, volume: metrics?.loansOutstandingLate },
+                { label: 'Current outstanding', count: metrics?.loansOpenCurrent, volume: metrics?.loansOutstandingCurrent },
+                { label: 'Total reimbursed', count: null, volume: metrics?.loanPaidBackVolume }
               ]}
             />
           </div>
