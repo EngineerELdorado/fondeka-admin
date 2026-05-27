@@ -800,42 +800,42 @@ export default function KycsPage() {
 
           <div style={{ display: 'grid', gap: '0.6rem', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '12px' }}>
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, justifyContent: 'flex-start' }}>
+              <span>Enable SmileID auto-blacklisting</span>
               <input
                 type="checkbox"
                 checked={smileFraudPolicy.enabled}
                 onChange={(e) => setSmileFraudPolicy((prev) => ({ ...prev, enabled: e.target.checked }))}
                 disabled={smileFraudPolicyLoading || smileFraudPolicySaving}
               />
-              Enable SmileID auto-blacklisting
             </label>
 
             <div style={{ display: 'grid', gap: '0.5rem', paddingLeft: '0.2rem', opacity: smileFraudPolicy.enabled ? 1 : 0.65, justifyItems: 'start' }}>
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'flex-start' }}>
+                <span>Blacklist on No Face Match</span>
                 <input
                   type="checkbox"
                   checked={smileFraudPolicy.noFaceMatchEnabled}
                   onChange={(e) => setSmileFraudPolicy((prev) => ({ ...prev, noFaceMatchEnabled: e.target.checked }))}
                   disabled={!smileFraudPolicy.enabled || smileFraudPolicyLoading || smileFraudPolicySaving}
                 />
-                Blacklist on No Face Match
               </label>
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'flex-start' }}>
+                <span>Blacklist on Spoof Detected</span>
                 <input
                   type="checkbox"
                   checked={smileFraudPolicy.spoofDetectedEnabled}
                   onChange={(e) => setSmileFraudPolicy((prev) => ({ ...prev, spoofDetectedEnabled: e.target.checked }))}
                   disabled={!smileFraudPolicy.enabled || smileFraudPolicyLoading || smileFraudPolicySaving}
                 />
-                Blacklist on Spoof Detected
               </label>
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'flex-start' }}>
+                <span>Blacklist on Potential Fraud Attempt</span>
                 <input
                   type="checkbox"
                   checked={smileFraudPolicy.potentialFraudAttemptEnabled}
                   onChange={(e) => setSmileFraudPolicy((prev) => ({ ...prev, potentialFraudAttemptEnabled: e.target.checked }))}
                   disabled={!smileFraudPolicy.enabled || smileFraudPolicyLoading || smileFraudPolicySaving}
                 />
-                Blacklist on Potential Fraud Attempt
               </label>
             </div>
           </div>
