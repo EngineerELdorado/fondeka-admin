@@ -1824,6 +1824,9 @@ export default function DashboardPage() {
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
               Loan amount percentages are based on disbursed principal. Open-loan risk percentages use either total open loans or total approved loans, and archived-loan percentages use archived totals.
             </div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Date range: {dateLabel}
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
               {[
                 { label: 'Disbursed principal', value: formatCurrency(metrics?.loanDisbursedVolume), sub: `Loans disbursed ${formatNumber(metrics?.loansDisbursed)}` },
@@ -1857,6 +1860,96 @@ export default function DashboardPage() {
                   <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{item.sub}</div>
                 </div>
               ))}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0.75rem' }}>
+              <div className="card" style={{ display: 'grid', gap: '0.4rem', padding: '0.75rem' }}>
+                <div style={{ fontWeight: 800 }}>Loan volume</div>
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Principal, interest, due, paid back, and outstanding.</div>
+                <div style={{ height: 220 }}>
+                  <ResponsiveContainer>
+                    <BarChart
+                      data={[
+                        { name: 'Disbursed', amount: Number(metrics?.loanDisbursedVolume) || 0 },
+                        { name: 'Interest', amount: Number(metrics?.loanInterestVolume) || 0 },
+                        { name: 'Due', amount: Number(metrics?.loanDueVolume) || 0 },
+                        { name: 'Paid back', amount: Number(metrics?.loanPaidBackVolume) || 0 },
+                        { name: 'Outstanding', amount: Number(metrics?.loansOutstanding) || 0 }
+                      ]}
+                      margin={{ top: 10, right: 10, bottom: 0, left: 0 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                      <YAxis tickFormatter={(value) => formatNumber(value)} tick={{ fontSize: 12 }} />
+                      <Tooltip formatter={(value) => [formatCurrency(value), 'Amount']} />
+                      <Bar dataKey="amount" fill="#2563eb" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              <div className="card" style={{ display: 'grid', gap: '0.4rem', padding: '0.75rem' }}>
+                <div style={{ fontWeight: 800 }}>Loan lifecycle</div>
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Approved portfolio split into open and closed loans.</div>
+                <div style={{ height: 220 }}>
+                  <ResponsiveContainer>
+                    <BarChart
+                      data={[
+                        { name: 'Approved', count: Number(metrics?.loansApprovedTotal) || 0 },
+                        { name: 'Open', count: Number(metrics?.loansOpen) || 0 },
+                        { name: 'Closed', count: Number(metrics?.loansClosed) || 0 }
+                      ]}
+                      margin={{ top: 10, right: 10, bottom: 0, left: 0 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                      <Tooltip formatter={(value) => [formatNumber(value), 'Loans']} />
+                      <Bar dataKey="count" fill="#0f766e" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              <div className="card" style={{ display: 'grid', gap: '0.4rem', padding: '0.75rem' }}>
+                <div style={{ fontWeight: 800 }}>Outstanding split</div>
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Current vs late outstanding balances.</div>
+                <div style={{ height: 220 }}>
+                  <ResponsiveContainer>
+                    <BarChart
+                      data={[
+                        { name: 'Current', amount: Number(metrics?.loansOutstandingCurrent) || 0 },
+                        { name: 'Late', amount: Number(metrics?.loansOutstandingLate) || 0 }
+                      ]}
+                      margin={{ top: 10, right: 10, bottom: 0, left: 0 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                      <YAxis tickFormatter={(value) => formatNumber(value)} tick={{ fontSize: 12 }} />
+                      <Tooltip formatter={(value) => [formatCurrency(value), 'Outstanding']} />
+                      <Bar dataKey="amount" fill="#f59e0b" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              <div className="card" style={{ display: 'grid', gap: '0.4rem', padding: '0.75rem' }}>
+                <div style={{ fontWeight: 800 }}>Archived debt</div>
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Paid vs remaining archived debt balance.</div>
+                <div style={{ height: 220 }}>
+                  <ResponsiveContainer>
+                    <BarChart
+                      data={[
+                        { name: 'Paid', amount: Number(metrics?.archivedLoansPaidAmount) || 0 },
+                        { name: 'Remaining', amount: Number(metrics?.archivedLoansRemainingAmount) || 0 }
+                      ]}
+                      margin={{ top: 10, right: 10, bottom: 0, left: 0 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                      <YAxis tickFormatter={(value) => formatNumber(value)} tick={{ fontSize: 12 }} />
+                      <Tooltip formatter={(value) => [formatCurrency(value), 'Archived debt']} />
+                      <Bar dataKey="amount" fill="#7c3aed" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
             </div>
             <div style={{ display: 'grid', gap: '0.5rem' }}>
               <div style={{ fontWeight: 800 }}>Portfolio volume</div>
