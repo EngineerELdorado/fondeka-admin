@@ -1841,6 +1841,7 @@ export default function DashboardPage() {
                 { label: 'Total due volume', value: formatCurrency(metrics?.loanDueVolume), sub: `Of disbursed principal ${formatPercentage(metrics?.loanDueVolumePercentage)}` },
                 { label: 'Paid back volume', value: formatCurrency(metrics?.loanPaidBackVolume), sub: `Of disbursed principal ${formatPercentage(metrics?.loanPaidBackVolumePercentage)}` },
                 { label: 'Outstanding balance', value: formatCurrency(metrics?.loansOutstanding), sub: `Open loans ${formatNumber(metrics?.loansOpen)} • Of disbursed principal ${formatPercentage(metrics?.loansOutstandingPercentage)}` },
+                { label: 'Penalties total', value: formatCurrency(metrics?.loansFinesApplied), sub: `Of disbursed principal ${formatPercentage(metrics?.loansFinesAppliedPercentage)}` },
                 {
                   label: 'Late outstanding',
                   value: formatCurrency(metrics?.loansOutstandingLate),
