@@ -191,6 +191,14 @@ export default function KycsPage() {
   const [amlError, setAmlError] = useState(null);
   const [syncNamesLoading, setSyncNamesLoading] = useState(false);
   const [syncSmileImagesLoading, setSyncSmileImagesLoading] = useState(false);
+  const [smileFraudPolicyLoading, setSmileFraudPolicyLoading] = useState(false);
+  const [smileFraudPolicySaving, setSmileFraudPolicySaving] = useState(false);
+  const [smileFraudPolicy, setSmileFraudPolicy] = useState({
+    enabled: false,
+    noFaceMatchEnabled: false,
+    spoofDetectedEnabled: false,
+    potentialFraudAttemptEnabled: false
+  });
   const [zoomedDocument, setZoomedDocument] = useState(null);
   const [documentZoomScale, setDocumentZoomScale] = useState(1);
   const [documentRotation, setDocumentRotation] = useState(0);
@@ -275,6 +283,28 @@ export default function KycsPage() {
       }
     };
     fetchLevels();
+  }, []);
+
+  const loadSmileFraudPolicy = async () => {
+    setSmileFraudPolicyLoading(true);
+    setError(null);
+    try {
+      const res = await api.smileIdFraudBlacklistPolicy.get();
+      setSmileFraudPolicy({
+        enabled: Boolean(res?.enabled),
+        noFaceMatchEnabled: Boolean(res?.noFaceMatchEnabled),
+        spoofDetectedEnabled: Boolean(res?.spoofDetectedEnabled),
+        potentialFraudAttemptEnabled: Boolean(res?.potentialFraudAttemptEnabled)
+      });
+    } catch (err) {
+      setError(err?.message || 'Failed to load SmileID fraud blacklist policy');
+    } finally {
+      setSmileFraudPolicyLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadSmileFraudPolicy();
   }, []);
 
   const activeFilterChips = useMemo(() => {
@@ -715,6 +745,26 @@ export default function KycsPage() {
     }
   };
 
+  const saveSmileFraudPolicy = async () => {
+    setSmileFraudPolicySaving(true);
+    setError(null);
+    setInfo(null);
+    try {
+      await api.smileIdFraudBlacklistPolicy.update({
+        enabled: Boolean(smileFraudPolicy.enabled),
+        noFaceMatchEnabled: Boolean(smileFraudPolicy.noFaceMatchEnabled),
+        spoofDetectedEnabled: Boolean(smileFraudPolicy.spoofDetectedEnabled),
+        potentialFraudAttemptEnabled: Boolean(smileFraudPolicy.potentialFraudAttemptEnabled)
+      });
+      setInfo('SmileID fraud blacklist policy updated.');
+      await loadSmileFraudPolicy();
+    } catch (err) {
+      setError(err?.message || 'Failed to save SmileID fraud blacklist policy');
+    } finally {
+      setSmileFraudPolicySaving(false);
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
@@ -725,6 +775,70 @@ export default function KycsPage() {
         <Link href="/dashboard" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
           ← Dashboard
         </Link>
+      </div>
+
+      <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <div style={{ fontWeight: 800 }}>SmileID Fraud Blacklist Policy</div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              When enabled, SmileID fraud callbacks can automatically blacklist accounts based on the selected fraud reasons.
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              When disabled, SmileID callbacks will still update KYC status, but they will not auto-blacklist accounts.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <button type="button" className="btn-neutral btn-sm" onClick={loadSmileFraudPolicy} disabled={smileFraudPolicyLoading || smileFraudPolicySaving}>
+              {smileFraudPolicyLoading ? 'Refreshing…' : 'Refresh'}
+            </button>
+            <button type="button" className="btn-primary btn-sm" onClick={saveSmileFraudPolicy} disabled={smileFraudPolicyLoading || smileFraudPolicySaving}>
+              {smileFraudPolicySaving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gap: '0.6rem', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '12px' }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+            <input
+              type="checkbox"
+              checked={smileFraudPolicy.enabled}
+              onChange={(e) => setSmileFraudPolicy((prev) => ({ ...prev, enabled: e.target.checked }))}
+              disabled={smileFraudPolicyLoading || smileFraudPolicySaving}
+            />
+            Enable SmileID auto-blacklisting
+          </label>
+
+          <div style={{ display: 'grid', gap: '0.5rem', paddingLeft: '0.2rem', opacity: smileFraudPolicy.enabled ? 1 : 0.65 }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+              <input
+                type="checkbox"
+                checked={smileFraudPolicy.noFaceMatchEnabled}
+                onChange={(e) => setSmileFraudPolicy((prev) => ({ ...prev, noFaceMatchEnabled: e.target.checked }))}
+                disabled={!smileFraudPolicy.enabled || smileFraudPolicyLoading || smileFraudPolicySaving}
+              />
+              Blacklist on No Face Match
+            </label>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+              <input
+                type="checkbox"
+                checked={smileFraudPolicy.spoofDetectedEnabled}
+                onChange={(e) => setSmileFraudPolicy((prev) => ({ ...prev, spoofDetectedEnabled: e.target.checked }))}
+                disabled={!smileFraudPolicy.enabled || smileFraudPolicyLoading || smileFraudPolicySaving}
+              />
+              Blacklist on Spoof Detected
+            </label>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+              <input
+                type="checkbox"
+                checked={smileFraudPolicy.potentialFraudAttemptEnabled}
+                onChange={(e) => setSmileFraudPolicy((prev) => ({ ...prev, potentialFraudAttemptEnabled: e.target.checked }))}
+                disabled={!smileFraudPolicy.enabled || smileFraudPolicyLoading || smileFraudPolicySaving}
+              />
+              Blacklist on Potential Fraud Attempt
+            </label>
+          </div>
+        </div>
       </div>
 
       <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
