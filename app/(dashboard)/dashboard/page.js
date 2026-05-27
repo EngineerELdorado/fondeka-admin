@@ -1819,13 +1819,20 @@ export default function DashboardPage() {
       )}
 
       {showLoanBreakdown && (
-        <Modal title="Loan details" onClose={() => setShowLoanBreakdown(false)}>
+        <Modal
+          title={
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <span>Loan details</span>
+              <div className="pill" style={{ background: 'var(--accent-soft)', color: 'var(--accent)', fontWeight: 900, fontSize: '13px' }}>
+                {dateLabel}
+              </div>
+            </div>
+          }
+          onClose={() => setShowLoanBreakdown(false)}
+        >
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
               Loan amount percentages are based on disbursed principal. Open-loan risk percentages use either total open loans or total approved loans, and archived-loan percentages use archived totals.
-            </div>
-            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-              Date range: {dateLabel}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
               {[
@@ -1894,8 +1901,8 @@ export default function DashboardPage() {
                     <BarChart
                       data={[
                         { name: 'Approved', count: Number(metrics?.loansApprovedTotal) || 0 },
-                        { name: 'Open', count: Number(metrics?.loansOpen) || 0 },
-                        { name: 'Closed', count: Number(metrics?.loansClosed) || 0 }
+                        { name: 'Closed', count: Number(metrics?.loansClosed) || 0 },
+                        { name: 'Open', count: Number(metrics?.loansOpen) || 0 }
                       ]}
                       margin={{ top: 10, right: 10, bottom: 0, left: 0 }}
                     >
