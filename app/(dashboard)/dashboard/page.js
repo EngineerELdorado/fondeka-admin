@@ -1822,23 +1822,25 @@ export default function DashboardPage() {
         <Modal title="Loan details" onClose={() => setShowLoanBreakdown(false)}>
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-              This view combines overall loan volume, open-loan counts, outstanding balances, and the late/current split.
+              Loan amount percentages are based on disbursed principal. Open-loan risk percentages use either total open loans or total approved loans, and archived-loan percentages use archived totals.
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
               {[
-                { label: 'Total disbursed', value: formatCurrency(metrics?.loanDisbursedVolume), sub: `Loans disbursed ${formatNumber(metrics?.loansDisbursed)}` },
-                { label: 'Outstanding loans', value: formatCurrency(metrics?.loansOutstanding), sub: `Open loans ${formatNumber(metrics?.loansOpen)}` },
+                { label: 'Disbursed principal', value: formatCurrency(metrics?.loanDisbursedVolume), sub: `Loans disbursed ${formatNumber(metrics?.loansDisbursed)}` },
+                { label: 'Interest volume', value: formatCurrency(metrics?.loanInterestVolume), sub: `Of disbursed principal ${formatPercentage(metrics?.loanInterestVolumePercentage)}` },
+                { label: 'Total due volume', value: formatCurrency(metrics?.loanDueVolume), sub: `Of disbursed principal ${formatPercentage(metrics?.loanDueVolumePercentage)}` },
+                { label: 'Paid back volume', value: formatCurrency(metrics?.loanPaidBackVolume), sub: `Of disbursed principal ${formatPercentage(metrics?.loanPaidBackVolumePercentage)}` },
+                { label: 'Outstanding balance', value: formatCurrency(metrics?.loansOutstanding), sub: `Open loans ${formatNumber(metrics?.loansOpen)} • Of disbursed principal ${formatPercentage(metrics?.loansOutstandingPercentage)}` },
                 {
-                  label: 'Late loans',
+                  label: 'Late outstanding',
                   value: formatCurrency(metrics?.loansOutstandingLate),
-                  sub: `Open loans ${formatNumber(metrics?.loansOpenLate)} (${formatPercentage(metrics?.loansOpenLatePercentage)}) • Outstanding ${formatPercentage(metrics?.loansOutstandingLatePercentage)}`
+                  sub: `Late open loans ${formatNumber(metrics?.loansOpenLate)} (${formatPercentage(metrics?.loansOpenLatePercentage)} of open) • Of disbursed principal ${formatPercentage(metrics?.loansOutstandingLatePercentage)}`
                 },
                 {
-                  label: 'Current loans',
+                  label: 'Current outstanding',
                   value: formatCurrency(metrics?.loansOutstandingCurrent),
-                  sub: `Open loans ${formatNumber(metrics?.loansOpenCurrent)} (${formatPercentage(metrics?.loansOpenCurrentPercentage)}) • Outstanding ${formatPercentage(metrics?.loansOutstandingCurrentPercentage)}`
-                },
-                { label: t('dashboard.loansReimbursed'), value: formatCurrency(metrics?.loanPaidBackVolume), sub: 'Historical repaid volume' }
+                  sub: `Current open loans ${formatNumber(metrics?.loansOpenCurrent)} (${formatPercentage(metrics?.loansOpenCurrentPercentage)} of open) • Of disbursed principal ${formatPercentage(metrics?.loansOutstandingCurrentPercentage)}`
+                }
               ].map((item) => (
                 <div
                   key={item.label}
@@ -1856,22 +1858,101 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
-            <Table
-              columns={[
-                { key: 'label', label: 'Section' },
-                { key: 'count', label: 'Count', render: (row) => (row.count === null || row.count === undefined ? '—' : formatNumber(row.count)) },
-                { key: 'countPercentage', label: 'Open loans %', render: (row) => (row.countPercentage === null || row.countPercentage === undefined ? '—' : formatPercentage(row.countPercentage)) },
-                { key: 'volume', label: 'Volume', render: (row) => formatCurrency(row.volume) },
-                { key: 'volumePercentage', label: 'Outstanding amount %', render: (row) => (row.volumePercentage === null || row.volumePercentage === undefined ? '—' : formatPercentage(row.volumePercentage)) }
-              ]}
-              rows={[
-                { label: 'Total disbursed', count: metrics?.loansDisbursed, countPercentage: null, volume: metrics?.loanDisbursedVolume, volumePercentage: null },
-                { label: 'Outstanding loans', count: metrics?.loansOpen, countPercentage: null, volume: metrics?.loansOutstanding, volumePercentage: null },
-                { label: 'Late loans', count: metrics?.loansOpenLate, countPercentage: metrics?.loansOpenLatePercentage, volume: metrics?.loansOutstandingLate, volumePercentage: metrics?.loansOutstandingLatePercentage },
-                { label: 'Current loans', count: metrics?.loansOpenCurrent, countPercentage: metrics?.loansOpenCurrentPercentage, volume: metrics?.loansOutstandingCurrent, volumePercentage: metrics?.loansOutstandingCurrentPercentage },
-                { label: 'Total reimbursed', count: null, countPercentage: null, volume: metrics?.loanPaidBackVolume, volumePercentage: null }
-              ]}
-            />
+            <div style={{ display: 'grid', gap: '0.5rem' }}>
+              <div style={{ fontWeight: 800 }}>Portfolio volume</div>
+              <Table
+                columns={[
+                  { key: 'label', label: 'Metric' },
+                  { key: 'amount', label: 'Amount', render: (row) => formatCurrency(row.amount) },
+                  { key: 'percentage', label: 'Of disbursed principal %', render: (row) => (row.percentage === null || row.percentage === undefined ? '—' : formatPercentage(row.percentage)) }
+                ]}
+                rows={[
+                  { label: 'Disbursed principal', amount: metrics?.loanDisbursedVolume, percentage: null },
+                  { label: 'Interest volume', amount: metrics?.loanInterestVolume, percentage: metrics?.loanInterestVolumePercentage },
+                  { label: 'Total due volume', amount: metrics?.loanDueVolume, percentage: metrics?.loanDueVolumePercentage },
+                  { label: 'Paid back volume', amount: metrics?.loanPaidBackVolume, percentage: metrics?.loanPaidBackVolumePercentage },
+                  { label: 'Outstanding balance', amount: metrics?.loansOutstanding, percentage: metrics?.loansOutstandingPercentage }
+                ]}
+              />
+            </div>
+            <div style={{ display: 'grid', gap: '0.5rem' }}>
+              <div style={{ fontWeight: 800 }}>Lifecycle</div>
+              <Table
+                columns={[
+                  { key: 'label', label: 'Metric' },
+                  { key: 'count', label: 'Count', render: (row) => formatNumber(row.count) },
+                  { key: 'percentage', label: 'Of approved loans %', render: (row) => (row.percentage === null || row.percentage === undefined ? '—' : formatPercentage(row.percentage)) }
+                ]}
+                rows={[
+                  { label: 'Approved loans', count: metrics?.loansApprovedTotal, percentage: null },
+                  { label: 'Open loans', count: metrics?.loansOpen, percentage: metrics?.loansOpenPercentage },
+                  { label: 'Closed loans', count: metrics?.loansClosed, percentage: metrics?.loansClosedPercentage }
+                ]}
+              />
+            </div>
+            <div style={{ display: 'grid', gap: '0.5rem' }}>
+              <div style={{ fontWeight: 800 }}>Open-loan risk split</div>
+              <Table
+                columns={[
+                  { key: 'label', label: 'Metric' },
+                  { key: 'count', label: 'Count', render: (row) => formatNumber(row.count) },
+                  { key: 'openShare', label: 'Of open loans %', render: (row) => formatPercentage(row.openShare) },
+                  { key: 'totalShare', label: 'Of approved loans %', render: (row) => formatPercentage(row.totalShare) },
+                  { key: 'amount', label: 'Outstanding amount', render: (row) => formatCurrency(row.amount) },
+                  { key: 'amountShare', label: 'Of disbursed principal %', render: (row) => formatPercentage(row.amountShare) }
+                ]}
+                rows={[
+                  {
+                    label: 'Late open loans',
+                    count: metrics?.loansOpenLate,
+                    openShare: metrics?.loansOpenLatePercentage,
+                    totalShare: metrics?.loansOpenLatePercentageOfTotal,
+                    amount: metrics?.loansOutstandingLate,
+                    amountShare: metrics?.loansOutstandingLatePercentage
+                  },
+                  {
+                    label: 'Current open loans',
+                    count: metrics?.loansOpenCurrent,
+                    openShare: metrics?.loansOpenCurrentPercentage,
+                    totalShare: metrics?.loansOpenCurrentPercentageOfTotal,
+                    amount: metrics?.loansOutstandingCurrent,
+                    amountShare: metrics?.loansOutstandingCurrentPercentage
+                  }
+                ]}
+              />
+            </div>
+            <div style={{ display: 'grid', gap: '0.5rem' }}>
+              <div style={{ fontWeight: 800 }}>Penalties</div>
+              <Table
+                columns={[
+                  { key: 'label', label: 'Metric' },
+                  { key: 'amount', label: 'Amount', render: (row) => formatCurrency(row.amount) },
+                  { key: 'percentage', label: 'Of disbursed principal %', render: (row) => formatPercentage(row.percentage) }
+                ]}
+                rows={[
+                  { label: 'Penalties applied', amount: metrics?.loansFinesApplied, percentage: metrics?.loansFinesAppliedPercentage },
+                  { label: 'Penalties collected', amount: metrics?.loansFinesCollected, percentage: metrics?.loansFinesCollectedPercentage },
+                  { label: 'Penalties outstanding', amount: metrics?.loansFinesOutstanding, percentage: metrics?.loansFinesOutstandingPercentage }
+                ]}
+              />
+            </div>
+            <div style={{ display: 'grid', gap: '0.5rem' }}>
+              <div style={{ fontWeight: 800 }}>Archived debt</div>
+              <Table
+                columns={[
+                  { key: 'label', label: 'Metric' },
+                  { key: 'count', label: 'Count', render: (row) => (row.count === null || row.count === undefined ? '—' : formatNumber(row.count)) },
+                  { key: 'countPercentage', label: 'Of archived loans %', render: (row) => (row.countPercentage === null || row.countPercentage === undefined ? '—' : formatPercentage(row.countPercentage)) },
+                  { key: 'amount', label: 'Amount', render: (row) => (row.amount === null || row.amount === undefined ? '—' : formatCurrency(row.amount)) },
+                  { key: 'amountPercentage', label: 'Of archived debt %', render: (row) => (row.amountPercentage === null || row.amountPercentage === undefined ? '—' : formatPercentage(row.amountPercentage)) }
+                ]}
+                rows={[
+                  { label: 'Archived loans', count: metrics?.archivedLoansCount, countPercentage: null, amount: metrics?.archivedLoansAmount, amountPercentage: null },
+                  { label: 'Archived loans still unpaid', count: metrics?.archivedLoansOpenCount, countPercentage: metrics?.archivedLoansOpenPercentage, amount: metrics?.archivedLoansRemainingAmount, amountPercentage: metrics?.archivedLoansRemainingPercentage },
+                  { label: 'Archived loans settled', count: metrics?.archivedLoansSettledCount, countPercentage: metrics?.archivedLoansSettledPercentage, amount: metrics?.archivedLoansPaidAmount, amountPercentage: metrics?.archivedLoansPaidPercentage }
+                ]}
+              />
+            </div>
           </div>
         </Modal>
       )}
