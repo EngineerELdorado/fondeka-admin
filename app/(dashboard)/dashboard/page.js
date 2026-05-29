@@ -772,20 +772,31 @@ export default function DashboardPage() {
       onClick: () => setShowHoldings(true)
     },
     {
-      label: 'Savings blances',
-      value: formatCurrency(savingsAggregates.currentAllLiabilityWithAccruedInterest),
-      sub: 'Includes interests',
+      label: t('dashboard.savingsBalances'),
+      value: formatCurrency(savingsAggregates.currentAllLiability),
+      sub: t('dashboard.savingsExcludesInterests'),
       tone: '#7c3aed',
       onClick: () => setShowSavingsBreakdown(true),
       menu: {
-        label: 'Savings breakdown',
+        label: t('dashboard.savingsBreakdown'),
+        onClick: () => setShowSavingsBreakdown(true)
+      }
+    },
+    {
+      label: t('dashboard.savingsInterest'),
+      value: formatCurrency(savingsAggregates.allAccruedInterest),
+      sub: t('dashboard.savingsIncludesInterests'),
+      tone: '#5b21b6',
+      onClick: () => setShowSavingsBreakdown(true),
+      menu: {
+        label: t('dashboard.savingsBreakdown'),
         onClick: () => setShowSavingsBreakdown(true)
       }
     },
     {
       label: 'Customer Funds Liability',
       value: formatCurrency(customerLiabilities.totalOwedToCustomersWithAccruedSavingsInterest),
-      sub: `Excl. accrued savings interest ${formatCurrency(customerLiabilities.totalOwedToCustomers)}`,
+      sub: "Total of customer's money",
       tone: '#b45309',
       onClick: () => setShowCustomerLiabilities(true),
       menu: {
@@ -799,6 +810,12 @@ export default function DashboardPage() {
       sub: `Volume ${formatCurrency(totals.completedVolume)}`,
       tone: '#16a34a',
       onClick: () => goToTransactions('COMPLETED')
+    },
+    {
+      label: t('dashboard.providerFees'),
+      value: formatCurrency(providerFeesTotal),
+      sub: t('dashboard.totalProviderFees'),
+      tone: '#f97316'
     },
     {
       label: t('dashboard.netProfit'),
@@ -1762,24 +1779,6 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
-            <div
-              style={{
-                display: 'grid',
-                gap: '0.2rem',
-                padding: '0.7rem 0.8rem',
-                border: '1px dashed var(--border)',
-                borderRadius: '10px',
-                background: 'color-mix(in srgb, var(--surface) 92%, var(--bg))'
-              }}
-            >
-              <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>
-                {t('dashboard.providerFees')}
-              </div>
-              <div style={{ fontWeight: 800, fontSize: '18px', color: 'var(--muted)' }}>{formatCurrency(providerFeesTotal)}</div>
-              <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
-                Operational cost view kept separate from the revenue realization figures above.
-              </div>
-            </div>
           </div>
         </Modal>
       )}
@@ -1830,57 +1829,57 @@ export default function DashboardPage() {
       )}
 
       {showSavingsBreakdown && (
-        <Modal title="Savings aggregates" onClose={() => setShowSavingsBreakdown(false)}>
+        <Modal title={t('dashboard.savingsAggregatesTitle')} onClose={() => setShowSavingsBreakdown(false)}>
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-              Totals reflect the current dashboard filters across accounts. Historical fields show money that has passed through savings over time. Current liability fields show what is still owed right now.
+              {t('dashboard.savingsAggregatesHelp')}
             </div>
             <div style={{ display: 'grid', gap: '0.5rem' }}>
-              <div style={{ fontWeight: 800 }}>Historical savings and contributions</div>
+              <div style={{ fontWeight: 800 }}>{t('dashboard.savingsHistoricalTitle')}</div>
               <Table
                 columns={[
-                  { key: 'label', label: 'Metric' },
-                  { key: 'amount', label: 'Amount', render: (row) => formatCurrency(row.amount) }
+                  { key: 'label', label: t('common.metric') },
+                  { key: 'amount', label: t('common.amount'), render: (row) => formatCurrency(row.amount) }
                 ]}
                 rows={[
-                  { label: 'Open savings deposited', amount: savingsAggregates.openSavings },
-                  { label: 'Locked savings deposited', amount: savingsAggregates.lockedSavings },
-                  { label: 'Likelemba contributions', amount: savingsAggregates.likelemba },
-                  { label: 'AVEC contributions', amount: savingsAggregates.avec },
-                  { label: 'All', amount: savingsAggregates.all }
+                  { label: t('dashboard.openSavingsDeposited'), amount: savingsAggregates.openSavings },
+                  { label: t('dashboard.lockedSavingsDeposited'), amount: savingsAggregates.lockedSavings },
+                  { label: t('dashboard.likelembaContributions'), amount: savingsAggregates.likelemba },
+                  { label: t('dashboard.avecContributions'), amount: savingsAggregates.avec },
+                  { label: t('common.all'), amount: savingsAggregates.all }
                 ]}
               />
             </div>
             <div style={{ display: 'grid', gap: '0.5rem' }}>
-              <div style={{ fontWeight: 800 }}>Current savings liability</div>
+              <div style={{ fontWeight: 800 }}>{t('dashboard.currentSavingsLiability')}</div>
               <Table
                 columns={[
-                  { key: 'label', label: 'Metric' },
-                  { key: 'amount', label: 'Amount', render: (row) => formatCurrency(row.amount) }
+                  { key: 'label', label: t('common.metric') },
+                  { key: 'amount', label: t('common.amount'), render: (row) => formatCurrency(row.amount) }
                 ]}
                 rows={[
-                  { label: 'Open savings current principal', amount: savingsAggregates.currentOpenSavingsLiability },
-                  { label: 'Locked savings current principal', amount: savingsAggregates.currentLockedSavingsLiability },
-                  { label: 'Likelemba current treasury', amount: savingsAggregates.currentLikelembaLiability },
-                  { label: 'AVEC current treasury', amount: savingsAggregates.currentAvecLiability },
-                  { label: 'Current total liability', amount: savingsAggregates.currentAllLiability }
+                  { label: t('dashboard.openSavingsCurrentPrincipal'), amount: savingsAggregates.currentOpenSavingsLiability },
+                  { label: t('dashboard.lockedSavingsCurrentPrincipal'), amount: savingsAggregates.currentLockedSavingsLiability },
+                  { label: t('dashboard.likelembaCurrentTreasury'), amount: savingsAggregates.currentLikelembaLiability },
+                  { label: t('dashboard.avecCurrentTreasury'), amount: savingsAggregates.currentAvecLiability },
+                  { label: t('dashboard.currentTotalLiability'), amount: savingsAggregates.currentAllLiability }
                 ]}
               />
             </div>
             <div style={{ display: 'grid', gap: '0.5rem' }}>
-              <div style={{ fontWeight: 800 }}>Accrued interest</div>
+              <div style={{ fontWeight: 800 }}>{t('dashboard.accruedInterest')}</div>
               <Table
                 columns={[
-                  { key: 'label', label: 'Metric' },
-                  { key: 'amount', label: 'Amount', render: (row) => formatCurrency(row.amount) }
+                  { key: 'label', label: t('common.metric') },
+                  { key: 'amount', label: t('common.amount'), render: (row) => formatCurrency(row.amount) }
                 ]}
                 rows={[
-                  { label: 'Open savings accrued interest', amount: savingsAggregates.openSavingsAccruedInterest },
-                  { label: 'Locked savings accrued interest', amount: savingsAggregates.lockedSavingsAccruedInterest },
-                  { label: 'Likelemba accrued interest', amount: savingsAggregates.likelembaAccruedInterest },
-                  { label: 'AVEC accrued interest', amount: savingsAggregates.avecAccruedInterest },
-                  { label: 'All accrued interest', amount: savingsAggregates.allAccruedInterest },
-                  { label: 'Current liability including accrued interest', amount: savingsAggregates.currentAllLiabilityWithAccruedInterest }
+                  { label: t('dashboard.openSavingsAccruedInterest'), amount: savingsAggregates.openSavingsAccruedInterest },
+                  { label: t('dashboard.lockedSavingsAccruedInterest'), amount: savingsAggregates.lockedSavingsAccruedInterest },
+                  { label: t('dashboard.likelembaAccruedInterest'), amount: savingsAggregates.likelembaAccruedInterest },
+                  { label: t('dashboard.avecAccruedInterest'), amount: savingsAggregates.avecAccruedInterest },
+                  { label: t('dashboard.allAccruedInterest'), amount: savingsAggregates.allAccruedInterest },
+                  { label: t('dashboard.currentLiabilityIncludingAccruedInterest'), amount: savingsAggregates.currentAllLiabilityWithAccruedInterest }
                 ]}
               />
             </div>
