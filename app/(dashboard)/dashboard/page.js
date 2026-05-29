@@ -358,6 +358,7 @@ export default function DashboardPage() {
   const [showHoldings, setShowHoldings] = useState(false);
   const [showRevenueBreakdown, setShowRevenueBreakdown] = useState(false);
   const [showSavingsBreakdown, setShowSavingsBreakdown] = useState(false);
+  const [showCustomerLiabilities, setShowCustomerLiabilities] = useState(false);
   const [showLoanBreakdown, setShowLoanBreakdown] = useState(false);
   const [staleMinutes, setStaleMinutes] = useState(3);
   const [staleMinutesMode, setStaleMinutesMode] = useState('preset');
@@ -544,6 +545,7 @@ export default function DashboardPage() {
   const timeseries = data?.timeseries || [];
   const holdings = data?.holdings || {};
   const savingsAggregates = data?.savingsAggregates || {};
+  const customerLiabilities = data?.customerLiabilities || {};
   const fundedStuckFundedCount = Number(fundedStuckReport?.fundedCount) || 0;
   const fundedStuckExecutingCount = Number(fundedStuckReport?.executingCount) || 0;
   const fundedStuckUnknownCount = Number(fundedStuckReport?.unknownCount) || 0;
@@ -781,17 +783,22 @@ export default function DashboardPage() {
       }
     },
     {
+      label: 'Customer Funds Liability',
+      value: formatCurrency(customerLiabilities.totalOwedToCustomersWithAccruedSavingsInterest),
+      sub: `Excl. accrued savings interest ${formatCurrency(customerLiabilities.totalOwedToCustomers)}`,
+      tone: '#b45309',
+      onClick: () => setShowCustomerLiabilities(true),
+      menu: {
+        label: 'Liability breakdown',
+        onClick: () => setShowCustomerLiabilities(true)
+      }
+    },
+    {
       label: t('dashboard.completed'),
       value: formatNumber(totals.completedCount),
       sub: `Volume ${formatCurrency(totals.completedVolume)}`,
       tone: '#16a34a',
       onClick: () => goToTransactions('COMPLETED')
-    },
-    {
-      label: t('dashboard.providerFees'),
-      value: formatCurrency(providerFeesTotal),
-      sub: t('dashboard.totalProviderFees'),
-      tone: '#f97316'
     },
     {
       label: t('dashboard.netProfit'),
@@ -1755,6 +1762,69 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
+            <div
+              style={{
+                display: 'grid',
+                gap: '0.2rem',
+                padding: '0.7rem 0.8rem',
+                border: '1px dashed var(--border)',
+                borderRadius: '10px',
+                background: 'color-mix(in srgb, var(--surface) 92%, var(--bg))'
+              }}
+            >
+              <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>
+                {t('dashboard.providerFees')}
+              </div>
+              <div style={{ fontWeight: 800, fontSize: '18px', color: 'var(--muted)' }}>{formatCurrency(providerFeesTotal)}</div>
+              <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+                Operational cost view kept separate from the revenue realization figures above.
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showCustomerLiabilities && (
+        <Modal title="Customer Funds Liability" onClose={() => setShowCustomerLiabilities(false)}>
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Consolidated view of customer funds owed across wallets, crypto, and savings for the current dashboard filters.
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.6rem' }}>
+              {[
+                { label: 'Customer Funds Liability', value: formatCurrency(customerLiabilities.totalOwedToCustomers) },
+                { label: 'Customer Funds Liability Incl. Accrued Savings Interest', value: formatCurrency(customerLiabilities.totalOwedToCustomersWithAccruedSavingsInterest) }
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  style={{
+                    display: 'grid',
+                    gap: '0.15rem',
+                    padding: '0.6rem',
+                    border: '1px solid var(--border)',
+                    borderRadius: '10px'
+                  }}
+                >
+                  <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{item.label}</div>
+                  <div style={{ fontWeight: 800, fontSize: '18px' }}>{item.value}</div>
+                </div>
+              ))}
+            </div>
+            <Table
+              columns={[
+                { key: 'label', label: 'Metric' },
+                { key: 'amount', label: 'Amount', render: (row) => formatCurrency(row.amount) }
+              ]}
+              rows={[
+                { label: 'Wallet Balances', amount: customerLiabilities.walletFiatBalances },
+                { label: 'Crypto Balances (Fiat Value)', amount: customerLiabilities.cryptoFiatBalances },
+                { label: 'Savings Liability', amount: customerLiabilities.savingsLiability },
+                { label: 'Savings Accrued Interest', amount: customerLiabilities.savingsAccruedInterest },
+                { label: 'Savings Liability Incl. Accrued Interest', amount: customerLiabilities.savingsLiabilityWithAccruedInterest },
+                { label: 'Customer Funds Liability', amount: customerLiabilities.totalOwedToCustomers },
+                { label: 'Customer Funds Liability Incl. Accrued Savings Interest', amount: customerLiabilities.totalOwedToCustomersWithAccruedSavingsInterest }
+              ]}
+            />
           </div>
         </Modal>
       )}
