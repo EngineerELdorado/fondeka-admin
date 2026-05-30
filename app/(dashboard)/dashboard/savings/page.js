@@ -1,11 +1,13 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useLocale } from '@/contexts/LocaleContext';
 import { SavingsPageHeader, SavingsSubnav, TypeBadge } from '@/components/SavingsAdmin';
 
 export default function SavingsHubPage() {
   const { t } = useLocale();
+  const router = useRouter();
   const sections = [
     {
       href: '/dashboard/savings/products',
@@ -34,6 +36,11 @@ export default function SavingsHubPage() {
       <SavingsPageHeader
         title={t('savings.hub.title')}
         description={t('savings.hub.description')}
+        actions={
+          <button type="button" className="btn-primary" onClick={() => router.refresh()}>
+            {t('common.refresh')}
+          </button>
+        }
       />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>

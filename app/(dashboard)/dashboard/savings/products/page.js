@@ -655,9 +655,14 @@ export default function SavingProductsPage() {
         title={t('savings.products.title')}
         description={t('savings.products.description')}
         actions={
-          <button type="button" onClick={openCreate} className="btn-success">
-            {t('savings.products.addProduct')}
-          </button>
+          <>
+            <button type="button" onClick={fetchRows} className="btn-primary" disabled={loading}>
+              {loading ? t('common.refreshing') : t('common.refresh')}
+            </button>
+            <button type="button" onClick={openCreate} className="btn-success">
+              {t('savings.products.addProduct')}
+            </button>
+          </>
         }
       />
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { DataTable } from '@/components/DataTable';
 import { useLocale } from '@/contexts/LocaleContext';
 import {
@@ -22,7 +23,8 @@ const emptyFilters = {
   reference: '',
   accountReference: '',
   savingProductCode: '',
-  status: ''
+  status: '',
+  email: ''
 };
 
 const emptyEditDraft = {
@@ -49,6 +51,9 @@ const getReference = (row) => pickFirst(row?.internalReference, row?.reference, 
 const getAccountReference = (row) => pickFirst(row?.accountReference, row?.account?.reference, row?.account?.accountReference, row?.accountId);
 const getProductTitle = (row) => pickFirst(row?.savingProductTitle, row?.savingProductName, row?.savingProduct?.title, row?.savingProduct?.name);
 const getProductCode = (row) => pickFirst(row?.savingProductCode, row?.savingProduct?.code, row?.productCode);
+const getCreatedByAccountId = (row) => pickFirst(row?.createdByAccountId, row?.createdByAccount?.id);
+const getCreatedByName = (row) => pickFirst(row?.createdByName, row?.createdByAccount?.name, row?.createdBy?.name);
+const getCreatedByEmail = (row) => pickFirst(row?.createdByEmail, row?.createdByAccount?.email, row?.createdBy?.email);
 const getStatus = (row) => pickFirst(row?.status, row?.savingStatus, 'UNKNOWN');
 const getDeletedAt = (row) => pickFirst(row?.deletedAt);
 const isDeletedSaving = (row) => Boolean(getDeletedAt(row));
@@ -65,8 +70,8 @@ const getAppliedLockDurationDays = (row) => pickFirst(row?.appliedLockDurationDa
 const getAppliedInterestTierId = (row) => pickFirst(row?.appliedInterestTierId, row?.interestTierId);
 const getAppliedAt = (row) => pickFirst(row?.appliedAt, row?.termsAppliedAt);
 const getEarlyWithdrawalApprovedAt = (row) => pickFirst(row?.earlyWithdrawalApprovedAt);
-const getStartDate = (row) => pickFirst(row?.startDate, row?.createdAt, row?.createdDate);
-const getEndDate = (row) => pickFirst(row?.endDate, row?.lockedUntil, row?.maturityDate);
+const getStartDate = (row) => pickFirst(row?.startsAt, row?.startDate, row?.createdAt, row?.createdDate);
+const getEndDate = (row) => pickFirst(row?.endsAt, row?.endDate, row?.lockedUntil, row?.maturityDate);
 const isInterestInformationalOnly = (row) => Boolean(pickFirst(row?.interestInformationalOnly, row?.estimatedInterestInformationalOnly, false));
 const getProductType = (row) => {
   const raw = String(pickFirst(row?.savingType, row?.productType, row?.savingProductType, '')).toUpperCase();
@@ -86,6 +91,7 @@ const getProductBehaviorSummary = (row) => {
 };
 const getActivityType = (row) => pickFirst(row?.activityType, row?.type, row?.action);
 const getActivityAmount = (row) => pickFirst(row?.amount, row?.principalAmount, row?.value);
+const getActivitySavingId = (row) => pickFirst(row?.savingId, row?.saving?.id, row?.personalSavingId);
 const getActivityTransactionReference = (row) =>
   pickFirst(row?.transactionReference, row?.transaction?.reference, row?.internalTransactionReference, row?.transactionId);
 const getMinimumLockDurationDays = (product) =>
@@ -116,6 +122,11 @@ const toIsoString = (value) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
   return date.toISOString();
+};
+const filterActivitiesForSaving = (activityRes, savingId) => {
+  const rows = Array.isArray(activityRes) ? activityRes : activityRes?.content || [];
+  if (savingId === null || savingId === undefined) return rows;
+  return rows.filter((row) => String(getActivitySavingId(row)) === String(savingId));
 };
 
 const BottomSheetNotice = ({ title, message, onClose }) => (
@@ -258,7 +269,7 @@ export default function PersonalSavingsPage() {
       api.savingActivities.list(new URLSearchParams({ page: '0', size: '100', savingId: String(savingId) }))
     ]);
     setDetail(savingRes || fallbackRow);
-    setActivities(Array.isArray(activityRes) ? activityRes : activityRes?.content || []);
+    setActivities(filterActivitiesForSaving(activityRes, savingId));
   };
 
   const openDetail = async (row) => {
@@ -273,7 +284,7 @@ export default function PersonalSavingsPage() {
         api.savingActivities.list(new URLSearchParams({ page: '0', size: '100', savingId: String(id) }))
       ]);
       setDetail(savingRes || row);
-      setActivities(Array.isArray(activityRes) ? activityRes : activityRes?.content || []);
+      setActivities(filterActivitiesForSaving(activityRes, id));
     } catch (err) {
       setError(err?.message || 'Failed to load saving detail');
       setDetail(row);
@@ -412,7 +423,44 @@ export default function PersonalSavingsPage() {
           </div>
         )
       },
-      { key: 'accountReference', label: t('savings.personal.account'), render: (row) => getAccountReference(row) || '—' },
+      {
+        key: 'creator',
+        label: 'Creator',
+        render: (row) => {
+          const accountId = getCreatedByAccountId(row);
+          return (
+            <div style={{ display: 'grid', gap: '0.2rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                <span>{getCreatedByName(row) || '—'}</span>
+                {accountId !== null && accountId !== undefined && accountId !== '' ? (
+                  <Link
+                    href={`/dashboard/accounts/accounts/${encodeURIComponent(String(accountId))}`}
+                    aria-label={`Open account ${accountId}`}
+                    title="Open account details"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '999px',
+                      border: '1px solid var(--border)',
+                      color: 'var(--text)',
+                      textDecoration: 'none'
+                    }}
+                  >
+                    <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 21a8 8 0 1 0-16 0" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  </Link>
+                ) : null}
+              </div>
+              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{getCreatedByEmail(row) || '—'}</div>
+            </div>
+          );
+        }
+      },
       {
         key: 'product',
         label: 'Product',
@@ -436,9 +484,7 @@ export default function PersonalSavingsPage() {
       { key: 'principalBalance', label: 'Principal', render: (row) => formatMoney(getPrincipalBalance(row)) },
       { key: 'estimatedInterest', label: 'Estimated Interest', render: (row) => formatMoney(getEstimatedInterest(row)) },
       { key: 'projectedTotal', label: 'Projected Total', render: (row) => formatMoney(getProjectedTotal(row)) },
-      { key: 'withdrawableAmount', label: t('savings.personal.withdrawable'), render: (row) => formatMoney(getWithdrawableAmount(row)) },
       { key: 'createdAt', label: 'Created / Start', render: (row) => formatDate(getStartDate(row)) },
-      { key: 'endDate', label: 'End Date', render: (row) => formatDate(getEndDate(row)) },
       { key: 'deletedAt', label: t('savings.personal.deletedAt'), render: (row) => formatDateTime(getDeletedAt(row)) },
       {
         key: 'actions',
@@ -502,6 +548,11 @@ export default function PersonalSavingsPage() {
       <SavingsPageHeader
         title={t('savings.personal.title')}
         description={t('savings.personal.description')}
+        actions={
+          <button type="button" className="btn-primary" onClick={fetchRows} disabled={loading}>
+            {loading ? t('common.refreshing') : t('common.refresh')}
+          </button>
+        }
       />
 
       <SectionCard title={t('savings.groups.searchTitle')} description={t('savings.personal.searchDescription')}>
@@ -521,6 +572,16 @@ export default function PersonalSavingsPage() {
           <div style={{ display: 'grid', gap: '0.25rem' }}>
             <label htmlFor="personal-status">{t('common.status')}</label>
             <input id="personal-status" value={filters.status} onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))} />
+          </div>
+          <div style={{ display: 'grid', gap: '0.25rem' }}>
+            <label htmlFor="personal-creator-email">Creator Email</label>
+            <input
+              id="personal-creator-email"
+              type="email"
+              value={filters.email}
+              onChange={(e) => setFilters((prev) => ({ ...prev, email: e.target.value }))}
+              placeholder="user@example.com"
+            />
           </div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -546,6 +607,7 @@ export default function PersonalSavingsPage() {
         canNext={page + 1 < totalPages}
         onPageChange={setPage}
         emptyLabel={t('savings.personal.noSavings')}
+        showAccountQuickNav={false}
       />
 
       {selectedId !== null && (
@@ -632,11 +694,47 @@ export default function PersonalSavingsPage() {
                 <DetailGrid
                   rows={[
                     { label: 'Saving name', value: getProductTitle(detail) || '—' },
-                    { label: 'Internal reference', value: getReference(detail) || '—' },
-                    { label: 'Product type', value: getProductType(detail) },
-                    { label: 'Account reference', value: getAccountReference(detail) || '—' },
-                    { label: 'Deleted At', value: formatDateTime(getDeletedAt(detail)) }
+                    { label: 'End Date', value: formatDate(getEndDate(detail)) },
+                    { label: 'Created By Name', value: getCreatedByName(detail) || '—' },
+                    { label: 'Created By Email', value: getCreatedByEmail(detail) || '—' }
                   ]}
+                />
+              </SectionCard>
+
+              <SectionCard title={t('savings.personal.activityHistory')} description={t('savings.personal.activityHistoryDescription')}>
+                <DataTable
+                  showIndex={false}
+                  showAccountQuickNav={false}
+                  pageSize={100}
+                  columns={[
+                    { key: 'activityType', label: 'Type', render: (row) => getActivityType(row) || '—' },
+                    { key: 'amount', label: 'Amount', render: (row) => formatMoney(getActivityAmount(row)) },
+                    {
+                      key: 'estimatedInterest',
+                      label: 'Estimated Interest',
+                      render: (row) => formatMoney(pickFirst(row?.estimatedInterestAmount, row?.estimatedInterest))
+                    },
+                    {
+                      key: 'transactionReference',
+                      label: 'Transaction Ref',
+                      render: (row) => {
+                        const transactionReference = getActivityTransactionReference(row);
+                        if (!transactionReference) return '—';
+                        return (
+                          <Link
+                            href={`/dashboard/transactions?reference=${encodeURIComponent(String(transactionReference))}`}
+                            title="Open transaction"
+                            style={{ color: 'var(--primary)', fontWeight: 700, textDecoration: 'none' }}
+                          >
+                            {transactionReference}
+                          </Link>
+                        );
+                      }
+                    },
+                    { key: 'createdAt', label: 'Timestamp', render: (row) => formatDateTime(pickFirst(row?.createdAt, row?.timestamp, row?.activityDate)) }
+                  ]}
+                  rows={activities}
+                  emptyLabel={t('savings.personal.noActivities')}
                 />
               </SectionCard>
 
@@ -645,7 +743,6 @@ export default function PersonalSavingsPage() {
                   rows={[
                     { label: 'Saving Product Code', value: getProductCode(detail) || '—' },
                     { label: 'Saving Product Title', value: getProductTitle(detail) || '—' },
-                    { label: 'Product Type', value: getProductType(detail) },
                     {
                       label: 'Early Withdrawal Product Policy',
                       value: String(getProductCode(detail) || '').toUpperCase() === SAVING_PRODUCT_CODE_LOCKED
@@ -753,26 +850,6 @@ export default function PersonalSavingsPage() {
                 />
               </SectionCard>
 
-              <SectionCard title={t('savings.personal.activityHistory')} description={t('savings.personal.activityHistoryDescription')}>
-                <DataTable
-                  showIndex={false}
-                  showAccountQuickNav={false}
-                  pageSize={100}
-                  columns={[
-                    { key: 'activityType', label: 'Type', render: (row) => getActivityType(row) || '—' },
-                    { key: 'amount', label: 'Amount', render: (row) => formatMoney(getActivityAmount(row)) },
-                    {
-                      key: 'estimatedInterest',
-                      label: 'Estimated Interest',
-                      render: (row) => formatMoney(pickFirst(row?.estimatedInterestAmount, row?.estimatedInterest))
-                    },
-                    { key: 'transactionReference', label: 'Transaction Ref', render: (row) => getActivityTransactionReference(row) || '—' },
-                    { key: 'createdAt', label: 'Timestamp', render: (row) => formatDateTime(pickFirst(row?.createdAt, row?.timestamp, row?.activityDate)) }
-                  ]}
-                  rows={activities}
-                  emptyLabel={t('savings.personal.noActivities')}
-                />
-              </SectionCard>
             </div>
           )}
         </AdminModal>

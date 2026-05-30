@@ -338,11 +338,13 @@ export default function TransactionsPage() {
   const { pushToast } = useToast();
   const queryFilters = useMemo(() => {
     const transactionId = searchParams.get('transactionId');
+    const referenceParam = searchParams.get('reference');
     const statusParam = searchParams.get('status');
     const actionParam = searchParams.get('action');
     const endDateParam = searchParams.get('endDate');
     const next = {};
     if (transactionId) next.transactionId = transactionId;
+    if (referenceParam) next.reference = referenceParam;
     if (statusParam) {
       const normalized = normalizeEnumKey(statusParam);
       if (statusOptions.includes(normalized)) next.status = normalized;

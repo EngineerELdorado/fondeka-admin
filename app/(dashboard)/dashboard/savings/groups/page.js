@@ -190,6 +190,11 @@ export default function GroupSavingsPage() {
       <SavingsPageHeader
         title={t('savings.groups.title')}
         description={t('savings.groups.description')}
+        actions={
+          <button type="button" className="btn-primary" onClick={loadGroups} disabled={loading || Boolean(savingAction)}>
+            {loading ? t('common.refreshing') : t('common.refresh')}
+          </button>
+        }
       />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>

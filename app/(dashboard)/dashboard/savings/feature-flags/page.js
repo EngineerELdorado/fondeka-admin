@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { SavingsPageHeader, SavingsSubnav, SectionCard } from '@/components/SavingsAdmin';
+import { useLocale } from '@/contexts/LocaleContext';
 
 const FLAG_DEFINITIONS = [
   {
@@ -21,6 +22,7 @@ const FLAG_DEFINITIONS = [
 ];
 
 export default function SavingsFeatureFlagsPage() {
+  const { t } = useLocale();
   const [flags, setFlags] = useState([]);
   const [loading, setLoading] = useState(true);
   const [savingKey, setSavingKey] = useState('');
@@ -93,10 +95,15 @@ export default function SavingsFeatureFlagsPage() {
         title="Savings Feature Flags"
         description="Focused controls for savings interest behavior. Open savings is normally non-interest-bearing, while locked savings accrues daily interest that is intended to become payable only at maturity."
         actions={
-          <Link href="/dashboard/feature-flags" className="btn-neutral" style={{ textDecoration: 'none' }}>
-            Open Global Flags
-          </Link>
-          }
+          <>
+            <button type="button" className="btn-primary" onClick={loadFlags} disabled={loading || Boolean(savingKey)}>
+              {loading ? t('common.refreshing') : t('common.refresh')}
+            </button>
+            <Link href="/dashboard/feature-flags" className="btn-neutral" style={{ textDecoration: 'none' }}>
+              Open Global Flags
+            </Link>
+          </>
+        }
       />
 
       {error ? <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div> : null}
