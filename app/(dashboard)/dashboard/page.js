@@ -890,7 +890,6 @@ export default function DashboardPage() {
       onClick: () => setShowLoanBreakdown(true)
     },
     { key: 'loanPaidBackVolume', label: t('dashboard.loansReimbursed'), onClick: () => setShowLoanBreakdown(true) },
-    { key: 'esimsPurchased', label: t('dashboard.esimPurchases') },
     { key: 'airtimePurchases', label: t('dashboard.airtimePurchases') },
     { key: 'billPayments', label: t('dashboard.billPayments') },
     { key: 'cryptoTransactions', label: t('dashboard.cryptoTransactions') },
