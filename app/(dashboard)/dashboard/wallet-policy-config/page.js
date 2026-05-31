@@ -520,10 +520,6 @@ export default function WalletPolicyConfigPage() {
       setError(`Review prompt completed transactions threshold must be a positive integer greater than or equal to ${MIN_REVIEW_PROMPT_THRESHOLD}.`);
       return;
     }
-    if (depositPromptThresholdRaw !== '' && (!Number.isFinite(depositPromptThresholdParsed) || depositPromptThresholdParsed <= 0)) {
-      setError('Deposit prompt threshold amount must be a positive amount.');
-      return;
-    }
     const normalizedCollectionSourceRiskRules = [];
     const collectionSourceRiskRuleKeys = new Set();
     for (const [ruleIndex, rawRule] of (Array.isArray(collectionSourceRiskRules) ? collectionSourceRiskRules : []).entries()) {
@@ -610,7 +606,12 @@ export default function WalletPolicyConfigPage() {
         forceKycBeforeAppUse: Boolean(forceKycBeforeAppUse),
         sendCryptoExternalProviderEnabled: Boolean(sendCryptoExternalProviderEnabled),
         sendCryptoAutoPayoutRails: normalizedSendCryptoAutoPayoutRails,
-        depositPromptThresholdAmount: depositPromptThresholdRaw === '' ? null : depositPromptThresholdParsed.toFixed(2),
+        depositPromptThresholdAmount:
+          depositPromptThresholdRaw === ''
+            ? null
+            : Number.isFinite(depositPromptThresholdParsed)
+              ? depositPromptThresholdParsed.toFixed(2)
+              : depositPromptThresholdRaw,
         transactionsEligibleForLoanEligibility: Boolean(transactionsEligibleForLoanEligibility),
         reviewPromptCompletedTransactionsThreshold:
           reviewPromptThresholdRaw === '' ? null : reviewPromptThresholdParsed,
@@ -1873,11 +1874,11 @@ export default function WalletPolicyConfigPage() {
                   borderRadius: '999px',
                   fontSize: '12px',
                   fontWeight: 700,
-                  background: depositPromptThresholdAmount ? '#ecfccb' : '#f3f4f6',
-                  color: depositPromptThresholdAmount ? '#3f6212' : '#374151'
+                  background: String(depositPromptThresholdAmount || '').trim() !== '' ? '#ecfccb' : '#f3f4f6',
+                  color: String(depositPromptThresholdAmount || '').trim() !== '' ? '#3f6212' : '#374151'
                 }}
               >
-                {depositPromptThresholdAmount ? 'Threshold-based' : 'Client fallback'}
+                {String(depositPromptThresholdAmount || '').trim() !== '' ? 'Threshold-based' : 'Client fallback'}
               </span>
             </div>
 
@@ -1890,7 +1891,6 @@ export default function WalletPolicyConfigPage() {
               <input
                 id="depositPromptThresholdAmount"
                 type="number"
-                min="0.01"
                 step="0.01"
                 inputMode="decimal"
                 value={depositPromptThresholdAmount}

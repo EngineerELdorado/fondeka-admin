@@ -1887,8 +1887,8 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     let depositPromptThresholdAmount = null;
     if (depositPromptThresholdRaw) {
       const parsed = Number(depositPromptThresholdRaw);
-      if (!Number.isFinite(parsed) || parsed <= 0) {
-        setPricingError('Deposit prompt threshold override must be greater than 0, or empty to inherit the global threshold');
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        setPricingError('Deposit prompt threshold override must be 0 or greater, or empty to inherit the global threshold');
         return;
       }
       depositPromptThresholdAmount = parsed;
@@ -4860,7 +4860,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                 <input
                   id="pricingDepositPromptThresholdOverride"
                   type="number"
-                  min="0.01"
+                  min="0"
                   step="0.01"
                   value={pricingDepositPromptThresholdOverride}
                   onChange={(e) => setPricingDepositPromptThresholdOverride(e.target.value)}
