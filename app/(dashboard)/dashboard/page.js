@@ -544,6 +544,20 @@ export default function DashboardPage() {
   const metrics = data?.metrics || {};
   const timeseries = data?.timeseries || [];
   const holdings = data?.holdings || {};
+  const cryptoHoldingsRows = useMemo(() => formatCryptoHoldings(holdings.cryptoHoldings), [holdings.cryptoHoldings]);
+  const cryptoHoldingsChartData = useMemo(
+    () =>
+      cryptoHoldingsRows
+        .map((row) => ({
+          ...row,
+          chartLabel: row.symbol || row.asset || 'Asset',
+          amount: Number(row.balanceFiat) || 0
+        }))
+        .filter((row) => row.amount > 0)
+        .sort((a, b) => b.amount - a.amount)
+        .slice(0, 12),
+    [cryptoHoldingsRows]
+  );
   const savingsAggregates = data?.savingsAggregates || {};
   const customerLiabilities = data?.customerLiabilities || {};
   const fundedStuckFundedCount = Number(fundedStuckReport?.fundedCount) || 0;
@@ -1632,23 +1646,6 @@ export default function DashboardPage() {
             rows={data?.statuses}
           />
         </div>
-        {holdings.cryptoHoldings && holdings.cryptoHoldings.length > 0 && (
-          <div className="card" style={{ display: 'grid', gap: '0.6rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontWeight: 800 }}>Crypto holdings</div>
-            </div>
-            <Table
-              columns={[
-                { key: 'asset', label: 'Asset / Network', render: (row) => row.asset || '—' },
-                { key: 'symbol', label: 'Symbol' },
-                { key: 'balance', label: 'Balance', render: (row) => formatNumber(row.balance) },
-                { key: 'balanceFiat', label: 'USD', render: (row) => formatCurrency(row.balanceFiat) }
-              ]}
-              rows={formatCryptoHoldings(holdings.cryptoHoldings)}
-              emptyLabel="No crypto holdings"
-            />
-          </div>
-        )}
       </div>
 
       {stuckItemsModal?.action && (
@@ -1822,6 +1819,61 @@ export default function DashboardPage() {
                 { label: 'Customer Funds Liability', amount: customerLiabilities.totalOwedToCustomers },
                 { label: 'Customer Funds Liability Incl. Accrued Savings Interest', amount: customerLiabilities.totalOwedToCustomersWithAccruedSavingsInterest }
               ]}
+            />
+          </div>
+        </Modal>
+      )}
+
+      {showHoldings && (
+        <Modal title="Crypto Holdings" onClose={() => setShowHoldings(false)}>
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Current crypto balances converted to USD for the active dashboard filters.
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.6rem' }}>
+              {[
+                { label: 'Crypto Balance USD', value: formatCurrency(holdings.cryptoBalanceFiat) },
+                { label: 'Holdings', value: formatNumber(cryptoHoldingsRows.length) }
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  style={{
+                    display: 'grid',
+                    gap: '0.15rem',
+                    padding: '0.6rem',
+                    border: '1px solid var(--border)',
+                    borderRadius: '10px'
+                  }}
+                >
+                  <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{item.label}</div>
+                  <div style={{ fontWeight: 800, fontSize: '18px' }}>{item.value}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ height: 280, border: '1px solid var(--border)', borderRadius: '10px', padding: '0.75rem' }}>
+              {cryptoHoldingsChartData.length === 0 ? (
+                <div style={{ color: 'var(--muted)' }}>No crypto holdings to chart.</div>
+              ) : (
+                <ResponsiveContainer>
+                  <BarChart data={cryptoHoldingsChartData} margin={{ top: 10, right: 20, bottom: 20, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis dataKey="chartLabel" tick={{ fontSize: 12 }} />
+                    <YAxis tickFormatter={(value) => `$${Number(value).toLocaleString(DISPLAY_LOCALE)}`} width={80} />
+                    <Tooltip formatter={(value) => [formatCurrency(value), 'USD']} />
+                    <Bar dataKey="amount" fill="#0ea5e9" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+            <Table
+              columns={[
+                { key: 'asset', label: 'Asset / Network', render: (row) => row.asset || '—' },
+                { key: 'symbol', label: 'Symbol' },
+                { key: 'balance', label: 'Balance', render: (row) => formatNumber(row.balance) },
+                { key: 'balanceFiat', label: 'USD', render: (row) => formatCurrency(row.balanceFiat) }
+              ]}
+              rows={cryptoHoldingsRows}
+              emptyLabel="No crypto holdings"
             />
           </div>
         </Modal>
