@@ -92,8 +92,27 @@ const getProductBehaviorSummary = (row) => {
 const getActivityType = (row) => pickFirst(row?.activityType, row?.type, row?.action);
 const getActivityAmount = (row) => pickFirst(row?.amount, row?.principalAmount, row?.value);
 const getActivitySavingId = (row) => pickFirst(row?.savingId, row?.saving?.id, row?.personalSavingId);
-const getActivityTransactionReference = (row) =>
-  pickFirst(row?.transactionReference, row?.transaction?.reference, row?.internalTransactionReference, row?.transactionId);
+const getActivityTransactionId = (row) => pickFirst(row?.transactionId, row?.transaction?.transactionId, row?.transaction?.id);
+const getActivityPaymentMethod = (row) =>
+  pickFirst(
+    row?.paymentMethodName,
+    row?.paymentMethodDisplayName,
+    row?.paymentMethod?.displayName,
+    row?.paymentMethod?.name,
+    row?.transaction?.paymentMethodName,
+    row?.transaction?.paymentMethodDisplayName,
+    row?.transaction?.paymentMethod?.displayName,
+    row?.transaction?.paymentMethod?.name
+  );
+const formatDisplayName = (value) => {
+  const text = String(value || '').trim();
+  if (!text) return '—';
+  return text
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+};
 const getMinimumLockDurationDays = (product) =>
   Number(product?.minimumLockDurationDays ?? product?.minimum_lock_duration_days ?? 0);
 const isLockedSavingProduct = (value) => String(value || '').trim().toUpperCase() === SAVING_PRODUCT_CODE_LOCKED;
@@ -188,6 +207,10 @@ export default function PersonalSavingsPage() {
   const [detail, setDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [activities, setActivities] = useState([]);
+  const [activityTransactionId, setActivityTransactionId] = useState(null);
+  const [activityTransactionDetail, setActivityTransactionDetail] = useState(null);
+  const [activityTransactionLoading, setActivityTransactionLoading] = useState(false);
+  const [activityTransactionError, setActivityTransactionError] = useState(null);
   const [products, setProducts] = useState([]);
   const [productsLoading, setProductsLoading] = useState(false);
   const [editDraft, setEditDraft] = useState(emptyEditDraft);
@@ -270,6 +293,40 @@ export default function PersonalSavingsPage() {
     ]);
     setDetail(savingRes || fallbackRow);
     setActivities(filterActivitiesForSaving(activityRes, savingId));
+  };
+
+  const refreshSavingDetail = async () => {
+    const savingId = selectedId ?? getSavingId(detail);
+    if (!savingId) return;
+    setDetailLoading(true);
+    setError(null);
+    try {
+      await reloadSavingDetail(savingId, detail);
+    } catch (err) {
+      setError(err?.message || 'Failed to refresh saving detail');
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const openActivityTransactionDetail = async (activity) => {
+    const transactionId = getActivityTransactionId(activity);
+    if (!transactionId) {
+      setActivityTransactionError('No transaction ID available for this activity.');
+      return;
+    }
+    setActivityTransactionId(transactionId);
+    setActivityTransactionDetail(null);
+    setActivityTransactionError(null);
+    setActivityTransactionLoading(true);
+    try {
+      const res = await api.transactions.get(transactionId);
+      setActivityTransactionDetail(res || { transactionId });
+    } catch (err) {
+      setActivityTransactionError(err?.message || 'Failed to load transaction details');
+    } finally {
+      setActivityTransactionLoading(false);
+    }
   };
 
   const openDetail = async (row) => {
@@ -494,28 +551,6 @@ export default function PersonalSavingsPage() {
             <button type="button" onClick={() => openDetail(row)} className="btn-neutral">
               Inspect
             </button>
-            <button
-              type="button"
-              onClick={async () => {
-                await openDetail(row);
-                const id = getSavingId(row);
-                const base = row;
-                if (id) {
-                  try {
-                    const full = await api.savings.get(id);
-                    setDetail(full || base);
-                    openEdit(full || base);
-                  } catch {
-                    openEdit(base);
-                  }
-                } else {
-                  openEdit(base);
-                }
-              }}
-              className="btn-primary"
-            >
-              Change Product
-            </button>
             {isDeletedSaving(row) ? (
               <button
                 type="button"
@@ -635,6 +670,9 @@ export default function PersonalSavingsPage() {
                       />
                     ) : null}
                     <StatusBadge value={isMaturedSaving(detail) ? 'MATURED' : 'PRE_MATURITY'} />
+                    <button type="button" className="btn-neutral" onClick={refreshSavingDetail} disabled={detailLoading}>
+                      {detailLoading ? 'Refreshing…' : t('common.refresh')}
+                    </button>
                     {isDeletedSaving(detail) ? (
                       <button
                         type="button"
@@ -715,23 +753,25 @@ export default function PersonalSavingsPage() {
                       render: (row) => formatMoney(pickFirst(row?.estimatedInterestAmount, row?.estimatedInterest))
                     },
                     {
-                      key: 'transactionReference',
-                      label: 'Transaction Ref',
-                      render: (row) => {
-                        const transactionReference = getActivityTransactionReference(row);
-                        if (!transactionReference) return '—';
-                        return (
-                          <Link
-                            href={`/dashboard/transactions?reference=${encodeURIComponent(String(transactionReference))}`}
-                            title="Open transaction"
-                            style={{ color: 'var(--primary)', fontWeight: 700, textDecoration: 'none' }}
-                          >
-                            {transactionReference}
-                          </Link>
-                        );
-                      }
+                      key: 'paymentMethod',
+                      label: 'Payment Method',
+                      render: (row) => formatDisplayName(getActivityPaymentMethod(row))
                     },
-                    { key: 'createdAt', label: 'Timestamp', render: (row) => formatDateTime(pickFirst(row?.createdAt, row?.timestamp, row?.activityDate)) }
+                    { key: 'createdAt', label: 'Timestamp', render: (row) => formatDateTime(pickFirst(row?.createdAt, row?.timestamp, row?.activityDate)) },
+                    {
+                      key: 'actions',
+                      label: 'Actions',
+                      render: (row) => (
+                        <button
+                          type="button"
+                          className="btn-neutral btn-sm"
+                          onClick={() => openActivityTransactionDetail(row)}
+                          disabled={!getActivityTransactionId(row) || activityTransactionLoading}
+                        >
+                          View details
+                        </button>
+                      )
+                    }
                   ]}
                   rows={activities}
                   emptyLabel={t('savings.personal.noActivities')}
@@ -852,6 +892,45 @@ export default function PersonalSavingsPage() {
 
             </div>
           )}
+        </AdminModal>
+      )}
+
+      {activityTransactionId !== null && (
+        <AdminModal
+          title={`Transaction ${activityTransactionDetail?.reference || activityTransactionId}`}
+          onClose={() => {
+            setActivityTransactionId(null);
+            setActivityTransactionDetail(null);
+            setActivityTransactionError(null);
+          }}
+        >
+          <div style={{ display: 'grid', gap: '1rem' }}>
+            {activityTransactionLoading ? (
+              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Loading transaction details…</div>
+            ) : null}
+            {activityTransactionError ? (
+              <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{activityTransactionError}</div>
+            ) : null}
+            <DetailGrid
+              rows={[
+                { label: 'Transaction ID', value: activityTransactionDetail?.transactionId || activityTransactionDetail?.id || activityTransactionId },
+                { label: 'Reference', value: activityTransactionDetail?.reference || '—' },
+                { label: 'Created', value: formatDateTime(activityTransactionDetail?.createdAt) },
+                { label: 'Updated', value: formatDateTime(activityTransactionDetail?.updatedAt) },
+                { label: 'Service', value: activityTransactionDetail?.service || '—' },
+                { label: 'Action', value: activityTransactionDetail?.action || '—' },
+                { label: 'Status', value: activityTransactionDetail?.status || '—' },
+                { label: 'Payment Method', value: pickFirst(activityTransactionDetail?.paymentMethodName, activityTransactionDetail?.paymentMethodDisplayName, activityTransactionDetail?.paymentMethod?.displayName, activityTransactionDetail?.paymentMethod?.name, '—') },
+                { label: 'Amount', value: `${activityTransactionDetail?.amount ?? '—'} ${activityTransactionDetail?.currency || ''}`.trim() },
+                { label: 'Account Reference', value: activityTransactionDetail?.accountReference || '—' },
+                { label: 'Customer', value: activityTransactionDetail?.customer || activityTransactionDetail?.username || '—' },
+                { label: 'Customer Email', value: activityTransactionDetail?.customerEmail || '—' },
+                { label: 'External Reference', value: activityTransactionDetail?.externalReference || '—' },
+                { label: 'Operator Reference', value: activityTransactionDetail?.operatorReference || '—' },
+                { label: 'Internal Reference', value: activityTransactionDetail?.internalReference || '—' }
+              ]}
+            />
+          </div>
         </AdminModal>
       )}
 

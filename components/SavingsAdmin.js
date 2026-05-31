@@ -8,8 +8,7 @@ export const savingsNavItems = [
   { href: '/dashboard/savings', labelKey: 'savings.nav.savings' },
   { href: '/dashboard/savings/products', labelKey: 'savings.nav.products' },
   { href: '/dashboard/savings/personal', labelKey: 'savings.nav.personal' },
-  { href: '/dashboard/savings/groups', labelKey: 'savings.nav.groups' },
-  { href: '/dashboard/savings/feature-flags', labelKey: 'savings.nav.flags' }
+  { href: '/dashboard/savings/groups', labelKey: 'savings.nav.groups' }
 ];
 
 export const humanizeEnum = (value) =>
