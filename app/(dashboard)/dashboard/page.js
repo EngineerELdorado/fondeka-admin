@@ -332,7 +332,8 @@ const RefreshIcon = ({ size = 14 }) => (
 const formatCryptoHoldings = (list) =>
   (list || []).map((item, idx) => ({
     id: item.productNetworkId || idx,
-    asset: `${item.productName || item.symbol || 'Asset'} • ${item.networkName || ''}`.trim(),
+    asset: [item.productName || item.symbol || 'Asset', item.networkName].filter(Boolean).join(' • '),
+    network: item.networkName || '—',
     symbol: item.symbol || '—',
     balance: item.balance ?? '0',
     balanceFiat: item.balanceFiat ?? '0'
@@ -550,7 +551,7 @@ export default function DashboardPage() {
       cryptoHoldingsRows
         .map((row) => ({
           ...row,
-          chartLabel: row.symbol || row.asset || 'Asset',
+          chartLabel: [row.symbol || row.asset || 'Asset', row.network !== '—' ? row.network : null].filter(Boolean).join(' • '),
           amount: Number(row.balanceFiat) || 0
         }))
         .filter((row) => row.amount > 0)
