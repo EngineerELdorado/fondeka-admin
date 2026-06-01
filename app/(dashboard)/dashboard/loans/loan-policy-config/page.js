@@ -55,13 +55,15 @@ export default function LoanPolicyConfigPage() {
     baseEligibilityPercent: '',
     untrustedEligibilityPercent: '',
     dailyPenaltyPercent: '',
-    payoutBlockPreDueDays: ''
+    payoutBlockPreDueDays: '',
+    likelembaLoanEligibilityEnabled: false
   });
   const [draft, setDraft] = useState({
     baseEligibilityPercent: '',
     untrustedEligibilityPercent: '',
     dailyPenaltyPercent: '',
-    payoutBlockPreDueDays: ''
+    payoutBlockPreDueDays: '',
+    likelembaLoanEligibilityEnabled: false
   });
 
   const loadConfig = async () => {
@@ -74,7 +76,8 @@ export default function LoanPolicyConfigPage() {
         baseEligibilityPercent: toFormValue(res?.baseEligibilityPercent),
         untrustedEligibilityPercent: toFormValue(res?.untrustedEligibilityPercent),
         dailyPenaltyPercent: toFormValue(res?.dailyPenaltyPercent),
-        payoutBlockPreDueDays: toFormValue(res?.payoutBlockPreDueDays)
+        payoutBlockPreDueDays: toFormValue(res?.payoutBlockPreDueDays),
+        likelembaLoanEligibilityEnabled: Boolean(res?.likelembaLoanEligibilityEnabled)
       };
       setInitial(next);
       setDraft(next);
@@ -107,6 +110,9 @@ export default function LoanPolicyConfigPage() {
       if (original === null || current !== original) {
         payload[field.key] = current;
       }
+    }
+    if (Boolean(draft.likelembaLoanEligibilityEnabled) !== Boolean(initial.likelembaLoanEligibilityEnabled)) {
+      payload.likelembaLoanEligibilityEnabled = Boolean(draft.likelembaLoanEligibilityEnabled);
     }
     return payload;
   }, [draft, initial]);
@@ -185,6 +191,22 @@ export default function LoanPolicyConfigPage() {
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
       <div className="card" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0.8rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+          <label htmlFor="likelembaLoanEligibilityEnabled">Enable Likelemba loan eligibility</label>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+            <input
+              id="likelembaLoanEligibilityEnabled"
+              type="checkbox"
+              checked={Boolean(draft.likelembaLoanEligibilityEnabled)}
+              onChange={(e) => setDraft((prev) => ({ ...prev, likelembaLoanEligibilityEnabled: e.target.checked }))}
+              disabled={loading || saving}
+            />
+            {draft.likelembaLoanEligibilityEnabled ? 'Enabled globally' : 'Disabled globally'}
+          </label>
+          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+            Global default for Likelemba group loan eligibility. Group-level overrides can force a different state.
+          </div>
+        </div>
         {PERCENT_FIELDS.map((field) => (
           <div key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
             <label htmlFor={field.key}>{field.label}</label>

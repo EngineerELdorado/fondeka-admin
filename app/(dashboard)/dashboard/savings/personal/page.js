@@ -113,6 +113,31 @@ const formatDisplayName = (value) => {
     .toLowerCase()
     .replace(/\b\w/g, (char) => char.toUpperCase());
 };
+const formatCryptoAmount = (value) => {
+  if (value === null || value === undefined || value === '') return '—';
+  const num = Number(value);
+  if (!Number.isFinite(num)) return value;
+  return num.toFixed(8).replace(/\.?0+$/, '');
+};
+const formatMoneyAmount = (value) => {
+  if (value === null || value === undefined || value === '') return '—';
+  const num = Number(value);
+  if (!Number.isFinite(num)) return String(value);
+  return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+};
+const hasAnyValue = (...values) => values.some((value) => value !== null && value !== undefined && value !== '');
+const pickLatestAdminMessage = (txn) => {
+  if (!txn) return null;
+  const found = [
+    txn.latestAdminMessage,
+    txn.latestAdminNote,
+    txn.adminMessage,
+    txn.adminNote,
+    txn.message,
+    txn.note
+  ].find((value) => typeof value === 'string' && value.trim());
+  return found ? found.trim() : null;
+};
 const getMinimumLockDurationDays = (product) =>
   Number(product?.minimumLockDurationDays ?? product?.minimum_lock_duration_days ?? 0);
 const isLockedSavingProduct = (value) => String(value || '').trim().toUpperCase() === SAVING_PRODUCT_CODE_LOCKED;
@@ -577,6 +602,48 @@ export default function PersonalSavingsPage() {
     [t] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
+  const activityTransactionReceiptPayload =
+    activityTransactionDetail?.receipt?.payload && typeof activityTransactionDetail.receipt.payload === 'object'
+      ? activityTransactionDetail.receipt.payload
+      : activityTransactionDetail?.receiptPayload && typeof activityTransactionDetail.receiptPayload === 'object'
+        ? activityTransactionDetail.receiptPayload
+        : activityTransactionDetail?.payload && typeof activityTransactionDetail.payload === 'object'
+          ? activityTransactionDetail.payload
+          : null;
+  const activityTransactionCryptoOperationDetails =
+    activityTransactionDetail?.cryptoOperationDetails && typeof activityTransactionDetail.cryptoOperationDetails === 'object'
+      ? activityTransactionDetail.cryptoOperationDetails
+      : activityTransactionReceiptPayload?.cryptoOperationDetails && typeof activityTransactionReceiptPayload.cryptoOperationDetails === 'object'
+        ? activityTransactionReceiptPayload.cryptoOperationDetails
+        : null;
+  const activityTransactionNormalizedAction = String(activityTransactionDetail?.action || '').trim().replace(/\s+/g, '_').toUpperCase();
+  const activityTransactionBankRef = activityTransactionReceiptPayload?.bankRef || activityTransactionDetail?.externalReference || null;
+  const activityTransactionFundFinalDestination = activityTransactionDetail?.fundFinalDestination || activityTransactionDetail?.transactionRecipient || null;
+  const activityTransactionCryptoAddress =
+    activityTransactionDetail?.recipient ||
+    activityTransactionCryptoOperationDetails?.address ||
+    activityTransactionFundFinalDestination ||
+    null;
+  const activityTransactionLatestAdminMessage = pickLatestAdminMessage(activityTransactionDetail);
+  const activityTransactionNoteFromSender =
+    activityTransactionReceiptPayload?.adminNote ||
+    activityTransactionReceiptPayload?.noteFromSender ||
+    activityTransactionReceiptPayload?.note ||
+    null;
+  const activityTransactionShowErrorMessage = ['FAILED', 'CANCELED', 'CANCELLED'].includes(String(activityTransactionDetail?.status || '').toUpperCase());
+  const activityTransactionHasLoanEligibilitySnapshot = hasAnyValue(
+    activityTransactionDetail?.loanEligibilityRecorded,
+    activityTransactionDetail?.loanEligibilityRevenueAmount,
+    activityTransactionDetail?.loanEligibilityPercentOfRevenue,
+    activityTransactionDetail?.loanEligibilityAmount,
+    activityTransactionDetail?.loanEligibilityReversalAmount,
+    activityTransactionDetail?.loanEligibilityNetAmount,
+    activityTransactionDetail?.loanEligibilityRuleSource,
+    activityTransactionDetail?.loanEligibilityRuleConfigId,
+    activityTransactionDetail?.loanEligibilityCalculatedAt,
+    activityTransactionDetail?.loanEligibilityReversedAt
+  );
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <SavingsSubnav />
@@ -914,22 +981,116 @@ export default function PersonalSavingsPage() {
             <DetailGrid
               rows={[
                 { label: 'Transaction ID', value: activityTransactionDetail?.transactionId || activityTransactionDetail?.id || activityTransactionId },
-                { label: 'Reference', value: activityTransactionDetail?.reference || '—' },
                 { label: 'Created', value: formatDateTime(activityTransactionDetail?.createdAt) },
-                { label: 'Updated', value: formatDateTime(activityTransactionDetail?.updatedAt) },
-                { label: 'Service', value: activityTransactionDetail?.service || '—' },
-                { label: 'Action', value: activityTransactionDetail?.action || '—' },
+                { label: 'Reference', value: activityTransactionDetail?.reference || '—' },
+                { label: 'External ref', value: activityTransactionDetail?.externalReference || '—' },
+                { label: 'Bank ref', value: activityTransactionBankRef || '—' },
+                { label: 'Operator ref', value: activityTransactionDetail?.operatorReference || '—' },
+                { label: 'Internal ref', value: activityTransactionDetail?.internalReference || '—' },
+                { label: 'Device ID', value: activityTransactionDetail?.deviceId || '—' },
+                { label: 'Service', value: formatDisplayName(activityTransactionDetail?.service) },
+                { label: 'Action', value: formatDisplayName(activityTransactionDetail?.action) },
+                { label: 'Effect', value: activityTransactionDetail?.balanceEffect || '—' },
                 { label: 'Status', value: activityTransactionDetail?.status || '—' },
-                { label: 'Payment Method', value: pickFirst(activityTransactionDetail?.paymentMethodName, activityTransactionDetail?.paymentMethodDisplayName, activityTransactionDetail?.paymentMethod?.displayName, activityTransactionDetail?.paymentMethod?.name, '—') },
+                { label: 'Updated at', value: formatDateTime(activityTransactionDetail?.updatedAt) },
                 { label: 'Amount', value: `${activityTransactionDetail?.amount ?? '—'} ${activityTransactionDetail?.currency || ''}`.trim() },
-                { label: 'Account Reference', value: activityTransactionDetail?.accountReference || '—' },
+                { label: 'Account ref', value: activityTransactionDetail?.accountReference || '—' },
+                { label: 'Gross amount', value: activityTransactionDetail?.grossAmount ?? '—' },
+                { label: 'External fee', value: activityTransactionDetail?.externalFeeAmount ?? '—' },
+                { label: 'Internal fee', value: activityTransactionDetail?.internalFeeAmount ?? '—' },
+                { label: 'Other fees', value: activityTransactionDetail?.otherFeesAmount ?? '—' },
+                { label: 'All fees', value: activityTransactionDetail?.allFees ?? '—' },
+                { label: 'Commission amount', value: activityTransactionDetail?.commissionAmount ?? '—' },
+                {
+                  label: 'Referral cost',
+                  value:
+                    activityTransactionDetail?.referralCostAmount === null || activityTransactionDetail?.referralCostAmount === undefined
+                      ? '—'
+                      : `${activityTransactionDetail.referralCostAmount} ${activityTransactionDetail?.currency || ''}`.trim()
+                },
                 { label: 'Customer', value: activityTransactionDetail?.customer || activityTransactionDetail?.username || '—' },
+                { label: 'Username', value: activityTransactionDetail?.username || '—' },
                 { label: 'Customer Email', value: activityTransactionDetail?.customerEmail || '—' },
-                { label: 'External Reference', value: activityTransactionDetail?.externalReference || '—' },
-                { label: 'Operator Reference', value: activityTransactionDetail?.operatorReference || '—' },
-                { label: 'Internal Reference', value: activityTransactionDetail?.internalReference || '—' }
+                { label: 'Customer phone', value: activityTransactionDetail?.customerPhone || '—' },
+                { label: 'Recipient', value: activityTransactionDetail?.recipient || '—' },
+                ...(activityTransactionFundFinalDestination
+                  ? [{ label: 'Fund final destination', value: activityTransactionFundFinalDestination }]
+                  : []),
+                ...(activityTransactionNormalizedAction === 'SEND_CRYPTO'
+                  ? [
+                      { label: 'Crypto destination address', value: activityTransactionCryptoAddress || '—' },
+                      {
+                        label: 'Crypto amount',
+                        value:
+                          activityTransactionCryptoOperationDetails?.cryptoAmount !== null &&
+                          activityTransactionCryptoOperationDetails?.cryptoAmount !== undefined
+                            ? formatCryptoAmount(activityTransactionCryptoOperationDetails.cryptoAmount)
+                            : '—'
+                      },
+                      { label: 'Crypto asset', value: activityTransactionCryptoOperationDetails?.cryptoCurrency || '—' },
+                      { label: 'Crypto network', value: activityTransactionCryptoOperationDetails?.network || '—' },
+                      { label: 'Crypto tx hash', value: activityTransactionCryptoOperationDetails?.trxHash || '—' },
+                      { label: 'Crypto explorer URL', value: activityTransactionCryptoOperationDetails?.explorerUrl || '—' }
+                    ]
+                  : []),
+                {
+                  label: 'Payment method',
+                  value: pickFirst(activityTransactionDetail?.paymentMethodName, activityTransactionDetail?.paymentMethodDisplayName, activityTransactionDetail?.paymentMethod?.displayName, activityTransactionDetail?.paymentMethod?.name, activityTransactionDetail?.paymentMethodId, '—')
+                },
+                ...(activityTransactionDetail?.paymentMethodType ? [{ label: 'Payment method type', value: activityTransactionDetail.paymentMethodType }] : []),
+                { label: 'Payment provider', value: activityTransactionDetail?.paymentProviderName || activityTransactionDetail?.paymentProviderId || '—' },
+                { label: 'Refunded', value: activityTransactionDetail?.refunded || activityTransactionDetail?.refundedAt ? 'Yes' : 'No' },
+                { label: 'Refunded at', value: formatDateTime(activityTransactionDetail?.refundedAt) },
+                { label: 'Latest admin note', value: activityTransactionLatestAdminMessage || '—' },
+                { label: 'Needs manual refund', value: activityTransactionDetail?.needsManualRefund ? 'Yes' : 'No' },
+                { label: 'Refund ref', value: activityTransactionDetail?.refundReference || '—' },
+                { label: 'Refund txn ID', value: activityTransactionDetail?.refundTransactionId || '—' },
+                ...(activityTransactionNoteFromSender ? [{ label: 'Note from sender', value: activityTransactionNoteFromSender }] : []),
+                ...(activityTransactionShowErrorMessage ? [{ label: 'Error message', value: activityTransactionDetail?.errorMessage || '—' }] : [])
               ]}
             />
+            {activityTransactionHasLoanEligibilitySnapshot ? (
+              <div className="card" style={{ padding: '1rem' }}>
+                <div style={{ display: 'grid', gap: '0.15rem' }}>
+                  <div style={{ fontWeight: 800 }}>Loan eligibility snapshot</div>
+                  <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                    Original earned contribution for this transaction and the current net effect after later reversal or refund.
+                  </div>
+                </div>
+                <div style={{ marginTop: '0.75rem' }}>
+                  <DetailGrid
+                    rows={[
+                      { label: 'Recorded', value: activityTransactionDetail?.loanEligibilityRecorded === true ? 'Yes' : activityTransactionDetail?.loanEligibilityRecorded === false ? 'No' : '—' },
+                      { label: 'Revenue amount', value: formatMoneyAmount(activityTransactionDetail?.loanEligibilityRevenueAmount) },
+                      {
+                        label: 'Eligibility % of revenue',
+                        value:
+                          activityTransactionDetail?.loanEligibilityPercentOfRevenue === null ||
+                          activityTransactionDetail?.loanEligibilityPercentOfRevenue === undefined
+                            ? '—'
+                            : `${formatMoneyAmount(activityTransactionDetail.loanEligibilityPercentOfRevenue)}%`
+                      },
+                      { label: 'Eligibility amount', value: formatMoneyAmount(activityTransactionDetail?.loanEligibilityAmount) },
+                      { label: 'Reversal amount', value: formatMoneyAmount(activityTransactionDetail?.loanEligibilityReversalAmount) },
+                      { label: 'Net amount', value: formatMoneyAmount(activityTransactionDetail?.loanEligibilityNetAmount) },
+                      { label: 'Rule source', value: activityTransactionDetail?.loanEligibilityRuleSource || '—' },
+                      { label: 'Rule config ID', value: activityTransactionDetail?.loanEligibilityRuleConfigId ?? '—' },
+                      {
+                        label: 'Untrusted borrower at calculation',
+                        value:
+                          activityTransactionDetail?.loanEligibilityUntrustedBorrowerAtCalculation === true
+                            ? 'Yes'
+                            : activityTransactionDetail?.loanEligibilityUntrustedBorrowerAtCalculation === false
+                              ? 'No'
+                              : '—'
+                      },
+                      { label: 'Calculated at', value: formatDateTime(activityTransactionDetail?.loanEligibilityCalculatedAt) },
+                      { label: 'Reversed at', value: formatDateTime(activityTransactionDetail?.loanEligibilityReversedAt) }
+                    ]}
+                  />
+                </div>
+              </div>
+            ) : null}
           </div>
         </AdminModal>
       )}

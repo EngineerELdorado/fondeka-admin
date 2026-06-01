@@ -127,6 +127,8 @@ export default function GroupSavingDetailPage() {
   const isAvec = getType(group) === 'AVEC';
   const isLikelemba = getType(group) === 'LIKELEMBA';
   const canRestore = Boolean(getDeletedAt(group));
+  const likelembaLoanEligibilityOverride = group?.likelembaLoanEligibilityEnabledOverride ?? null;
+  const likelembaLoanEligibilityEffectiveEnabled = Boolean(pickFirst(group?.likelembaLoanEligibilityEffectiveEnabled, false));
 
   const tabs = useMemo(() => {
     const base = [
@@ -487,6 +489,24 @@ export default function GroupSavingDetailPage() {
     }
   };
 
+  const handleLikelembaLoanEligibilityOverride = async (value) => {
+    if (!groupId) return;
+    setSavingAction('likelemba-loan-eligibility');
+    setError(null);
+    setInfo(null);
+    try {
+      await api.groupSavings.updateLikelembaLoanEligibility(groupId, {
+        likelembaLoanEligibilityEnabledOverride: value
+      });
+      setInfo('Likelemba loan eligibility override updated.');
+      await loadGroup();
+    } catch (err) {
+      setError(err?.message || 'Failed to update Likelemba loan eligibility override');
+    } finally {
+      setSavingAction('');
+    }
+  };
+
   const handleRemindMember = async (row) => {
     const cycleId = getCycleId(row);
     const memberId = getMemberId(row);
@@ -749,6 +769,53 @@ export default function GroupSavingDetailPage() {
           ]}
         />
       </SectionCard>
+
+      {isLikelemba ? (
+        <SectionCard
+          title="Likelemba Loan Eligibility"
+          description="Control whether this Likelemba group contributes to member loan eligibility."
+          actions={
+            <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap' }}>
+              {[
+                { label: 'Follow global', value: null },
+                { label: 'Enabled', value: true },
+                { label: 'Disabled', value: false }
+              ].map((option) => {
+                const active = likelembaLoanEligibilityOverride === option.value;
+                return (
+                  <button
+                    key={option.label}
+                    type="button"
+                    style={tabStyle(active)}
+                    disabled={savingAction === 'likelemba-loan-eligibility'}
+                    onClick={() => handleLikelembaLoanEligibilityOverride(option.value)}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          }
+        >
+          <DetailGrid
+            rows={[
+              {
+                label: 'Override',
+                value:
+                  likelembaLoanEligibilityOverride === null
+                    ? 'Follow global'
+                    : likelembaLoanEligibilityOverride
+                      ? 'Enabled'
+                      : 'Disabled'
+              },
+              {
+                label: 'Effective State',
+                value: likelembaLoanEligibilityEffectiveEnabled ? 'Enabled' : 'Disabled'
+              }
+            ]}
+          />
+        </SectionCard>
+      ) : null}
 
       <SectionCard
         title="Summary Strip"
