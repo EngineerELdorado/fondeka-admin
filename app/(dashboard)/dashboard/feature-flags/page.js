@@ -8,12 +8,14 @@ const LABELS = {
   trusted_device_enforcement: 'Enforce Trusted Device',
   auto_refund: 'Auto Refunds',
   'crypto.external.collection.verified_only': 'Restrict crypto collection to verified users',
-  'crypto.external.collection.allow_public_endpoints': 'Allow public crypto payment links'
+  'crypto.external.collection.allow_public_endpoints': 'Allow public crypto payment links',
+  'kyc.allow_gallery_upload': 'Allow KYC gallery upload'
 };
 
 const WARNINGS = {
   trusted_device_enforcement: 'Warning: Disabling trusted device enforcement reduces security for customer endpoints.',
-  auto_refund: 'Warning: Disabling auto refunds will route failed refunds to manual review.'
+  auto_refund: 'Warning: Disabling auto refunds will route failed refunds to manual review.',
+  'kyc.allow_gallery_upload': 'If disabled, customers must capture KYC documents directly instead of uploading from their gallery.'
 };
 
 const ACTION_LIMIT_PREFIX = 'limit.check.action.';
