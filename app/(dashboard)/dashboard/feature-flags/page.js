@@ -9,13 +9,15 @@ const LABELS = {
   auto_refund: 'Auto Refunds',
   'crypto.external.collection.verified_only': 'Restrict crypto collection to verified users',
   'crypto.external.collection.allow_public_endpoints': 'Allow public crypto payment links',
-  'kyc.allow_gallery_upload': 'Allow KYC gallery upload'
+  'kyc.allow_gallery_upload': 'Allow KYC gallery upload',
+  avecLoanRequestReasonEnabled: 'AVEC loan request reason'
 };
 
 const WARNINGS = {
   trusted_device_enforcement: 'Warning: Disabling trusted device enforcement reduces security for customer endpoints.',
   auto_refund: 'Warning: Disabling auto refunds will route failed refunds to manual review.',
-  'kyc.allow_gallery_upload': 'If disabled, customers must capture KYC documents directly instead of uploading from their gallery.'
+  'kyc.allow_gallery_upload': 'If disabled, customers must capture KYC documents directly instead of uploading from their gallery.',
+  avecLoanRequestReasonEnabled: 'If disabled, the client app hides the AVEC loan request reason field and does not send notes in loan request payloads.'
 };
 
 const ACTION_LIMIT_PREFIX = 'limit.check.action.';
@@ -35,6 +37,7 @@ const APP_OPEN_AUTH_GLOBAL_KEY = 'app_open_auth_enforcement';
 const APP_OPEN_AUTH_ANDROID_KEY = 'app_open_auth_enforcement.android';
 const APP_OPEN_AUTH_IOS_KEY = 'app_open_auth_enforcement.ios';
 const SAVINGS_ENABLED_KEY = 'savings.enabled';
+const AVEC_LOAN_REQUEST_REASON_KEY = 'avecLoanRequestReasonEnabled';
 const HIDDEN_FEATURE_FLAG_KEYS = new Set([
   'requesting_loan.enabled',
   'personal_saving.interest_payout.open.enabled',
@@ -149,7 +152,7 @@ const formatCryptoSpreadActionLabel = (key) => {
 const normalizeActionToken = (value) => String(value || '').trim().toLowerCase().replace(/\s+/g, '_');
 const isSavingsRelatedKey = (key) => {
   const raw = String(key || '');
-  return raw === SAVINGS_ENABLED_KEY || raw.startsWith('personal_saving.') || raw.startsWith('group_saving.') || raw.startsWith('savings.');
+  return raw === SAVINGS_ENABLED_KEY || raw === AVEC_LOAN_REQUEST_REASON_KEY || raw.startsWith('personal_saving.') || raw.startsWith('group_saving.') || raw.startsWith('savings.');
 };
 const isHiddenFeatureFlag = (key) => {
   const raw = String(key || '');
@@ -1111,6 +1114,28 @@ export default function FeatureFlagsPage() {
             {getDisabledMessageHelp(draftKey.trim())}
           </div>
         </div>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => {
+              setDraftKey(AVEC_LOAN_REQUEST_REASON_KEY);
+              setDraftEnabled(true);
+              setDraftDisabledMessageEn('');
+              setDraftDisabledMessageFr('');
+            }}
+            style={{
+              border: '1px solid rgba(22, 163, 74, 0.28)',
+              background: 'rgba(22, 163, 74, 0.08)',
+              color: '#166534',
+              padding: '0.45rem 0.7rem',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              fontWeight: 700
+            }}
+          >
+            Use AVEC loan reason flag
+          </button>
+        </div>
         <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
           Supported keys: {SUPPORTED_KEYS.join(', ')}
         </div>
@@ -1633,6 +1658,13 @@ export default function FeatureFlagsPage() {
                     <div style={{ display: 'grid', gap: '0.25rem', color: 'var(--muted)', fontSize: '12px' }}>
                       <div>{t('featureFlags.savingsResolution')}</div>
                       <div>{SAVINGS_DISABLED_MESSAGE_HELP}</div>
+                    </div>
+                  )}
+                  {flag.key === AVEC_LOAN_REQUEST_REASON_KEY && (
+                    <div style={{ display: 'grid', gap: '0.25rem', color: 'var(--muted)', fontSize: '12px' }}>
+                      <div>Default is enabled when the flag is missing or null.</div>
+                      <div>When disabled, the client app hides the AVEC loan request reason field and does not send notes.</div>
+                      <div>{t('featureFlags.savingsResolution')}</div>
                     </div>
                   )}
                 </div>
