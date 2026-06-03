@@ -141,9 +141,9 @@ export function DetailGrid({ rows }) {
   );
 }
 
-export function SectionCard({ title, description, actions, children }) {
+export function SectionCard({ title, description, actions, children, style }) {
   return (
-    <div className="card" style={{ display: 'grid', gap: '0.85rem' }}>
+    <div className="card" style={{ display: 'grid', gap: '0.85rem', ...style }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div style={{ display: 'grid', gap: '0.2rem' }}>
           <div style={{ fontWeight: 800 }}>{title}</div>

@@ -13,6 +13,7 @@ const navItems = [
   { href: '/dashboard/payments', labelKey: 'layout.nav.paymentMethods' },
   // Products cluster
   { href: '/dashboard/loans', labelKey: 'layout.nav.loansProducts' },
+  { href: '/dashboard/savings', labelKey: 'layout.nav.savingsProducts' },
   { href: '/dashboard/loans/direct-credit', labelKey: 'layout.nav.directLoanCredit' },
   { href: '/dashboard/loans/loan-policy-config', labelKey: 'layout.nav.loanPolicyConfig' },
   { href: '/dashboard/loans/untrusted-borrowers', labelKey: 'layout.nav.untrustedBorrowers' },
@@ -22,7 +23,6 @@ const navItems = [
   { href: '/dashboard/crypto', labelKey: 'layout.nav.cryptosProducts' },
   { href: '/dashboard/esim', labelKey: 'layout.nav.esimsProviders' },
   { href: '/dashboard/esim-products', labelKey: 'layout.nav.esimProducts' },
-  { href: '/dashboard/savings', labelKey: 'layout.nav.savingsProducts' },
   { href: '/dashboard/payment-requests', labelKey: 'layout.nav.paymentRequests' },
   { href: '/dashboard/recharge-catalog', labelKey: 'layout.nav.rechargeCatalog' },
   { href: '/dashboard/bills/utility-catalog', labelKey: 'layout.nav.utilityBillCatalog' },

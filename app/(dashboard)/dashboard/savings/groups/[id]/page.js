@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { DataTable } from '@/components/DataTable';
+import { useAuth } from '@/contexts/AuthContext';
 import { useLocale } from '@/contexts/LocaleContext';
 import {
   AdminModal,
@@ -69,6 +70,7 @@ const getCurrentCycleNumber = (group) => pickFirst(group?.currentCycleNumber, gr
 const getCurrentRoundNumber = (group) => pickFirst(group?.currentRoundNumber, group?.roundNumber);
 const getMembersCount = (group) => pickFirst(group?.activeMemberCount, group?.memberCount);
 const getDeletedAt = (group) => pickFirst(group?.deletedAt);
+const isActiveGroup = (group) => String(getStatus(group) || '').toUpperCase() === 'ACTIVE';
 const getRoundNumber = (row) => pickFirst(row?.roundNumber, row?.round?.number);
 const getCycleNumber = (row) => pickFirst(row?.cycleNumber, row?.cycle?.cycleNumber);
 const getCycleId = (row) => pickFirst(row?.cycleId, row?.cycle?.id);
@@ -92,8 +94,30 @@ const formatRoundCycleLabel = (row, fallbackRound, fallbackCycle) => {
   return `Round ${formatCount(round)} · Cycle ${formatCount(cycle)}`;
 };
 
+const getAdminRoles = (session) => {
+  const accessTokenPayload = session?.tokens?.accessToken?.payload || null;
+  const idTokenPayload = session?.tokens?.idToken?.payload || null;
+  const payloads = [accessTokenPayload, idTokenPayload].filter(Boolean);
+  const roles = new Set();
+
+  payloads.forEach((payload) => {
+    const directRole = pickFirst(payload?.role, payload?.adminRole, payload?.['custom:role']);
+    if (directRole) roles.add(String(directRole).trim().toUpperCase());
+
+    const rawGroups = payload?.['cognito:groups'] || payload?.groups;
+    if (Array.isArray(rawGroups)) {
+      rawGroups.forEach((group) => roles.add(String(group).trim().toUpperCase()));
+    } else if (typeof rawGroups === 'string') {
+      rawGroups.split(',').forEach((group) => roles.add(String(group).trim().toUpperCase()));
+    }
+  });
+
+  return roles;
+};
+
 export default function GroupSavingDetailPage() {
   const { t } = useLocale();
+  const { session } = useAuth();
   const params = useParams();
   const groupId = params?.id;
   const [group, setGroup] = useState(null);
@@ -126,6 +150,11 @@ export default function GroupSavingDetailPage() {
 
   const isAvec = getType(group) === 'AVEC';
   const isLikelemba = getType(group) === 'LIKELEMBA';
+  const isActiveAvec = isAvec && isActiveGroup(group);
+  const adminRoles = useMemo(() => getAdminRoles(session), [session]);
+  const isSuperAdmin = adminRoles.has('SUPER_ADMIN');
+  const canDirectlyEditActiveAvecPolicy = !isActiveAvec || isSuperAdmin;
+  const policySaveLabel = isActiveAvec && isSuperAdmin ? 'Apply immediately without member approval' : 'Save Policy';
   const canRestore = Boolean(getDeletedAt(group));
   const likelembaLoanEligibilityOverride = group?.likelembaLoanEligibilityEnabledOverride ?? null;
   const likelembaLoanEligibilityEffectiveEnabled = Boolean(pickFirst(group?.likelembaLoanEligibilityEffectiveEnabled, false));
@@ -463,6 +492,10 @@ export default function GroupSavingDetailPage() {
   };
 
   const handleSavePolicy = async () => {
+    if (!canDirectlyEditActiveAvecPolicy) {
+      setError('Only SUPER_ADMIN can apply active AVEC policy changes immediately.');
+      return;
+    }
     setSavingAction('save-policy');
     setError(null);
     setInfo(null);
@@ -774,6 +807,10 @@ export default function GroupSavingDetailPage() {
         <SectionCard
           title="Likelemba Loan Eligibility"
           description="Control whether this Likelemba group contributes to member loan eligibility."
+          style={{
+            background: 'color-mix(in srgb, var(--surface) 82%, #0f172a 18%)',
+            borderColor: 'color-mix(in srgb, var(--border) 70%, #0f172a 30%)'
+          }}
           actions={
             <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap' }}>
               {[
@@ -1589,29 +1626,46 @@ export default function GroupSavingDetailPage() {
 
       {activeTab === 'policy' && isAvec ? (
         <SectionCard title="AVEC Policy" description="Dedicated form for policy management. AVEC behavior depends heavily on these thresholds and rules.">
+          {isActiveAvec ? (
+            <div
+              style={{
+                border: `1px solid ${isSuperAdmin ? 'rgba(22, 163, 74, 0.24)' : 'rgba(245, 158, 11, 0.28)'}`,
+                background: isSuperAdmin ? 'rgba(22, 163, 74, 0.08)' : 'rgba(245, 158, 11, 0.1)',
+                color: isSuperAdmin ? '#166534' : '#92400e',
+                borderRadius: '10px',
+                padding: '0.75rem',
+                fontWeight: 700
+              }}
+            >
+              {isSuperAdmin
+                ? 'Super admin override: policy changes on this active AVEC group apply immediately without member approval.'
+                : 'Active AVEC policy editing is restricted. Only SUPER_ADMIN can apply these changes immediately without member approval.'}
+            </div>
+          ) : null}
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
             <div style={{ display: 'grid', gap: '0.25rem' }}>
               <label htmlFor="loanApprovalThresholdPercent">Loan approval threshold (%)</label>
-              <input id="loanApprovalThresholdPercent" type="number" value={policyDraft.loanApprovalThresholdPercent} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, loanApprovalThresholdPercent: e.target.value }))} />
+              <input id="loanApprovalThresholdPercent" type="number" value={policyDraft.loanApprovalThresholdPercent} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, loanApprovalThresholdPercent: e.target.value }))} disabled={!canDirectlyEditActiveAvecPolicy} />
             </div>
             <div style={{ display: 'grid', gap: '0.25rem' }}>
               <label htmlFor="treasuryWithdrawalApprovalThresholdPercent">Treasury withdrawal threshold (%)</label>
-              <input id="treasuryWithdrawalApprovalThresholdPercent" type="number" value={policyDraft.treasuryWithdrawalApprovalThresholdPercent} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, treasuryWithdrawalApprovalThresholdPercent: e.target.value }))} />
+              <input id="treasuryWithdrawalApprovalThresholdPercent" type="number" value={policyDraft.treasuryWithdrawalApprovalThresholdPercent} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, treasuryWithdrawalApprovalThresholdPercent: e.target.value }))} disabled={!canDirectlyEditActiveAvecPolicy} />
             </div>
             <div style={{ display: 'grid', gap: '0.25rem' }}>
               <label htmlFor="loanInterestPercentage">Loan interest percentage</label>
-              <input id="loanInterestPercentage" type="number" value={policyDraft.loanInterestPercentage} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, loanInterestPercentage: e.target.value }))} />
+              <input id="loanInterestPercentage" type="number" value={policyDraft.loanInterestPercentage} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, loanInterestPercentage: e.target.value }))} disabled={!canDirectlyEditActiveAvecPolicy} />
             </div>
             <div style={{ display: 'grid', gap: '0.25rem' }}>
               <label htmlFor="defaultAfterDays">Default after days</label>
-              <input id="defaultAfterDays" type="number" value={policyDraft.defaultAfterDays} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, defaultAfterDays: e.target.value }))} />
+              <input id="defaultAfterDays" type="number" value={policyDraft.defaultAfterDays} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, defaultAfterDays: e.target.value }))} disabled={!canDirectlyEditActiveAvecPolicy} />
             </div>
             <div style={{ display: 'grid', gap: '0.25rem', gridColumn: '1 / -1' }}>
               <label htmlFor="defaultRulesText">Default rules text</label>
-              <textarea id="defaultRulesText" rows={4} value={policyDraft.defaultRulesText} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, defaultRulesText: e.target.value }))} />
+              <textarea id="defaultRulesText" rows={4} value={policyDraft.defaultRulesText} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, defaultRulesText: e.target.value }))} disabled={!canDirectlyEditActiveAvecPolicy} />
             </div>
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
-              <input type="checkbox" checked={policyDraft.allowMultipleActiveLoans} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, allowMultipleActiveLoans: e.target.checked }))} />
+              <input type="checkbox" checked={policyDraft.allowMultipleActiveLoans} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, allowMultipleActiveLoans: e.target.checked }))} disabled={!canDirectlyEditActiveAvecPolicy} />
               Allow multiple active loans
             </label>
           </div>
@@ -1751,8 +1805,8 @@ export default function GroupSavingDetailPage() {
           </SectionCard>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <button type="button" className="btn-primary" onClick={handleSavePolicy} disabled={savingAction === 'save-policy'}>
-              {savingAction === 'save-policy' ? 'Saving…' : 'Save Policy'}
+            <button type="button" className={isActiveAvec && isSuperAdmin ? 'btn-success' : 'btn-primary'} onClick={handleSavePolicy} disabled={savingAction === 'save-policy' || !canDirectlyEditActiveAvecPolicy}>
+              {savingAction === 'save-policy' ? 'Saving…' : policySaveLabel}
             </button>
           </div>
         </SectionCard>
