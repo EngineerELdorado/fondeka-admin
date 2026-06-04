@@ -80,6 +80,17 @@ const getLoanId = (row) => pickFirst(row?.loanId, row?.id);
 const getRepaymentId = (row) => pickFirst(row?.repaymentId, row?.id);
 const getTreasuryWithdrawalId = (row) => pickFirst(row?.withdrawalId, row?.id);
 const getMemberId = (row) => pickFirst(row?.memberId, row?.groupMemberId, row?.member?.id);
+const getMemberName = (row) => {
+  const directName = pickFirst(row?.name, row?.fullName, row?.accountName, row?.memberName, row?.account?.name, row?.member?.name, row?.user?.name, row?.account?.user?.name);
+  if (directName) return directName;
+  const firstName = pickFirst(row?.firstName, row?.accountFirstName, row?.memberFirstName, row?.account?.firstName, row?.member?.firstName, row?.user?.firstName, row?.account?.user?.firstName);
+  const lastName = pickFirst(row?.lastName, row?.accountLastName, row?.memberLastName, row?.account?.lastName, row?.member?.lastName, row?.user?.lastName, row?.account?.user?.lastName);
+  const combined = [firstName, lastName].filter(Boolean).join(' ').trim();
+  return combined || '—';
+};
+const getMemberEmail = (row) => pickFirst(row?.email, row?.accountEmail, row?.memberEmail, row?.account?.email, row?.member?.email, row?.contact?.email, row?.account?.contact?.email, row?.user?.email, row?.account?.user?.email, '—');
+const getMemberPhone = (row) =>
+  pickFirst(row?.phoneNumber, row?.phone, row?.accountPhoneNumber, row?.memberPhoneNumber, row?.account?.phoneNumber, row?.member?.phoneNumber, row?.contact?.phoneNumber, row?.account?.contact?.phoneNumber, row?.user?.phoneNumber, row?.account?.user?.phoneNumber, '—');
 const getContributionStatus = (row) => String(pickFirst(row?.status, 'UNKNOWN')).toUpperCase();
 const isPendingContribution = (row) => getContributionStatus(row) === 'PENDING';
 const getCycleReminderKey = (row) => {
@@ -93,6 +104,8 @@ const formatRoundCycleLabel = (row, fallbackRound, fallbackCycle) => {
   if ((round === null || round === undefined || round === '') && (cycle === null || cycle === undefined || cycle === '')) return '—';
   return `Round ${formatCount(round)} · Cycle ${formatCount(cycle)}`;
 };
+
+const listFromResponse = (data) => (Array.isArray(data) ? data : data?.content || []);
 
 const getAdminRoles = (session) => {
   const accessTokenPayload = session?.tokens?.accessToken?.payload || null;
@@ -139,6 +152,8 @@ export default function GroupSavingDetailPage() {
   const [messageDraft, setMessageDraft] = useState(emptyMessageForm);
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(false);
+  const [tabLoading, setTabLoading] = useState('');
+  const [loadedTabs, setLoadedTabs] = useState({});
   const [savingAction, setSavingAction] = useState('');
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
@@ -179,67 +194,129 @@ export default function GroupSavingDetailPage() {
     return base;
   }, [isAvec]);
 
-  const loadGroup = async () => {
+  const loadCycles = async () => {
+    const rows = listFromResponse(await api.groupSavings.cycles.list(groupId));
+    setCycles(rows);
+    return rows;
+  };
+
+  const loadOverviewData = async (nextGroup = group) => {
+    const nextIsAvec = getType(nextGroup) === 'AVEC';
+    const overviewResults = await Promise.allSettled([
+      loadCycles(),
+      ...(nextIsAvec ? [api.groupSavings.loans.list(groupId), api.groupSavings.treasuryWithdrawals.list(groupId)] : [])
+    ]);
+    if (nextIsAvec) {
+      setLoans(overviewResults[1]?.status === 'fulfilled' ? listFromResponse(overviewResults[1].value) : []);
+      setTreasuryWithdrawals(overviewResults[2]?.status === 'fulfilled' ? listFromResponse(overviewResults[2].value) : []);
+    }
+    setLoadedTabs((prev) => ({ ...prev, overview: true, cycles: true, ...(nextIsAvec ? { loans: true, treasury: true } : {}) }));
+  };
+
+  const loadContributions = async (nextGroup = group) => {
+    let contributionRows = listFromResponse(await api.groupSavings.contributions.list(groupId));
+    const nestedContributions = listFromResponse(nextGroup?.contributions);
+    if (contributionRows.length === 0 && nestedContributions.length > 0) {
+      contributionRows = nestedContributions;
+    }
+    if (contributionRows.length === 0) {
+      const cycleRows = cycles.length > 0 ? cycles : await loadCycles();
+      const cycleContributionResults = await Promise.allSettled(
+        cycleRows
+          .map((cycle) => ({ cycle, cycleId: getCycleId(cycle) }))
+          .filter((item) => item.cycleId)
+          .map(({ cycle, cycleId }) =>
+            api.groupSavings.cycles.contributions(groupId, cycleId, new URLSearchParams({ page: '0', size: '200' }))
+              .then((data) =>
+                listFromResponse(data).map((row) => ({
+                  ...row,
+                  cycleId: pickFirst(row?.cycleId, cycleId),
+                  groupRoundNumber: pickFirst(row?.groupRoundNumber, row?.roundNumber, getRoundNumber(cycle)),
+                  groupCycleNumber: pickFirst(row?.groupCycleNumber, row?.cycleNumber, getCycleNumber(cycle))
+                }))
+              )
+          )
+      );
+      contributionRows = cycleContributionResults.flatMap((result) => (result.status === 'fulfilled' ? result.value : []));
+    }
+    setContributions(contributionRows);
+  };
+
+  const applyPolicy = (nextPolicy) => {
+    setPolicy(nextPolicy);
+    setPolicyDraft({
+      loanApprovalThresholdPercent: String(pickFirst(nextPolicy?.loanApprovalThresholdPercent, nextPolicy?.loanApprovalThreshold, '')),
+      treasuryWithdrawalApprovalThresholdPercent: String(
+        pickFirst(nextPolicy?.treasuryWithdrawalApprovalThresholdPercent, nextPolicy?.treasuryWithdrawalApprovalThreshold, '')
+      ),
+      loanInterestPercentage: String(pickFirst(nextPolicy?.loanInterestPercentage, nextPolicy?.loanInterestPercent, '')),
+      allowMultipleActiveLoans: Boolean(pickFirst(nextPolicy?.allowMultipleActiveLoans, false)),
+      defaultRulesText: String(pickFirst(nextPolicy?.defaultRulesText, nextPolicy?.defaultRules, '')),
+      defaultAfterDays: String(pickFirst(nextPolicy?.defaultAfterDays, ''))
+    });
+  };
+
+  const loadTabData = async (tabKey = activeTab, { force = false, groupOverride = null } = {}) => {
+    if (!groupId || (!force && loadedTabs[tabKey])) return;
+    setTabLoading(tabKey);
+    setError(null);
+    try {
+      if (tabKey === 'overview') {
+        await loadOverviewData(groupOverride || group);
+      } else if (tabKey === 'members') {
+        setMembers(listFromResponse(await api.groupSavings.members.list(groupId)));
+      } else if (tabKey === 'cycles') {
+        await loadCycles();
+      } else if (tabKey === 'contributions') {
+        await loadContributions(groupOverride || group);
+      } else if (tabKey === 'payouts') {
+        setPayouts(listFromResponse(await api.groupSavings.payouts.list(groupId)));
+      } else if (tabKey === 'invitations') {
+        const [invitationRes, joinRequestRes] = await Promise.allSettled([
+          api.groupSavings.invitations.list(groupId),
+          api.groupSavings.joinRequests.list(groupId)
+        ]);
+        setInvitations(invitationRes.status === 'fulfilled' ? listFromResponse(invitationRes.value) : []);
+        setJoinRequests(joinRequestRes.status === 'fulfilled' ? listFromResponse(joinRequestRes.value) : []);
+      } else if (tabKey === 'loans') {
+        setLoans(listFromResponse(await api.groupSavings.loans.list(groupId)));
+      } else if (tabKey === 'repayments') {
+        setRepayments(listFromResponse(await api.groupSavings.repayments.list(groupId)));
+      } else if (tabKey === 'treasury') {
+        setTreasuryWithdrawals(listFromResponse(await api.groupSavings.treasuryWithdrawals.list(groupId)));
+      } else if (tabKey === 'policy') {
+        const [policyRes, policyChangesRes] = await Promise.allSettled([
+          api.groupSavings.policy.get(groupId),
+          api.groupSavings.policyChanges.list(groupId)
+        ]);
+        applyPolicy(policyRes.status === 'fulfilled' ? policyRes.value : null);
+        setPolicyChanges(policyChangesRes.status === 'fulfilled' ? listFromResponse(policyChangesRes.value) : []);
+      } else if (tabKey === 'messages') {
+        setMessages(listFromResponse(await api.groupSavings.messages.list(groupId)));
+      } else if (tabKey === 'audit') {
+        setAuditEvents(listFromResponse(await api.groupSavings.auditEvents.list(groupId)));
+      }
+      setLoadedTabs((prev) => ({ ...prev, [tabKey]: true }));
+    } catch (err) {
+      setError(err?.message || `Failed to load ${tabKey} data`);
+    } finally {
+      setTabLoading('');
+    }
+  };
+
+  const loadGroup = async ({ refreshActiveTab = true } = {}) => {
     if (!groupId) return;
     setLoading(true);
     setError(null);
     try {
-      const results = await Promise.allSettled([
-        api.groupSavings.get(groupId),
-        api.groupSavings.members.list(groupId),
-        api.groupSavings.cycles.list(groupId),
-        api.groupSavings.contributions.list(groupId),
-        api.groupSavings.payouts.list(groupId),
-        api.groupSavings.loans.list(groupId),
-        api.groupSavings.repayments.list(groupId),
-        api.groupSavings.treasuryWithdrawals.list(groupId),
-        api.groupSavings.auditEvents.list(groupId),
-        api.groupSavings.policy.get(groupId),
-        api.groupSavings.policyChanges.list(groupId),
-        api.groupSavings.invitations.list(groupId),
-        api.groupSavings.joinRequests.list(groupId),
-        api.groupSavings.messages.list(groupId)
-      ]);
-
-      const readList = (index) => {
-        const value = results[index];
-        if (value?.status !== 'fulfilled') return [];
-        const data = value.value;
-        return Array.isArray(data) ? data : data?.content || [];
-      };
-
-      const groupValue = results[0];
-      if (groupValue?.status !== 'fulfilled') {
-        throw groupValue.reason || new Error('Failed to load group saving detail');
+      const nextGroup = await api.groupSavings.get(groupId);
+      setGroup(nextGroup || null);
+      setLoadedTabs({});
+      setSelectedReminderMemberIds([]);
+      await loadOverviewData(nextGroup || null);
+      if (refreshActiveTab && activeTab !== 'overview') {
+        await loadTabData(activeTab, { force: true, groupOverride: nextGroup || null });
       }
-
-      setGroup(groupValue.value || null);
-      setMembers(readList(1));
-      setCycles(readList(2));
-      setContributions(readList(3));
-      setPayouts(readList(4));
-      setLoans(readList(5));
-      setRepayments(readList(6));
-      setTreasuryWithdrawals(readList(7));
-      setAuditEvents(readList(8));
-      setPolicyChanges(readList(10));
-      setInvitations(readList(11));
-      setJoinRequests(readList(12));
-      setMessages(readList(13));
-
-      const policyValue = results[9];
-      const nextPolicy = policyValue?.status === 'fulfilled' ? policyValue.value : null;
-      setPolicy(nextPolicy);
-      setPolicyDraft({
-        loanApprovalThresholdPercent: String(pickFirst(nextPolicy?.loanApprovalThresholdPercent, nextPolicy?.loanApprovalThreshold, '')),
-        treasuryWithdrawalApprovalThresholdPercent: String(
-          pickFirst(nextPolicy?.treasuryWithdrawalApprovalThresholdPercent, nextPolicy?.treasuryWithdrawalApprovalThreshold, '')
-        ),
-        loanInterestPercentage: String(pickFirst(nextPolicy?.loanInterestPercentage, nextPolicy?.loanInterestPercent, '')),
-        allowMultipleActiveLoans: Boolean(pickFirst(nextPolicy?.allowMultipleActiveLoans, false)),
-        defaultRulesText: String(pickFirst(nextPolicy?.defaultRulesText, nextPolicy?.defaultRules, '')),
-        defaultAfterDays: String(pickFirst(nextPolicy?.defaultAfterDays, ''))
-      });
     } catch (err) {
       setError(err?.message || 'Failed to load group saving detail');
     } finally {
@@ -250,6 +327,11 @@ export default function GroupSavingDetailPage() {
   useEffect(() => {
     loadGroup();
   }, [groupId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!groupId || !group) return;
+    loadTabData(activeTab);
+  }, [activeTab, groupId, group]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!error && !info) return;
@@ -701,7 +783,9 @@ export default function GroupSavingDetailPage() {
   }, [policyDraft]);
 
   const membersColumns = [
-    { key: 'account', label: 'Account', render: (row) => pickFirst(row?.accountReference, row?.account?.reference, row?.accountId, '—') },
+    { key: 'name', label: 'Name', render: (row) => getMemberName(row) },
+    { key: 'email', label: 'Email', render: (row) => getMemberEmail(row) },
+    { key: 'phone', label: 'Phone', render: (row) => getMemberPhone(row) },
     { key: 'role', label: 'Role', render: (row) => humanizeEnum(pickFirst(row?.role, '—')) },
     { key: 'status', label: 'Status', render: (row) => <StatusBadge value={pickFirst(row?.status, 'UNKNOWN')} /> },
     { key: 'rotation', label: 'Rotation Order', render: (row) => (isLikelemba ? pickFirst(row?.rotationOrder, '—') : '—') },
@@ -905,6 +989,8 @@ export default function GroupSavingDetailPage() {
           </button>
         ))}
       </div>
+
+      {tabLoading === activeTab ? <div className="card" style={{ color: 'var(--muted)' }}>Loading {tabs.find((tab) => tab.key === activeTab)?.label || 'tab'}…</div> : null}
 
       {activeTab === 'overview' ? (
         <div style={{ display: 'grid', gap: '1rem' }}>
@@ -1346,7 +1432,7 @@ export default function GroupSavingDetailPage() {
                 { key: 'target', label: 'Target', render: (row) => pickFirst(row?.accountReference, row?.email, row?.phone, row?.accountId, '—') },
                 { key: 'rotationOrder', label: 'Rotation Order', render: (row) => formatCount(row?.rotationOrder) },
                 { key: 'status', label: 'Status', render: (row) => <StatusBadge value={pickFirst(row?.status, 'UNKNOWN')} /> },
-                { key: 'createdAt', label: 'Created', render: (row) => formatDateTime(row?.createdAt) },
+                { key: 'createdAt', label: 'Created', render: (row) => formatDateTime(pickFirst(row?.createdAt, row?.createdDate, row?.invitedAt, row?.requestedAt, row?.updatedAt)) },
                 {
                   key: 'actions',
                   label: 'Actions',

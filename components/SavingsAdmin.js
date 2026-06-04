@@ -186,7 +186,7 @@ export function StatusBadge({ value }) {
   let color = '#475569';
   let background = 'rgba(100, 116, 139, 0.12)';
   let borderColor = 'rgba(100, 116, 139, 0.2)';
-  if (['ACTIVE', 'PAID', 'COMPLETED', 'APPROVED', 'OPEN'].includes(normalized)) {
+  if (['ACTIVE', 'PAID', 'COMPLETED', 'APPROVED', 'ACCEPTED', 'JOINED', 'OPEN'].includes(normalized)) {
     color = '#15803d';
     background = 'rgba(22, 163, 74, 0.12)';
     borderColor = 'rgba(22, 163, 74, 0.2)';
