@@ -80,17 +80,92 @@ const getLoanId = (row) => pickFirst(row?.loanId, row?.id);
 const getRepaymentId = (row) => pickFirst(row?.repaymentId, row?.id);
 const getTreasuryWithdrawalId = (row) => pickFirst(row?.withdrawalId, row?.id);
 const getMemberId = (row) => pickFirst(row?.memberId, row?.groupMemberId, row?.member?.id);
+const getMemberAccountId = (row) => pickFirst(row?.accountId, row?.memberAccountId, row?.account?.id, row?.member?.accountId, row?.member?.account?.id);
+const joinName = (firstName, lastName) => [firstName, lastName].filter(Boolean).join(' ').trim();
 const getMemberName = (row) => {
-  const directName = pickFirst(row?.name, row?.fullName, row?.accountName, row?.memberName, row?.account?.name, row?.member?.name, row?.user?.name, row?.account?.user?.name);
+  const directName = pickFirst(
+    row?.name,
+    row?.fullName,
+    row?.accountName,
+    row?.memberName,
+    row?.account?.name,
+    row?.member?.name,
+    row?.user?.name,
+    row?.account?.user?.name,
+    row?.member?.account?.name,
+    row?.member?.account?.user?.name,
+    row?.accountDetails?.name,
+    row?.accountDetails?.user?.name
+  );
   if (directName) return directName;
-  const firstName = pickFirst(row?.firstName, row?.accountFirstName, row?.memberFirstName, row?.account?.firstName, row?.member?.firstName, row?.user?.firstName, row?.account?.user?.firstName);
-  const lastName = pickFirst(row?.lastName, row?.accountLastName, row?.memberLastName, row?.account?.lastName, row?.member?.lastName, row?.user?.lastName, row?.account?.user?.lastName);
-  const combined = [firstName, lastName].filter(Boolean).join(' ').trim();
+  const firstName = pickFirst(
+    row?.firstName,
+    row?.accountFirstName,
+    row?.memberFirstName,
+    row?.account?.firstName,
+    row?.member?.firstName,
+    row?.user?.firstName,
+    row?.account?.user?.firstName,
+    row?.member?.account?.firstName,
+    row?.member?.account?.user?.firstName,
+    row?.accountDetails?.firstName,
+    row?.accountDetails?.user?.firstName
+  );
+  const lastName = pickFirst(
+    row?.lastName,
+    row?.accountLastName,
+    row?.memberLastName,
+    row?.account?.lastName,
+    row?.member?.lastName,
+    row?.user?.lastName,
+    row?.account?.user?.lastName,
+    row?.member?.account?.lastName,
+    row?.member?.account?.user?.lastName,
+    row?.accountDetails?.lastName,
+    row?.accountDetails?.user?.lastName
+  );
+  const combined = joinName(firstName, lastName);
   return combined || '—';
 };
-const getMemberEmail = (row) => pickFirst(row?.email, row?.accountEmail, row?.memberEmail, row?.account?.email, row?.member?.email, row?.contact?.email, row?.account?.contact?.email, row?.user?.email, row?.account?.user?.email, '—');
+const getMemberEmail = (row) =>
+  pickFirst(
+    row?.email,
+    row?.accountEmail,
+    row?.memberEmail,
+    row?.account?.email,
+    row?.member?.email,
+    row?.contact?.email,
+    row?.account?.contact?.email,
+    row?.user?.email,
+    row?.account?.user?.email,
+    row?.member?.account?.email,
+    row?.member?.account?.contact?.email,
+    row?.member?.account?.user?.email,
+    row?.accountDetails?.email,
+    row?.accountDetails?.contact?.email,
+    row?.accountDetails?.user?.email,
+    '—'
+  );
 const getMemberPhone = (row) =>
-  pickFirst(row?.phoneNumber, row?.phone, row?.accountPhoneNumber, row?.memberPhoneNumber, row?.account?.phoneNumber, row?.member?.phoneNumber, row?.contact?.phoneNumber, row?.account?.contact?.phoneNumber, row?.user?.phoneNumber, row?.account?.user?.phoneNumber, '—');
+  pickFirst(
+    row?.phoneNumber,
+    row?.phone,
+    row?.accountPhoneNumber,
+    row?.memberPhoneNumber,
+    row?.account?.phoneNumber,
+    row?.member?.phoneNumber,
+    row?.contact?.phoneNumber,
+    row?.account?.contact?.phoneNumber,
+    row?.user?.phoneNumber,
+    row?.account?.user?.phoneNumber,
+    row?.member?.account?.phoneNumber,
+    row?.member?.account?.contact?.phoneNumber,
+    row?.member?.account?.user?.phoneNumber,
+    row?.accountDetails?.phoneNumber,
+    row?.accountDetails?.contact?.phoneNumber,
+    row?.accountDetails?.user?.phoneNumber,
+    '—'
+  );
 const getContributionStatus = (row) => String(pickFirst(row?.status, 'UNKNOWN')).toUpperCase();
 const isPendingContribution = (row) => getContributionStatus(row) === 'PENDING';
 const getCycleReminderKey = (row) => {
@@ -200,6 +275,18 @@ export default function GroupSavingDetailPage() {
     return rows;
   };
 
+  const loadMembers = async () => {
+    const rows = listFromResponse(await api.groupSavings.members.list(groupId));
+    setMembers(rows);
+    setLoadedTabs((prev) => ({ ...prev, members: true }));
+    return rows;
+  };
+
+  const ensureMembersLoaded = async () => {
+    if (loadedTabs.members) return members;
+    return loadMembers();
+  };
+
   const loadOverviewData = async (nextGroup = group) => {
     const nextIsAvec = getType(nextGroup) === 'AVEC';
     const overviewResults = await Promise.allSettled([
@@ -264,12 +351,15 @@ export default function GroupSavingDetailPage() {
       if (tabKey === 'overview') {
         await loadOverviewData(groupOverride || group);
       } else if (tabKey === 'members') {
-        setMembers(listFromResponse(await api.groupSavings.members.list(groupId)));
+        await loadMembers();
       } else if (tabKey === 'cycles') {
+        await ensureMembersLoaded();
         await loadCycles();
       } else if (tabKey === 'contributions') {
+        await ensureMembersLoaded();
         await loadContributions(groupOverride || group);
       } else if (tabKey === 'payouts') {
+        await ensureMembersLoaded();
         setPayouts(listFromResponse(await api.groupSavings.payouts.list(groupId)));
       } else if (tabKey === 'invitations') {
         const [invitationRes, joinRequestRes] = await Promise.allSettled([
@@ -279,10 +369,13 @@ export default function GroupSavingDetailPage() {
         setInvitations(invitationRes.status === 'fulfilled' ? listFromResponse(invitationRes.value) : []);
         setJoinRequests(joinRequestRes.status === 'fulfilled' ? listFromResponse(joinRequestRes.value) : []);
       } else if (tabKey === 'loans') {
+        await ensureMembersLoaded();
         setLoans(listFromResponse(await api.groupSavings.loans.list(groupId)));
       } else if (tabKey === 'repayments') {
+        await ensureMembersLoaded();
         setRepayments(listFromResponse(await api.groupSavings.repayments.list(groupId)));
       } else if (tabKey === 'treasury') {
+        await ensureMembersLoaded();
         setTreasuryWithdrawals(listFromResponse(await api.groupSavings.treasuryWithdrawals.list(groupId)));
       } else if (tabKey === 'policy') {
         const [policyRes, policyChangesRes] = await Promise.allSettled([
@@ -327,11 +420,6 @@ export default function GroupSavingDetailPage() {
   useEffect(() => {
     loadGroup();
   }, [groupId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (!groupId || !group) return;
-    loadTabData(activeTab);
-  }, [activeTab, groupId, group]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!error && !info) return;
@@ -425,6 +513,135 @@ export default function GroupSavingDetailPage() {
     [contributions, selectedReminderCycleKey]
   );
 
+  const memberNameById = useMemo(() => {
+    const map = new Map();
+    members.forEach((member) => {
+      const name = getMemberName(member);
+      if (name === '—') return;
+      const memberId = getMemberId(member);
+      const accountId = getMemberAccountId(member);
+      if (memberId !== null && memberId !== undefined && memberId !== '') map.set(`member:${memberId}`, name);
+      if (accountId !== null && accountId !== undefined && accountId !== '') map.set(`account:${accountId}`, name);
+    });
+    return map;
+  }, [members]);
+
+  const getMappedMemberName = ({ memberId, accountId }) => {
+    if (memberId !== null && memberId !== undefined && memberId !== '') {
+      const mapped = memberNameById.get(`member:${memberId}`);
+      if (mapped) return mapped;
+    }
+    if (accountId !== null && accountId !== undefined && accountId !== '') {
+      const mapped = memberNameById.get(`account:${accountId}`);
+      if (mapped) return mapped;
+    }
+    return '';
+  };
+
+  const getPersonName = ({
+    directName,
+    firstName,
+    lastName,
+    memberId,
+    accountId,
+    nested,
+    fallback = '—'
+  }) => {
+    const direct = pickFirst(
+      directName,
+      nested?.name,
+      nested?.fullName,
+      nested?.accountName,
+      nested?.memberName,
+      nested?.account?.name,
+      nested?.account?.fullName,
+      nested?.account?.user?.name,
+      nested?.user?.name
+    );
+    if (direct) return direct;
+
+    const combined = joinName(
+      pickFirst(firstName, nested?.firstName, nested?.account?.firstName, nested?.account?.user?.firstName, nested?.user?.firstName),
+      pickFirst(lastName, nested?.lastName, nested?.account?.lastName, nested?.account?.user?.lastName, nested?.user?.lastName)
+    );
+    if (combined) return combined;
+
+    return (
+      getMappedMemberName({
+        memberId: pickFirst(memberId, nested?.memberId, nested?.groupMemberId, nested?.id),
+        accountId: pickFirst(accountId, nested?.accountId, nested?.account?.id)
+      }) || fallback
+    );
+  };
+
+  const getBeneficiaryName = (row) =>
+    getPersonName({
+      directName: pickFirst(row?.beneficiaryName, row?.beneficiaryFullName, row?.beneficiaryAccountName),
+      firstName: pickFirst(row?.beneficiaryFirstName, row?.beneficiaryAccountFirstName),
+      lastName: pickFirst(row?.beneficiaryLastName, row?.beneficiaryAccountLastName),
+      memberId: pickFirst(row?.beneficiaryMemberId, row?.beneficiaryGroupMemberId),
+      accountId: pickFirst(row?.beneficiaryAccountId),
+      nested: row?.beneficiary
+    });
+
+  const getBorrowerName = (row) =>
+    getPersonName({
+      directName: pickFirst(row?.borrowerName, row?.borrowerFullName, row?.borrowerAccountName),
+      firstName: pickFirst(row?.borrowerFirstName, row?.borrowerAccountFirstName),
+      lastName: pickFirst(row?.borrowerLastName, row?.borrowerAccountLastName),
+      memberId: pickFirst(row?.borrowerMemberId, row?.borrowerGroupMemberId),
+      accountId: pickFirst(row?.borrowerAccountId),
+      nested: row?.borrower
+    });
+
+  const getRequesterName = (row) =>
+    getPersonName({
+      directName: pickFirst(row?.requesterName, row?.requesterFullName, row?.requesterAccountName, row?.accountName, row?.name, row?.fullName),
+      firstName: pickFirst(row?.requesterFirstName, row?.requesterAccountFirstName, row?.firstName, row?.accountFirstName),
+      lastName: pickFirst(row?.requesterLastName, row?.requesterAccountLastName, row?.lastName, row?.accountLastName),
+      memberId: pickFirst(row?.requesterMemberId, row?.requesterGroupMemberId, row?.memberId),
+      accountId: pickFirst(row?.requesterAccountId, row?.accountId),
+      nested: pickFirst(row?.requester, row?.account)
+    });
+
+  const getTargetName = (row) =>
+    getPersonName({
+      directName: pickFirst(row?.targetName, row?.targetFullName, row?.inviteeName, row?.inviteeFullName, row?.accountName, row?.name, row?.fullName),
+      firstName: pickFirst(row?.targetFirstName, row?.inviteeFirstName, row?.firstName, row?.accountFirstName),
+      lastName: pickFirst(row?.targetLastName, row?.inviteeLastName, row?.lastName, row?.accountLastName),
+      memberId: pickFirst(row?.targetMemberId, row?.memberId),
+      accountId: pickFirst(row?.targetAccountId, row?.accountId),
+      nested: pickFirst(row?.target, row?.invitee, row?.account),
+      fallback: pickFirst(row?.email, row?.phone, '—')
+    });
+
+  const getActorName = (row) =>
+    getPersonName({
+      directName: pickFirst(row?.actorName, row?.actorFullName, row?.createdByName, typeof row?.actor === 'string' ? row.actor : null),
+      firstName: pickFirst(row?.actorFirstName, row?.createdByFirstName),
+      lastName: pickFirst(row?.actorLastName, row?.createdByLastName),
+      memberId: pickFirst(row?.actorMemberId, row?.createdByMemberId),
+      accountId: pickFirst(row?.actorAccountId, row?.createdByAccountId),
+      nested: typeof row?.actor === 'object' ? row.actor : null,
+      fallback: 'System'
+    });
+
+  const getContributionMemberName = (row) => {
+    const directName = getMemberName(row);
+    if (directName !== '—') return directName;
+    const memberId = getMemberId(row);
+    const accountId = pickFirst(row?.accountId, row?.memberAccountId, row?.member?.accountId, row?.account?.id);
+    if (memberId !== null && memberId !== undefined && memberId !== '') {
+      const mapped = memberNameById.get(`member:${memberId}`);
+      if (mapped) return mapped;
+    }
+    if (accountId !== null && accountId !== undefined && accountId !== '') {
+      const mapped = memberNameById.get(`account:${accountId}`);
+      if (mapped) return mapped;
+    }
+    return '—';
+  };
+
   const toggleReminderMemberSelection = (row) => {
     const memberId = getMemberId(row);
     const cycleKey = getCycleReminderKey(row);
@@ -437,6 +654,11 @@ export default function GroupSavingDetailPage() {
         ? filtered.filter((item) => item !== normalizedMemberId)
         : [...filtered, normalizedMemberId];
     });
+  };
+
+  const handleTabChange = (tabKey) => {
+    setActiveTab(tabKey);
+    loadTabData(tabKey);
   };
 
   const openInterventionModal = (config) => {
@@ -984,7 +1206,7 @@ export default function GroupSavingDetailPage() {
 
       <div className="card" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
         {tabs.map((tab) => (
-          <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)} style={tabStyle(activeTab === tab.key)}>
+          <button key={tab.key} type="button" onClick={() => handleTabChange(tab.key)} style={tabStyle(activeTab === tab.key)}>
             {tab.label}
           </button>
         ))}
@@ -999,7 +1221,7 @@ export default function GroupSavingDetailPage() {
               <DetailGrid
                 rows={[
                   { label: 'Round / Cycle', value: formatRoundCycleLabel(currentCycle, getCurrentRoundNumber(group), getCurrentCycleNumber(group)) },
-                  { label: 'Beneficiary', value: pickFirst(currentCycle?.beneficiaryAccountReference, currentCycle?.beneficiary?.accountReference, currentCycle?.beneficiaryAccountId, '—') },
+                  { label: 'Beneficiary', value: getBeneficiaryName(currentCycle) },
                   { label: 'Due Date', value: formatDateTime(pickFirst(currentCycle?.dueDate, currentCycle?.expectedDueDate)) },
                   { label: 'Status', value: <StatusBadge value={pickFirst(currentCycle?.status, 'UNKNOWN')} /> },
                   { label: 'Paid', value: formatCount(pickFirst(currentCycle?.paidContributionCount, group?.paidContributionCount)) },
@@ -1066,7 +1288,7 @@ export default function GroupSavingDetailPage() {
             pageSize={100}
             columns={[
               { key: 'cycleNumber', label: 'Round / Cycle', render: (row) => formatRoundCycleLabel(row) },
-              { key: 'beneficiary', label: 'Beneficiary', render: (row) => pickFirst(row?.beneficiaryAccountReference, row?.beneficiary?.accountReference, row?.beneficiaryAccountId, '—') },
+              { key: 'beneficiary', label: 'Beneficiary', render: (row) => getBeneficiaryName(row) },
               { key: 'dueDate', label: 'Due Date', render: (row) => formatDateTime(pickFirst(row?.dueDate, row?.expectedDueDate)) },
               { key: 'status', label: 'Status', render: (row) => <StatusBadge value={pickFirst(row?.status, 'UNKNOWN')} /> },
               { key: 'paid', label: 'Paid', render: (row) => formatCount(row?.paidContributionCount) },
@@ -1221,6 +1443,7 @@ export default function GroupSavingDetailPage() {
                   const pending = isPendingContribution(row);
                   const cycleKey = getCycleReminderKey(row);
                   const memberId = String(getMemberId(row) || '');
+                  const memberName = getContributionMemberName(row);
                   const checked = pending && selectedReminderCycleKey === cycleKey && selectedReminderMemberIds.includes(memberId);
                   const disabled = !pending || (Boolean(selectedReminderCycleKey) && selectedReminderCycleKey !== cycleKey);
                   return (
@@ -1229,13 +1452,13 @@ export default function GroupSavingDetailPage() {
                       checked={checked}
                       disabled={disabled}
                       onChange={() => toggleReminderMemberSelection(row)}
-                      aria-label={`Select ${pickFirst(row?.memberAccountReference, row?.accountReference, row?.memberAccountId, 'member')} for reminder`}
+                      aria-label={`Select ${memberName === '—' ? 'member' : memberName} for reminder`}
                     />
                   );
                 }
               },
               { key: 'roundNumber', label: 'Round / Cycle', render: (row) => formatRoundCycleLabel(row, pickFirst(row?.groupRoundNumber, row?.currentRoundNumber), pickFirst(row?.groupCycleNumber, row?.currentCycleNumber)) },
-              { key: 'member', label: 'Member / Account', render: (row) => pickFirst(row?.memberAccountReference, row?.accountReference, row?.member?.accountReference, row?.memberAccountId, '—') },
+              { key: 'member', label: 'Member Name', render: (row) => getContributionMemberName(row) },
               { key: 'amountDue', label: 'Amount Due', render: (row) => formatMoney(pickFirst(row?.amountDue, row?.dueAmount)) },
               { key: 'amountPaid', label: 'Amount Paid', render: (row) => formatMoney(pickFirst(row?.amountPaid, row?.paidAmount)) },
               { key: 'status', label: 'Status', render: (row) => <StatusBadge value={pickFirst(row?.status, 'UNKNOWN')} /> },
@@ -1350,7 +1573,7 @@ export default function GroupSavingDetailPage() {
                 label: 'Round / Cycle',
                 render: (row) => formatRoundCycleLabel(row, pickFirst(row?.cycle?.roundNumber), pickFirst(row?.cycle?.cycleNumber))
               },
-              { key: 'beneficiary', label: 'Beneficiary', render: (row) => pickFirst(row?.beneficiaryAccountReference, row?.beneficiary?.accountReference, row?.beneficiaryAccountId, '—') },
+              { key: 'beneficiary', label: 'Beneficiary', render: (row) => getBeneficiaryName(row) },
               { key: 'amount', label: 'Amount', render: (row) => formatMoney(pickFirst(row?.amount, row?.payoutAmount)) },
               { key: 'status', label: 'Status', render: (row) => <StatusBadge value={pickFirst(row?.status, 'UNKNOWN')} /> },
               { key: 'transactionId', label: 'Transaction ID', render: (row) => pickFirst(row?.transactionId, row?.transaction?.id, '—') },
@@ -1429,7 +1652,7 @@ export default function GroupSavingDetailPage() {
               showIndex={false}
               pageSize={100}
               columns={[
-                { key: 'target', label: 'Target', render: (row) => pickFirst(row?.accountReference, row?.email, row?.phone, row?.accountId, '—') },
+                { key: 'target', label: 'Target', render: (row) => getTargetName(row) },
                 { key: 'rotationOrder', label: 'Rotation Order', render: (row) => formatCount(row?.rotationOrder) },
                 { key: 'status', label: 'Status', render: (row) => <StatusBadge value={pickFirst(row?.status, 'UNKNOWN')} /> },
                 { key: 'createdAt', label: 'Created', render: (row) => formatDateTime(pickFirst(row?.createdAt, row?.createdDate, row?.invitedAt, row?.requestedAt, row?.updatedAt)) },
@@ -1460,7 +1683,7 @@ export default function GroupSavingDetailPage() {
               showIndex={false}
               pageSize={100}
               columns={[
-                { key: 'requester', label: 'Requester', render: (row) => pickFirst(row?.accountReference, row?.email, row?.phone, row?.accountId, '—') },
+                { key: 'requester', label: 'Requester', render: (row) => getRequesterName(row) },
                 { key: 'status', label: 'Status', render: (row) => <StatusBadge value={pickFirst(row?.status, 'UNKNOWN')} /> },
                 { key: 'createdAt', label: 'Created', render: (row) => formatDateTime(row?.createdAt) },
                 {
@@ -1498,7 +1721,7 @@ export default function GroupSavingDetailPage() {
             showIndex={false}
             pageSize={100}
             columns={[
-              { key: 'borrower', label: 'Borrower', render: (row) => pickFirst(row?.borrowerAccountReference, row?.borrower?.accountReference, row?.borrowerAccountId, '—') },
+              { key: 'borrower', label: 'Borrower', render: (row) => getBorrowerName(row) },
               { key: 'principal', label: 'Principal', render: (row) => formatMoney(pickFirst(row?.principal, row?.principalAmount)) },
               { key: 'interest', label: 'Interest', render: (row) => formatMoney(pickFirst(row?.interest, row?.interestAmount)) },
               { key: 'totalDue', label: 'Total Due', render: (row) => formatMoney(pickFirst(row?.totalDue, row?.amountDue)) },
@@ -1576,7 +1799,7 @@ export default function GroupSavingDetailPage() {
             pageSize={100}
             columns={[
               { key: 'loan', label: 'Loan', render: (row) => pickFirst(row?.loanReference, row?.loanId, '—') },
-              { key: 'borrower', label: 'Borrower', render: (row) => pickFirst(row?.borrowerAccountReference, row?.borrower?.accountReference, row?.borrowerAccountId, '—') },
+              { key: 'borrower', label: 'Borrower', render: (row) => getBorrowerName(row) },
               { key: 'sequence', label: 'Installment', render: (row) => pickFirst(row?.installmentSequence, row?.sequenceNumber, '—') },
               { key: 'dueDate', label: 'Due Date', render: (row) => formatDateTime(row?.dueDate) },
               { key: 'amountDue', label: 'Amount Due', render: (row) => formatMoney(pickFirst(row?.amountDue, row?.dueAmount)) },
@@ -1616,7 +1839,7 @@ export default function GroupSavingDetailPage() {
             showIndex={false}
             pageSize={100}
             columns={[
-              { key: 'requester', label: 'Requester', render: (row) => pickFirst(row?.requesterAccountReference, row?.requester?.accountReference, row?.requesterAccountId, '—') },
+              { key: 'requester', label: 'Requester', render: (row) => getRequesterName(row) },
               { key: 'amount', label: 'Amount', render: (row) => formatMoney(pickFirst(row?.amount, row?.withdrawalAmount)) },
               { key: 'status', label: 'Status', render: (row) => <StatusBadge value={pickFirst(row?.status, 'UNKNOWN')} /> },
               { key: 'approvalCount', label: 'Approvals', render: (row) => `${formatCount(row?.approvalCount)} / ${formatCount(row?.requiredApprovals)}` },
@@ -1930,7 +2153,7 @@ export default function GroupSavingDetailPage() {
                     </div>
                     <div style={{ fontWeight: 700 }}>{pickFirst(message?.message, message?.body, message?.content, '—')}</div>
                     <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-                      {pickFirst(message?.actorAccountReference, message?.actor, message?.createdByAccountId, 'System')}
+                      {getActorName(message)}
                     </div>
                   </div>
                 );
@@ -1957,7 +2180,7 @@ export default function GroupSavingDetailPage() {
                         Round {formatCount(getRoundNumber(event))}
                       </div>
                     </div>
-                    <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{pickFirst(event?.actorAccountReference, event?.actorAccountId, event?.actor, 'System')}</div>
+                    <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{getActorName(event)}</div>
                   </div>
                   <div style={{ fontWeight: 700 }}>{pickFirst(event?.summary, event?.description, humanizeEnum(pickFirst(event?.eventType, event?.type, '')))}</div>
                   <details>
