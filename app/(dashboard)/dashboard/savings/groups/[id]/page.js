@@ -335,12 +335,17 @@ export default function GroupSavingDetailPage() {
   const applyPolicy = (nextPolicy) => {
     setPolicy(nextPolicy);
     setPolicyDraft({
-      contributionAmount: String(pickFirst(nextPolicy?.contributionAmount, '')),
+      contributionAmount: String(pickFirst(nextPolicy?.contributionAmount, nextPolicy?.effectiveContributionAmount, nextPolicy?.minimumContributionAmount, '')),
       turnCount: String(pickFirst(nextPolicy?.turnCount, '')),
       contributionMode: String(pickFirst(nextPolicy?.contributionMode, 'FIXED')).toUpperCase(),
       loanApprovalThresholdPercent: String(pickFirst(nextPolicy?.loanApprovalThresholdPercent, nextPolicy?.loanApprovalThreshold, '')),
       treasuryWithdrawalApprovalThresholdPercent: String(
-        pickFirst(nextPolicy?.treasuryWithdrawalApprovalThresholdPercent, nextPolicy?.treasuryWithdrawalApprovalThreshold, '')
+        pickFirst(
+          nextPolicy?.treasuryWithdrawalApprovalThresholdPercent,
+          nextPolicy?.treasuryWithdrawalThresholdPercent,
+          nextPolicy?.treasuryWithdrawalApprovalThreshold,
+          ''
+        )
       ),
       loanInterestPercentage: String(pickFirst(nextPolicy?.loanInterestPercentage, nextPolicy?.loanInterestPercent, '')),
       allowMultipleActiveLoans: Boolean(pickFirst(nextPolicy?.allowMultipleActiveLoans, false)),
@@ -2048,7 +2053,7 @@ export default function GroupSavingDetailPage() {
 
           <DetailGrid
             rows={[
-              { label: 'Current Contribution Amount', value: formatMoney(policy?.contributionAmount) },
+              { label: 'Current Contribution Amount', value: formatMoney(pickFirst(policy?.contributionAmount, policy?.effectiveContributionAmount, policy?.minimumContributionAmount)) },
               { label: 'Current Contribution Mode', value: humanizeEnum(pickFirst(policy?.contributionMode, '—')) },
               { label: 'Current Turn Count', value: formatCount(policy?.turnCount) },
               { label: 'Current Round Duration Months', value: formatCount(policy?.roundDurationMonths) },
@@ -2057,7 +2062,7 @@ export default function GroupSavingDetailPage() {
               { label: 'Current Loan Approval Threshold', value: pickFirst(policy?.loanApprovalThresholdPercent, policy?.loanApprovalThreshold, '—') },
               {
                 label: 'Current Treasury Withdrawal Threshold',
-                value: pickFirst(policy?.treasuryWithdrawalApprovalThresholdPercent, policy?.treasuryWithdrawalApprovalThreshold, '—')
+                value: pickFirst(policy?.treasuryWithdrawalApprovalThresholdPercent, policy?.treasuryWithdrawalThresholdPercent, policy?.treasuryWithdrawalApprovalThreshold, '—')
               },
               { label: 'Current Loan Interest', value: pickFirst(policy?.loanInterestPercentage, policy?.loanInterestPercent, '—') },
               { label: 'Current Default After Days', value: pickFirst(policy?.defaultAfterDays, '—') }
