@@ -10,14 +10,16 @@ const LABELS = {
   'crypto.external.collection.verified_only': 'Restrict crypto collection to verified users',
   'crypto.external.collection.allow_public_endpoints': 'Allow public crypto payment links',
   'kyc.allow_gallery_upload': 'Allow KYC gallery upload',
-  avecLoanRequestReasonEnabled: 'AVEC loan request reason'
+  avecLoanRequestReasonEnabled: 'AVEC loan request reason',
+  'customer_service.enabled': 'Customer service FAB'
 };
 
 const WARNINGS = {
   trusted_device_enforcement: 'Warning: Disabling trusted device enforcement reduces security for customer endpoints.',
   auto_refund: 'Warning: Disabling auto refunds will route failed refunds to manual review.',
   'kyc.allow_gallery_upload': 'If disabled, customers must capture KYC documents directly instead of uploading from their gallery.',
-  avecLoanRequestReasonEnabled: 'If disabled, the client app hides the AVEC loan request reason field and does not send notes in loan request payloads.'
+  avecLoanRequestReasonEnabled: 'If disabled, the client app hides the AVEC loan request reason field and does not send notes in loan request payloads.',
+  'customer_service.enabled': 'If disabled, the client app hides the customer service floating action button.'
 };
 
 const ACTION_LIMIT_PREFIX = 'limit.check.action.';
@@ -36,6 +38,7 @@ const TRANSACTION_AUTH_IOS_KEY = 'transaction_auth_enforcement.ios';
 const APP_OPEN_AUTH_GLOBAL_KEY = 'app_open_auth_enforcement';
 const APP_OPEN_AUTH_ANDROID_KEY = 'app_open_auth_enforcement.android';
 const APP_OPEN_AUTH_IOS_KEY = 'app_open_auth_enforcement.ios';
+const CUSTOMER_SERVICE_ENABLED_KEY = 'customer_service.enabled';
 const SAVINGS_ENABLED_KEY = 'savings.enabled';
 const AVEC_LOAN_REQUEST_REASON_KEY = 'avecLoanRequestReasonEnabled';
 const HIDDEN_FEATURE_FLAG_KEYS = new Set([
@@ -499,6 +502,7 @@ export default function FeatureFlagsPage() {
       const hasTransactionAuthGlobalFlag = list.some((flag) => String(flag?.key) === TRANSACTION_AUTH_GLOBAL_KEY);
       const hasTransactionAuthAndroidFlag = list.some((flag) => String(flag?.key) === TRANSACTION_AUTH_ANDROID_KEY);
       const hasTransactionAuthIosFlag = list.some((flag) => String(flag?.key) === TRANSACTION_AUTH_IOS_KEY);
+      const hasCustomerServiceEnabledFlag = list.some((flag) => String(flag?.key) === CUSTOMER_SERVICE_ENABLED_KEY);
       const defaults = [];
       if (!hasCryptoCollectionGate) defaults.push({ key: CRYPTO_COLLECTION_GATE_KEY, enabled: true, isDefault: true });
       if (!hasPublicEndpointsFlag) defaults.push({ key: CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY, enabled: true, isDefault: true });
@@ -511,6 +515,7 @@ export default function FeatureFlagsPage() {
       if (!hasTransactionAuthGlobalFlag) defaults.push({ key: TRANSACTION_AUTH_GLOBAL_KEY, enabled: true, isDefault: true });
       if (!hasTransactionAuthAndroidFlag) defaults.push({ key: TRANSACTION_AUTH_ANDROID_KEY, enabled: true, isDefault: true });
       if (!hasTransactionAuthIosFlag) defaults.push({ key: TRANSACTION_AUTH_IOS_KEY, enabled: true, isDefault: true });
+      if (!hasCustomerServiceEnabledFlag) defaults.push({ key: CUSTOMER_SERVICE_ENABLED_KEY, enabled: true, isDefault: true });
       setFlags([...defaults, ...list]);
     } catch (err) {
       setError(err.message);
@@ -1135,6 +1140,26 @@ export default function FeatureFlagsPage() {
           >
             Use AVEC loan reason flag
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              setDraftKey(CUSTOMER_SERVICE_ENABLED_KEY);
+              setDraftEnabled(true);
+              setDraftDisabledMessageEn('');
+              setDraftDisabledMessageFr('');
+            }}
+            style={{
+              border: '1px solid rgba(14, 165, 233, 0.28)',
+              background: 'rgba(14, 165, 233, 0.08)',
+              color: '#0369a1',
+              padding: '0.45rem 0.7rem',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              fontWeight: 700
+            }}
+          >
+            Use customer service flag
+          </button>
         </div>
         <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
           Supported keys: {SUPPORTED_KEYS.join(', ')}
@@ -1744,6 +1769,12 @@ export default function FeatureFlagsPage() {
                         </div>
                       </div>
                       {!flag.enabled && warning && <div style={{ color: '#b45309', fontWeight: 600 }}>{warning}</div>}
+                      {flag.key === CUSTOMER_SERVICE_ENABLED_KEY && (
+                        <div style={{ display: 'grid', gap: '0.25rem', color: 'var(--muted)', fontSize: '12px' }}>
+                          <div>Default is enabled when the flag is missing or null.</div>
+                          <div>Account overrides can hide the customer service FAB for specific users.</div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

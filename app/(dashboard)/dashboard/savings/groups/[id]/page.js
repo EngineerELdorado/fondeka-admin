@@ -35,6 +35,9 @@ const tabStyle = (active) => ({
 });
 
 const emptyPolicyForm = {
+  contributionAmount: '',
+  turnCount: '',
+  contributionMode: 'FIXED',
   loanApprovalThresholdPercent: '',
   treasuryWithdrawalApprovalThresholdPercent: '',
   loanInterestPercentage: '',
@@ -332,6 +335,9 @@ export default function GroupSavingDetailPage() {
   const applyPolicy = (nextPolicy) => {
     setPolicy(nextPolicy);
     setPolicyDraft({
+      contributionAmount: String(pickFirst(nextPolicy?.contributionAmount, '')),
+      turnCount: String(pickFirst(nextPolicy?.turnCount, '')),
+      contributionMode: String(pickFirst(nextPolicy?.contributionMode, 'FIXED')).toUpperCase(),
       loanApprovalThresholdPercent: String(pickFirst(nextPolicy?.loanApprovalThresholdPercent, nextPolicy?.loanApprovalThreshold, '')),
       treasuryWithdrawalApprovalThresholdPercent: String(
         pickFirst(nextPolicy?.treasuryWithdrawalApprovalThresholdPercent, nextPolicy?.treasuryWithdrawalApprovalThreshold, '')
@@ -804,7 +810,22 @@ export default function GroupSavingDetailPage() {
     setError(null);
     setInfo(null);
     try {
+      const contributionAmount = policyDraft.contributionAmount === '' ? null : Number(policyDraft.contributionAmount);
+      const turnCount = policyDraft.turnCount === '' ? null : Number(policyDraft.turnCount);
+      if (contributionAmount !== null && (!Number.isFinite(contributionAmount) || contributionAmount <= 0)) {
+        setError('Contribution amount must be a positive amount.');
+        setSavingAction('');
+        return;
+      }
+      if (turnCount !== null && (!Number.isInteger(turnCount) || turnCount <= 0)) {
+        setError('Turn count must be a positive integer.');
+        setSavingAction('');
+        return;
+      }
       const payload = {
+        contributionAmount,
+        turnCount,
+        contributionMode: policyDraft.contributionMode || 'FIXED',
         loanApprovalThresholdPercent:
           policyDraft.loanApprovalThresholdPercent === '' ? null : Number(policyDraft.loanApprovalThresholdPercent),
         treasuryWithdrawalApprovalThresholdPercent:
@@ -1954,6 +1975,41 @@ export default function GroupSavingDetailPage() {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
             <div style={{ display: 'grid', gap: '0.25rem' }}>
+              <label htmlFor="contributionAmount">Contribution amount</label>
+              <input
+                id="contributionAmount"
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={policyDraft.contributionAmount}
+                onChange={(e) => setPolicyDraft((prev) => ({ ...prev, contributionAmount: e.target.value }))}
+                disabled={!canDirectlyEditActiveAvecPolicy}
+              />
+            </div>
+            <div style={{ display: 'grid', gap: '0.25rem' }}>
+              <label htmlFor="turnCount">Turn count</label>
+              <input
+                id="turnCount"
+                type="number"
+                min="1"
+                step="1"
+                value={policyDraft.turnCount}
+                onChange={(e) => setPolicyDraft((prev) => ({ ...prev, turnCount: e.target.value }))}
+                disabled={!canDirectlyEditActiveAvecPolicy}
+              />
+            </div>
+            <div style={{ display: 'grid', gap: '0.25rem' }}>
+              <label htmlFor="contributionMode">Contribution mode</label>
+              <select
+                id="contributionMode"
+                value={policyDraft.contributionMode}
+                onChange={(e) => setPolicyDraft((prev) => ({ ...prev, contributionMode: e.target.value }))}
+                disabled={!canDirectlyEditActiveAvecPolicy}
+              >
+                <option value="FIXED">Fixed</option>
+              </select>
+            </div>
+            <div style={{ display: 'grid', gap: '0.25rem' }}>
               <label htmlFor="loanApprovalThresholdPercent">Loan approval threshold (%)</label>
               <input id="loanApprovalThresholdPercent" type="number" value={policyDraft.loanApprovalThresholdPercent} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, loanApprovalThresholdPercent: e.target.value }))} disabled={!canDirectlyEditActiveAvecPolicy} />
             </div>
@@ -1991,6 +2047,12 @@ export default function GroupSavingDetailPage() {
 
           <DetailGrid
             rows={[
+              { label: 'Current Contribution Amount', value: formatMoney(policy?.contributionAmount) },
+              { label: 'Current Contribution Mode', value: humanizeEnum(pickFirst(policy?.contributionMode, '—')) },
+              { label: 'Current Turn Count', value: formatCount(policy?.turnCount) },
+              { label: 'Current Round Duration Months', value: formatCount(policy?.roundDurationMonths) },
+              { label: 'Current Total Cycles Per Round', value: formatCount(policy?.totalCyclesPerRound) },
+              { label: 'Current Round Target Contribution Amount', value: formatMoney(policy?.roundTargetContributionAmount) },
               { label: 'Current Loan Approval Threshold', value: pickFirst(policy?.loanApprovalThresholdPercent, policy?.loanApprovalThreshold, '—') },
               {
                 label: 'Current Treasury Withdrawal Threshold',
