@@ -2007,6 +2007,7 @@ export default function GroupSavingDetailPage() {
                 disabled={!canDirectlyEditActiveAvecPolicy}
               >
                 <option value="FIXED">Fixed</option>
+                <option value="FLEXIBLE">Flexible</option>
               </select>
             </div>
             <div style={{ display: 'grid', gap: '0.25rem' }}>
