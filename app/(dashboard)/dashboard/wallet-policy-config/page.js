@@ -89,6 +89,24 @@ const normalizeRailMap = (value) => {
       .sort(([left], [right]) => left.localeCompare(right))
   );
 };
+const normalizeAutoRefundAllowedAccountIdsByAction = (value) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value)
+      .map(([action, accountIds]) => [
+        String(action || '').trim(),
+        Array.from(
+          new Set(
+            (Array.isArray(accountIds) ? accountIds : [])
+              .map((accountId) => String(accountId ?? '').trim())
+              .filter(Boolean)
+          )
+        )
+      ])
+      .filter(([action, accountIds]) => action && accountIds.length > 0)
+      .sort(([left], [right]) => left.localeCompare(right))
+  );
+};
 const humanizeEnum = (value) =>
   String(value || '')
     .toLowerCase()
@@ -199,6 +217,8 @@ export default function WalletPolicyConfigPage() {
   const [depositPromptThresholdAmount, setDepositPromptThresholdAmount] = useState('');
   const [transactionsEligibleForLoanEligibility, setTransactionsEligibleForLoanEligibility] = useState(true);
   const [autoRefundBlockedActions, setAutoRefundBlockedActions] = useState([]);
+  const [autoRefundTimeoutAllowedActions, setAutoRefundTimeoutAllowedActions] = useState([]);
+  const [autoRefundAllowedAccountIdsByAction, setAutoRefundAllowedAccountIdsByAction] = useState({});
   const [autoRefundActionSearch, setAutoRefundActionSearch] = useState('');
   const [globalFeeApplicationMode, setGlobalFeeApplicationMode] = useState('EXCLUSIVE');
   const [actionFeeApplicationModes, setActionFeeApplicationModes] = useState({});
@@ -356,6 +376,10 @@ export default function WalletPolicyConfigPage() {
       const incomingActions = Array.isArray(res?.payoutRateLimitActions) ? res.payoutRateLimitActions : [];
       setPayoutRateLimitActions(incomingActions.filter((action) => ALLOWED_PAYOUT_ACTIONS.includes(String(action))));
       setAutoRefundBlockedActions(Array.isArray(res?.autoRefundBlockedActions) ? res.autoRefundBlockedActions.map((action) => String(action)).filter(Boolean) : []);
+      setAutoRefundTimeoutAllowedActions(
+        Array.isArray(res?.autoRefundTimeoutAllowedActions) ? res.autoRefundTimeoutAllowedActions.map((action) => String(action)).filter(Boolean) : []
+      );
+      setAutoRefundAllowedAccountIdsByAction(normalizeAutoRefundAllowedAccountIdsByAction(res?.autoRefundAllowedAccountIdsByAction));
       setCryptoProviderCollectionMinimumUsd(formatUsdValue(res?.cryptoProviderCollectionMinimumUsd));
       setCryptoProviderCollectionMaximumUsd(formatUsdValue(res?.cryptoProviderCollectionMaximumUsd));
       setSendAirtimeMinimumUsd(formatUsdValue(res?.sendAirtimeMinimumUsd));
@@ -428,6 +452,36 @@ export default function WalletPolicyConfigPage() {
           .filter(Boolean)
       )
     );
+    const normalizedAutoRefundTimeoutAllowedActions = Array.from(
+      new Set(
+        (Array.isArray(autoRefundTimeoutAllowedActions) ? autoRefundTimeoutAllowedActions : [])
+          .map((action) => String(action || '').trim())
+          .filter(Boolean)
+      )
+    );
+    const normalizedAutoRefundAllowedAccountIdsByAction = {};
+    for (const [action, accountIds] of Object.entries(autoRefundAllowedAccountIdsByAction || {})) {
+      const normalizedAction = String(action || '').trim();
+      if (!normalizedAction) continue;
+      const normalizedAccountIds = [];
+      const seenAccountIds = new Set();
+      for (const accountId of Array.isArray(accountIds) ? accountIds : []) {
+        const rawAccountId = String(accountId ?? '').trim();
+        if (!rawAccountId) continue;
+        const parsedAccountId = Number(rawAccountId);
+        if (!Number.isInteger(parsedAccountId) || parsedAccountId <= 0) {
+          setError(`Allowed account ID for ${humanizeEnum(normalizedAction)} must be a positive integer.`);
+          return;
+        }
+        if (!seenAccountIds.has(parsedAccountId)) {
+          seenAccountIds.add(parsedAccountId);
+          normalizedAccountIds.push(parsedAccountId);
+        }
+      }
+      if (normalizedAccountIds.length > 0) {
+        normalizedAutoRefundAllowedAccountIdsByAction[normalizedAction] = normalizedAccountIds;
+      }
+    }
     const normalizedActionFeeModes = Object.fromEntries(
       Object.entries(actionFeeApplicationModes || {})
         .map(([action, mode]) => [String(action || '').trim(), String(mode || '').toUpperCase()])
@@ -616,6 +670,8 @@ export default function WalletPolicyConfigPage() {
         reviewPromptCompletedTransactionsThreshold:
           reviewPromptThresholdRaw === '' ? null : reviewPromptThresholdParsed,
         autoRefundBlockedActions: normalizedAutoRefundBlockedActions,
+        autoRefundTimeoutAllowedActions: normalizedAutoRefundTimeoutAllowedActions,
+        autoRefundAllowedAccountIdsByAction: normalizedAutoRefundAllowedAccountIdsByAction,
         globalFeeApplicationMode: globalFeeApplicationMode || 'EXCLUSIVE',
         actionFeeApplicationModes: normalizedActionFeeModes,
         actionMinimumAmounts: normalizedActionMinimumAmounts,
@@ -1083,6 +1139,61 @@ export default function WalletPolicyConfigPage() {
         </div>
 
         <div style={{ display: 'grid', gap: '0.5rem' }}>
+          <div style={{ fontWeight: 700 }}>Fund Card Provider Timeout Auto Refunds</div>
+          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+            Controls only FUND_CARD provider-timeout handling. Normal failed FUND_CARD refunds still follow the standard auto-refund block rules below.
+          </div>
+          <div style={{ display: 'grid', gap: '0.75rem', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '12px' }}>
+            <label style={{ display: 'flex', gap: '0.55rem', alignItems: 'flex-start', fontWeight: 700 }}>
+              <input
+                type="checkbox"
+                checked={autoRefundTimeoutAllowedActions.includes('FUND_CARD')}
+                onChange={(e) => {
+                  const isChecked = e.target.checked;
+                  setAutoRefundTimeoutAllowedActions((prev) => {
+                    const set = new Set((Array.isArray(prev) ? prev : []).map((action) => String(action)));
+                    if (isChecked) set.add('FUND_CARD');
+                    else set.delete('FUND_CARD');
+                    return Array.from(set);
+                  });
+                }}
+                disabled={loading || saving}
+                style={{ marginTop: '0.15rem' }}
+              />
+              <span>
+                Enable timeout auto-refund for all eligible FUND_CARD transactions
+                <span style={{ display: 'block', color: 'var(--muted)', fontSize: '12px', fontWeight: 500, marginTop: '0.2rem' }}>
+                  Saves FUND_CARD in <code>autoRefundTimeoutAllowedActions</code>. When off, only the account exceptions below can auto-refund on provider timeout.
+                </span>
+              </span>
+            </label>
+
+            <label style={{ display: 'grid', gap: '0.3rem' }}>
+              <span style={{ fontWeight: 700 }}>FUND_CARD account exceptions</span>
+              <input
+                type="text"
+                value={(autoRefundAllowedAccountIdsByAction?.FUND_CARD || []).join(', ')}
+                onChange={(e) => {
+                  const accountIds = e.target.value
+                    .split(/[,\s]+/)
+                    .map((accountId) => accountId.trim())
+                    .filter(Boolean);
+                  setAutoRefundAllowedAccountIdsByAction((prev) => ({
+                    ...(prev || {}),
+                    FUND_CARD: accountIds
+                  }));
+                }}
+                placeholder="Example: 7, 1"
+                disabled={loading || saving}
+              />
+              <span style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                These accounts can auto-refund FUND_CARD provider timeouts even when global timeout auto-refund is off.
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gap: '0.5rem' }}>
           <div style={{ fontWeight: 700 }}>Block Auto Refund For Actions</div>
           <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
             If an action is selected here, failed transactions for that action will not be auto-refunded. They will be marked for manual refund instead.
@@ -1097,7 +1208,9 @@ export default function WalletPolicyConfigPage() {
               {selectedAutoRefundBlockedActions.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => setAutoRefundBlockedActions([])}
+                  onClick={() => {
+                    setAutoRefundBlockedActions([]);
+                  }}
                   disabled={loading || saving}
                   style={{
                     border: 'none',
@@ -1120,9 +1233,9 @@ export default function WalletPolicyConfigPage() {
                     <span>{humanizeEnum(action)}</span>
                     <button
                       type="button"
-                      onClick={() =>
-                        setAutoRefundBlockedActions((prev) => prev.filter((item) => String(item) !== action))
-                      }
+                      onClick={() => {
+                        setAutoRefundBlockedActions((prev) => prev.filter((item) => String(item) !== action));
+                      }}
                       disabled={loading || saving}
                       aria-label={`Remove ${humanizeEnum(action)}`}
                       style={{
