@@ -1185,6 +1185,74 @@ export default function GroupSavingDetailPage() {
     }
   ];
 
+  const policySectionStyle = {
+    display: 'grid',
+    gap: '0.75rem',
+    paddingTop: '0.9rem',
+    borderTop: '1px solid var(--border)'
+  };
+  const policyGridStyle = {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+    gap: '0.75rem'
+  };
+  const policyCheckboxGridStyle = {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+    gap: '0.6rem'
+  };
+  const renderPolicyInput = (field, label, props = {}) => (
+    <div style={{ display: 'grid', gap: '0.25rem' }}>
+      <label htmlFor={field}>{label}</label>
+      <input
+        id={field}
+        type={props.type || 'number'}
+        min={props.min}
+        max={props.max}
+        step={props.step || '0.01'}
+        value={policyDraft[field]}
+        onChange={(e) => setPolicyDraft((prev) => ({ ...prev, [field]: e.target.value }))}
+        disabled={!canDirectlyEditActiveAvecPolicy || Boolean(props.disabled)}
+      />
+    </div>
+  );
+  const renderPolicySelect = (field, label, options, props = {}) => (
+    <div style={{ display: 'grid', gap: '0.25rem' }}>
+      <label htmlFor={field}>{label}</label>
+      <select
+        id={field}
+        value={policyDraft[field]}
+        onChange={(e) => setPolicyDraft((prev) => ({ ...prev, [field]: e.target.value }))}
+        disabled={!canDirectlyEditActiveAvecPolicy || Boolean(props.disabled)}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+  const renderPolicyCheckbox = (field, label) => (
+    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, lineHeight: 1.35 }}>
+      <input
+        type="checkbox"
+        checked={Boolean(policyDraft[field])}
+        onChange={(e) => setPolicyDraft((prev) => ({ ...prev, [field]: e.target.checked }))}
+        disabled={!canDirectlyEditActiveAvecPolicy}
+      />
+      {label}
+    </label>
+  );
+  const policyModeOptions = [
+    { value: 'VOTING', label: 'Voting' },
+    { value: 'OWNER_APPROVAL', label: 'Owner approval' }
+  ];
+  const policyScopeOptions = [
+    { value: 'ALL_ACTIVE_MEMBERS', label: 'All active members' },
+    { value: 'CONTRIBUTING_MEMBERS', label: 'Contributing members' }
+  ];
+
   if (!groupId) {
     return null;
   }
@@ -2096,216 +2164,101 @@ export default function GroupSavingDetailPage() {
             </div>
           ) : null}
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
-            <div style={{ display: 'grid', gap: '0.25rem' }}>
-              <label htmlFor="contributionAmount">Contribution amount</label>
-              <input
-                id="contributionAmount"
-                type="number"
-                min="0.01"
-                step="0.01"
-                value={policyDraft.contributionAmount}
-                onChange={(e) => setPolicyDraft((prev) => ({ ...prev, contributionAmount: e.target.value }))}
-                disabled={!canDirectlyEditActiveAvecPolicy}
-              />
-            </div>
-            <div style={{ display: 'grid', gap: '0.25rem' }}>
-              <label htmlFor="turnCount">Turn count</label>
-              <input
-                id="turnCount"
-                type="number"
-                min="1"
-                step="1"
-                value={policyDraft.turnCount}
-                onChange={(e) => setPolicyDraft((prev) => ({ ...prev, turnCount: e.target.value }))}
-                disabled={!canDirectlyEditActiveAvecPolicy}
-              />
-            </div>
-            <div style={{ display: 'grid', gap: '0.25rem' }}>
-              <label htmlFor="contributionMode">Contribution mode</label>
-              <select
-                id="contributionMode"
-                value={policyDraft.contributionMode}
-                onChange={(e) => setPolicyDraft((prev) => ({ ...prev, contributionMode: e.target.value }))}
-                disabled={!canDirectlyEditActiveAvecPolicy}
-              >
-                <option value="FIXED">Fixed</option>
-                <option value="FLEXIBLE">Flexible</option>
-              </select>
-            </div>
-            <div style={{ display: 'grid', gap: '0.25rem' }}>
-              <label htmlFor="loanApprovalThresholdPercent">Loan approval threshold (%)</label>
-              <input id="loanApprovalThresholdPercent" type="number" value={policyDraft.loanApprovalThresholdPercent} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, loanApprovalThresholdPercent: e.target.value }))} disabled={!canDirectlyEditActiveAvecPolicy} />
-            </div>
-            <div style={{ display: 'grid', gap: '0.25rem' }}>
-              <label htmlFor="treasuryWithdrawalApprovalThresholdPercent">Treasury withdrawal threshold (%)</label>
-              <input id="treasuryWithdrawalApprovalThresholdPercent" type="number" value={policyDraft.treasuryWithdrawalApprovalThresholdPercent} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, treasuryWithdrawalApprovalThresholdPercent: e.target.value }))} disabled={!canDirectlyEditActiveAvecPolicy} />
-            </div>
-            <div style={{ display: 'grid', gap: '0.25rem' }}>
-              <label htmlFor="loanInterestPercentage">Loan interest percentage</label>
-              <input id="loanInterestPercentage" type="number" value={policyDraft.loanInterestPercentage} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, loanInterestPercentage: e.target.value }))} disabled={!canDirectlyEditActiveAvecPolicy} />
-            </div>
-            <div style={{ display: 'grid', gap: '0.25rem' }}>
-              <label htmlFor="defaultAfterDays">Default after days</label>
-              <input id="defaultAfterDays" type="number" value={policyDraft.defaultAfterDays} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, defaultAfterDays: e.target.value }))} disabled={!canDirectlyEditActiveAvecPolicy} />
-            </div>
-            <div style={{ display: 'grid', gap: '0.25rem', gridColumn: '1 / -1' }}>
-              <label htmlFor="defaultRulesText">Default rules text</label>
-              <textarea id="defaultRulesText" rows={4} value={policyDraft.defaultRulesText} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, defaultRulesText: e.target.value }))} disabled={!canDirectlyEditActiveAvecPolicy} />
-            </div>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
-              <input type="checkbox" checked={policyDraft.allowMultipleActiveLoans} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, allowMultipleActiveLoans: e.target.checked }))} disabled={!canDirectlyEditActiveAvecPolicy} />
-              Allow multiple active loans
-            </label>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
-              <input type="checkbox" checked={policyDraft.allowMultiplePendingLoanRequests} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, allowMultiplePendingLoanRequests: e.target.checked }))} disabled={!canDirectlyEditActiveAvecPolicy} />
-              Allow multiple pending loan requests
-            </label>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
-              <input type="checkbox" checked={policyDraft.allowPartialLoanRepayments} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, allowPartialLoanRepayments: e.target.checked }))} disabled={!canDirectlyEditActiveAvecPolicy} />
-              Allow partial loan repayments
-            </label>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
-              <input type="checkbox" checked={policyDraft.requireCurrentRoundContributionBeforeLoan} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, requireCurrentRoundContributionBeforeLoan: e.target.checked }))} disabled={!canDirectlyEditActiveAvecPolicy} />
-              Require current round contribution before loan
-            </label>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
-              <input type="checkbox" checked={policyDraft.blockLoansIfMemberHasOverdueContributions} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, blockLoansIfMemberHasOverdueContributions: e.target.checked }))} disabled={!canDirectlyEditActiveAvecPolicy} />
-              Block loans for overdue contributors
-            </label>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
-              <input type="checkbox" checked={policyDraft.blockTreasuryWithdrawalsIfMemberHasOverdueContributions} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, blockTreasuryWithdrawalsIfMemberHasOverdueContributions: e.target.checked }))} disabled={!canDirectlyEditActiveAvecPolicy} />
-              Block withdrawals for overdue contributors
-            </label>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
-              <input type="checkbox" checked={policyDraft.autoDisburseApprovedLoans} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, autoDisburseApprovedLoans: e.target.checked }))} disabled={!canDirectlyEditActiveAvecPolicy} />
-              Auto-disburse approved loans
-            </label>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
-              <input type="checkbox" checked={policyDraft.autoDisburseApprovedTreasuryWithdrawals} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, autoDisburseApprovedTreasuryWithdrawals: e.target.checked }))} disabled={!canDirectlyEditActiveAvecPolicy} />
-              Auto-disburse approved treasury withdrawals
-            </label>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
-              <input type="checkbox" checked={policyDraft.allowOwnerApprovalOverride} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, allowOwnerApprovalOverride: e.target.checked }))} disabled={!canDirectlyEditActiveAvecPolicy} />
-              Allow owner approval override
-            </label>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
-              <input type="checkbox" checked={policyDraft.allowOwnerEmergencyTreasuryWithdrawalApproval} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, allowOwnerEmergencyTreasuryWithdrawalApproval: e.target.checked }))} disabled={!canDirectlyEditActiveAvecPolicy} />
-              Allow owner emergency withdrawal approval
-            </label>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
-              <input type="checkbox" checked={policyDraft.latePenaltyEnabled} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, latePenaltyEnabled: e.target.checked }))} disabled={!canDirectlyEditActiveAvecPolicy} />
-              Enable late penalty
-            </label>
-            <div style={{ display: 'grid', gap: '0.25rem' }}>
-              <label htmlFor="minimumContributionAmount">Minimum contribution amount</label>
-              <input id="minimumContributionAmount" type="number" min="0" step="0.01" value={policyDraft.minimumContributionAmount} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, minimumContributionAmount: e.target.value }))} disabled={!canDirectlyEditActiveAvecPolicy} />
-            </div>
-            <div style={{ display: 'grid', gap: '0.25rem' }}>
-              <label htmlFor="roundDurationMonths">Round duration months</label>
-              <input id="roundDurationMonths" type="number" min="1" step="1" value={policyDraft.roundDurationMonths} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, roundDurationMonths: e.target.value }))} disabled={!canDirectlyEditActiveAvecPolicy} />
-            </div>
-            <div style={{ display: 'grid', gap: '0.25rem' }}>
-              <label htmlFor="roundTargetContributionAmount">Round target contribution amount</label>
-              <input id="roundTargetContributionAmount" type="number" min="0" step="0.01" value={policyDraft.roundTargetContributionAmount} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, roundTargetContributionAmount: e.target.value }))} disabled={!canDirectlyEditActiveAvecPolicy || policyDraft.contributionMode === 'FIXED'} />
-            </div>
-            <div style={{ display: 'grid', gap: '0.25rem' }}>
-              <label htmlFor="loanApprovalMode">Loan approval mode</label>
-              <select id="loanApprovalMode" value={policyDraft.loanApprovalMode} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, loanApprovalMode: e.target.value }))} disabled={!canDirectlyEditActiveAvecPolicy}>
-                <option value="VOTING">Voting</option>
-                <option value="OWNER_APPROVAL">Owner approval</option>
-              </select>
-            </div>
-            <div style={{ display: 'grid', gap: '0.25rem' }}>
-              <label htmlFor="loanVoteEligibilityScope">Loan voter scope</label>
-              <select id="loanVoteEligibilityScope" value={policyDraft.loanVoteEligibilityScope} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, loanVoteEligibilityScope: e.target.value }))} disabled={!canDirectlyEditActiveAvecPolicy}>
-                <option value="ALL_ACTIVE_MEMBERS">All active members</option>
-                <option value="CONTRIBUTING_MEMBERS">Contributing members</option>
-              </select>
-            </div>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
-              <input type="checkbox" checked={policyDraft.loanVoteWindowEnabled} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, loanVoteWindowEnabled: e.target.checked }))} disabled={!canDirectlyEditActiveAvecPolicy} />
-              Enable loan vote window
-            </label>
-            <div style={{ display: 'grid', gap: '0.25rem' }}>
-              <label htmlFor="loanVoteWindowHours">Loan vote window hours</label>
-              <input id="loanVoteWindowHours" type="number" min="1" step="1" value={policyDraft.loanVoteWindowHours} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, loanVoteWindowHours: e.target.value }))} disabled={!canDirectlyEditActiveAvecPolicy || !policyDraft.loanVoteWindowEnabled} />
-            </div>
-            <div style={{ display: 'grid', gap: '0.25rem' }}>
-              <label htmlFor="memberRemovalApprovalThresholdPercent">Member removal threshold (%)</label>
-              <input id="memberRemovalApprovalThresholdPercent" type="number" min="0" max="100" step="0.01" value={policyDraft.memberRemovalApprovalThresholdPercent} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, memberRemovalApprovalThresholdPercent: e.target.value }))} disabled={!canDirectlyEditActiveAvecPolicy} />
-            </div>
-            <div style={{ display: 'grid', gap: '0.25rem' }}>
-              <label htmlFor="memberRemovalApprovalMode">Member removal approval mode</label>
-              <select id="memberRemovalApprovalMode" value={policyDraft.memberRemovalApprovalMode} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, memberRemovalApprovalMode: e.target.value }))} disabled={!canDirectlyEditActiveAvecPolicy}>
-                <option value="VOTING">Voting</option>
-                <option value="OWNER_APPROVAL">Owner approval</option>
-              </select>
-            </div>
-            <div style={{ display: 'grid', gap: '0.25rem' }}>
-              <label htmlFor="memberRemovalVoteEligibilityScope">Member removal voter scope</label>
-              <select id="memberRemovalVoteEligibilityScope" value={policyDraft.memberRemovalVoteEligibilityScope} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, memberRemovalVoteEligibilityScope: e.target.value }))} disabled={!canDirectlyEditActiveAvecPolicy}>
-                <option value="ALL_ACTIVE_MEMBERS">All active members</option>
-                <option value="CONTRIBUTING_MEMBERS">Contributing members</option>
-              </select>
-            </div>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
-              <input type="checkbox" checked={policyDraft.memberRemovalVoteWindowEnabled} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, memberRemovalVoteWindowEnabled: e.target.checked }))} disabled={!canDirectlyEditActiveAvecPolicy} />
-              Enable member removal vote window
-            </label>
-            <div style={{ display: 'grid', gap: '0.25rem' }}>
-              <label htmlFor="memberRemovalVoteWindowHours">Member removal vote window hours</label>
-              <input id="memberRemovalVoteWindowHours" type="number" min="1" step="1" value={policyDraft.memberRemovalVoteWindowHours} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, memberRemovalVoteWindowHours: e.target.value }))} disabled={!canDirectlyEditActiveAvecPolicy || !policyDraft.memberRemovalVoteWindowEnabled} />
-            </div>
-            <div style={{ display: 'grid', gap: '0.25rem' }}>
-              <label htmlFor="treasuryWithdrawalApprovalMode">Treasury withdrawal approval mode</label>
-              <select id="treasuryWithdrawalApprovalMode" value={policyDraft.treasuryWithdrawalApprovalMode} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, treasuryWithdrawalApprovalMode: e.target.value }))} disabled={!canDirectlyEditActiveAvecPolicy}>
-                <option value="VOTING">Voting</option>
-                <option value="OWNER_APPROVAL">Owner approval</option>
-              </select>
-            </div>
-            <div style={{ display: 'grid', gap: '0.25rem' }}>
-              <label htmlFor="treasuryWithdrawalVoteEligibilityScope">Treasury withdrawal voter scope</label>
-              <select id="treasuryWithdrawalVoteEligibilityScope" value={policyDraft.treasuryWithdrawalVoteEligibilityScope} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, treasuryWithdrawalVoteEligibilityScope: e.target.value }))} disabled={!canDirectlyEditActiveAvecPolicy}>
-                <option value="ALL_ACTIVE_MEMBERS">All active members</option>
-                <option value="CONTRIBUTING_MEMBERS">Contributing members</option>
-              </select>
-            </div>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
-              <input type="checkbox" checked={policyDraft.treasuryWithdrawalVoteWindowEnabled} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, treasuryWithdrawalVoteWindowEnabled: e.target.checked }))} disabled={!canDirectlyEditActiveAvecPolicy} />
-              Enable treasury withdrawal vote window
-            </label>
-            <div style={{ display: 'grid', gap: '0.25rem' }}>
-              <label htmlFor="treasuryWithdrawalVoteWindowHours">Treasury withdrawal vote window hours</label>
-              <input id="treasuryWithdrawalVoteWindowHours" type="number" min="1" step="1" value={policyDraft.treasuryWithdrawalVoteWindowHours} onChange={(e) => setPolicyDraft((prev) => ({ ...prev, treasuryWithdrawalVoteWindowHours: e.target.value }))} disabled={!canDirectlyEditActiveAvecPolicy || !policyDraft.treasuryWithdrawalVoteWindowEnabled} />
-            </div>
-            {[
-              ['minimumLoanAmount', 'Minimum loan amount'],
-              ['maximumLoanAmount', 'Maximum loan amount'],
-              ['minimumLoanDurationDays', 'Minimum loan duration days'],
-              ['maximumLoanDurationDays', 'Maximum loan duration days'],
-              ['minimumPaidContributionsBeforeLoan', 'Minimum paid contributions before loan'],
-              ['latePenaltyPercentage', 'Late penalty percentage'],
-              ['emergencyTreasuryWithdrawalMaxAmount', 'Emergency withdrawal max amount'],
-              ['emergencyTreasuryWithdrawalMaxPercentOfTreasury', 'Emergency withdrawal max percent of treasury'],
-              ['treasuryWithdrawalBypassVotingMaxAmount', 'Bypass voting max amount'],
-              ['treasuryWithdrawalBypassVotingMaxPercentOfTreasury', 'Bypass voting max percent of treasury'],
-              ['treasuryWithdrawalMaxAmount', 'Treasury withdrawal max amount'],
-              ['treasuryWithdrawalMaxPercentOfTreasury', 'Treasury withdrawal max percent of treasury']
-            ].map(([field, label]) => (
-              <div key={field} style={{ display: 'grid', gap: '0.25rem' }}>
-                <label htmlFor={field}>{label}</label>
-                <input
-                  id={field}
-                  type="number"
-                  min="0"
-                  step={field.toLowerCase().includes('days') || field.toLowerCase().includes('contributions') ? '1' : '0.01'}
-                  value={policyDraft[field]}
-                  onChange={(e) => setPolicyDraft((prev) => ({ ...prev, [field]: e.target.value }))}
-                  disabled={!canDirectlyEditActiveAvecPolicy}
-                />
+          <div style={{ display: 'grid', gap: '1rem' }}>
+            <div style={policySectionStyle}>
+              <div>
+                <div style={{ fontWeight: 800 }}>Contribution Structure</div>
+                <div style={{ color: 'var(--muted)', fontSize: '13px' }}>For fixed groups, the backend recomputes the round target from contribution amount and turn count.</div>
               </div>
-            ))}
+              <div style={policyGridStyle}>
+                {renderPolicySelect('contributionMode', 'Contribution mode', [
+                  { value: 'FIXED', label: 'Fixed' },
+                  { value: 'FLEXIBLE', label: 'Flexible' }
+                ])}
+                {renderPolicyInput('contributionAmount', 'Contribution amount', { min: '0.01', step: '0.01' })}
+                {renderPolicyInput('turnCount', 'Turn count', { min: '1', step: '1' })}
+                {renderPolicyInput('minimumContributionAmount', 'Minimum contribution amount', { min: '0', step: '0.01' })}
+                {renderPolicyInput('roundDurationMonths', 'Round duration months', { min: '1', step: '1' })}
+                {renderPolicyInput('roundTargetContributionAmount', 'Round target contribution amount', {
+                  min: '0',
+                  step: '0.01',
+                  disabled: policyDraft.contributionMode === 'FIXED'
+                })}
+              </div>
+            </div>
+
+            <div style={policySectionStyle}>
+              <div>
+                <div style={{ fontWeight: 800 }}>Loan Rules</div>
+                <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Loan voting, limits, eligibility, repayment, and default behavior.</div>
+              </div>
+              <div style={policyGridStyle}>
+                {renderPolicySelect('loanApprovalMode', 'Loan approval mode', policyModeOptions)}
+                {renderPolicyInput('loanApprovalThresholdPercent', 'Loan approval threshold (%)', { min: '0', max: '100', step: '0.01' })}
+                {renderPolicySelect('loanVoteEligibilityScope', 'Loan voter scope', policyScopeOptions)}
+                {renderPolicyInput('loanVoteWindowHours', 'Loan vote window hours', { min: '1', step: '1', disabled: !policyDraft.loanVoteWindowEnabled })}
+                {renderPolicyInput('loanInterestPercentage', 'Loan interest percentage', { min: '0', step: '0.01' })}
+                {renderPolicyInput('minimumLoanAmount', 'Minimum loan amount', { min: '0', step: '0.01' })}
+                {renderPolicyInput('maximumLoanAmount', 'Maximum loan amount', { min: '0', step: '0.01' })}
+                {renderPolicyInput('minimumLoanDurationDays', 'Minimum loan duration days', { min: '0', step: '1' })}
+                {renderPolicyInput('maximumLoanDurationDays', 'Maximum loan duration days', { min: '0', step: '1' })}
+                {renderPolicyInput('minimumPaidContributionsBeforeLoan', 'Minimum paid contributions before loan', { min: '0', step: '1' })}
+                {renderPolicyInput('defaultAfterDays', 'Default after days', { min: '0', step: '1' })}
+                {renderPolicyInput('latePenaltyPercentage', 'Late penalty percentage', { min: '0', step: '0.01', disabled: !policyDraft.latePenaltyEnabled })}
+              </div>
+              <div style={policyCheckboxGridStyle}>
+                {renderPolicyCheckbox('loanVoteWindowEnabled', 'Enable loan vote window')}
+                {renderPolicyCheckbox('allowMultipleActiveLoans', 'Allow multiple active loans')}
+                {renderPolicyCheckbox('allowMultiplePendingLoanRequests', 'Allow multiple pending loan requests')}
+                {renderPolicyCheckbox('allowPartialLoanRepayments', 'Allow partial loan repayments')}
+                {renderPolicyCheckbox('requireCurrentRoundContributionBeforeLoan', 'Require current round contribution before loan')}
+                {renderPolicyCheckbox('blockLoansIfMemberHasOverdueContributions', 'Block loans for overdue contributors')}
+                {renderPolicyCheckbox('autoDisburseApprovedLoans', 'Auto-disburse approved loans')}
+                {renderPolicyCheckbox('latePenaltyEnabled', 'Enable late penalty')}
+              </div>
+            </div>
+
+            <div style={policySectionStyle}>
+              <div>
+                <div style={{ fontWeight: 800 }}>Treasury Withdrawals</div>
+                <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Controls withdrawal voting, limits, emergency approval, and automatic disbursement.</div>
+              </div>
+              <div style={policyGridStyle}>
+                {renderPolicySelect('treasuryWithdrawalApprovalMode', 'Treasury withdrawal approval mode', policyModeOptions)}
+                {renderPolicyInput('treasuryWithdrawalApprovalThresholdPercent', 'Treasury withdrawal threshold (%)', { min: '0', max: '100', step: '0.01' })}
+                {renderPolicySelect('treasuryWithdrawalVoteEligibilityScope', 'Treasury withdrawal voter scope', policyScopeOptions)}
+                {renderPolicyInput('treasuryWithdrawalVoteWindowHours', 'Treasury withdrawal vote window hours', { min: '1', step: '1', disabled: !policyDraft.treasuryWithdrawalVoteWindowEnabled })}
+                {renderPolicyInput('treasuryWithdrawalMaxAmount', 'Treasury withdrawal max amount', { min: '0', step: '0.01' })}
+                {renderPolicyInput('treasuryWithdrawalMaxPercentOfTreasury', 'Treasury withdrawal max percent of treasury', { min: '0', max: '100', step: '0.01' })}
+                {renderPolicyInput('treasuryWithdrawalBypassVotingMaxAmount', 'Bypass voting max amount', { min: '0', step: '0.01' })}
+                {renderPolicyInput('treasuryWithdrawalBypassVotingMaxPercentOfTreasury', 'Bypass voting max percent of treasury', { min: '0', max: '100', step: '0.01' })}
+                {renderPolicyInput('emergencyTreasuryWithdrawalMaxAmount', 'Emergency withdrawal max amount', { min: '0', step: '0.01' })}
+                {renderPolicyInput('emergencyTreasuryWithdrawalMaxPercentOfTreasury', 'Emergency withdrawal max percent of treasury', { min: '0', max: '100', step: '0.01' })}
+              </div>
+              <div style={policyCheckboxGridStyle}>
+                {renderPolicyCheckbox('treasuryWithdrawalVoteWindowEnabled', 'Enable treasury withdrawal vote window')}
+                {renderPolicyCheckbox('blockTreasuryWithdrawalsIfMemberHasOverdueContributions', 'Block withdrawals for overdue contributors')}
+                {renderPolicyCheckbox('autoDisburseApprovedTreasuryWithdrawals', 'Auto-disburse approved treasury withdrawals')}
+                {renderPolicyCheckbox('allowOwnerEmergencyTreasuryWithdrawalApproval', 'Allow owner emergency withdrawal approval')}
+              </div>
+            </div>
+
+            <div style={policySectionStyle}>
+              <div>
+                <div style={{ fontWeight: 800 }}>Member Removal</div>
+                <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Governance controls for member removal approval.</div>
+              </div>
+              <div style={policyGridStyle}>
+                {renderPolicySelect('memberRemovalApprovalMode', 'Member removal approval mode', policyModeOptions)}
+                {renderPolicyInput('memberRemovalApprovalThresholdPercent', 'Member removal threshold (%)', { min: '0', max: '100', step: '0.01' })}
+                {renderPolicySelect('memberRemovalVoteEligibilityScope', 'Member removal voter scope', policyScopeOptions)}
+                {renderPolicyInput('memberRemovalVoteWindowHours', 'Member removal vote window hours', { min: '1', step: '1', disabled: !policyDraft.memberRemovalVoteWindowEnabled })}
+              </div>
+              <div style={policyCheckboxGridStyle}>
+                {renderPolicyCheckbox('memberRemovalVoteWindowEnabled', 'Enable member removal vote window')}
+                {renderPolicyCheckbox('allowOwnerApprovalOverride', 'Allow owner approval override')}
+              </div>
+            </div>
           </div>
 
           {policyWarnings.length > 0 ? (
