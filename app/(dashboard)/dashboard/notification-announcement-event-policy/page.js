@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { useToast } from '@/contexts/ToastContext';
 
+const severityOptions = ['INFO', 'WARNING', 'CRITICAL'];
+
 const humanizeEnum = (value) =>
   String(value || '')
     .toLowerCase()
@@ -17,6 +19,7 @@ export default function AnnouncementEventPolicyPage() {
   const { pushToast } = useToast();
   const [availableEvents, setAvailableEvents] = useState([]);
   const [enabledEvents, setEnabledEvents] = useState([]);
+  const [eventSeverities, setEventSeverities] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -40,6 +43,7 @@ export default function AnnouncementEventPolicyPage() {
       const res = await api.notifications.getAnnouncementEventPolicy();
       setAvailableEvents(Array.isArray(res?.availableEvents) ? res.availableEvents.map(String).filter(Boolean) : []);
       setEnabledEvents(Array.isArray(res?.enabledEvents) ? res.enabledEvents.map(String).filter(Boolean) : []);
+      setEventSeverities(res?.eventSeverities && typeof res.eventSeverities === 'object' ? res.eventSeverities : {});
     } catch (err) {
       setError(err?.message || 'Failed to load announcement event policy');
     } finally {
@@ -60,16 +64,35 @@ export default function AnnouncementEventPolicyPage() {
     });
   };
 
+  const updateSeverity = (event, severity) => {
+    setEventSeverities((prev) => {
+      const next = { ...(prev || {}) };
+      if (severity) next[event] = severity;
+      else delete next[event];
+      return next;
+    });
+  };
+
   const savePolicy = async () => {
     setSaving(true);
     setError(null);
     try {
+      const normalizedEnabledEvents = Array.from(new Set((enabledEvents || []).map((event) => String(event).trim()).filter(Boolean))).sort();
+      const enabledEventSet = new Set(normalizedEnabledEvents);
+      const normalizedEventSeverities = Object.fromEntries(
+        Object.entries(eventSeverities || {})
+          .map(([event, severity]) => [String(event || '').trim(), String(severity || '').trim().toUpperCase()])
+          .filter(([event, severity]) => enabledEventSet.has(event) && severityOptions.includes(severity))
+          .sort(([left], [right]) => left.localeCompare(right))
+      );
       const payload = {
-        enabledEvents: Array.from(new Set((enabledEvents || []).map((event) => String(event).trim()).filter(Boolean))).sort()
+        enabledEvents: normalizedEnabledEvents,
+        eventSeverities: normalizedEventSeverities
       };
       const res = await api.notifications.updateAnnouncementEventPolicy(payload);
       setAvailableEvents(Array.isArray(res?.availableEvents) ? res.availableEvents.map(String).filter(Boolean) : availableEvents);
       setEnabledEvents(Array.isArray(res?.enabledEvents) ? res.enabledEvents.map(String).filter(Boolean) : payload.enabledEvents);
+      setEventSeverities(res?.eventSeverities && typeof res.eventSeverities === 'object' ? res.eventSeverities : payload.eventSeverities);
       pushToast({ tone: 'success', message: 'Announcement event policy updated' });
     } catch (err) {
       const message = err?.message || 'Failed to update announcement event policy';
@@ -110,7 +133,15 @@ export default function AnnouncementEventPolicyPage() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <button type="button" className="btn-neutral" onClick={() => setEnabledEvents([])} disabled={loading || saving || enabledEvents.length === 0}>
+            <button
+              type="button"
+              className="btn-neutral"
+              onClick={() => {
+                setEnabledEvents([]);
+                setEventSeverities({});
+              }}
+              disabled={loading || saving || enabledEvents.length === 0}
+            >
               Clear all
             </button>
             <button type="button" className="btn-primary" onClick={savePolicy} disabled={loading || saving}>
@@ -140,7 +171,7 @@ export default function AnnouncementEventPolicyPage() {
                   key={event}
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: '1fr auto',
+                    gridTemplateColumns: 'minmax(220px, 1fr) minmax(160px, 220px) auto',
                     gap: '0.75rem',
                     alignItems: 'center',
                     padding: '0.65rem 0.75rem',
@@ -153,6 +184,19 @@ export default function AnnouncementEventPolicyPage() {
                     <span style={{ fontWeight: 700 }}>{humanizeEnum(event)}</span>
                     <span style={{ color: 'var(--muted)', fontSize: '12px' }}>{event}</span>
                   </span>
+                  <select
+                    value={eventSeverities?.[event] || ''}
+                    onChange={(changeEvent) => updateSeverity(event, changeEvent.target.value)}
+                    disabled={saving || !checked}
+                    aria-label={`Severity for ${event}`}
+                  >
+                    <option value="">No severity</option>
+                    {severityOptions.map((severity) => (
+                      <option key={severity} value={severity}>
+                        {humanizeEnum(severity)}
+                      </option>
+                    ))}
+                  </select>
                   <input
                     type="checkbox"
                     checked={checked}
