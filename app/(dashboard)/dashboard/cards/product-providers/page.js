@@ -21,6 +21,12 @@ const emptyState = {
   providerTransactionFeePercentage: '',
   minProviderTransactionFeeAmount: '',
   maxProviderTransactionFeeAmount: '',
+  fundCardFeePercentage: '',
+  minFundCardFeeAmount: '',
+  withdrawFromCardFeePercentage: '',
+  minWithdrawFromCardFeeAmount: '',
+  onlineTransactionFeePercentage: '',
+  minOnlineTransactionFeeAmount: '',
   rank: '',
   maxDailyLimit: '',
   minFirstTopup: '',
@@ -48,6 +54,12 @@ const toPayload = (state) => ({
   providerTransactionFeePercentage: state.providerTransactionFeePercentage === '' ? null : Number(state.providerTransactionFeePercentage),
   minProviderTransactionFeeAmount: state.minProviderTransactionFeeAmount === '' ? null : Number(state.minProviderTransactionFeeAmount),
   maxProviderTransactionFeeAmount: state.maxProviderTransactionFeeAmount === '' ? null : Number(state.maxProviderTransactionFeeAmount),
+  fundCardFeePercentage: state.fundCardFeePercentage === '' ? null : Number(state.fundCardFeePercentage),
+  minFundCardFeeAmount: state.minFundCardFeeAmount === '' ? null : Number(state.minFundCardFeeAmount),
+  withdrawFromCardFeePercentage: state.withdrawFromCardFeePercentage === '' ? null : Number(state.withdrawFromCardFeePercentage),
+  minWithdrawFromCardFeeAmount: state.minWithdrawFromCardFeeAmount === '' ? null : Number(state.minWithdrawFromCardFeeAmount),
+  onlineTransactionFeePercentage: state.onlineTransactionFeePercentage === '' ? null : Number(state.onlineTransactionFeePercentage),
+  minOnlineTransactionFeeAmount: state.minOnlineTransactionFeeAmount === '' ? null : Number(state.minOnlineTransactionFeeAmount),
   rank: state.rank === '' ? null : Number(state.rank),
   maxDailyLimit: state.maxDailyLimit === '' ? null : Number(state.maxDailyLimit),
   minFirstTopup: state.minFirstTopup === '' ? null : Number(state.minFirstTopup),
@@ -58,6 +70,44 @@ const toPayload = (state) => ({
   notesFr: state.notesFr?.trim() ? state.notesFr.trim() : null,
   active: Boolean(state.active)
 });
+
+const hasConfiguredValue = (value) => value !== null && value !== undefined && value !== '';
+
+const formatAmount = (row, key) => {
+  const val = row?.[key];
+  if (!hasConfiguredValue(val)) return '—';
+  return `${val}${row?.currency ? ` ${row.currency}` : ''}`;
+};
+
+const formatOperationFeeLine = (row, label, percentageKey, minAmountKey) => {
+  const percentage = row?.[percentageKey];
+  const minAmount = row?.[minAmountKey];
+  if (!hasConfiguredValue(percentage) && !hasConfiguredValue(minAmount)) return null;
+
+  const parts = [];
+  if (hasConfiguredValue(percentage)) parts.push(`${percentage}%`);
+  if (hasConfiguredValue(minAmount)) parts.push(`min ${formatAmount(row, minAmountKey)}`);
+
+  return `${label}: ${parts.join(' | ')}`;
+};
+
+const renderOperationFeeSummary = (row) => {
+  const lines = [
+    formatOperationFeeLine(row, 'Fund', 'fundCardFeePercentage', 'minFundCardFeeAmount'),
+    formatOperationFeeLine(row, 'Withdraw', 'withdrawFromCardFeePercentage', 'minWithdrawFromCardFeeAmount'),
+    formatOperationFeeLine(row, 'Online', 'onlineTransactionFeePercentage', 'minOnlineTransactionFeeAmount')
+  ].filter(Boolean);
+
+  if (!lines.length) return '—';
+
+  return (
+    <div style={{ display: 'grid', gap: '0.2rem', minWidth: '180px' }}>
+      {lines.map((line) => (
+        <div key={line}>{line}</div>
+      ))}
+    </div>
+  );
+};
 
 const Modal = ({ title, onClose, children }) => (
   <div className="modal-backdrop">
@@ -136,11 +186,7 @@ export default function CardProductProvidersPage() {
     loadOptions();
   }, []);
 
-  const fmtAmount = (row, key) => {
-    const val = row[key];
-    if (val === null || val === undefined || val === '') return '—';
-    return `${val}${row.currency ? ` ${row.currency}` : ''}`;
-  };
+  const fmtAmount = (row, key) => formatAmount(row, key);
 
   const columns = useMemo(
     () => [
@@ -228,6 +274,11 @@ export default function CardProductProvidersPage() {
         }
       },
       {
+        key: 'manualOperationFees',
+        label: 'App display fees',
+        render: renderOperationFeeSummary
+      },
+      {
         key: 'rank',
         label: 'Rank',
         render: (row) => (row.rank === null || row.rank === undefined ? '—' : row.rank)
@@ -292,6 +343,12 @@ export default function CardProductProvidersPage() {
       providerTransactionFeePercentage: row.providerTransactionFeePercentage ?? '',
       minProviderTransactionFeeAmount: row.minProviderTransactionFeeAmount ?? '',
       maxProviderTransactionFeeAmount: row.maxProviderTransactionFeeAmount ?? '',
+      fundCardFeePercentage: row.fundCardFeePercentage ?? '',
+      minFundCardFeeAmount: row.minFundCardFeeAmount ?? '',
+      withdrawFromCardFeePercentage: row.withdrawFromCardFeePercentage ?? '',
+      minWithdrawFromCardFeeAmount: row.minWithdrawFromCardFeeAmount ?? '',
+      onlineTransactionFeePercentage: row.onlineTransactionFeePercentage ?? '',
+      minOnlineTransactionFeeAmount: row.minOnlineTransactionFeeAmount ?? '',
       rank: row.rank ?? '',
       maxDailyLimit: row.maxDailyLimit ?? '',
       minFirstTopup: row.minFirstTopup ?? '',
@@ -535,6 +592,87 @@ export default function CardProductProvidersPage() {
           </div>
         </div>
       </div>
+      <div style={{ gridColumn: '1 / -1', display: 'grid', gap: '0.35rem' }}>
+        <div style={{ fontWeight: 700 }}>App Display Fee Labels</div>
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          Informational fee labels returned to the customer app only. These values do not control pricing, charging, refunds, or provider fee logic.
+          Percentages are human values, so 3.25 means 3.25%.
+        </div>
+      </div>
+      <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <label htmlFor="fundCardFeePercentage">Fund card fee %</label>
+          <input
+            id="fundCardFeePercentage"
+            type="number"
+            min={0}
+            step="0.01"
+            value={draft.fundCardFeePercentage}
+            onChange={(e) => setDraft((p) => ({ ...p, fundCardFeePercentage: e.target.value }))}
+            placeholder="3.25"
+          />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <label htmlFor="minFundCardFeeAmount">Minimum fund card fee ({draft.currency || 'currency'})</label>
+          <input
+            id="minFundCardFeeAmount"
+            type="number"
+            min={0}
+            step="0.01"
+            value={draft.minFundCardFeeAmount}
+            onChange={(e) => setDraft((p) => ({ ...p, minFundCardFeeAmount: e.target.value }))}
+            placeholder="1.00"
+          />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <label htmlFor="withdrawFromCardFeePercentage">Withdraw from card fee %</label>
+          <input
+            id="withdrawFromCardFeePercentage"
+            type="number"
+            min={0}
+            step="0.01"
+            value={draft.withdrawFromCardFeePercentage}
+            onChange={(e) => setDraft((p) => ({ ...p, withdrawFromCardFeePercentage: e.target.value }))}
+            placeholder="2.50"
+          />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <label htmlFor="minWithdrawFromCardFeeAmount">Minimum withdraw from card fee ({draft.currency || 'currency'})</label>
+          <input
+            id="minWithdrawFromCardFeeAmount"
+            type="number"
+            min={0}
+            step="0.01"
+            value={draft.minWithdrawFromCardFeeAmount}
+            onChange={(e) => setDraft((p) => ({ ...p, minWithdrawFromCardFeeAmount: e.target.value }))}
+            placeholder="0.75"
+          />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <label htmlFor="onlineTransactionFeePercentage">Online transaction fee %</label>
+          <input
+            id="onlineTransactionFeePercentage"
+            type="number"
+            min={0}
+            step="0.01"
+            value={draft.onlineTransactionFeePercentage}
+            onChange={(e) => setDraft((p) => ({ ...p, onlineTransactionFeePercentage: e.target.value }))}
+            placeholder="1.50"
+          />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <label htmlFor="minOnlineTransactionFeeAmount">Minimum online transaction fee ({draft.currency || 'currency'})</label>
+          <input
+            id="minOnlineTransactionFeeAmount"
+            type="number"
+            min={0}
+            step="0.01"
+            value={draft.minOnlineTransactionFeeAmount}
+            onChange={(e) => setDraft((p) => ({ ...p, minOnlineTransactionFeeAmount: e.target.value }))}
+            placeholder="0.50"
+          />
+        </div>
+      </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="validityLength">Validity length</label>
@@ -704,6 +842,12 @@ export default function CardProductProvidersPage() {
               { label: 'Provider transaction fee %', value: selected?.providerTransactionFeePercentage ?? '—' },
               { label: 'Min provider transaction fee', value: selected?.minProviderTransactionFeeAmount ?? '—' },
               { label: 'Max provider transaction fee', value: selected?.maxProviderTransactionFeeAmount ?? '—' },
+              { label: 'Fund card fee %', value: selected?.fundCardFeePercentage ?? '—' },
+              { label: 'Minimum fund card fee', value: formatAmount(selected, 'minFundCardFeeAmount') },
+              { label: 'Withdraw from card fee %', value: selected?.withdrawFromCardFeePercentage ?? '—' },
+              { label: 'Minimum withdraw from card fee', value: formatAmount(selected, 'minWithdrawFromCardFeeAmount') },
+              { label: 'Online transaction fee %', value: selected?.onlineTransactionFeePercentage ?? '—' },
+              { label: 'Minimum online transaction fee', value: formatAmount(selected, 'minOnlineTransactionFeeAmount') },
               { label: 'Validity length', value: selected?.validityLength ?? '—' },
               { label: 'Validity type', value: selected?.validityType ?? '—' },
               { label: 'Rank', value: selected?.rank ?? '—' },
