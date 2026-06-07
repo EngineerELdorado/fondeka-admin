@@ -58,8 +58,13 @@ const emptyAnnouncement = {
   endAt: '',
   image: '',
   link: '',
-  downloadUpdate: false
+  downloadUpdate: false,
+  applyCampaignFilters: true,
+  appVersionAtLeast: '',
+  appVersionLessThan: '',
+  includeMissingAppVersion: false
 };
+const versionPattern = /^\d+(?:\.\d+)*$/;
 
 const toOptionalInteger = (value, { min = 0, label = 'Value' } = {}) => {
   const raw = String(value || '').trim();
@@ -216,8 +221,8 @@ export default function NotificationPushCampaignsPage() {
     if (countryIds.length) audience.countryIds = countryIds;
     if (mergedCountryCodes.length) audience.countryCodes = mergedCountryCodes;
     if (deviceLanguages.length) audience.deviceLanguages = Array.from(new Set(deviceLanguages));
-    if (hasCompletedTransactions === 'TRUE') audience.hasCompletedTransactions = true;
-    if (hasCompletedTransactions === 'FALSE') audience.hasCompletedTransactions = false;
+    if (hasCompletedTransactions === 'YES') audience.hasCompletedTransactions = true;
+    if (hasCompletedTransactions === 'NO') audience.hasCompletedTransactions = false;
 
     const minCompleted = toOptionalInteger(minCompletedTransactions, { min: 0, label: 'Min completed transactions' });
     const maxCompleted = toOptionalInteger(maxCompletedTransactions, { min: 0, label: 'Max completed transactions' });
@@ -284,6 +289,10 @@ export default function NotificationPushCampaignsPage() {
       const dataPairs = normalizeDataRows(dataRows);
       const data = dataPairs.length ? Object.fromEntries(dataPairs.map((row) => [row.key, row.value])) : undefined;
       const audience = buildAudiencePayload();
+      const appVersionAtLeast = String(announcement.appVersionAtLeast || '').trim();
+      const appVersionLessThan = String(announcement.appVersionLessThan || '').trim();
+      if (appVersionAtLeast && !versionPattern.test(appVersionAtLeast)) throw new Error('Announcement minimum app version must be numeric dotted, for example 2.0.0.');
+      if (appVersionLessThan && !versionPattern.test(appVersionLessThan)) throw new Error('Announcement maximum app version must be numeric dotted, for example 3.0.0.');
       const announcementPayload = announcement.enabled
         ? {
             enabled: true,
@@ -292,7 +301,11 @@ export default function NotificationPushCampaignsPage() {
             ...(toUtcInstant(announcement.endAt) ? { endAt: toUtcInstant(announcement.endAt) } : {}),
             ...(announcement.image ? { image: String(announcement.image).trim() } : {}),
             ...(announcement.link ? { link: String(announcement.link).trim() } : {}),
-            ...(announcement.downloadUpdate ? { downloadUpdate: true } : {})
+            ...(announcement.downloadUpdate ? { downloadUpdate: true } : {}),
+            ...(announcement.applyCampaignFilters && audience ? { audience } : {}),
+            ...(appVersionAtLeast ? { appVersionAtLeast } : {}),
+            ...(appVersionLessThan ? { appVersionLessThan } : {}),
+            ...(announcement.includeMissingAppVersion ? { includeMissingAppVersion: true } : {})
           }
         : undefined;
       return {
@@ -373,6 +386,10 @@ export default function NotificationPushCampaignsPage() {
       const dataPairs = normalizeDataRows(dataRows);
       const data = dataPairs.length ? Object.fromEntries(dataPairs.map((row) => [row.key, row.value])) : undefined;
       const audience = buildAudiencePayload();
+      const appVersionAtLeast = String(announcement.appVersionAtLeast || '').trim();
+      const appVersionLessThan = String(announcement.appVersionLessThan || '').trim();
+      if (appVersionAtLeast && !versionPattern.test(appVersionAtLeast)) throw new Error('Announcement minimum app version must be numeric dotted, for example 2.0.0.');
+      if (appVersionLessThan && !versionPattern.test(appVersionLessThan)) throw new Error('Announcement maximum app version must be numeric dotted, for example 3.0.0.');
       const announcementPayload = announcement.enabled
         ? {
             enabled: true,
@@ -381,7 +398,11 @@ export default function NotificationPushCampaignsPage() {
             ...(toUtcInstant(announcement.endAt) ? { endAt: toUtcInstant(announcement.endAt) } : {}),
             ...(announcement.image ? { image: String(announcement.image).trim() } : {}),
             ...(announcement.link ? { link: String(announcement.link).trim() } : {}),
-            ...(announcement.downloadUpdate ? { downloadUpdate: true } : {})
+            ...(announcement.downloadUpdate ? { downloadUpdate: true } : {}),
+            ...(announcement.applyCampaignFilters && audience ? { audience } : {}),
+            ...(appVersionAtLeast ? { appVersionAtLeast } : {}),
+            ...(appVersionLessThan ? { appVersionLessThan } : {}),
+            ...(announcement.includeMissingAppVersion ? { includeMissingAppVersion: true } : {})
           }
         : undefined;
       const payload = {
@@ -583,6 +604,38 @@ export default function NotificationPushCampaignsPage() {
                       onChange={(e) => setAnnouncement((prev) => ({ ...prev, downloadUpdate: e.target.checked }))}
                     />
                     This announcement asks users to update the app
+                  </label>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.55rem', alignSelf: 'end', minHeight: '42px' }}>
+                    <input
+                      type="checkbox"
+                      checked={announcement.applyCampaignFilters}
+                      onChange={(e) => setAnnouncement((prev) => ({ ...prev, applyCampaignFilters: e.target.checked }))}
+                    />
+                    Apply campaign filters to announcement
+                  </label>
+                  <label style={{ display: 'grid', gap: '0.35rem' }}>
+                    <span>App version at least</span>
+                    <input
+                      value={announcement.appVersionAtLeast}
+                      onChange={(e) => setAnnouncement((prev) => ({ ...prev, appVersionAtLeast: e.target.value }))}
+                      placeholder="2.0.0"
+                    />
+                  </label>
+                  <label style={{ display: 'grid', gap: '0.35rem' }}>
+                    <span>App version less than</span>
+                    <input
+                      value={announcement.appVersionLessThan}
+                      onChange={(e) => setAnnouncement((prev) => ({ ...prev, appVersionLessThan: e.target.value }))}
+                      placeholder="3.0.0"
+                    />
+                  </label>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.55rem', alignSelf: 'end', minHeight: '42px' }}>
+                    <input
+                      type="checkbox"
+                      checked={announcement.includeMissingAppVersion}
+                      onChange={(e) => setAnnouncement((prev) => ({ ...prev, includeMissingAppVersion: e.target.checked }))}
+                    />
+                    Include missing app version
                   </label>
                 </div>
               )}

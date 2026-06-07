@@ -67,8 +67,8 @@ const toPayload = (state) => ({
   cardProductCardProviderId: Number(state.cardProductCardProviderId) || 0
 });
 
-const Modal = ({ title, onClose, children }) => (
-  <div className="modal-backdrop">
+const Modal = ({ title, onClose, children, zIndex }) => (
+  <div className="modal-backdrop" style={zIndex ? { zIndex } : undefined}>
     <div className="modal-surface">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ fontWeight: 800 }}>{title}</div>
@@ -1073,6 +1073,7 @@ export default function CardsPage() {
       {showAdjustment && selected?.id ? (
         <Modal
           title={adjustmentMode === 'fund' ? `Fund card ${selected.id}` : `Withdraw from card ${selected.id}`}
+          zIndex={1200}
           onClose={() => {
             if (adjustmentLoading) return;
             setShowAdjustment(false);
