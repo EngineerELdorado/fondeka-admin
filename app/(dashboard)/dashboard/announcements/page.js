@@ -14,6 +14,7 @@ const emptyDraft = {
   link: '',
   image: '',
   downloadUpdate: false,
+  targetAccountId: '',
   appVersionAtLeast: '',
   appVersionLessThan: '',
   includeMissingAppVersion: false,
@@ -248,6 +249,7 @@ export default function AnnouncementsPage() {
       link: row?.link ?? '',
       image: row?.image ?? '',
       downloadUpdate: Boolean(row?.downloadUpdate),
+      targetAccountId: row?.targetAccountId ?? '',
       appVersionAtLeast: row?.appVersionAtLeast ?? '',
       appVersionLessThan: row?.appVersionLessThan ?? '',
       includeMissingAppVersion: Boolean(row?.includeMissingAppVersion),
@@ -331,6 +333,9 @@ export default function AnnouncementsPage() {
   const buildPayload = () => {
     const appVersionAtLeast = String(draft.appVersionAtLeast || '').trim();
     const appVersionLessThan = String(draft.appVersionLessThan || '').trim();
+    const targetAccountIdRaw = String(draft.targetAccountId || '').trim();
+    const targetAccountId = targetAccountIdRaw ? Number(targetAccountIdRaw) : null;
+    if (targetAccountIdRaw && (!Number.isInteger(targetAccountId) || targetAccountId <= 0)) throw new Error('Target account ID must be a positive integer.');
     const audience = buildAudiencePayload();
     return {
       title: String(draft.title || '').trim(),
@@ -341,6 +346,7 @@ export default function AnnouncementsPage() {
       link: draft.link ? String(draft.link).trim() : null,
       image: draft.image ? String(draft.image).trim() : null,
       downloadUpdate: Boolean(draft.downloadUpdate),
+      targetAccountId,
       audience: audience || null,
       appVersionAtLeast: appVersionAtLeast || null,
       appVersionLessThan: appVersionLessThan || null,
@@ -355,6 +361,8 @@ export default function AnnouncementsPage() {
     const lessThan = String(draft.appVersionLessThan || '').trim();
     if (atLeast && !versionPattern.test(atLeast)) return 'Minimum app version must be a numeric dotted version, for example 2.0.0.';
     if (lessThan && !versionPattern.test(lessThan)) return 'Maximum app version must be a numeric dotted version, for example 3.0.0.';
+    const targetAccountId = String(draft.targetAccountId || '').trim();
+    if (targetAccountId && (!Number.isInteger(Number(targetAccountId)) || Number(targetAccountId) <= 0)) return 'Target account ID must be a positive integer.';
     return null;
   };
 
@@ -521,6 +529,18 @@ export default function AnnouncementsPage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="image">Image URL</label>
         <input id="image" value={draft.image} onChange={(e) => setDraft((p) => ({ ...p, image: e.target.value }))} placeholder="https://cdn.fondeka.com/..." />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="targetAccountId">Target account ID</label>
+        <input
+          id="targetAccountId"
+          type="number"
+          min={1}
+          value={draft.targetAccountId}
+          onChange={(e) => setDraft((p) => ({ ...p, targetAccountId: e.target.value }))}
+          placeholder="Private announcement"
+        />
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Optional. If set, only this account can receive the announcement.</div>
       </div>
       <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.55rem', alignSelf: 'end', minHeight: '42px' }}>
         <input

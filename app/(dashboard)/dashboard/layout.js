@@ -48,6 +48,7 @@ const navItems = [
   { href: '/dashboard/announcements', labelKey: 'layout.nav.announcements' },
   { href: '/dashboard/notification-providers', labelKey: 'layout.nav.notificationProviders' },
   { href: '/dashboard/notification-default-channels', labelKey: 'layout.nav.notificationDefaults' },
+  { href: '/dashboard/notification-announcement-event-policy', labelKey: 'layout.nav.announcementEventPolicy' },
   { href: '/dashboard/notification-push-campaigns', labelKey: 'layout.nav.pushCampaigns' },
   { href: '/dashboard/notification-anonymous-installs', labelKey: 'layout.nav.anonymousInstalls' },
   { href: '/dashboard/notification-push-campaign-history', labelKey: 'layout.nav.pushCampaignHistory' },

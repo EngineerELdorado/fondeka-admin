@@ -7,6 +7,24 @@ import { api } from '@/lib/api';
 import { useToast } from '@/contexts/ToastContext';
 import COUNTRIES from '@/data/countries';
 
+const notificationAnnouncementSeverityOptions = ['INFO', 'WARNING', 'CRITICAL'];
+const emptyNotificationAnnouncement = {
+  enabled: false,
+  link: '',
+  image: '',
+  severity: '',
+  downloadUpdate: false,
+  startAt: '',
+  endAt: ''
+};
+const toUtcInstant = (value) => {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) return null;
+  if (/[zZ]|[+-]\d{2}:?\d{2}$/.test(trimmed)) return trimmed;
+  const withSeconds = trimmed.length === 16 ? `${trimmed}:00` : trimmed;
+  return `${withSeconds}Z`;
+};
+
 const Modal = ({ title, onClose, children }) => (
   <div className="modal-backdrop">
     <div className="modal-surface">
@@ -634,6 +652,7 @@ const [showNotification, setShowNotification] = useState(false);
 const [notificationSubject, setNotificationSubject] = useState('');
 const [notificationMessage, setNotificationMessage] = useState('');
 const [notificationChannels, setNotificationChannels] = useState(['PUSH']);
+const [notificationAnnouncement, setNotificationAnnouncement] = useState(emptyNotificationAnnouncement);
 const [notificationError, setNotificationError] = useState(null);
 const [notificationLoading, setNotificationLoading] = useState(false);
 const [notificationResult, setNotificationResult] = useState(null);
@@ -1167,6 +1186,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     setNotificationSubject('');
     setNotificationMessage('');
     setNotificationChannels(['PUSH']);
+    setNotificationAnnouncement(emptyNotificationAnnouncement);
     setNotificationError(null);
     setNotificationResult(null);
     setShowNotification(true);
@@ -1683,11 +1703,23 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     setNotificationLoading(true);
     setNotificationError(null);
     try {
+      const announcementPayload = notificationAnnouncement.enabled
+        ? {
+            enabled: true,
+            ...(notificationAnnouncement.link.trim() ? { link: notificationAnnouncement.link.trim() } : {}),
+            ...(notificationAnnouncement.image.trim() ? { image: notificationAnnouncement.image.trim() } : {}),
+            ...(notificationAnnouncement.severity ? { severity: notificationAnnouncement.severity } : {}),
+            downloadUpdate: Boolean(notificationAnnouncement.downloadUpdate),
+            ...(toUtcInstant(notificationAnnouncement.startAt) ? { startAt: toUtcInstant(notificationAnnouncement.startAt) } : {}),
+            ...(toUtcInstant(notificationAnnouncement.endAt) ? { endAt: toUtcInstant(notificationAnnouncement.endAt) } : {})
+          }
+        : undefined;
       const res = await api.notifications.pushTest({
         accountId: resolvedAccountId,
         subject,
         message: messageText,
-        channels: selectedChannels
+        channels: selectedChannels,
+        ...(announcementPayload ? { announcement: announcementPayload } : {})
       });
       if (res?.attempted) {
         pushToast({ tone: 'success', message: 'Notification sent' });
@@ -5412,8 +5444,56 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                   </label>
                 ))}
               </div>
+              <div style={{ border: '1px solid var(--border)', borderRadius: '12px', padding: '0.75rem', display: 'grid', gap: '0.75rem' }}>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+                  <input
+                    type="checkbox"
+                    checked={notificationAnnouncement.enabled}
+                    onChange={(e) => setNotificationAnnouncement((prev) => ({ ...prev, enabled: e.target.checked }))}
+                  />
+                  Also show as in-app announcement
+                </label>
+                {notificationAnnouncement.enabled ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+                    <label style={{ display: 'grid', gap: '0.25rem' }}>
+                      <span>Severity</span>
+                      <select value={notificationAnnouncement.severity} onChange={(e) => setNotificationAnnouncement((prev) => ({ ...prev, severity: e.target.value }))}>
+                        <option value="">Select severity</option>
+                        {notificationAnnouncementSeverityOptions.map((option) => (
+                          <option key={option} value={option}>{option}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label style={{ display: 'grid', gap: '0.25rem' }}>
+                      <span>Start at (UTC)</span>
+                      <input type="datetime-local" value={notificationAnnouncement.startAt} onChange={(e) => setNotificationAnnouncement((prev) => ({ ...prev, startAt: e.target.value }))} />
+                    </label>
+                    <label style={{ display: 'grid', gap: '0.25rem' }}>
+                      <span>End at (UTC)</span>
+                      <input type="datetime-local" value={notificationAnnouncement.endAt} onChange={(e) => setNotificationAnnouncement((prev) => ({ ...prev, endAt: e.target.value }))} />
+                    </label>
+                    <label style={{ display: 'grid', gap: '0.25rem' }}>
+                      <span>Link</span>
+                      <input value={notificationAnnouncement.link} onChange={(e) => setNotificationAnnouncement((prev) => ({ ...prev, link: e.target.value }))} placeholder="https://fondeka.com/private" />
+                    </label>
+                    <label style={{ display: 'grid', gap: '0.25rem' }}>
+                      <span>Image URL</span>
+                      <input value={notificationAnnouncement.image} onChange={(e) => setNotificationAnnouncement((prev) => ({ ...prev, image: e.target.value }))} placeholder="https://cdn.fondeka.com/banner.png" />
+                    </label>
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', alignSelf: 'end', minHeight: '42px' }}>
+                      <input type="checkbox" checked={notificationAnnouncement.downloadUpdate} onChange={(e) => setNotificationAnnouncement((prev) => ({ ...prev, downloadUpdate: e.target.checked }))} />
+                      Download update
+                    </label>
+                  </div>
+                ) : null}
+              </div>
             </div>
             {notificationError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{notificationError}</div>}
+            {notificationResult?.announcementId ? (
+              <div style={{ border: `1px solid var(--border)`, borderRadius: '12px', padding: '0.65rem', color: '#15803d', fontWeight: 700 }}>
+                Announcement created: #{notificationResult.announcementId}
+              </div>
+            ) : null}
             {notificationResult?.channels?.length > 0 && (
               <div style={{ border: `1px solid var(--border)`, borderRadius: '12px', padding: '0.65rem' }}>
                 <div style={{ fontWeight: 700, marginBottom: '0.4rem' }}>Channel status</div>
