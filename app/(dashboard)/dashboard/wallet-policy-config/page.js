@@ -11,6 +11,19 @@ const DEFAULT_CRYPTO_NETWORK_OPTIONS = ['LIGHTNING', 'BTC', 'ERC20', 'BEP20', 'T
 const ALLOWED_PAYOUT_ACTIONS = ['WITHDRAW_FROM_WALLET', 'WITHDRAW_FROM_CARD', 'SELL_CRYPTO'];
 const PAYMENT_METHOD_TYPE_OPTIONS = ['MOBILE_MONEY', 'CRYPTO', 'BALANCE', 'CREDIT', 'AIRTIME', 'BANK'];
 const COLLECTION_SOURCE_RISK_CONSEQUENCE_OPTIONS = ['WARNING', 'BLACKLIST'];
+const CARD_DETAILS_FETCH_MODE_OPTIONS = [
+  {
+    value: 'CACHE_WHEN_SAFE',
+    label: 'Use cache when safe',
+    description: 'Use cached card details when the last provider snapshot is recent and no local card activity happened after it.'
+  },
+  {
+    value: 'ALWAYS_FETCH_PROVIDER',
+    label: 'Always fetch from provider',
+    description: 'Always call the card provider for card details. Use this when accuracy is more important than provider-call reduction.'
+  }
+];
+const CARD_DETAILS_FETCH_MODES = new Set(CARD_DETAILS_FETCH_MODE_OPTIONS.map((option) => option.value));
 const ACTION_OPTIONS = [
   'FUND_WALLET',
   'WITHDRAW_FROM_WALLET',
@@ -115,6 +128,34 @@ const humanizeEnum = (value) =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 const normalizePositiveIntegerString = (value) => String(value ?? '').trim();
+const normalizeCardDetailsFetchMode = (value) => {
+  const normalized = String(value || '').trim().toUpperCase();
+  return CARD_DETAILS_FETCH_MODES.has(normalized) ? normalized : 'CACHE_WHEN_SAFE';
+};
+const normalizeConfigValueForComparison = (value) => {
+  if (Array.isArray(value)) return value.map((item) => normalizeConfigValueForComparison(item));
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, item]) => [key, normalizeConfigValueForComparison(item)])
+    );
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed !== '' && Number.isFinite(Number(trimmed))) return Number(trimmed);
+    return trimmed;
+  }
+  return value;
+};
+const areConfigValuesEqual = (left, right) =>
+  JSON.stringify(normalizeConfigValueForComparison(left)) === JSON.stringify(normalizeConfigValueForComparison(right));
+const pickChangedConfigFields = (nextConfig, snapshot) => {
+  if (!snapshot || typeof snapshot !== 'object') return nextConfig;
+  return Object.fromEntries(
+    Object.entries(nextConfig).filter(([key, value]) => !areConfigValuesEqual(value, snapshot[key]))
+  );
+};
 const createEmptyCollectionSourceRiskThreshold = () => ({
   maxDistinctSources: '',
   windowMinutes: '',
@@ -205,6 +246,9 @@ export default function WalletPolicyConfigPage() {
   const [payoutKycThresholdUsd, setPayoutKycThresholdUsd] = useState('');
   const [forcePayoutKycUnlessApproved, setForcePayoutKycUnlessApproved] = useState(false);
   const [forceKycBeforeAppUse, setForceKycBeforeAppUse] = useState(false);
+  const [cardDetailsFetchMode, setCardDetailsFetchMode] = useState('CACHE_WHEN_SAFE');
+  const [cardDetailsCacheMaxAgeSeconds, setCardDetailsCacheMaxAgeSeconds] = useState('60');
+  const [cardDetailsProviderFailureCacheFallbackEnabled, setCardDetailsProviderFailureCacheFallbackEnabled] = useState(true);
   const [sendCryptoExternalProviderEnabled, setSendCryptoExternalProviderEnabled] = useState(false);
   const [sendCryptoAutoPayoutRails, setSendCryptoAutoPayoutRails] = useState({});
   const [cryptoProducts, setCryptoProducts] = useState([]);
@@ -387,6 +431,13 @@ export default function WalletPolicyConfigPage() {
       setPayoutKycThresholdUsd(formatUsdValue(res?.payoutKycThresholdUsd));
       setForcePayoutKycUnlessApproved(Boolean(res?.forcePayoutKycUnlessApproved));
       setForceKycBeforeAppUse(Boolean(res?.forceKycBeforeAppUse));
+      setCardDetailsFetchMode(normalizeCardDetailsFetchMode(res?.cardDetailsFetchMode));
+      setCardDetailsCacheMaxAgeSeconds(
+        res?.cardDetailsCacheMaxAgeSeconds === null || res?.cardDetailsCacheMaxAgeSeconds === undefined
+          ? '60'
+          : String(res.cardDetailsCacheMaxAgeSeconds)
+      );
+      setCardDetailsProviderFailureCacheFallbackEnabled(res?.cardDetailsProviderFailureCacheFallbackEnabled !== false);
       setSendCryptoExternalProviderEnabled(Boolean(res?.sendCryptoExternalProviderEnabled));
       setSendCryptoAutoPayoutRails(normalizeRailMap(res?.sendCryptoAutoPayoutRails));
       setDepositPromptThresholdAmount(formatUsdValue(res?.depositPromptThresholdAmount));
@@ -535,6 +586,10 @@ export default function WalletPolicyConfigPage() {
     const payoutKycThresholdRaw = String(payoutKycThresholdUsd || '').trim();
     const reviewPromptThresholdRaw = String(reviewPromptCompletedTransactionsThreshold || '').trim();
     const depositPromptThresholdRaw = String(depositPromptThresholdAmount || '').trim();
+    const normalizedCardDetailsFetchMode = normalizeCardDetailsFetchMode(cardDetailsFetchMode);
+    const cardDetailsCacheMaxAgeSecondsRaw = String(cardDetailsCacheMaxAgeSeconds || '').trim();
+    const cardDetailsCacheMaxAgeSecondsParsed =
+      cardDetailsCacheMaxAgeSecondsRaw === '' ? 60 : Number(cardDetailsCacheMaxAgeSecondsRaw);
     const normalizedSendCryptoAutoPayoutRails = normalizeRailMap(sendCryptoAutoPayoutRails);
     const minParsed = minRaw === '' ? null : Number(minRaw);
     const maxParsed = maxRaw === '' ? null : Number(maxRaw);
@@ -565,6 +620,10 @@ export default function WalletPolicyConfigPage() {
     }
     if (payoutKycThresholdRaw !== '' && (!Number.isFinite(payoutKycThresholdParsed) || payoutKycThresholdParsed <= 0)) {
       setError('Payout KYC threshold must be a positive amount.');
+      return;
+    }
+    if (!Number.isInteger(cardDetailsCacheMaxAgeSecondsParsed) || cardDetailsCacheMaxAgeSecondsParsed < 0) {
+      setError('Card details cache max age must be a whole number of seconds greater than or equal to 0.');
       return;
     }
     if (
@@ -647,8 +706,7 @@ export default function WalletPolicyConfigPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.walletPolicyConfig.update({
-        ...(configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {}),
+      const nextConfig = {
         interTransferCooldownMinutes: parsed,
         payoutRateLimitActions: normalizedActions,
         cryptoProviderCollectionMinimumUsd: minRaw === '' ? '' : minParsed.toFixed(2),
@@ -658,6 +716,9 @@ export default function WalletPolicyConfigPage() {
         payoutKycThresholdUsd: payoutKycThresholdRaw === '' ? '' : payoutKycThresholdParsed.toFixed(2),
         forcePayoutKycUnlessApproved: Boolean(forcePayoutKycUnlessApproved),
         forceKycBeforeAppUse: Boolean(forceKycBeforeAppUse),
+        cardDetailsFetchMode: normalizedCardDetailsFetchMode,
+        cardDetailsCacheMaxAgeSeconds: cardDetailsCacheMaxAgeSecondsParsed,
+        cardDetailsProviderFailureCacheFallbackEnabled: Boolean(cardDetailsProviderFailureCacheFallbackEnabled),
         sendCryptoExternalProviderEnabled: Boolean(sendCryptoExternalProviderEnabled),
         sendCryptoAutoPayoutRails: normalizedSendCryptoAutoPayoutRails,
         depositPromptThresholdAmount:
@@ -677,7 +738,11 @@ export default function WalletPolicyConfigPage() {
         actionMinimumAmounts: normalizedActionMinimumAmounts,
         actionMaximumAmounts: normalizedActionMaximumAmounts,
         collectionSourceRiskRules: normalizedCollectionSourceRiskRules
-      });
+      };
+      const changedConfig = pickChangedConfigFields(nextConfig, configSnapshot);
+      if (Object.keys(changedConfig).length > 0) {
+        await api.walletPolicyConfig.update(changedConfig);
+      }
       setInfo('Wallet policy config updated.');
       await loadConfig();
     } catch (err) {
@@ -1106,6 +1171,83 @@ export default function WalletPolicyConfigPage() {
 
         {activeTab === 'operations' && (
           <>
+        <div style={{ display: 'grid', gap: '0.75rem' }}>
+          <div style={{ display: 'grid', gap: '0.2rem' }}>
+            <div style={{ fontWeight: 700 }}>Card Details Policy</div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Controls how card details are refreshed when admins or users request sensitive virtual card details.
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gap: '0.75rem', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '12px' }}>
+            <div style={{ display: 'grid', gap: '0.25rem' }}>
+              <label htmlFor="cardDetailsFetchMode">Card details refresh mode</label>
+              <select
+                id="cardDetailsFetchMode"
+                value={cardDetailsFetchMode}
+                onChange={(e) => {
+                  setError(null);
+                  setCardDetailsFetchMode(normalizeCardDetailsFetchMode(e.target.value));
+                }}
+                disabled={loading || saving}
+              >
+                {CARD_DETAILS_FETCH_MODE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                {CARD_DETAILS_FETCH_MODE_OPTIONS.find((option) => option.value === cardDetailsFetchMode)?.description}
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gap: '0.25rem', maxWidth: '320px' }}>
+              <label htmlFor="cardDetailsCacheMaxAgeSeconds">Card details cache max age</label>
+              <input
+                id="cardDetailsCacheMaxAgeSeconds"
+                type="number"
+                min="0"
+                step="1"
+                inputMode="numeric"
+                value={cardDetailsCacheMaxAgeSeconds}
+                onChange={(e) => {
+                  setError(null);
+                  setCardDetailsCacheMaxAgeSeconds(e.target.value);
+                }}
+                onBlur={() => {
+                  const rawValue = String(cardDetailsCacheMaxAgeSeconds || '').trim();
+                  setCardDetailsCacheMaxAgeSeconds(rawValue === '' ? '60' : rawValue);
+                }}
+                placeholder="60"
+                disabled={loading || saving}
+              />
+              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                Seconds. Only matters when refresh mode is Use cache when safe.
+              </div>
+            </div>
+
+            <label style={{ display: 'flex', gap: '0.55rem', alignItems: 'flex-start', fontWeight: 700 }}>
+              <input
+                type="checkbox"
+                checked={cardDetailsProviderFailureCacheFallbackEnabled}
+                onChange={(e) => {
+                  setError(null);
+                  setCardDetailsProviderFailureCacheFallbackEnabled(e.target.checked);
+                }}
+                disabled={loading || saving}
+                style={{ marginTop: '0.15rem' }}
+              />
+              <span>
+                Show cached card details if provider is down
+                <span style={{ display: 'block', color: 'var(--muted)', fontSize: '12px', fontWeight: 500, marginTop: '0.2rem' }}>
+                  When enabled, backend can return the latest cached card number, expiry, CVV, billing address, and last cached balance fields if provider details fetch fails.
+                </span>
+              </span>
+            </label>
+          </div>
+        </div>
+
         <div style={{ display: 'grid', gap: '0.5rem' }}>
           <div style={{ fontWeight: 700 }}>Payout rate limit actions</div>
           <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
