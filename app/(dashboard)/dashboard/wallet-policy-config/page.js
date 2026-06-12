@@ -241,6 +241,7 @@ export default function WalletPolicyConfigPage() {
   const [payoutRateLimitActions, setPayoutRateLimitActions] = useState([]);
   const [cryptoProviderCollectionMinimumUsd, setCryptoProviderCollectionMinimumUsd] = useState('');
   const [cryptoProviderCollectionMaximumUsd, setCryptoProviderCollectionMaximumUsd] = useState('');
+  const [sendCryptoMinimumUsd, setSendCryptoMinimumUsd] = useState('');
   const [sendAirtimeMinimumUsd, setSendAirtimeMinimumUsd] = useState('');
   const [paypalMinimumPayoutUsd, setPaypalMinimumPayoutUsd] = useState('');
   const [payoutKycThresholdUsd, setPayoutKycThresholdUsd] = useState('');
@@ -426,6 +427,7 @@ export default function WalletPolicyConfigPage() {
       setAutoRefundAllowedAccountIdsByAction(normalizeAutoRefundAllowedAccountIdsByAction(res?.autoRefundAllowedAccountIdsByAction));
       setCryptoProviderCollectionMinimumUsd(formatUsdValue(res?.cryptoProviderCollectionMinimumUsd));
       setCryptoProviderCollectionMaximumUsd(formatUsdValue(res?.cryptoProviderCollectionMaximumUsd));
+      setSendCryptoMinimumUsd(formatUsdValue(res?.sendCryptoMinimumUsd));
       setSendAirtimeMinimumUsd(formatUsdValue(res?.sendAirtimeMinimumUsd));
       setPaypalMinimumPayoutUsd(formatUsdValue(res?.paypalMinimumPayoutUsd));
       setPayoutKycThresholdUsd(formatUsdValue(res?.payoutKycThresholdUsd));
@@ -581,6 +583,7 @@ export default function WalletPolicyConfigPage() {
     }
     const minRaw = String(cryptoProviderCollectionMinimumUsd || '').trim();
     const maxRaw = String(cryptoProviderCollectionMaximumUsd || '').trim();
+    const sendCryptoMinimumRaw = String(sendCryptoMinimumUsd || '').trim();
     const sendAirtimeMinimumRaw = String(sendAirtimeMinimumUsd || '').trim();
     const paypalMinimumPayoutRaw = String(paypalMinimumPayoutUsd || '').trim();
     const payoutKycThresholdRaw = String(payoutKycThresholdUsd || '').trim();
@@ -593,6 +596,7 @@ export default function WalletPolicyConfigPage() {
     const normalizedSendCryptoAutoPayoutRails = normalizeRailMap(sendCryptoAutoPayoutRails);
     const minParsed = minRaw === '' ? null : Number(minRaw);
     const maxParsed = maxRaw === '' ? null : Number(maxRaw);
+    const sendCryptoMinimumParsed = sendCryptoMinimumRaw === '' ? null : Number(sendCryptoMinimumRaw);
     const sendAirtimeMinimumParsed = sendAirtimeMinimumRaw === '' ? null : Number(sendAirtimeMinimumRaw);
     const paypalMinimumPayoutParsed = paypalMinimumPayoutRaw === '' ? null : Number(paypalMinimumPayoutRaw);
     const payoutKycThresholdParsed = payoutKycThresholdRaw === '' ? null : Number(payoutKycThresholdRaw);
@@ -608,6 +612,10 @@ export default function WalletPolicyConfigPage() {
     }
     if (minParsed !== null && maxParsed !== null && minParsed > maxParsed) {
       setError('Minimum amount must be less than or equal to maximum amount.');
+      return;
+    }
+    if (sendCryptoMinimumRaw !== '' && (!Number.isFinite(sendCryptoMinimumParsed) || sendCryptoMinimumParsed <= 0)) {
+      setError('Send crypto minimum must be a positive USD amount.');
       return;
     }
     if (sendAirtimeMinimumRaw !== '' && (!Number.isFinite(sendAirtimeMinimumParsed) || sendAirtimeMinimumParsed <= 0)) {
@@ -711,6 +719,7 @@ export default function WalletPolicyConfigPage() {
         payoutRateLimitActions: normalizedActions,
         cryptoProviderCollectionMinimumUsd: minRaw === '' ? '' : minParsed.toFixed(2),
         cryptoProviderCollectionMaximumUsd: maxRaw === '' ? '' : maxParsed.toFixed(2),
+        sendCryptoMinimumUsd: sendCryptoMinimumRaw === '' ? '' : sendCryptoMinimumParsed.toFixed(2),
         sendAirtimeMinimumUsd: sendAirtimeMinimumRaw === '' ? '' : sendAirtimeMinimumParsed.toFixed(2),
         paypalMinimumPayoutUsd: paypalMinimumPayoutRaw === '' ? '' : paypalMinimumPayoutParsed.toFixed(2),
         payoutKycThresholdUsd: payoutKycThresholdRaw === '' ? '' : payoutKycThresholdParsed.toFixed(2),
@@ -1857,6 +1866,34 @@ export default function WalletPolicyConfigPage() {
               onChange={(e) => setPaypalMinimumPayoutUsd(e.target.value)}
               onBlur={() => setPaypalMinimumPayoutUsd((prev) => formatUsdValue(String(prev || '').trim()))}
               placeholder="100.00"
+              disabled={loading || saving}
+            />
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <div style={{ fontWeight: 700 }}>Send Crypto Limits</div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Checked before SEND_CRYPTO transaction creation, wallet debit, or provider payout.
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Leave blank to use the backend default minimum of 10.00 USD.
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxWidth: '280px' }}>
+            <label htmlFor="sendCryptoMinimumUsd">Send crypto minimum</label>
+            <input
+              id="sendCryptoMinimumUsd"
+              type="number"
+              min="0.01"
+              step="0.01"
+              inputMode="decimal"
+              value={sendCryptoMinimumUsd}
+              onChange={(e) => setSendCryptoMinimumUsd(e.target.value)}
+              onBlur={() => setSendCryptoMinimumUsd((prev) => formatUsdValue(String(prev || '').trim()))}
+              placeholder="10.00"
               disabled={loading || saving}
             />
           </div>

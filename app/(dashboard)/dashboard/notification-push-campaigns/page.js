@@ -49,6 +49,17 @@ const triStateOptions = [
   { value: 'YES', label: 'Yes' },
   { value: 'NO', label: 'No' }
 ];
+const kycStatusOptions = [
+  { value: 'NONE', label: 'Not started / No KYC' },
+  { value: 'PENDING', label: 'Pending review' },
+  { value: 'PROVISIONALLY_APPROVED', label: 'Provisionally approved' },
+  { value: 'ADDITIONAL_VERIFICATION_NEEDED', label: 'Needs additional verification' },
+  { value: 'APPROVED', label: 'Approved' },
+  { value: 'REJECTED', label: 'Rejected' },
+  { value: 'FAILED', label: 'Failed' },
+  { value: 'EXPIRED', label: 'Expired' }
+];
+const kycStatusValues = new Set(kycStatusOptions.map((option) => option.value));
 
 const emptyDataRow = { key: '', value: '' };
 const emptyAnnouncement = {
@@ -114,6 +125,7 @@ export default function NotificationPushCampaignsPage() {
   const [selectedCountryIds, setSelectedCountryIds] = useState([]);
   const [countryCodesOverride, setCountryCodesOverride] = useState('');
   const [deviceLanguagesInput, setDeviceLanguagesInput] = useState('');
+  const [selectedKycStatuses, setSelectedKycStatuses] = useState([]);
   const [hasCompletedTransactions, setHasCompletedTransactions] = useState('ANY');
   const [minCompletedTransactions, setMinCompletedTransactions] = useState('');
   const [maxCompletedTransactions, setMaxCompletedTransactions] = useState('');
@@ -205,6 +217,13 @@ export default function NotificationPushCampaignsPage() {
       .split(',')
       .map((part) => part.trim().toLowerCase())
       .filter(Boolean);
+    const kycStatuses = Array.from(
+      new Set(
+        selectedKycStatuses
+          .map((value) => String(value || '').trim().toUpperCase())
+          .filter((value) => kycStatusValues.has(value))
+      )
+    );
     const billProductIds = selectedBillProductIds.map((value) => Number(value)).filter((value) => Number.isInteger(value));
     const paymentMethodIds = selectedPaymentMethodIds.map((value) => Number(value)).filter((value) => Number.isInteger(value));
     const paymentProviderIds = selectedPaymentProviderIds.map((value) => Number(value)).filter((value) => Number.isInteger(value));
@@ -221,6 +240,7 @@ export default function NotificationPushCampaignsPage() {
     if (countryIds.length) audience.countryIds = countryIds;
     if (mergedCountryCodes.length) audience.countryCodes = mergedCountryCodes;
     if (deviceLanguages.length) audience.deviceLanguages = Array.from(new Set(deviceLanguages));
+    if (kycStatuses.length) audience.kycStatuses = kycStatuses;
     if (hasCompletedTransactions === 'YES') audience.hasCompletedTransactions = true;
     if (hasCompletedTransactions === 'NO') audience.hasCompletedTransactions = false;
 
@@ -262,6 +282,7 @@ export default function NotificationPushCampaignsPage() {
     countryById,
     countryCodesOverride,
     deviceLanguagesInput,
+    selectedKycStatuses,
     hasCompletedTransactions,
     minCompletedTransactions,
     maxCompletedTransactions,
@@ -679,6 +700,24 @@ export default function NotificationPushCampaignsPage() {
                 <label style={{ display: 'grid', gap: '0.35rem' }}>
                   <span>Device languages</span>
                   <input value={deviceLanguagesInput} onChange={(e) => setDeviceLanguagesInput(e.target.value)} placeholder="fr, en" />
+                </label>
+                <label style={{ display: 'grid', gap: '0.35rem' }}>
+                  <span>KYC status</span>
+                  <select
+                    multiple
+                    value={selectedKycStatuses}
+                    onChange={(e) => setSelectedKycStatuses(Array.from(e.target.selectedOptions).map((opt) => opt.value))}
+                    style={{ minHeight: '130px' }}
+                  >
+                    {kycStatusOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label} ({option.value})
+                      </option>
+                    ))}
+                  </select>
+                  <span style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                    Leave empty to ignore KYC status. Not started / No KYC includes users with status NONE and users without any KYC record.
+                  </span>
                 </label>
                 <label style={{ display: 'grid', gap: '0.35rem' }}>
                   <span>Has completed transactions</span>
