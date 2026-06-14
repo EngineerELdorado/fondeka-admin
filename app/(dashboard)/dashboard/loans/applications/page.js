@@ -186,6 +186,8 @@ export default function LoanApplicationsPage() {
     return Array.isArray(row?.loanInstallments) && row.loanInstallments.some((inst) => String(inst?.repaymentStatus || inst?.status || '').toUpperCase() === 'LATE');
   };
 
+  const isBlacklisted = (row) => Boolean(row?.blacklisted ?? row?.accountBlacklisted ?? row?.account?.blacklisted);
+
   const isFullyPaid = (row) => {
     const remaining = Number(row?.remainingBalance);
     if (!Number.isNaN(remaining) && remaining <= 0) return true;
@@ -253,6 +255,7 @@ export default function LoanApplicationsPage() {
         createdAt: item.loan?.createdAt || item.createdAt,
         accountId: item.accountId ?? item.loan?.accountId ?? item.account?.id,
         accountReference: item.accountReference,
+        blacklisted: Boolean(item.account?.blacklisted ?? item.blacklisted ?? item.loan?.accountBlacklisted ?? item.accountBlacklisted ?? false),
         userEmailOrUsername: item.username || item.email || item.userEmailOrUsername,
         userPhoneNumber: item.phoneNumber || item.userPhoneNumber,
         transactionReference: item.transactionReference,
@@ -372,7 +375,7 @@ export default function LoanApplicationsPage() {
     setConfirmBlacklist(row);
   };
 
-  const submitBlacklist = async () => {
+  const submitBlacklistAction = async () => {
     if (!confirmBlacklist) return;
     const reason = blacklistReason.trim();
     if (!reason) {
@@ -524,9 +527,28 @@ export default function LoanApplicationsPage() {
               View
             </button>
             {hasLateRepayment(row) && (
-              <button type="button" onClick={() => openBlacklistModal(row)} className="btn-danger">
-                Blacklist
-              </button>
+              <>
+                {isBlacklisted(row) ? (
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      padding: '0.25rem 0.55rem',
+                      borderRadius: '999px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      background: '#FEE2E2',
+                      color: '#991B1B'
+                    }}
+                  >
+                    Blacklisted
+                  </span>
+                ) : (
+                  <button type="button" onClick={() => openBlacklistModal(row)} className="btn-danger">
+                    Blacklist
+                  </button>
+                )}
+              </>
             )}
             {String(row.applicationStatus || '').toUpperCase() === 'PENDING' && (
               <>
@@ -754,6 +776,7 @@ export default function LoanApplicationsPage() {
         onPageChange={setPage}
         emptyLabel="No loans found"
         showAccountQuickNav={false}
+        rowStyle={(row) => (isBlacklisted(row) ? { background: 'rgba(239, 68, 68, 0.08)' } : undefined)}
       />
 
       {showDetail && (
@@ -851,7 +874,10 @@ export default function LoanApplicationsPage() {
       )}
 
       {confirmBlacklist && (
-        <Modal title={`Blacklist account for loan ${confirmBlacklist.loanReference || confirmBlacklist.id}`} onClose={() => (!blacklistLoading ? setConfirmBlacklist(null) : null)}>
+        <Modal
+          title={`Blacklist account for loan ${confirmBlacklist.loanReference || confirmBlacklist.id}`}
+          onClose={() => (!blacklistLoading ? setConfirmBlacklist(null) : null)}
+        >
           <div style={{ color: 'var(--muted)', marginBottom: '0.75rem' }}>
             Add <strong>{confirmBlacklist.customer || confirmBlacklist.userEmailOrUsername || 'this borrower'}</strong> to the blacklist without leaving this page.
           </div>
@@ -860,6 +886,7 @@ export default function LoanApplicationsPage() {
               { label: 'Loan', value: confirmBlacklist.loanReference || confirmBlacklist.id },
               { label: 'Customer', value: confirmBlacklist.customer },
               { label: 'Account ref', value: confirmBlacklist.accountReference },
+              { label: 'Blacklist', value: isBlacklisted(confirmBlacklist) ? 'Blacklisted' : 'Not blacklisted' },
               { label: 'Repayment', value: <RepaymentBadge value={confirmBlacklist.repaymentStatus || confirmBlacklist.nextDueInstallment?.repaymentStatus || 'LATE'} /> },
               { label: 'Remaining', value: `${formatAmount(confirmBlacklist.remainingBalance)} ${confirmBlacklist.currency || ''}`.trim() },
               { label: 'Outstanding fines', value: `${formatAmount(confirmBlacklist.outstandingFineAmount)} ${confirmBlacklist.currency || ''}`.trim() }
@@ -881,7 +908,12 @@ export default function LoanApplicationsPage() {
             <button type="button" onClick={() => setConfirmBlacklist(null)} className="btn-neutral" disabled={blacklistLoading}>
               Cancel
             </button>
-            <button type="button" onClick={submitBlacklist} className="btn-danger" disabled={blacklistLoading}>
+            <button
+              type="button"
+              onClick={submitBlacklistAction}
+              className="btn-danger"
+              disabled={blacklistLoading}
+            >
               {blacklistLoading ? 'Blacklisting…' : 'Confirm blacklist'}
             </button>
           </div>
