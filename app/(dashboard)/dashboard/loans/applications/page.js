@@ -153,6 +153,10 @@ export default function LoanApplicationsPage() {
   const [info, setInfo] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null); // { row, action }
   const [decisionComments, setDecisionComments] = useState('');
+  const [confirmBlacklist, setConfirmBlacklist] = useState(null);
+  const [blacklistReason, setBlacklistReason] = useState('');
+  const [blacklistLoading, setBlacklistLoading] = useState(false);
+  const [blacklistError, setBlacklistError] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
   const [selected, setSelected] = useState(null);
 
@@ -173,6 +177,13 @@ export default function LoanApplicationsPage() {
   const hasUnpaidNextDueInstallment = (row) => {
     const status = String(row?.nextDueInstallment?.repaymentStatus || row?.nextDueInstallment?.status || '').toUpperCase();
     return row?.nextDueInstallment && status !== 'PAID';
+  };
+
+  const hasLateRepayment = (row) => {
+    const repaymentStatus = String(row?.repaymentStatus || '').toUpperCase();
+    const nextDueStatus = String(row?.nextDueInstallment?.repaymentStatus || row?.nextDueInstallment?.status || '').toUpperCase();
+    if (repaymentStatus === 'LATE' || nextDueStatus === 'LATE') return true;
+    return Array.isArray(row?.loanInstallments) && row.loanInstallments.some((inst) => String(inst?.repaymentStatus || inst?.status || '').toUpperCase() === 'LATE');
   };
 
   const isFullyPaid = (row) => {
@@ -233,6 +244,7 @@ export default function LoanApplicationsPage() {
         amount: item.loan?.amount ?? item.amount,
         paidAmount: item.loan?.paidAmount ?? item.paidAmount,
         remainingBalance: item.loan?.remainingBalance ?? item.remainingBalance,
+        repaymentStatus: item.loan?.repaymentStatus ?? item.repaymentStatus,
         fineAmount: item.loan?.fineAmount ?? item.fineAmount,
         outstandingFineAmount: item.loan?.outstandingFineAmount ?? item.outstandingFineAmount,
         givenAmount: item.loan?.givenAmount ?? item.givenAmount,
@@ -328,26 +340,65 @@ export default function LoanApplicationsPage() {
     return chips;
   }, [appliedFilters]);
 
-  const openLoanOwnerAccount = useCallback(async (row) => {
+  const resolveLoanOwnerAccountId = useCallback(async (row) => {
     const directAccountId = row?.accountId ?? row?.account?.id;
     if (directAccountId !== null && directAccountId !== undefined && String(directAccountId).trim() !== '') {
-      router.push(`/dashboard/accounts/accounts/${encodeURIComponent(String(directAccountId).trim())}`);
-      return;
+      return String(directAccountId).trim();
     }
     const accountReference = String(row?.accountReference || '').trim();
-    if (!accountReference) return;
+    if (!accountReference) return null;
     try {
       const params = new URLSearchParams({ page: '0', size: '1', accountReference });
       const res = await api.accounts.list(params);
       const list = Array.isArray(res) ? res : res?.content || [];
       const match = list?.[0];
       const resolvedAccountId = match?.accountId ?? match?.id;
-      if (resolvedAccountId === null || resolvedAccountId === undefined || String(resolvedAccountId).trim() === '') return;
-      router.push(`/dashboard/accounts/accounts/${encodeURIComponent(String(resolvedAccountId).trim())}`);
+      if (resolvedAccountId === null || resolvedAccountId === undefined || String(resolvedAccountId).trim() === '') return null;
+      return String(resolvedAccountId).trim();
     } catch {
-      // ignore resolve failures for table shortcut
+      return null;
     }
-  }, [router]);
+  }, []);
+
+  const openLoanOwnerAccount = useCallback(async (row) => {
+    const accountId = await resolveLoanOwnerAccountId(row);
+    if (!accountId) return;
+    router.push(`/dashboard/accounts/accounts/${encodeURIComponent(accountId)}`);
+  }, [resolveLoanOwnerAccountId, router]);
+
+  const openBlacklistModal = (row) => {
+    setBlacklistError(null);
+    setBlacklistReason(`Late loan repayment${row?.loanReference ? ` for loan ${row.loanReference}` : ''}`);
+    setConfirmBlacklist(row);
+  };
+
+  const submitBlacklist = async () => {
+    if (!confirmBlacklist) return;
+    const reason = blacklistReason.trim();
+    if (!reason) {
+      setBlacklistError('Reason is required');
+      return;
+    }
+    setBlacklistLoading(true);
+    setBlacklistError(null);
+    setError(null);
+    setInfo(null);
+    try {
+      const accountId = await resolveLoanOwnerAccountId(confirmBlacklist);
+      if (!accountId) {
+        throw new Error('Could not resolve the borrower account for this loan.');
+      }
+      await api.accounts.blacklist(accountId, { reason });
+      setInfo(`Blacklisted account ${accountId} for late loan repayment.`);
+      setConfirmBlacklist(null);
+      setBlacklistReason('');
+      fetchRows();
+    } catch (err) {
+      setBlacklistError(err?.message || 'Failed to blacklist account');
+    } finally {
+      setBlacklistLoading(false);
+    }
+  };
 
   const columns = useMemo(
     () => [
@@ -472,6 +523,11 @@ export default function LoanApplicationsPage() {
             <button type="button" onClick={() => { setSelected(row); setShowDetail(true); }} className="btn-neutral">
               View
             </button>
+            {hasLateRepayment(row) && (
+              <button type="button" onClick={() => openBlacklistModal(row)} className="btn-danger">
+                Blacklist
+              </button>
+            )}
             {String(row.applicationStatus || '').toUpperCase() === 'PENDING' && (
               <>
                 <button
@@ -790,6 +846,44 @@ export default function LoanApplicationsPage() {
             ) : (
               <div style={{ color: 'var(--muted)' }}>Installments will appear after approval.</div>
             )}
+          </div>
+        </Modal>
+      )}
+
+      {confirmBlacklist && (
+        <Modal title={`Blacklist account for loan ${confirmBlacklist.loanReference || confirmBlacklist.id}`} onClose={() => (!blacklistLoading ? setConfirmBlacklist(null) : null)}>
+          <div style={{ color: 'var(--muted)', marginBottom: '0.75rem' }}>
+            Add <strong>{confirmBlacklist.customer || confirmBlacklist.userEmailOrUsername || 'this borrower'}</strong> to the blacklist without leaving this page.
+          </div>
+          <DetailGrid
+            rows={[
+              { label: 'Loan', value: confirmBlacklist.loanReference || confirmBlacklist.id },
+              { label: 'Customer', value: confirmBlacklist.customer },
+              { label: 'Account ref', value: confirmBlacklist.accountReference },
+              { label: 'Repayment', value: <RepaymentBadge value={confirmBlacklist.repaymentStatus || confirmBlacklist.nextDueInstallment?.repaymentStatus || 'LATE'} /> },
+              { label: 'Remaining', value: `${formatAmount(confirmBlacklist.remainingBalance)} ${confirmBlacklist.currency || ''}`.trim() },
+              { label: 'Outstanding fines', value: `${formatAmount(confirmBlacklist.outstandingFineAmount)} ${confirmBlacklist.currency || ''}`.trim() }
+            ]}
+          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.75rem' }}>
+            <label htmlFor="loanBlacklistReason">Reason (required)</label>
+            <textarea
+              id="loanBlacklistReason"
+              rows={3}
+              value={blacklistReason}
+              onChange={(e) => setBlacklistReason(e.target.value)}
+              placeholder="Reason for blacklisting this account"
+              disabled={blacklistLoading}
+            />
+          </div>
+          {blacklistError && <div style={{ color: '#b91c1c', fontWeight: 700, marginTop: '0.75rem' }}>{blacklistError}</div>}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.75rem' }}>
+            <button type="button" onClick={() => setConfirmBlacklist(null)} className="btn-neutral" disabled={blacklistLoading}>
+              Cancel
+            </button>
+            <button type="button" onClick={submitBlacklist} className="btn-danger" disabled={blacklistLoading}>
+              {blacklistLoading ? 'Blacklisting…' : 'Confirm blacklist'}
+            </button>
           </div>
         </Modal>
       )}
