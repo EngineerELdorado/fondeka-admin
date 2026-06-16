@@ -14,6 +14,9 @@ const emptyState = {
   descriptionFr: '',
   type: '',
   giftCard: false,
+  giftCardUsageType: '',
+  returnAsCardProduct: false,
+  cardProductBackgroundImageUrl: '',
   logoUrl: '',
   rank: '',
   countryIds: [],
@@ -23,6 +26,7 @@ const emptyState = {
 };
 
 const typeOptions = ['TELEVISION', 'ELECTRICITY', 'INTERNET', 'WATER', 'STREAMING', 'ENTERTAINMENT', 'TRAVELLING', 'AIRTIME', 'DATA', 'BUNDLES', 'OTHERS'];
+const giftCardUsageTypeOptions = ['UNIQUE_USAGE', 'MULTIPLE_USAGE'];
 const nameOptions = ['CANAL_PLUS', 'CANAL_BOX', 'STARLINK', 'LIQUID', 'SOCODEE', 'VIRUNGA', 'SNEL', 'DSTV', 'STARTIMES', 'REGIDESO', 'NETFLIX', 'SPOTIFY', 'APP_STORE', 'APPLE', 'GOOGLE_PLAY', 'AIRBNB', 'UBER', 'AIRTIME', 'DATA', 'BUNDLES'];
 const codeOptions = [
   'CANAL_PLUS_RWANDA',
@@ -58,6 +62,9 @@ const toPayload = (state) => ({
   descriptionFr: state.descriptionFr || null,
   type: state.type,
   giftCard: Boolean(state.giftCard),
+  giftCardUsageType: state.giftCard && state.giftCardUsageType ? state.giftCardUsageType : null,
+  returnAsCardProduct: Boolean(state.giftCard && state.returnAsCardProduct),
+  cardProductBackgroundImageUrl: state.giftCard && state.cardProductBackgroundImageUrl ? state.cardProductBackgroundImageUrl : null,
   logoUrl: state.logoUrl || null,
   countryIds: Array.isArray(state.countryIds) ? state.countryIds.map((id) => Number(id)).filter((n) => !Number.isNaN(n)) : [],
   rank: state.rank === '' ? null : Number(state.rank),
@@ -180,6 +187,16 @@ export default function BillProductsPage() {
       render: (row) => (row.giftCard ? 'Yes' : 'No')
     },
     {
+      key: 'returnAsCardProduct',
+      label: 'Card product',
+      render: (row) => (row.giftCard && row.returnAsCardProduct ? 'Yes' : 'No')
+    },
+    {
+      key: 'giftCardUsageType',
+      label: 'Usage',
+      render: (row) => (row.giftCard ? (row.giftCardUsageType || '—') : '—')
+    },
+    {
       key: 'country',
       label: 'Countries',
       render: (row) => {
@@ -240,6 +257,9 @@ export default function BillProductsPage() {
       descriptionFr: row.descriptionFr ?? row.description_fr ?? '',
       type: row.type ?? '',
       giftCard: Boolean(row.giftCard),
+      giftCardUsageType: row.giftCardUsageType ?? '',
+      returnAsCardProduct: Boolean(row.returnAsCardProduct),
+      cardProductBackgroundImageUrl: row.cardProductBackgroundImageUrl ?? '',
       logoUrl: row.logoUrl ?? '',
       countryIds: row.countryIds || [],
       rank: row.rank ?? '',
@@ -414,9 +434,57 @@ export default function BillProductsPage() {
         </select>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-        <input id="giftCard" type="checkbox" checked={draft.giftCard} onChange={(e) => setDraft((p) => ({ ...p, giftCard: e.target.checked }))} />
+        <input
+          id="giftCard"
+          type="checkbox"
+          checked={draft.giftCard}
+          onChange={(e) => setDraft((p) => ({
+            ...p,
+            giftCard: e.target.checked,
+            giftCardUsageType: e.target.checked ? p.giftCardUsageType : '',
+            returnAsCardProduct: e.target.checked ? p.returnAsCardProduct : false,
+            cardProductBackgroundImageUrl: e.target.checked ? p.cardProductBackgroundImageUrl : ''
+          }))}
+        />
         <label htmlFor="giftCard">Gift card product</label>
       </div>
+      {draft.giftCard && (
+        <>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="giftCardUsageType">Gift card usage type</label>
+            <select
+              id="giftCardUsageType"
+              value={draft.giftCardUsageType}
+              onChange={(e) => setDraft((p) => ({ ...p, giftCardUsageType: e.target.value }))}
+            >
+              <option value="">Unset</option>
+              {giftCardUsageTypeOptions.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <input
+              id="returnAsCardProduct"
+              type="checkbox"
+              checked={draft.returnAsCardProduct}
+              onChange={(e) => setDraft((p) => ({ ...p, returnAsCardProduct: e.target.checked }))}
+            />
+            <label htmlFor="returnAsCardProduct">Show as card product</label>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="cardProductBackgroundImageUrl">Card product background image URL</label>
+            <input
+              id="cardProductBackgroundImageUrl"
+              value={draft.cardProductBackgroundImageUrl}
+              onChange={(e) => setDraft((p) => ({ ...p, cardProductBackgroundImageUrl: e.target.value }))}
+              placeholder="https://..."
+            />
+          </div>
+        </>
+      )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', position: 'relative' }}>
         <label htmlFor="countryIds">Countries (optional)</label>
         <button
@@ -654,6 +722,9 @@ export default function BillProductsPage() {
               { label: 'Description (FR)', value: selected?.descriptionFr || selected?.description_fr || '—' },
               { label: 'Type', value: selected?.type },
               { label: 'Gift card', value: selected?.giftCard ? 'Yes' : 'No' },
+              { label: 'Gift card usage type', value: selected?.giftCardUsageType || '—' },
+              { label: 'Show as card product', value: selected?.giftCard && selected?.returnAsCardProduct ? 'Yes' : 'No' },
+              { label: 'Card product background image URL', value: selected?.cardProductBackgroundImageUrl || '—' },
               {
                 label: 'Countries',
                 value:

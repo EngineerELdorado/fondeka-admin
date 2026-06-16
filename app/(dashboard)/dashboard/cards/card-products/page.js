@@ -5,13 +5,14 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
-const emptyState = { cardBrandName: '', active: true, rank: '', logoUrl: '' };
+const emptyState = { cardBrandName: '', active: true, rank: '', logoUrl: '', backgroundImageUrl: '' };
 
 const toPayload = (state) => ({
   cardBrandName: state.cardBrandName,
   active: Boolean(state.active),
   rank: state.rank === '' ? null : Number(state.rank),
-  logoUrl: state.logoUrl || null
+  logoUrl: state.logoUrl || null,
+  backgroundImageUrl: state.backgroundImageUrl || null
 });
 
 const Modal = ({ title, onClose, children }) => (
@@ -76,6 +77,11 @@ export default function CardProductsPage() {
     { key: 'id', label: 'ID' },
     { key: 'cardBrandName', label: 'Brand' },
     { key: 'rank', label: 'Rank' },
+    {
+      key: 'backgroundImageUrl',
+      label: 'Background',
+      render: (row) => (row.backgroundImageUrl ? 'Set' : '—')
+    },
     { key: 'active', label: 'Active' },
     {
       key: 'actions',
@@ -103,7 +109,8 @@ export default function CardProductsPage() {
       cardBrandName: row.cardBrandName ?? '',
       active: Boolean(row.active),
       rank: row.rank ?? '',
-      logoUrl: row.logoUrl ?? ''
+      logoUrl: row.logoUrl ?? '',
+      backgroundImageUrl: row.backgroundImageUrl ?? ''
     });
     setShowEdit(true);
     setInfo(null);
@@ -172,6 +179,15 @@ export default function CardProductsPage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="logoUrl">Logo URL</label>
         <input id="logoUrl" value={draft.logoUrl} onChange={(e) => setDraft((p) => ({ ...p, logoUrl: e.target.value }))} />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="backgroundImageUrl">Background image URL</label>
+        <input
+          id="backgroundImageUrl"
+          value={draft.backgroundImageUrl}
+          onChange={(e) => setDraft((p) => ({ ...p, backgroundImageUrl: e.target.value }))}
+          placeholder="https://..."
+        />
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <input id="active" type="checkbox" checked={draft.active} onChange={(e) => setDraft((p) => ({ ...p, active: e.target.checked }))} />
@@ -242,6 +258,7 @@ export default function CardProductsPage() {
               { label: 'Brand', value: selected?.cardBrandName },
               { label: 'Rank', value: selected?.rank },
               { label: 'Logo URL', value: selected?.logoUrl },
+              { label: 'Background image URL', value: selected?.backgroundImageUrl || '—' },
               { label: 'Active', value: String(selected?.active) }
             ]}
           />
