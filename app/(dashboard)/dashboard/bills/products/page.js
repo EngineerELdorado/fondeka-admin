@@ -17,6 +17,7 @@ const emptyState = {
   giftCardUsageType: '',
   returnAsCardProduct: false,
   cardProductBackgroundImageUrl: '',
+  cardProductMinAppVersion: '',
   logoUrl: '',
   rank: '',
   countryIds: [],
@@ -65,6 +66,7 @@ const toPayload = (state) => ({
   giftCardUsageType: state.giftCard && state.giftCardUsageType ? state.giftCardUsageType : null,
   returnAsCardProduct: Boolean(state.giftCard && state.returnAsCardProduct),
   cardProductBackgroundImageUrl: state.giftCard && state.cardProductBackgroundImageUrl ? state.cardProductBackgroundImageUrl : null,
+  cardProductMinAppVersion: state.giftCard && state.returnAsCardProduct && state.cardProductMinAppVersion ? state.cardProductMinAppVersion : null,
   logoUrl: state.logoUrl || null,
   countryIds: Array.isArray(state.countryIds) ? state.countryIds.map((id) => Number(id)).filter((n) => !Number.isNaN(n)) : [],
   rank: state.rank === '' ? null : Number(state.rank),
@@ -197,6 +199,11 @@ export default function BillProductsPage() {
       render: (row) => (row.giftCard ? (row.giftCardUsageType || '—') : '—')
     },
     {
+      key: 'cardProductMinAppVersion',
+      label: 'Min app',
+      render: (row) => (row.giftCard && row.returnAsCardProduct ? (row.cardProductMinAppVersion || '—') : '—')
+    },
+    {
       key: 'country',
       label: 'Countries',
       render: (row) => {
@@ -260,6 +267,7 @@ export default function BillProductsPage() {
       giftCardUsageType: row.giftCardUsageType ?? '',
       returnAsCardProduct: Boolean(row.returnAsCardProduct),
       cardProductBackgroundImageUrl: row.cardProductBackgroundImageUrl ?? '',
+      cardProductMinAppVersion: row.cardProductMinAppVersion ?? '',
       logoUrl: row.logoUrl ?? '',
       countryIds: row.countryIds || [],
       rank: row.rank ?? '',
@@ -443,7 +451,8 @@ export default function BillProductsPage() {
             giftCard: e.target.checked,
             giftCardUsageType: e.target.checked ? p.giftCardUsageType : '',
             returnAsCardProduct: e.target.checked ? p.returnAsCardProduct : false,
-            cardProductBackgroundImageUrl: e.target.checked ? p.cardProductBackgroundImageUrl : ''
+            cardProductBackgroundImageUrl: e.target.checked ? p.cardProductBackgroundImageUrl : '',
+            cardProductMinAppVersion: e.target.checked ? p.cardProductMinAppVersion : ''
           }))}
         />
         <label htmlFor="giftCard">Gift card product</label>
@@ -470,7 +479,11 @@ export default function BillProductsPage() {
               id="returnAsCardProduct"
               type="checkbox"
               checked={draft.returnAsCardProduct}
-              onChange={(e) => setDraft((p) => ({ ...p, returnAsCardProduct: e.target.checked }))}
+              onChange={(e) => setDraft((p) => ({
+                ...p,
+                returnAsCardProduct: e.target.checked,
+                cardProductMinAppVersion: e.target.checked ? p.cardProductMinAppVersion : ''
+              }))}
             />
             <label htmlFor="returnAsCardProduct">Show as card product</label>
           </div>
@@ -483,6 +496,17 @@ export default function BillProductsPage() {
               placeholder="https://..."
             />
           </div>
+          {draft.returnAsCardProduct && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="cardProductMinAppVersion">Card product minimum app version</label>
+              <input
+                id="cardProductMinAppVersion"
+                value={draft.cardProductMinAppVersion}
+                onChange={(e) => setDraft((p) => ({ ...p, cardProductMinAppVersion: e.target.value }))}
+                placeholder="2.5.0"
+              />
+            </div>
+          )}
         </>
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', position: 'relative' }}>
@@ -725,6 +749,7 @@ export default function BillProductsPage() {
               { label: 'Gift card usage type', value: selected?.giftCardUsageType || '—' },
               { label: 'Show as card product', value: selected?.giftCard && selected?.returnAsCardProduct ? 'Yes' : 'No' },
               { label: 'Card product background image URL', value: selected?.cardProductBackgroundImageUrl || '—' },
+              { label: 'Card product minimum app version', value: selected?.cardProductMinAppVersion || '—' },
               {
                 label: 'Countries',
                 value:
