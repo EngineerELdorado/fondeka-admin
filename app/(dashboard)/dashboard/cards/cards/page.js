@@ -147,6 +147,20 @@ const ExpandableText = ({ value, maxLength = 28 }) => {
   );
 };
 
+const cardProviderLabel = (card) => {
+  const name = card?.cardProviderName || card?.providerName || card?.cardProvider?.cardProviderName || card?.cardProvider?.name;
+  const id = card?.cardProviderId ?? card?.providerId ?? card?.cardProvider?.id;
+  if (name && id) return `${name} (#${id})`;
+  if (name) return name;
+  if (id) return `Provider #${id}`;
+  return '—';
+};
+
+const cardProviderLabelFrom = (...sources) => {
+  const match = sources.find((source) => source && cardProviderLabel(source) !== '—');
+  return match ? cardProviderLabel(match) : '—';
+};
+
 export default function CardsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
@@ -354,6 +368,7 @@ export default function CardsPage() {
     { key: 'status', label: 'Status', render: (row) => <StatusBadge value={row.status} /> },
     { key: 'createdAt', label: 'Created', render: (row) => formatDateTime(row.createdAt) },
     { key: 'last4', label: 'Last 4', render: (row) => row.last4 || '—' },
+    { key: 'cardProviderName', label: 'Provider', render: (row) => cardProviderLabel(row) },
     { key: 'issued', label: 'Issued', render: (row) => (row.issued ? 'Yes' : 'No') },
     { key: 'internalReference', label: 'Internal ref' },
     {
@@ -694,11 +709,13 @@ export default function CardsPage() {
         : await api.cards.withdraw(selected.id, payload);
       const transactionId = res?.transactionId || res?.id || null;
       const providerTransactionId = res?.providerTransactionId || null;
+      const providerLabel = cardProviderLabelFrom(res, selected);
       const status = res?.status || null;
       const feesApplied = res?.feesApplied;
       const actionLabel = adjustmentMode === 'fund' ? 'Card funding submitted.' : 'Card withdrawal submitted.';
       const detailParts = [
         transactionId ? `Transaction ID: ${transactionId}` : null,
+        providerLabel !== '—' ? `Provider: ${providerLabel}` : null,
         providerTransactionId ? `Provider ref: ${providerTransactionId}` : null,
         status ? `Status: ${status}` : null,
         typeof feesApplied === 'boolean' ? `Fees applied: ${feesApplied ? 'Yes' : 'No'}` : null
@@ -1305,6 +1322,9 @@ export default function CardsPage() {
                 { label: 'Internal ref', value: <ExpandableText value={selected?.internalReference} maxLength={40} /> },
                 { label: 'Created at', value: formatDateTime(selected?.createdAt) },
                 { label: 'Last 4', value: selected?.last4 },
+                { label: 'Provider', value: cardProviderLabel(selected) },
+                { label: 'Card provider ID', value: selected?.cardProviderId ?? selected?.providerId },
+                { label: 'Product/provider ID', value: selected?.cardProductCardProviderId },
                 { label: 'Issued', value: selected?.issued ? 'Yes' : 'No' }
               ]}
             />
@@ -1424,10 +1444,12 @@ export default function CardsPage() {
                     ]}
                   />
                   <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '860px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '980px' }}>
                       <thead>
                         <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
                           <th style={{ padding: '0.45rem' }}>Time</th>
+                          <th style={{ padding: '0.45rem' }}>Provider</th>
+                          <th style={{ padding: '0.45rem' }}>Card</th>
                           <th style={{ padding: '0.45rem' }}>Direction</th>
                           <th style={{ padding: '0.45rem' }}>Description</th>
                           <th style={{ padding: '0.45rem' }}>Amount</th>
@@ -1437,7 +1459,7 @@ export default function CardsPage() {
                       <tbody>
                         {((providerTxData?.data?.transactions || providerTxData?.transactions || [])).length === 0 ? (
                           <tr>
-                            <td colSpan={5} style={{ padding: '0.6rem', color: 'var(--muted)' }}>
+                            <td colSpan={7} style={{ padding: '0.6rem', color: 'var(--muted)' }}>
                               No provider transactions returned.
                             </td>
                           </tr>
@@ -1451,8 +1473,14 @@ export default function CardsPage() {
                                     tx?.transactionDate ||
                                     tx?.transaction_date ||
                                     tx?.date ||
-                                    tx?.timestamp
+                                  tx?.timestamp
                                 )}
+                              </td>
+                              <td style={{ padding: '0.45rem' }}>
+                                {cardProviderLabelFrom(tx, selected)}
+                              </td>
+                              <td style={{ padding: '0.45rem' }}>
+                                {tx?.cardId ?? tx?.card_id ?? selected?.id ?? '—'}
                               </td>
                               <td style={{ padding: '0.45rem' }}>
                                 {(() => {
@@ -1492,7 +1520,7 @@ export default function CardsPage() {
                                 })()}
                               </td>
                               <td style={{ padding: '0.45rem', fontSize: '12px' }}>
-                                <div>Bridge: {tx?.bridgecard_transaction_reference || '—'}</div>
+                                <div>Provider: {tx?.providerTransactionReference || tx?.provider_transaction_reference || tx?.bridgecard_transaction_reference || '—'}</div>
                                 <div style={{ color: 'var(--muted)' }}>Client: {tx?.client_transaction_reference || '—'}</div>
                               </td>
                             </tr>

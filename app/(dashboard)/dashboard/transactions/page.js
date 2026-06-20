@@ -258,6 +258,26 @@ const formatEnumLabel = (value, overrides = {}) => {
   return words || '—';
 };
 
+const cardProviderLabel = (row) => {
+  const name = row?.cardProviderName || row?.providerName || row?.cardProvider?.cardProviderName || row?.cardProvider?.name;
+  const id = row?.cardProviderId ?? row?.providerId ?? row?.cardProvider?.id;
+  if (name && id !== null && id !== undefined && String(id).trim() !== '') return `${name} (#${id})`;
+  if (name) return name;
+  if (id !== null && id !== undefined && String(id).trim() !== '') return `Provider #${id}`;
+  return '—';
+};
+
+const hasCardMetadata = (row) => {
+  const cardId = row?.cardId ?? row?.card?.id;
+  const providerId = row?.cardProviderId ?? row?.providerId ?? row?.cardProvider?.id;
+  return Boolean(
+    (cardId !== null && cardId !== undefined && String(cardId).trim() !== '') ||
+      row?.cardProviderName ||
+      row?.providerName ||
+      (providerId !== null && providerId !== undefined && String(providerId).trim() !== '')
+  );
+};
+
 const formatWebhookPayload = (payload) => {
   if (payload === null || payload === undefined) return '';
   if (typeof payload === 'string') return payload;
@@ -428,6 +448,9 @@ export default function TransactionsPage() {
     receiptTemplateKey === 'BILL_PAYMENT' ||
     selected?.service === 'BILL_PAYMENTS';
   const [refetchBillStatusLoading, setRefetchBillStatusLoading] = useState(false);
+  const [momoStatusLoading, setMomoStatusLoading] = useState(false);
+  const [momoStatusResult, setMomoStatusResult] = useState(null);
+  const [momoStatusError, setMomoStatusError] = useState(null);
   const [showBankPayoutComplete, setShowBankPayoutComplete] = useState(false);
   const [bankPayoutMessage, setBankPayoutMessage] = useState('');
   const [bankPayoutError, setBankPayoutError] = useState(null);
@@ -999,6 +1022,8 @@ export default function TransactionsPage() {
     setReceiptTemplateKey('');
     setBillStatusAuditLogs([]);
     setBillStatusAuditError(null);
+    setMomoStatusResult(null);
+    setMomoStatusError(null);
     setShowBankPayoutComplete(false);
     setBankPayoutMessage('');
     setBankPayoutError(null);
@@ -1111,6 +1136,26 @@ export default function TransactionsPage() {
     if (!selected) return false;
     const status = String(selected.status || '').toUpperCase();
     return status === 'FUNDED' || status === 'PROCESSING' || status === 'EXECUTING';
+  }, [selected]);
+
+  const canCheckMomoStatus = useMemo(() => {
+    if (!selected) return false;
+    const status = normalizeEnumKey(selected?.status);
+    const terminal = ['COMPLETED', 'FAILED', 'CANCELED', 'CANCELLED', 'REFUNDED', 'REVERSED'].includes(status);
+    if (terminal) return false;
+    const methodType = normalizeEnumKey(selected?.paymentMethodType);
+    const methodName = normalizeEnumKey(selected?.paymentMethodName);
+    const providerName = normalizeEnumKey(selected?.paymentProviderName);
+    const action = normalizeEnumKey(selected?.action);
+    const service = normalizeEnumKey(selected?.service);
+    const knownMomoNames = ['MPESA', 'M_PESA', 'AIRTEL_MONEY', 'ORANGE_MONEY', 'VODACOM_MPESA'];
+    return (
+      methodType === 'MOBILE_MONEY' ||
+      providerName === 'AVADAPAY' ||
+      providerName === 'ARAKAPAY' ||
+      knownMomoNames.some((name) => methodName.includes(name)) ||
+      (service === 'WALLET' && action === 'FUND_WALLET' && methodName && methodType !== 'BANK')
+    );
   }, [selected]);
 
   const bankPayoutMeta = useMemo(() => {
@@ -1348,6 +1393,47 @@ export default function TransactionsPage() {
       pushToast({ tone: 'error', message });
     } finally {
       setRefetchBillStatusLoading(false);
+    }
+  };
+
+  const providerStatusValue = (result) =>
+    result?.providerStatus ||
+    result?.status ||
+    result?.transactionStatus ||
+    result?.paymentStatus ||
+    result?.data?.providerStatus ||
+    result?.data?.status ||
+    'Unknown';
+
+  const handleCheckMomoStatus = async () => {
+    const transactionId = selected?.transactionId || selected?.id;
+    if (!transactionId) {
+      setMomoStatusError('Missing transaction id');
+      return;
+    }
+    setMomoStatusLoading(true);
+    setMomoStatusError(null);
+    setMomoStatusResult(null);
+    try {
+      const res = await api.transactions.momoStatus(transactionId);
+      setMomoStatusResult(res || {});
+      if (res?.fulfillmentTriggered === true) {
+        pushToast({ tone: 'success', message: 'Provider confirmed payment. Fulfillment has been triggered.' });
+      } else {
+        pushToast({ tone: 'info', message: `Provider status: ${providerStatusValue(res)}.` });
+      }
+      await refreshSelectedTransaction(transactionId);
+      await loadReceipt(transactionId);
+      const service = String(selected?.service || '').toUpperCase();
+      if (service === 'BILL_PAYMENTS') {
+        await loadBillStatusAuditLogs(transactionId);
+      }
+    } catch (err) {
+      const message = err?.message || 'Failed to check MoMo status';
+      setMomoStatusError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setMomoStatusLoading(false);
     }
   };
 
@@ -1917,6 +2003,13 @@ export default function TransactionsPage() {
                 { label: 'Payment method', value: selected?.paymentMethodName || selected?.paymentMethodId },
                 ...(selected?.paymentMethodType ? [{ label: 'Payment method type', value: selected?.paymentMethodType }] : []),
                 { label: 'Payment provider', value: selected?.paymentProviderName || selected?.paymentProviderId },
+                ...(hasCardMetadata(selected)
+                  ? [
+                      { label: 'Card ID', value: selected?.cardId ?? selected?.card?.id ?? '—' },
+                      { label: 'Card provider', value: cardProviderLabel(selected) },
+                      { label: 'Card provider ID', value: selected?.cardProviderId ?? selected?.providerId ?? selected?.cardProvider?.id ?? '—' }
+                    ]
+                  : []),
                 { label: 'Refunded', value: selected?.refunded || selected?.refundedAt ? 'Yes' : 'No' },
                 { label: 'Refunded at', value: formatDateTime(selected?.refundedAt) },
                 { label: 'Latest admin note', value: latestAdminMessage || '—' },
@@ -2006,6 +2099,51 @@ export default function TransactionsPage() {
                   {!bankPayoutMeta.eligible && (
                     <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
                       Requires status FUNDED, action WITHDRAW_FROM_WALLET, and payment method EQUITY_DRC (BANK).
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {canCheckMomoStatus && (
+              <div className="card" style={{ padding: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                    <div style={{ fontWeight: 800 }}>MoMo provider status</div>
+                    <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                      Ask the mobile-money provider for the latest payment status when the webhook is delayed.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-primary btn-sm"
+                    onClick={handleCheckMomoStatus}
+                    disabled={momoStatusLoading}
+                  >
+                    {momoStatusLoading ? 'Checking…' : 'Check MoMo Status'}
+                  </button>
+                </div>
+
+                <div style={{ marginTop: '0.75rem', display: 'grid', gap: '0.6rem' }}>
+                  <DetailGrid
+                    rows={[
+                      { label: 'Current status', value: selected?.status || '—' },
+                      { label: 'Method', value: selected?.paymentMethodName || selected?.paymentMethodId || '—' },
+                      { label: 'Provider', value: selected?.paymentProviderName || selected?.paymentProviderId || '—' },
+                      { label: 'External ref', value: <CopyableValue value={selected?.externalReference} label="External ref" onCopy={copyToClipboard} /> }
+                    ]}
+                  />
+                  {momoStatusError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{momoStatusError}</div>}
+                  {momoStatusResult && (
+                    <div style={{ display: 'grid', gap: '0.5rem' }}>
+                      <div style={{ color: momoStatusResult.fulfillmentTriggered === true ? '#15803d' : 'var(--muted)', fontWeight: 700 }}>
+                        {momoStatusResult.fulfillmentTriggered === true
+                          ? 'Provider confirmed payment. Fulfillment has been triggered.'
+                          : `Provider status: ${providerStatusValue(momoStatusResult)}.`}
+                      </div>
+                      <pre style={{ margin: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: '12px', color: 'var(--muted)' }}>
+                        {formatWebhookPayload(momoStatusResult)}
+                      </pre>
                     </div>
                   )}
                 </div>

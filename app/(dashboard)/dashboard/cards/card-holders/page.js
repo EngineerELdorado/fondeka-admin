@@ -62,6 +62,109 @@ const DetailGrid = ({ rows }) => (
   </div>
 );
 
+const normalizeProviderName = (value) => String(value || '').trim().toUpperCase();
+
+const providerProfileName = (profile) =>
+  normalizeProviderName(profile?.cardProviderName || profile?.providerName || profile?.cardProvider?.cardProviderName || profile?.cardProvider?.name);
+
+const getProviderProfiles = (holder) => {
+  const profiles = holder?.providerProfiles || holder?.cardHolderProviderProfiles || holder?.cardProviderProfiles;
+  return Array.isArray(profiles) ? profiles : [];
+};
+
+const providerValue = (value) => {
+  if (value === null || value === undefined || value === '') return '—';
+  return String(value);
+};
+
+const providerBool = (value) => {
+  if (value === null || value === undefined) return '—';
+  return value ? 'Yes' : 'No';
+};
+
+const providerDate = (value) => {
+  if (!value) return '—';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+};
+
+const buildProviderProfileRows = (holder) => {
+  const profiles = getProviderProfiles(holder);
+  return profiles.map((profile) => {
+    const providerId = profile?.cardProviderId ?? profile?.providerId;
+    const provider = providerProfileName(profile) || providerValue(providerId);
+    const transactionId = profile?.transactionId ?? profile?.transaction?.id;
+    return {
+      provider,
+      cardProviderId: providerId,
+      id: profile?.id,
+      reference: providerValue(profile?.externalReference),
+      status: providerValue(profile?.status),
+      verified: providerBool(profile?.verified),
+      transaction: transactionId ? String(transactionId) : '—',
+      updatedAt: providerDate(profile?.updatedAt),
+      metaData: providerValue(profile?.metaData)
+    };
+  });
+};
+
+const ProviderProfilesPanel = ({ holder }) => {
+  const profileRows = buildProviderProfileRows(holder);
+
+  return (
+    <div style={{ display: 'grid', gap: '0.65rem', marginTop: '0.75rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
+        <div>
+          <div style={{ fontWeight: 800 }}>Provider profiles</div>
+          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+            Provider references are isolated. Do not copy BridgeCard references into SUDO profiles, or SUDO references into BridgeCard profiles.
+          </div>
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.65rem' }}>
+        {profileRows.map((profile) => (
+          <div key={profile.id || `${profile.provider}-${profile.cardProviderId}`} style={{ border: `1px solid var(--border)`, borderRadius: '12px', padding: '0.75rem', display: 'grid', gap: '0.45rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', alignItems: 'center' }}>
+              <div style={{ fontWeight: 800 }}>{profile.provider}</div>
+              <span style={{ fontSize: '12px', color: '#15803d', fontWeight: 700 }}>
+                Profile found
+              </span>
+            </div>
+            <div style={{ display: 'grid', gap: '0.25rem', fontSize: '12px', color: 'var(--muted)' }}>
+              <div>Provider ID: <span style={{ color: 'var(--text)', fontWeight: 700 }}>{providerValue(profile.cardProviderId)}</span></div>
+              <div>Reference: <span style={{ color: 'var(--text)', fontWeight: 700 }}>{profile.reference}</span></div>
+              <div>Status: <span style={{ color: 'var(--text)', fontWeight: 700 }}>{profile.status}</span></div>
+              <div>Verified: <span style={{ color: 'var(--text)', fontWeight: 700 }}>{profile.verified}</span></div>
+              <div>Linked transaction: <span style={{ color: 'var(--text)', fontWeight: 700 }}>{profile.transaction}</span></div>
+              <div>Last updated: <span style={{ color: 'var(--text)', fontWeight: 700 }}>{profile.updatedAt}</span></div>
+              {profile.metaData !== '—' && <div>Metadata: <span style={{ color: 'var(--text)', fontWeight: 700 }}>{profile.metaData}</span></div>}
+            </div>
+          </div>
+        ))}
+      </div>
+      {!getProviderProfiles(holder).length && (
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          No provider-specific profiles returned. Legacy/common holder data is shown above.
+        </div>
+      )}
+    </div>
+  );
+};
+
+const providerProfilesSummary = (holder) => {
+  const profiles = getProviderProfiles(holder);
+  if (!profiles.length) return '—';
+  return profiles
+    .map((profile) => {
+      const providerId = profile?.cardProviderId ?? profile?.providerId ?? '—';
+      const name = providerProfileName(profile) || `Provider ${providerId}`;
+      const verified = profile?.verified === null || profile?.verified === undefined ? null : profile.verified ? 'verified' : 'unverified';
+      const status = providerValue(profile?.status);
+      return [name, verified, status !== '—' ? status : null].filter(Boolean).join(' • ');
+    })
+    .join(', ');
+};
+
 export default function CardHoldersPage() {
   const { session } = useAuth();
   const [rows, setRows] = useState([]);
@@ -133,7 +236,8 @@ export default function CardHoldersPage() {
     { key: 'userName', label: 'User name' },
     { key: 'userEmail', label: 'User email' },
     { key: 'accountId', label: 'Account ID' },
-    { key: 'verified', label: 'Verified' },
+    { key: 'providerProfiles', label: 'Provider state', render: (row) => providerProfilesSummary(row) },
+    { key: 'verified', label: 'Legacy verified', render: (row) => (row.verified ? 'Yes' : 'No') },
     {
       key: 'actions',
       label: 'Actions',
@@ -393,7 +497,7 @@ export default function CardHoldersPage() {
         <input id="internalReference" value={draft.internalReference} onChange={(e) => setDraft((p) => ({ ...p, internalReference: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="externalReference">External reference</label>
+        <label htmlFor="externalReference">Legacy BridgeCard reference</label>
         <input id="externalReference" value={draft.externalReference} onChange={(e) => setDraft((p) => ({ ...p, externalReference: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -406,7 +510,7 @@ export default function CardHoldersPage() {
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <input id="verified" type="checkbox" checked={draft.verified} onChange={(e) => setDraft((p) => ({ ...p, verified: e.target.checked }))} />
-        <label htmlFor="verified">Verified</label>
+        <label htmlFor="verified">Legacy/common verified</label>
       </div>
     </div>
   );
@@ -509,14 +613,15 @@ export default function CardHoldersPage() {
             rows={[
               { label: 'ID', value: selected?.id },
               { label: 'Internal ref', value: selected?.internalReference },
-              { label: 'External ref', value: selected?.externalReference },
+              { label: 'Legacy BridgeCard ref', value: selected?.externalReference },
               { label: 'Account ID', value: selected?.accountId },
               { label: 'User name', value: selected?.userName },
               { label: 'User email', value: selected?.userEmail },
-              { label: 'Verified', value: String(selected?.verified) },
+              { label: 'Legacy/common verified', value: selected?.verified ? 'Yes' : 'No' },
               { label: 'Metadata', value: selected?.metaData }
             ]}
           />
+          <ProviderProfilesPanel holder={selected} />
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.75rem' }}>
             <button type="button" onClick={() => openIssue(selected)} className="btn-success">
               Issue card
@@ -750,7 +855,7 @@ export default function CardHoldersPage() {
       {confirmReset && (
         <Modal title="Reset card holder" onClose={() => setConfirmReset(null)}>
           <div style={{ color: 'var(--muted)' }}>
-            This will unset verification and external reference. Continue?
+            This will unset local verification and the legacy BridgeCard reference. Provider-specific profiles are managed separately. Continue?
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" onClick={() => setConfirmReset(null)} className="btn-neutral" disabled={resetLoading}>

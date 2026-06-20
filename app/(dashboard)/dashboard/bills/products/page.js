@@ -105,6 +105,8 @@ export default function BillProductsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
+  const [formError, setFormError] = useState(null);
+  const [formSaving, setFormSaving] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
@@ -251,6 +253,7 @@ export default function BillProductsPage() {
     setShowCreate(true);
     setInfo(null);
     setError(null);
+    setFormError(null);
   };
 
   const openEdit = (row) => {
@@ -278,11 +281,13 @@ export default function BillProductsPage() {
     setShowEdit(true);
     setInfo(null);
     setError(null);
+    setFormError(null);
   };
 
   const closeCreate = () => {
     setShowCreate(false);
     setDraft(emptyState);
+    setFormError(null);
     setCountrySearch('');
     setShowCountryPicker(false);
   };
@@ -291,6 +296,7 @@ export default function BillProductsPage() {
     setShowEdit(false);
     setDraft(emptyState);
     setSelected(null);
+    setFormError(null);
     setCountrySearch('');
     setShowCountryPicker(false);
   };
@@ -305,13 +311,18 @@ export default function BillProductsPage() {
   const handleCreate = async () => {
     setError(null);
     setInfo(null);
+    setFormError(null);
+    setShowCountryPicker(false);
+    setFormSaving(true);
     try {
       await api.billProducts.create(toPayload(draft));
       setInfo('Created bill product.');
       setShowCreate(false);
       fetchRows();
     } catch (err) {
-      setError(err.message);
+      setFormError(err?.message || 'Failed to create bill product');
+    } finally {
+      setFormSaving(false);
     }
   };
 
@@ -319,13 +330,18 @@ export default function BillProductsPage() {
     if (!selected?.id) return;
     setError(null);
     setInfo(null);
+    setFormError(null);
+    setShowCountryPicker(false);
+    setFormSaving(true);
     try {
       await api.billProducts.update(selected.id, toPayload(draft));
       setInfo(`Updated bill product ${selected.id}.`);
       setShowEdit(false);
       fetchRows();
     } catch (err) {
-      setError(err.message);
+      setFormError(err?.message || 'Failed to update bill product');
+    } finally {
+      setFormSaving(false);
     }
   };
 
@@ -544,10 +560,7 @@ export default function BillProductsPage() {
         {showCountryPicker && (
           <div
             style={{
-              position: 'absolute',
-              top: '100%',
-              left: 0,
-              zIndex: 10,
+              position: 'relative',
               background: 'var(--surface)',
               border: `1px solid var(--border)`,
               borderRadius: '10px',
@@ -612,11 +625,17 @@ export default function BillProductsPage() {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="logoUrl">Logo URL (optional)</label>
-        <input id="logoUrl" value={draft.logoUrl} onChange={(e) => setDraft((p) => ({ ...p, logoUrl: e.target.value }))} placeholder="https://..." />
+        <input
+          id="logoUrl"
+          value={draft.logoUrl}
+          onFocus={() => setShowCountryPicker(false)}
+          onChange={(e) => setDraft((p) => ({ ...p, logoUrl: e.target.value }))}
+          placeholder="https://..."
+        />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="rank">Rank</label>
-        <input id="rank" type="number" value={draft.rank} onChange={(e) => setDraft((p) => ({ ...p, rank: e.target.value }))} />
+        <input id="rank" type="number" value={draft.rank} onFocus={() => setShowCountryPicker(false)} onChange={(e) => setDraft((p) => ({ ...p, rank: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <input id="active" type="checkbox" checked={draft.active} onChange={(e) => setDraft((p) => ({ ...p, active: e.target.checked }))} />
@@ -708,12 +727,13 @@ export default function BillProductsPage() {
       {showCreate && (
         <Modal title="Add bill product" onClose={closeCreate}>
           {renderForm()}
+          {formError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{formError}</div>}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-            <button type="button" onClick={closeCreate} style={{ padding: '0.65rem 0.95rem', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}>
+            <button type="button" onClick={closeCreate} disabled={formSaving} style={{ padding: '0.65rem 0.95rem', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}>
               Cancel
             </button>
-            <button type="button" onClick={handleCreate} style={{ padding: '0.65rem 0.95rem', borderRadius: '10px', border: '1px solid var(--border)', background: '#22c55e', color: '#fff' }}>
-              Create
+            <button type="button" onClick={handleCreate} disabled={formSaving} style={{ padding: '0.65rem 0.95rem', borderRadius: '10px', border: '1px solid var(--border)', background: '#22c55e', color: '#fff' }}>
+              {formSaving ? 'Creating…' : 'Create'}
             </button>
           </div>
         </Modal>
@@ -722,12 +742,13 @@ export default function BillProductsPage() {
       {showEdit && (
         <Modal title={`Edit bill product ${selected?.id}`} onClose={closeEdit}>
           {renderForm()}
+          {formError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{formError}</div>}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-            <button type="button" onClick={closeEdit} style={{ padding: '0.65rem 0.95rem', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}>
+            <button type="button" onClick={closeEdit} disabled={formSaving} style={{ padding: '0.65rem 0.95rem', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}>
               Cancel
             </button>
-            <button type="button" onClick={handleUpdate} style={{ padding: '0.65rem 0.95rem', borderRadius: '10px', border: '1px solid var(--border)', background: '#f97316', color: '#fff' }}>
-              Save
+            <button type="button" onClick={handleUpdate} disabled={formSaving} style={{ padding: '0.65rem 0.95rem', borderRadius: '10px', border: '1px solid var(--border)', background: '#f97316', color: '#fff' }}>
+              {formSaving ? 'Saving…' : 'Save'}
             </button>
           </div>
         </Modal>

@@ -36,6 +36,15 @@ const DetailGrid = ({ rows }) => (
   </div>
 );
 
+const cardProviderLabel = (row) => {
+  const name = row?.cardProviderName || row?.providerName || row?.cardProvider?.cardProviderName || row?.cardProvider?.name;
+  const id = row?.cardProviderId ?? row?.providerId ?? row?.cardProvider?.id;
+  if (name && id !== null && id !== undefined && String(id).trim() !== '') return `${name} (#${id})`;
+  if (name) return name;
+  if (id !== null && id !== undefined && String(id).trim() !== '') return `Provider #${id}`;
+  return '—';
+};
+
 export default function CardActivitiesPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
@@ -74,6 +83,7 @@ export default function CardActivitiesPage() {
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
     { key: 'cardId', label: 'Card ID' },
+    { key: 'cardProviderName', label: 'Provider', render: (row) => cardProviderLabel(row) },
     { key: 'activityType', label: 'Type' },
     { key: 'transactionId', label: 'Transaction ID' },
     {
@@ -234,6 +244,8 @@ export default function CardActivitiesPage() {
             rows={[
               { label: 'ID', value: selected?.id },
               { label: 'Card ID', value: selected?.cardId },
+              { label: 'Provider', value: cardProviderLabel(selected) },
+              { label: 'Card provider ID', value: selected?.cardProviderId ?? selected?.providerId },
               { label: 'Activity type', value: selected?.activityType },
               { label: 'Transaction ID', value: selected?.transactionId }
             ]}

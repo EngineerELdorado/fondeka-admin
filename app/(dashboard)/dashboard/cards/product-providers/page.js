@@ -8,6 +8,7 @@ import { DataTable } from '@/components/DataTable';
 const emptyState = {
   cardProductId: '',
   cardProviderId: '',
+  cardProgramId: '',
   currency: '',
   purchaseCost: '',
   price: '',
@@ -41,6 +42,7 @@ const emptyState = {
 const toPayload = (state) => ({
   cardProductId: Number(state.cardProductId) || 0,
   cardProviderId: Number(state.cardProviderId) || 0,
+  cardProgramId: state.cardProgramId?.trim() ? state.cardProgramId.trim() : null,
   currency: state.currency,
   purchaseCost: state.purchaseCost === '' ? null : Number(state.purchaseCost),
   price: state.price === '' ? null : Number(state.price),
@@ -194,6 +196,11 @@ export default function CardProductProvidersPage() {
       { key: 'cardBrandName', label: 'Product' },
       { key: 'cardProviderName', label: 'Provider' },
       {
+        key: 'cardProgramId',
+        label: 'Program ID',
+        render: (row) => row.cardProgramId || '—'
+      },
+      {
         key: 'price',
         label: 'Price',
         render: (row) => fmtAmount(row, 'price')
@@ -330,6 +337,7 @@ export default function CardProductProvidersPage() {
     setDraft({
       cardProductId: row.cardProductId ?? '',
       cardProviderId: row.cardProviderId ?? '',
+      cardProgramId: row.cardProgramId ?? '',
       currency: row.currency ?? '',
       purchaseCost: row.purchaseCost ?? '',
       price: row.price ?? '',
@@ -413,7 +421,12 @@ export default function CardProductProvidersPage() {
     }
   };
 
-  const renderForm = () => (
+  const renderForm = () => {
+    const selectedProvider = cardProviders.find((provider) => String(provider.id) === String(draft.cardProviderId));
+    const selectedProviderName = String(selectedProvider?.cardProviderName || selectedProvider?.name || '').trim().toUpperCase();
+    const sudoProviderSelected = selectedProviderName.includes('SUDO');
+
+    return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="cardProductId">Card product</label>
@@ -436,6 +449,31 @@ export default function CardProductProvidersPage() {
             </option>
           ))}
         </select>
+      </div>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.25rem',
+          gridColumn: sudoProviderSelected ? '1 / -1' : undefined,
+          padding: sudoProviderSelected ? '0.75rem' : undefined,
+          border: sudoProviderSelected ? '1px solid #bfdbfe' : undefined,
+          borderRadius: sudoProviderSelected ? '12px' : undefined,
+          background: sudoProviderSelected ? '#eff6ff' : undefined
+        }}
+      >
+        <label htmlFor="cardProgramId">Provider card program ID</label>
+        <input
+          id="cardProgramId"
+          value={draft.cardProgramId}
+          onChange={(e) => setDraft((p) => ({ ...p, cardProgramId: e.target.value }))}
+          placeholder={sudoProviderSelected ? 'SUDO card program ID' : 'Optional provider program ID'}
+        />
+        {sudoProviderSelected && (
+          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+            Used for this SUDO product/provider mapping. Leave blank to use backend defaults.
+          </div>
+        )}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="currency">Currency</label>
@@ -761,7 +799,8 @@ export default function CardProductProvidersPage() {
         />
       </div>
     </div>
-  );
+    );
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -826,6 +865,7 @@ export default function CardProductProvidersPage() {
               { label: 'Card product', value: selected?.cardBrandName },
               { label: 'Card provider ID', value: selected?.cardProviderId },
               { label: 'Card provider', value: selected?.cardProviderName },
+              { label: 'Provider card program ID', value: selected?.cardProgramId || '—' },
               { label: 'Currency', value: selected?.currency || '—' },
               { label: 'Price', value: selected?.price ?? '—' },
               { label: 'Purchase cost', value: selected?.purchaseCost ?? '—' },

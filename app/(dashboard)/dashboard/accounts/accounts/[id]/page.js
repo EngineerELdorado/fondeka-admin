@@ -50,6 +50,29 @@ const DetailGrid = ({ rows }) => (
   </div>
 );
 
+const getCardHolderProviderProfiles = (holder) => {
+  const profiles = holder?.providerProfiles || holder?.cardHolderProviderProfiles || holder?.cardProviderProfiles;
+  return Array.isArray(profiles) ? profiles : [];
+};
+
+const cardHolderProviderName = (profile) =>
+  String(profile?.cardProviderName || profile?.providerName || profile?.cardProvider?.cardProviderName || profile?.cardProvider?.name || '').trim().toUpperCase();
+
+const cardHolderProviderSummary = (holder) => {
+  const profiles = getCardHolderProviderProfiles(holder);
+  if (!profiles.length) return [];
+  return profiles.map((profile) => {
+    const provider = cardHolderProviderName(profile) || `PROVIDER ${profile?.cardProviderId || profile?.providerId || '—'}`;
+    const verified = profile?.verified === null || profile?.verified === undefined ? '—' : profile.verified ? 'Yes' : 'No';
+    return {
+      provider,
+      reference: profile?.externalReference || '—',
+      status: profile?.status || '—',
+      verified
+    };
+  });
+};
+
 const MultiSelect = ({ label, options, values, onChange, helperText }) => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
     <div style={{ fontWeight: 600 }}>{label}</div>
@@ -1333,9 +1356,12 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       };
       const res = await api.cardHolders.registerSync(payload);
       setCardholderResult(res || null);
+      const providerProfiles = cardHolderProviderSummary(res);
+      const bridgeCardProfile = providerProfiles.find((profile) => profile.provider === 'BRIDGECARD');
+      const providerReference = bridgeCardProfile?.reference && bridgeCardProfile.reference !== '—' ? bridgeCardProfile.reference : res?.externalReference;
       pushToast({
         tone: 'success',
-        message: res?.externalReference ? `Cardholder created (ref ${res.externalReference})` : 'Cardholder created'
+        message: providerReference ? `BridgeCard card holder created (ref ${providerReference})` : 'BridgeCard card holder created'
       });
     } catch (err) {
       const message = err?.name === 'AbortError'
@@ -3070,9 +3096,9 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       <div className="card" style={{ padding: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-            <div style={{ fontWeight: 800 }}>Manual cardholder creation</div>
+            <div style={{ fontWeight: 800 }}>Manual BridgeCard card holder creation</div>
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-              Use this when async cardholder creation fails. Requires admin-supplied KYC data and images.
+              Use this when async BridgeCard card holder creation fails. Requires admin-supplied KYC data and images.
             </div>
             <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
               Sync call can take up to 45 seconds. Provider rate-limits retries to once per minute.
@@ -3084,7 +3110,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             onClick={openCardholderSync}
             disabled={resolvedAccountId === null || resolvedAccountId === undefined}
           >
-            Create cardholder (sync)
+            Create/Retry BridgeCard card holder
           </button>
         </div>
       </div>
@@ -4957,7 +4983,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       )}
 
       {showCardholderSync && (
-        <Modal title="Create cardholder (sync)" onClose={() => (!cardholderSaving ? setShowCardholderSync(false) : null)}>
+        <Modal title="Create/Retry BridgeCard card holder" onClose={() => (!cardholderSaving ? setShowCardholderSync(false) : null)}>
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
               Account ID: <span style={{ fontWeight: 700 }}>{resolvedAccountId ?? '—'}</span>
@@ -5148,7 +5174,12 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               <div style={{ border: `1px solid var(--border)`, borderRadius: '12px', padding: '0.65rem' }}>
                 <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Result</div>
                 <div style={{ display: 'grid', gap: '0.3rem', fontSize: '12px', color: 'var(--muted)' }}>
-                  <div>External reference: {cardholderResult?.externalReference ?? '—'}</div>
+                  {cardHolderProviderSummary(cardholderResult).map((profile) => (
+                    <div key={profile.provider}>
+                      {profile.provider}: ref {profile.reference} • status {profile.status} • verified {profile.verified}
+                    </div>
+                  ))}
+                  <div>Legacy/common reference: {cardholderResult?.externalReference ?? '—'}</div>
                   <div>Internal reference: {cardholderResult?.internalReference ?? cardholderResult?.id ?? '—'}</div>
                 </div>
               </div>
@@ -5159,7 +5190,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                 Cancel
               </button>
               <button type="button" className="btn-primary" onClick={submitCardholderSync} disabled={cardholderSaving}>
-                {cardholderSaving ? 'Creating…' : 'Create cardholder'}
+                {cardholderSaving ? 'Creating…' : 'Create/Retry BridgeCard card holder'}
               </button>
             </div>
           </div>
