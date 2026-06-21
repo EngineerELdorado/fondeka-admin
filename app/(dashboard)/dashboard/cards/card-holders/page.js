@@ -108,7 +108,7 @@ const buildProviderProfileRows = (holder) => {
   });
 };
 
-const ProviderProfilesPanel = ({ holder }) => {
+const ProviderProfilesPanel = ({ holder, canReset = false, onResetProvider, resetLoading = false }) => {
   const profileRows = buildProviderProfileRows(holder);
 
   return (
@@ -126,9 +126,21 @@ const ProviderProfilesPanel = ({ holder }) => {
           <div key={profile.id || `${profile.provider}-${profile.cardProviderId}`} style={{ border: `1px solid var(--border)`, borderRadius: '12px', padding: '0.75rem', display: 'grid', gap: '0.45rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', alignItems: 'center' }}>
               <div style={{ fontWeight: 800 }}>{profile.provider}</div>
-              <span style={{ fontSize: '12px', color: '#15803d', fontWeight: 700 }}>
-                Profile found
-              </span>
+              <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                <span style={{ fontSize: '12px', color: '#15803d', fontWeight: 700 }}>
+                  Profile found
+                </span>
+                {canReset && profile.cardProviderId !== null && profile.cardProviderId !== undefined && (
+                  <button
+                    type="button"
+                    className="btn-danger btn-sm"
+                    onClick={() => onResetProvider(profile)}
+                    disabled={resetLoading}
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
             </div>
             <div style={{ display: 'grid', gap: '0.25rem', fontSize: '12px', color: 'var(--muted)' }}>
               <div>Provider ID: <span style={{ color: 'var(--text)', fontWeight: 700 }}>{providerValue(profile.cardProviderId)}</span></div>
@@ -165,6 +177,24 @@ const providerProfilesSummary = (holder) => {
     .join(', ');
 };
 
+const mappingOptionLabel = (mapping) => {
+  const product =
+    mapping?.cardBrandName ||
+    mapping?.cardProductName ||
+    mapping?.productName ||
+    mapping?.cardProduct?.cardBrandName ||
+    mapping?.cardProduct?.name ||
+    `Product #${mapping?.cardProductId ?? '—'}`;
+  const provider =
+    mapping?.cardProviderName ||
+    mapping?.providerName ||
+    mapping?.cardProvider?.cardProviderName ||
+    mapping?.cardProvider?.name ||
+    `Provider #${mapping?.cardProviderId ?? '—'}`;
+  const currency = mapping?.currency ? ` • ${mapping.currency}` : '';
+  return `${product} → ${provider}${currency} (#${mapping?.id ?? '—'})`;
+};
+
 export default function CardHoldersPage() {
   const { session } = useAuth();
   const [rows, setRows] = useState([]);
@@ -180,7 +210,7 @@ export default function CardHoldersPage() {
   const [draft, setDraft] = useState(emptyState);
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
-  const [confirmReset, setConfirmReset] = useState(null);
+  const [confirmProviderReset, setConfirmProviderReset] = useState(null);
   const [resetLoading, setResetLoading] = useState(false);
   const [showReconcile, setShowReconcile] = useState(false);
   const [showIssue, setShowIssue] = useState(false);
@@ -361,18 +391,21 @@ export default function CardHoldersPage() {
     }
   };
 
-  const handleReset = async () => {
-    if (!confirmReset?.id) return;
-    const id = confirmReset.id;
+  const handleProviderReset = async () => {
+    if (!selected?.id || confirmProviderReset?.cardProviderId === null || confirmProviderReset?.cardProviderId === undefined) return;
+    const holderId = selected.id;
+    const providerId = confirmProviderReset.cardProviderId;
     setError(null);
     setInfo(null);
     setResetLoading(true);
     try {
-      const res = await api.cardHolders.reset(id);
-      setSelected(res || null);
-      setRows((prev) => prev.map((row) => (row.id === id ? res : row)));
-      setInfo(`Reset card holder ${id}.`);
-      setConfirmReset(null);
+      const res = await api.cardHolders.resetProvider(holderId, providerId);
+      if (res) {
+        setSelected(res);
+        setRows((prev) => prev.map((row) => (row.id === holderId ? res : row)));
+      }
+      setInfo(`Reset ${confirmProviderReset.provider || `provider ${providerId}`} profile for card holder ${holderId}.`);
+      setConfirmProviderReset(null);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -621,7 +654,12 @@ export default function CardHoldersPage() {
               { label: 'Metadata', value: selected?.metaData }
             ]}
           />
-          <ProviderProfilesPanel holder={selected} />
+          <ProviderProfilesPanel
+            holder={selected}
+            canReset={isSuperAdmin}
+            onResetProvider={setConfirmProviderReset}
+            resetLoading={resetLoading}
+          />
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.75rem' }}>
             <button type="button" onClick={() => openIssue(selected)} className="btn-success">
               Issue card
@@ -629,11 +667,6 @@ export default function CardHoldersPage() {
             <button type="button" onClick={() => openReconcile(selected)} className="btn-primary">
               Reconcile card
             </button>
-            {isSuperAdmin && (
-              <button type="button" onClick={() => setConfirmReset(selected)} className="btn-danger">
-                Reset card holder
-              </button>
-            )}
           </div>
         </Modal>
       )}
@@ -709,7 +742,7 @@ export default function CardHoldersPage() {
                 <option value="">{mappingLoading ? 'Loading mappings…' : 'Select mapping'}</option>
                 {mappingOptions.map((mapping) => (
                   <option key={mapping.id} value={mapping.id}>
-                    #{mapping.id} • product {mapping.cardProductId} • provider {mapping.cardProviderId}
+                    {mappingOptionLabel(mapping)}
                   </option>
                 ))}
               </select>
@@ -786,7 +819,7 @@ export default function CardHoldersPage() {
                 <option value="">{mappingLoading ? 'Loading mappings…' : 'Select mapping'}</option>
                 {mappingOptions.map((mapping) => (
                   <option key={mapping.id} value={mapping.id}>
-                    #{mapping.id} • product {mapping.cardProductId} • provider {mapping.cardProviderId}
+                    {mappingOptionLabel(mapping)}
                   </option>
                 ))}
               </select>
@@ -852,17 +885,21 @@ export default function CardHoldersPage() {
         </Modal>
       )}
 
-      {confirmReset && (
-        <Modal title="Reset card holder" onClose={() => setConfirmReset(null)}>
+      {confirmProviderReset && (
+        <Modal title={`Reset ${confirmProviderReset.provider || 'provider'} profile`} onClose={() => (!resetLoading ? setConfirmProviderReset(null) : null)}>
           <div style={{ color: 'var(--muted)' }}>
-            This will unset local verification and the legacy BridgeCard reference. Provider-specific profiles are managed separately. Continue?
+            Reset only the {confirmProviderReset.provider || `provider ${confirmProviderReset.cardProviderId}`} profile for card holder <strong>{selected?.internalReference || selected?.id}</strong>?
+            {' '}This clears the provider reference, verification, status, linked transaction, and metadata.
+            {normalizeProviderName(confirmProviderReset.provider) === 'BRIDGECARD'
+              ? ' BridgeCard also clears the legacy holder reference and verified fields.'
+              : ''}
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-            <button type="button" onClick={() => setConfirmReset(null)} className="btn-neutral" disabled={resetLoading}>
+            <button type="button" onClick={() => setConfirmProviderReset(null)} className="btn-neutral" disabled={resetLoading}>
               Cancel
             </button>
-            <button type="button" onClick={handleReset} className="btn-danger" disabled={resetLoading}>
-              {resetLoading ? 'Resetting…' : 'Reset card holder'}
+            <button type="button" onClick={handleProviderReset} className="btn-danger" disabled={resetLoading}>
+              {resetLoading ? 'Resetting…' : 'Reset provider profile'}
             </button>
           </div>
         </Modal>

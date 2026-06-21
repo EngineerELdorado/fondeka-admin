@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
@@ -9,6 +9,16 @@ const emptyState = {
   cardProductId: '',
   cardProviderId: '',
   cardProgramId: '',
+  label: '',
+  backgroundImageUrl: '',
+  description: '',
+  bestForCodes: [],
+  customBestForText: '',
+  functionalityCodes: [],
+  customFunctionalitiesText: '',
+  popularPlatforms: [],
+  capabilitiesMap: {},
+  capabilitiesExtra: [],
   currency: '',
   purchaseCost: '',
   price: '',
@@ -39,39 +49,113 @@ const emptyState = {
   active: true
 };
 
-const toPayload = (state) => ({
-  cardProductId: Number(state.cardProductId) || 0,
-  cardProviderId: Number(state.cardProviderId) || 0,
-  cardProgramId: state.cardProgramId?.trim() ? state.cardProgramId.trim() : null,
-  currency: state.currency,
-  purchaseCost: state.purchaseCost === '' ? null : Number(state.purchaseCost),
-  price: state.price === '' ? null : Number(state.price),
-  monthlyMaintenanceCost: state.monthlyMaintenanceCost === '' ? null : Number(state.monthlyMaintenanceCost),
-  verificationCost: state.verificationCost === '' ? 0 : Number(state.verificationCost),
-  unloadFee: state.unloadFee === '' ? null : Number(state.unloadFee),
-  transactionFeePercentage: state.transactionFeePercentage === '' ? null : Number(state.transactionFeePercentage),
-  interchangeFeePercentage: state.interchangeFeePercentage === '' ? null : Number(state.interchangeFeePercentage),
-  minInterchangeFeeAmount: state.minInterchangeFeeAmount === '' ? null : Number(state.minInterchangeFeeAmount),
-  maxInterchangeFeeAmount: state.maxInterchangeFeeAmount === '' ? null : Number(state.maxInterchangeFeeAmount),
-  providerTransactionFeePercentage: state.providerTransactionFeePercentage === '' ? null : Number(state.providerTransactionFeePercentage),
-  minProviderTransactionFeeAmount: state.minProviderTransactionFeeAmount === '' ? null : Number(state.minProviderTransactionFeeAmount),
-  maxProviderTransactionFeeAmount: state.maxProviderTransactionFeeAmount === '' ? null : Number(state.maxProviderTransactionFeeAmount),
-  fundCardFeePercentage: state.fundCardFeePercentage === '' ? null : Number(state.fundCardFeePercentage),
-  minFundCardFeeAmount: state.minFundCardFeeAmount === '' ? null : Number(state.minFundCardFeeAmount),
-  withdrawFromCardFeePercentage: state.withdrawFromCardFeePercentage === '' ? null : Number(state.withdrawFromCardFeePercentage),
-  minWithdrawFromCardFeeAmount: state.minWithdrawFromCardFeeAmount === '' ? null : Number(state.minWithdrawFromCardFeeAmount),
-  onlineTransactionFeePercentage: state.onlineTransactionFeePercentage === '' ? null : Number(state.onlineTransactionFeePercentage),
-  minOnlineTransactionFeeAmount: state.minOnlineTransactionFeeAmount === '' ? null : Number(state.minOnlineTransactionFeeAmount),
-  rank: state.rank === '' ? null : Number(state.rank),
-  maxDailyLimit: state.maxDailyLimit === '' ? null : Number(state.maxDailyLimit),
-  minFirstTopup: state.minFirstTopup === '' ? null : Number(state.minFirstTopup),
-  minTransactionFeeAmount: state.minTransactionFeeAmount === '' ? null : Number(state.minTransactionFeeAmount),
-  validityLength: state.validityLength === '' ? null : Number(state.validityLength),
-  validityType: state.validityType || null,
-  notesEn: state.notesEn?.trim() ? state.notesEn.trim() : null,
-  notesFr: state.notesFr?.trim() ? state.notesFr.trim() : null,
-  active: Boolean(state.active)
-});
+const normalizePlatformRows = (platforms) => {
+  if (!Array.isArray(platforms)) return [];
+  return platforms.map((platform) => ({
+    code: String(platform?.code || '').trim(),
+    icon: String(platform?.icon || '').trim(),
+    name: String(platform?.name || '').trim()
+  }));
+};
+
+const normalizeCodeText = (value) =>
+  String(value || '')
+    .split(/[\n,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+const uniqueCodes = (values) => [...new Set((Array.isArray(values) ? values : []).map((item) => String(item || '').trim()).filter(Boolean))];
+
+const mergeCodeSelections = (selected, customText) => uniqueCodes([...(Array.isArray(selected) ? selected : []), ...normalizeCodeText(customText)]);
+
+const normalizeCapabilityExtras = (capabilities, defaultCapabilityCodes = new Set()) => {
+  if (!capabilities || typeof capabilities !== 'object' || Array.isArray(capabilities)) return [];
+  return Object.entries(capabilities)
+    .filter(([key]) => !defaultCapabilityCodes.has(key))
+    .map(([key, value]) => ({
+      key,
+      value: value === null || value === undefined ? '' : String(value)
+    }));
+};
+
+const normalizeCapabilityMap = (capabilities, defaultCapabilityCodes = new Set()) => {
+  if (!capabilities || typeof capabilities !== 'object' || Array.isArray(capabilities)) return {};
+  return Object.entries(capabilities).reduce((acc, [key, value]) => {
+    if (!defaultCapabilityCodes.has(key)) return acc;
+    if (value === true) acc[key] = 'true';
+    if (value === false) acc[key] = 'false';
+    return acc;
+  }, {});
+};
+
+const parseCapabilityValue = (value) => {
+  const text = String(value || '').trim();
+  if (text.toLowerCase() === 'true') return true;
+  if (text.toLowerCase() === 'false') return false;
+  if (text && Number.isFinite(Number(text))) return Number(text);
+  return text;
+};
+
+const toPayload = (state) => {
+  const popularPlatforms = normalizePlatformRows(state.popularPlatforms).filter((platform) => platform.code || platform.icon || platform.name);
+  const invalidPlatform = popularPlatforms.find((platform) => !platform.code && (!platform.icon || !platform.name));
+  if (invalidPlatform) {
+    throw new Error('Each custom popular platform needs both an icon and a name.');
+  }
+  const bestFor = mergeCodeSelections(state.bestForCodes, state.customBestForText);
+  const functionalities = mergeCodeSelections(state.functionalityCodes, state.customFunctionalitiesText);
+  const capabilities = {};
+  Object.entries(state.capabilitiesMap || {}).forEach(([key, value]) => {
+    if (value === 'true') capabilities[key] = true;
+    if (value === 'false') capabilities[key] = false;
+  });
+  (Array.isArray(state.capabilitiesExtra) ? state.capabilitiesExtra : []).forEach((item) => {
+    const key = String(item?.key || '').trim();
+    if (!key) return;
+    capabilities[key] = parseCapabilityValue(item?.value);
+  });
+
+  return {
+    cardProductId: Number(state.cardProductId) || 0,
+    cardProviderId: Number(state.cardProviderId) || 0,
+    cardProgramId: state.cardProgramId?.trim() ? state.cardProgramId.trim() : null,
+    label: state.label?.trim() ? state.label.trim() : null,
+    backgroundImageUrl: state.backgroundImageUrl?.trim() ? state.backgroundImageUrl.trim() : null,
+    description: state.description?.trim() ? state.description.trim() : null,
+    bestFor: bestFor.length ? bestFor : null,
+    functionalities: functionalities.length ? functionalities : null,
+    popularPlatforms: popularPlatforms.length ? popularPlatforms : null,
+    capabilities: Object.keys(capabilities).length ? capabilities : null,
+    currency: state.currency,
+    purchaseCost: state.purchaseCost === '' ? null : Number(state.purchaseCost),
+    price: state.price === '' ? null : Number(state.price),
+    monthlyMaintenanceCost: state.monthlyMaintenanceCost === '' ? null : Number(state.monthlyMaintenanceCost),
+    verificationCost: state.verificationCost === '' ? 0 : Number(state.verificationCost),
+    unloadFee: state.unloadFee === '' ? null : Number(state.unloadFee),
+    transactionFeePercentage: state.transactionFeePercentage === '' ? null : Number(state.transactionFeePercentage),
+    interchangeFeePercentage: state.interchangeFeePercentage === '' ? null : Number(state.interchangeFeePercentage),
+    minInterchangeFeeAmount: state.minInterchangeFeeAmount === '' ? null : Number(state.minInterchangeFeeAmount),
+    maxInterchangeFeeAmount: state.maxInterchangeFeeAmount === '' ? null : Number(state.maxInterchangeFeeAmount),
+    providerTransactionFeePercentage: state.providerTransactionFeePercentage === '' ? null : Number(state.providerTransactionFeePercentage),
+    minProviderTransactionFeeAmount: state.minProviderTransactionFeeAmount === '' ? null : Number(state.minProviderTransactionFeeAmount),
+    maxProviderTransactionFeeAmount: state.maxProviderTransactionFeeAmount === '' ? null : Number(state.maxProviderTransactionFeeAmount),
+    fundCardFeePercentage: state.fundCardFeePercentage === '' ? null : Number(state.fundCardFeePercentage),
+    minFundCardFeeAmount: state.minFundCardFeeAmount === '' ? null : Number(state.minFundCardFeeAmount),
+    withdrawFromCardFeePercentage: state.withdrawFromCardFeePercentage === '' ? null : Number(state.withdrawFromCardFeePercentage),
+    minWithdrawFromCardFeeAmount: state.minWithdrawFromCardFeeAmount === '' ? null : Number(state.minWithdrawFromCardFeeAmount),
+    onlineTransactionFeePercentage: state.onlineTransactionFeePercentage === '' ? null : Number(state.onlineTransactionFeePercentage),
+    minOnlineTransactionFeeAmount: state.minOnlineTransactionFeeAmount === '' ? null : Number(state.minOnlineTransactionFeeAmount),
+    rank: state.rank === '' ? null : Number(state.rank),
+    maxDailyLimit: state.maxDailyLimit === '' ? null : Number(state.maxDailyLimit),
+    minFirstTopup: state.minFirstTopup === '' ? null : Number(state.minFirstTopup),
+    minTransactionFeeAmount: state.minTransactionFeeAmount === '' ? null : Number(state.minTransactionFeeAmount),
+    validityLength: state.validityLength === '' ? null : Number(state.validityLength),
+    validityType: state.validityType || null,
+    notesEn: state.notesEn?.trim() ? state.notesEn.trim() : null,
+    notesFr: state.notesFr?.trim() ? state.notesFr.trim() : null,
+    active: Boolean(state.active)
+  };
+};
 
 const hasConfiguredValue = (value) => value !== null && value !== undefined && value !== '';
 
@@ -111,6 +195,16 @@ const renderOperationFeeSummary = (row) => {
   );
 };
 
+const formatCodeList = (codes) => {
+  if (!Array.isArray(codes) || codes.length === 0) return '—';
+  return codes.join(', ');
+};
+
+const formatJson = (value) => {
+  if (!value) return '—';
+  return JSON.stringify(value, null, 2);
+};
+
 const Modal = ({ title, onClose, children }) => (
   <div className="modal-backdrop">
     <div className="modal-surface">
@@ -128,7 +222,7 @@ const DetailGrid = ({ rows }) => (
     {rows.map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
-        <div style={{ fontWeight: 700 }}>{row.value ?? '—'}</div>
+        <div style={{ fontWeight: 700, wordBreak: 'break-word' }}>{row.value ?? '—'}</div>
       </div>
     ))}
   </div>
@@ -143,12 +237,16 @@ export default function CardProductProvidersPage() {
   const [info, setInfo] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  const [showMetadata, setShowMetadata] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const [draft, setDraft] = useState(emptyState);
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [cardProducts, setCardProducts] = useState([]);
   const [cardProviders, setCardProviders] = useState([]);
+  const [metadataDefaults, setMetadataDefaults] = useState(null);
+  const [metadataImportRows, setMetadataImportRows] = useState([]);
+  const [platformDefaultToAdd, setPlatformDefaultToAdd] = useState('');
 
   const fetchRows = async () => {
     setLoading(true);
@@ -174,13 +272,17 @@ export default function CardProductProvidersPage() {
   useEffect(() => {
     const loadOptions = async () => {
       try {
-        const [productsRes, providersRes] = await Promise.all([
+        const [productsRes, providersRes, metadataRes, mappingsRes] = await Promise.all([
           api.cardProducts.list(new URLSearchParams({ page: '0', size: '200' })),
-          api.cardProviders.list(new URLSearchParams({ page: '0', size: '200' }))
+          api.cardProviders.list(new URLSearchParams({ page: '0', size: '200' })),
+          api.cardProductCardProviders.metadataDefaults(),
+          api.cardProductCardProviders.list(new URLSearchParams({ page: '0', size: '500' }))
         ]);
         const toList = (res) => (Array.isArray(res) ? res : res?.content || []);
         setCardProducts(toList(productsRes));
         setCardProviders(toList(providersRes));
+        setMetadataDefaults(metadataRes);
+        setMetadataImportRows(toList(mappingsRes));
       } catch {
         // ignore option fetch errors
       }
@@ -190,8 +292,7 @@ export default function CardProductProvidersPage() {
 
   const fmtAmount = (row, key) => formatAmount(row, key);
 
-  const columns = useMemo(
-    () => [
+  const columns = [
       { key: 'id', label: 'ID' },
       { key: 'cardBrandName', label: 'Product' },
       { key: 'cardProviderName', label: 'Provider' },
@@ -201,89 +302,19 @@ export default function CardProductProvidersPage() {
         render: (row) => row.cardProgramId || '—'
       },
       {
+        key: 'label',
+        label: 'Label',
+        render: (row) => row.label || '—'
+      },
+      {
+        key: 'backgroundImageUrl',
+        label: 'Background',
+        render: (row) => (row.backgroundImageUrl ? 'Set' : '—')
+      },
+      {
         key: 'price',
         label: 'Price',
         render: (row) => fmtAmount(row, 'price')
-      },
-      {
-        key: 'purchaseCost',
-        label: 'Cost',
-        render: (row) => fmtAmount(row, 'purchaseCost')
-      },
-      {
-        key: 'maxDailyLimit',
-        label: 'Max daily limit',
-        render: (row) => fmtAmount(row, 'maxDailyLimit')
-      },
-      {
-        key: 'verificationCost',
-        label: 'Verification cost (USD)',
-        render: (row) => (row.verificationCost === null || row.verificationCost === undefined ? '—' : row.verificationCost)
-      },
-      {
-        key: 'unloadFee',
-        label: 'Unload fee (USD)',
-        render: (row) => (row.unloadFee === null || row.unloadFee === undefined ? '—' : row.unloadFee)
-      },
-      {
-        key: 'minFirstTopup',
-        label: 'Min first top-up',
-        render: (row) => fmtAmount(row, 'minFirstTopup')
-      },
-      {
-        key: 'minTransactionFeeAmount',
-        label: 'Min txn fee',
-        render: (row) => fmtAmount(row, 'minTransactionFeeAmount')
-      },
-      {
-        key: 'transactionFeePercentage',
-        label: 'Txn fee %',
-        render: (row) =>
-          row.transactionFeePercentage === null || row.transactionFeePercentage === undefined ? '—' : row.transactionFeePercentage
-      },
-      {
-        key: 'interchangeFeePercentage',
-        label: 'Interchange %',
-        render: (row) =>
-          row.interchangeFeePercentage === null || row.interchangeFeePercentage === undefined ? '—' : row.interchangeFeePercentage
-      },
-      {
-        key: 'interchangeBounds',
-        label: 'Interchange min/max (USD)',
-        render: (row) => {
-          const min = row.minInterchangeFeeAmount;
-          const max = row.maxInterchangeFeeAmount;
-          if ((min === null || min === undefined || min === '') && (max === null || max === undefined || max === '')) return '—';
-          const minLabel = min === null || min === undefined || min === '' ? '—' : min;
-          const maxLabel = max === null || max === undefined || max === '' ? '—' : max;
-          return `${minLabel} / ${maxLabel}`;
-        }
-      },
-      {
-        key: 'providerFeeFallback',
-        label: 'Provider fee fallback',
-        render: (row) => {
-          const percentage = row.providerTransactionFeePercentage;
-          const min = row.minProviderTransactionFeeAmount;
-          const max = row.maxProviderTransactionFeeAmount;
-          if (
-            (percentage === null || percentage === undefined || percentage === '') &&
-            (min === null || min === undefined || min === '') &&
-            (max === null || max === undefined || max === '')
-          ) {
-            return '—';
-          }
-          const parts = [];
-          if (percentage !== null && percentage !== undefined && percentage !== '') parts.push(`${percentage}%`);
-          if (min !== null && min !== undefined && min !== '') parts.push(`min ${min}`);
-          if (max !== null && max !== undefined && max !== '') parts.push(`max ${max}`);
-          return parts.join(' | ');
-        }
-      },
-      {
-        key: 'manualOperationFees',
-        label: 'App display fees',
-        render: renderOperationFeeSummary
       },
       {
         key: 'rank',
@@ -291,24 +322,9 @@ export default function CardProductProvidersPage() {
         render: (row) => (row.rank === null || row.rank === undefined ? '—' : row.rank)
       },
       {
-        key: 'duration',
-        label: 'Duration',
-        render: (row) =>
-          row.validityLength && row.validityType ? `${row.validityLength} ${row.validityType}` : '—'
-      },
-      {
         key: 'active',
         label: 'Active',
         render: (row) => (row.active === null || row.active === undefined ? '—' : String(row.active))
-      },
-      {
-        key: 'notesEn',
-        label: 'Notes (EN)',
-        render: (row) => {
-          const text = String(row.notesEn || '').trim();
-          if (!text) return '—';
-          return text.length > 80 ? `${text.slice(0, 80)}…` : text;
-        }
       },
       {
         key: 'actions',
@@ -317,27 +333,42 @@ export default function CardProductProvidersPage() {
           <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
             <button type="button" onClick={() => openDetail(row)} className="btn-neutral">View</button>
             <button type="button" onClick={() => openEdit(row)} className="btn-neutral">Edit</button>
+            <button type="button" onClick={() => openMetadata(row)} className="btn-neutral">Metadata</button>
             <button type="button" onClick={() => setConfirmDelete(row)} className="btn-danger">Delete</button>
           </div>
         )
       }
-    ],
-    []
-  );
+    ];
 
   const openCreate = () => {
     setDraft(emptyState);
+    setPlatformDefaultToAdd('');
     setShowCreate(true);
     setInfo(null);
     setError(null);
   };
 
-  const openEdit = (row) => {
-    setSelected(row);
-    setDraft({
+  const draftFromRow = (row) => {
+    const defaultBestForCodes = new Set((metadataDefaults?.bestFor || []).map((option) => option.code).filter(Boolean));
+    const bestForCodes = Array.isArray(row.bestFor) ? row.bestFor.map((code) => String(code || '').trim()).filter(Boolean) : [];
+    const defaultFunctionalityCodes = new Set((metadataDefaults?.functionalities || []).map((option) => option.code).filter(Boolean));
+    const functionalityCodes = Array.isArray(row.functionalities) ? row.functionalities.map((code) => String(code || '').trim()).filter(Boolean) : [];
+    const defaultCapabilityCodes = new Set((metadataDefaults?.capabilities || []).map((option) => option.code).filter(Boolean));
+
+    return {
       cardProductId: row.cardProductId ?? '',
       cardProviderId: row.cardProviderId ?? '',
       cardProgramId: row.cardProgramId ?? '',
+      label: row.label ?? '',
+      backgroundImageUrl: row.backgroundImageUrl ?? '',
+      description: row.description ?? '',
+      bestForCodes: bestForCodes.filter((code) => defaultBestForCodes.has(code)),
+      customBestForText: bestForCodes.filter((code) => !defaultBestForCodes.has(code)).join('\n'),
+      functionalityCodes: functionalityCodes.filter((code) => defaultFunctionalityCodes.has(code)),
+      customFunctionalitiesText: functionalityCodes.filter((code) => !defaultFunctionalityCodes.has(code)).join('\n'),
+      popularPlatforms: normalizePlatformRows(row.popularPlatforms),
+      capabilitiesMap: normalizeCapabilityMap(row.capabilities, defaultCapabilityCodes),
+      capabilitiesExtra: normalizeCapabilityExtras(row.capabilities, defaultCapabilityCodes),
       currency: row.currency ?? '',
       purchaseCost: row.purchaseCost ?? '',
       price: row.price ?? '',
@@ -366,8 +397,23 @@ export default function CardProductProvidersPage() {
       notesEn: row.notesEn ?? '',
       notesFr: row.notesFr ?? '',
       active: Boolean(row.active)
-    });
+    };
+  };
+
+  const openEdit = (row) => {
+    setSelected(row);
+    setDraft(draftFromRow(row));
     setShowEdit(true);
+    setPlatformDefaultToAdd('');
+    setInfo(null);
+    setError(null);
+  };
+
+  const openMetadata = (row) => {
+    setSelected(row);
+    setDraft(draftFromRow(row));
+    setShowMetadata(true);
+    setPlatformDefaultToAdd('');
     setInfo(null);
     setError(null);
   };
@@ -377,6 +423,120 @@ export default function CardProductProvidersPage() {
     setShowDetail(true);
     setInfo(null);
     setError(null);
+  };
+
+  const updatePlatform = (index, key, value) => {
+    setDraft((prev) => ({
+      ...prev,
+      popularPlatforms: (prev.popularPlatforms || []).map((platform, idx) => {
+        if (idx !== index) return platform;
+        const next = { ...platform, [key]: value };
+        if (key === 'code') {
+          const match = (metadataDefaults?.platforms || []).find((option) => option.code === value);
+          if (match) {
+            next.icon = match.icon || next.icon;
+            next.name = match.label || next.name;
+          }
+        }
+        return next;
+      })
+    }));
+  };
+
+  const addPlatform = () => {
+    setDraft((prev) => ({
+      ...prev,
+      popularPlatforms: [...(prev.popularPlatforms || []), { code: '', icon: '', name: '' }]
+    }));
+  };
+
+  const addPlatformDefault = () => {
+    const match = (metadataDefaults?.platforms || []).find((platform) => platform.code === platformDefaultToAdd);
+    if (!match) return;
+    setDraft((prev) => ({
+      ...prev,
+      popularPlatforms: [
+        ...(prev.popularPlatforms || []),
+        {
+          code: match.code || '',
+          icon: match.icon || '',
+          name: match.label || match.name || match.code || ''
+        }
+      ]
+    }));
+    setPlatformDefaultToAdd('');
+  };
+
+  const removePlatform = (index) => {
+    setDraft((prev) => ({
+      ...prev,
+      popularPlatforms: (prev.popularPlatforms || []).filter((_, idx) => idx !== index)
+    }));
+  };
+
+  const toggleCodeSelection = (field, code, checked) => {
+    setDraft((prev) => {
+      const current = Array.isArray(prev[field]) ? prev[field] : [];
+      return {
+        ...prev,
+        [field]: checked ? uniqueCodes([...current, code]) : current.filter((item) => item !== code)
+      };
+    });
+  };
+
+  const updateCapabilityDefault = (code, value) => {
+    setDraft((prev) => ({
+      ...prev,
+      capabilitiesMap: {
+        ...(prev.capabilitiesMap || {}),
+        [code]: value
+      }
+    }));
+  };
+
+  const updateCapabilityExtra = (index, key, value) => {
+    setDraft((prev) => ({
+      ...prev,
+      capabilitiesExtra: (prev.capabilitiesExtra || []).map((item, idx) => (idx === index ? { ...item, [key]: value } : item))
+    }));
+  };
+
+  const addCapabilityExtra = () => {
+    setDraft((prev) => ({
+      ...prev,
+      capabilitiesExtra: [...(prev.capabilitiesExtra || []), { key: '', value: '' }]
+    }));
+  };
+
+  const removeCapabilityExtra = (index) => {
+    setDraft((prev) => ({
+      ...prev,
+      capabilitiesExtra: (prev.capabilitiesExtra || []).filter((_, idx) => idx !== index)
+    }));
+  };
+
+  const importMetadataFromRow = (sourceId) => {
+    const sourceRows = metadataImportRows.length ? metadataImportRows : rows;
+    const source = sourceRows.find((row) => String(row.id) === String(sourceId));
+    if (!source) return;
+
+    const defaultBestForCodes = new Set((metadataDefaults?.bestFor || []).map((option) => option.code).filter(Boolean));
+    const bestForCodes = Array.isArray(source.bestFor) ? source.bestFor.map((code) => String(code || '').trim()).filter(Boolean) : [];
+    const defaultFunctionalityCodes = new Set((metadataDefaults?.functionalities || []).map((option) => option.code).filter(Boolean));
+    const functionalityCodes = Array.isArray(source.functionalities) ? source.functionalities.map((code) => String(code || '').trim()).filter(Boolean) : [];
+    const defaultCapabilityCodes = new Set((metadataDefaults?.capabilities || []).map((option) => option.code).filter(Boolean));
+
+    setDraft((prev) => ({
+      ...prev,
+      description: source.description ?? '',
+      bestForCodes: bestForCodes.filter((code) => defaultBestForCodes.has(code)),
+      customBestForText: bestForCodes.filter((code) => !defaultBestForCodes.has(code)).join('\n'),
+      functionalityCodes: functionalityCodes.filter((code) => defaultFunctionalityCodes.has(code)),
+      customFunctionalitiesText: functionalityCodes.filter((code) => !defaultFunctionalityCodes.has(code)).join('\n'),
+      popularPlatforms: normalizePlatformRows(source.popularPlatforms),
+      capabilitiesMap: normalizeCapabilityMap(source.capabilities, defaultCapabilityCodes),
+      capabilitiesExtra: normalizeCapabilityExtras(source.capabilities, defaultCapabilityCodes)
+    }));
   };
 
   const handleCreate = async () => {
@@ -406,6 +566,20 @@ export default function CardProductProvidersPage() {
     }
   };
 
+  const handleMetadataUpdate = async () => {
+    if (!selected?.id) return;
+    setError(null);
+    setInfo(null);
+    try {
+      await api.cardProductCardProviders.update(selected.id, toPayload(draft));
+      setInfo(`Updated metadata for mapping ${selected.id}.`);
+      setShowMetadata(false);
+      fetchRows();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   const handleDelete = async () => {
     if (!confirmDelete?.id) return;
     const id = confirmDelete.id;
@@ -419,6 +593,239 @@ export default function CardProductProvidersPage() {
     } catch (err) {
       setError(err.message);
     }
+  };
+
+  const renderMetadataForm = () => {
+    const importSourceRows = metadataImportRows.length ? metadataImportRows : rows;
+    const renderCodeSelector = ({ title, options, field, customField, customPlaceholder }) => (
+      <div style={{ display: 'grid', gap: '0.45rem' }}>
+        <div style={{ fontWeight: 700 }}>{title}</div>
+        {(options || []).length > 0 ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.4rem' }}>
+            {options.map((option) => (
+              <label
+                key={option.code}
+                style={{
+                  display: 'flex',
+                  gap: '0.45rem',
+                  alignItems: 'flex-start',
+                  border: '1px solid var(--border)',
+                  borderRadius: '8px',
+                  padding: '0.45rem'
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={(draft[field] || []).includes(option.code)}
+                  onChange={(e) => toggleCodeSelection(field, option.code, e.target.checked)}
+                />
+                <span style={{ display: 'grid', gap: '0.15rem' }}>
+                  <span style={{ fontWeight: 700 }}>{option.label || option.code}</span>
+                  <span style={{ color: 'var(--muted)', fontSize: '12px', wordBreak: 'break-word' }}>{option.code}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        ) : (
+          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Defaults are not available yet. Custom values can still be submitted.</div>
+        )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <label htmlFor={customField}>Custom {title.toLowerCase()}</label>
+          <textarea
+            id={customField}
+            rows={3}
+            value={draft[customField]}
+            onChange={(e) => setDraft((p) => ({ ...p, [customField]: e.target.value }))}
+            placeholder={customPlaceholder}
+          />
+          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Use one custom code per line, or separate values with commas.</div>
+        </div>
+      </div>
+    );
+
+    return (
+    <div style={{ display: 'grid', gap: '0.85rem' }}>
+      <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="description">Best for description</label>
+        <textarea
+          id="description"
+          rows={3}
+          value={draft.description}
+          onChange={(e) => setDraft((p) => ({ ...p, description: e.target.value }))}
+          placeholder="Best for streaming subscriptions, online shopping, and travel bookings."
+        />
+      </div>
+      <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="metadataImport">Import metadata from another mapping</label>
+        <select id="metadataImport" value="" onChange={(e) => importMetadataFromRow(e.target.value)}>
+          <option value="">Select mapping to copy from</option>
+          {importSourceRows
+            .filter((row) => !selected?.id || row.id !== selected.id)
+            .map((row) => (
+              <option key={row.id} value={row.id}>
+                #{row.id} {row.cardBrandName || 'Product'} / {row.cardProviderName || 'Provider'} {row.label ? `(${row.label})` : ''}
+              </option>
+            ))}
+        </select>
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          Copies description, best-for codes, functionality codes, platforms, and capabilities only.
+        </div>
+      </div>
+      <div style={{ gridColumn: '1 / -1', display: 'grid', gap: '0.9rem' }}>
+        {renderCodeSelector({
+          title: 'Best for',
+          options: metadataDefaults?.bestFor || [],
+          field: 'bestForCodes',
+          customField: 'customBestForText',
+          customPlaceholder: 'CUSTOM_USE_CASE'
+        })}
+        {renderCodeSelector({
+          title: 'Functionalities',
+          options: metadataDefaults?.functionalities || [],
+          field: 'functionalityCodes',
+          customField: 'customFunctionalitiesText',
+          customPlaceholder: 'CUSTOM_FUNCTIONALITY'
+        })}
+      </div>
+      <div style={{ gridColumn: '1 / -1', display: 'grid', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ fontWeight: 700 }}>Popular platforms</div>
+          <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <select value={platformDefaultToAdd} onChange={(e) => setPlatformDefaultToAdd(e.target.value)}>
+              <option value="">Add from defaults</option>
+              {(metadataDefaults?.platforms || []).map((platform) => (
+                <option key={platform.code} value={platform.code}>{platform.label || platform.code}</option>
+              ))}
+            </select>
+            <button type="button" className="btn-neutral btn-sm" onClick={addPlatformDefault} disabled={!platformDefaultToAdd}>
+              Add selected
+            </button>
+            <button type="button" className="btn-neutral btn-sm" onClick={addPlatform}>
+              Add custom
+            </button>
+          </div>
+        </div>
+        {(draft.popularPlatforms || []).length === 0 && (
+          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>No popular platforms configured.</div>
+        )}
+        {(draft.popularPlatforms || []).map((platform, index) => (
+          <div key={index} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr)) auto', gap: '0.5rem', alignItems: 'end' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor={`platformCode-${index}`}>Code</label>
+              <input
+                id={`platformCode-${index}`}
+                value={platform.code}
+                onChange={(e) => updatePlatform(index, 'code', e.target.value)}
+                placeholder="NETFLIX"
+                list="platform-code-defaults"
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor={`platformIcon-${index}`}>Icon</label>
+              <input
+                id={`platformIcon-${index}`}
+                value={platform.icon}
+                onChange={(e) => updatePlatform(index, 'icon', e.target.value)}
+                placeholder="netflix"
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor={`platformName-${index}`}>Name</label>
+              <input
+                id={`platformName-${index}`}
+                value={platform.name}
+                onChange={(e) => updatePlatform(index, 'name', e.target.value)}
+                placeholder="Netflix"
+              />
+            </div>
+            <button type="button" className="btn-danger btn-sm" onClick={() => removePlatform(index)}>
+              Remove
+            </button>
+          </div>
+        ))}
+        <datalist id="platform-code-defaults">
+          {(metadataDefaults?.platforms || []).map((platform) => (
+            <option key={platform.code} value={platform.code}>{platform.label}</option>
+          ))}
+        </datalist>
+      </div>
+      <div style={{ gridColumn: '1 / -1', display: 'grid', gap: '0.65rem' }}>
+        <div style={{ fontWeight: 700 }}>Capabilities</div>
+        {(metadataDefaults?.capabilities || []).length > 0 ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.35rem' }}>
+            {(metadataDefaults?.capabilities || []).map((capability) => (
+              <div
+                key={capability.code}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 82px',
+                  gap: '0.35rem',
+                  alignItems: 'center',
+                  border: '1px solid var(--border)',
+                  borderRadius: '6px',
+                  padding: '0.35rem 0.45rem'
+                }}
+              >
+                <label htmlFor={`capabilityDefault-${capability.code}`} style={{ display: 'grid', gap: '0.15rem' }}>
+                  <span style={{ fontWeight: 700, fontSize: '13px' }}>{capability.label || capability.code}</span>
+                  <span style={{ color: 'var(--muted)', fontSize: '11px', wordBreak: 'break-word' }}>{capability.code}</span>
+                </label>
+                <select
+                  id={`capabilityDefault-${capability.code}`}
+                  value={draft.capabilitiesMap?.[capability.code] || ''}
+                  onChange={(e) => updateCapabilityDefault(capability.code, e.target.value)}
+                  style={{ padding: '0.3rem 0.35rem', fontSize: '12px' }}
+                >
+                  <option value="">Unset</option>
+                  <option value="true">True</option>
+                  <option value="false">False</option>
+                </select>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Capability defaults are not available yet. Custom fields can still be submitted.</div>
+        )}
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Custom capability fields</div>
+          <button type="button" className="btn-neutral btn-sm" onClick={addCapabilityExtra}>
+            Add capability
+          </button>
+        </div>
+        {(draft.capabilitiesExtra || []).map((item, index) => (
+          <div key={index} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr)) auto', gap: '0.5rem', alignItems: 'end' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor={`capabilityKey-${index}`}>Key</label>
+              <input
+                id={`capabilityKey-${index}`}
+                value={item.key}
+                onChange={(e) => updateCapabilityExtra(index, 'key', e.target.value)}
+                placeholder="SUPPORTS_3DS"
+                list="capability-code-defaults"
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor={`capabilityValue-${index}`}>Value</label>
+              <input
+                id={`capabilityValue-${index}`}
+                value={item.value}
+                onChange={(e) => updateCapabilityExtra(index, 'value', e.target.value)}
+                placeholder="true"
+              />
+            </div>
+            <button type="button" className="btn-danger btn-sm" onClick={() => removeCapabilityExtra(index)}>
+              Remove
+            </button>
+          </div>
+        ))}
+        <datalist id="capability-code-defaults">
+          {(metadataDefaults?.capabilities || []).map((capability) => (
+            <option key={capability.code} value={capability.code}>{capability.label}</option>
+          ))}
+        </datalist>
+      </div>
+    </div>
+    );
   };
 
   const renderForm = () => {
@@ -476,6 +883,27 @@ export default function CardProductProvidersPage() {
         )}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="label">Label</label>
+        <input
+          id="label"
+          value={draft.label}
+          onChange={(e) => setDraft((p) => ({ ...p, label: e.target.value }))}
+          placeholder="SIMPLE, PREMIUM, VIP"
+        />
+      </div>
+      <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="backgroundImageUrl">Provider background image URL</label>
+        <input
+          id="backgroundImageUrl"
+          value={draft.backgroundImageUrl}
+          onChange={(e) => setDraft((p) => ({ ...p, backgroundImageUrl: e.target.value }))}
+          placeholder="Optional override for this product/provider mapping"
+        />
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          When set, this image is returned to the client app instead of the card product background image.
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="currency">Currency</label>
         <input id="currency" value={draft.currency} onChange={(e) => setDraft((p) => ({ ...p, currency: e.target.value }))} placeholder="e.g. USD" />
       </div>
@@ -486,15 +914,6 @@ export default function CardProductProvidersPage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="purchaseCost">Purchase cost</label>
         <input id="purchaseCost" type="number" value={draft.purchaseCost} onChange={(e) => setDraft((p) => ({ ...p, purchaseCost: e.target.value }))} />
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="monthlyMaintenanceCost">Monthly maintenance</label>
-        <input
-          id="monthlyMaintenanceCost"
-          type="number"
-          value={draft.monthlyMaintenanceCost}
-          onChange={(e) => setDraft((p) => ({ ...p, monthlyMaintenanceCost: e.target.value }))}
-        />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="verificationCost">Verification cost (USD)</label>
@@ -742,38 +1161,6 @@ export default function CardProductProvidersPage() {
         <label htmlFor="rank">Rank</label>
         <input id="rank" type="number" value={draft.rank} onChange={(e) => setDraft((p) => ({ ...p, rank: e.target.value }))} />
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <label htmlFor="maxDailyLimit">Max daily limit</label>
-          <input
-            id="maxDailyLimit"
-            type="number"
-            value={draft.maxDailyLimit}
-            onChange={(e) => setDraft((p) => ({ ...p, maxDailyLimit: e.target.value }))}
-            placeholder="500.00"
-          />
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <label htmlFor="minFirstTopup">Min first top-up</label>
-          <input
-            id="minFirstTopup"
-            type="number"
-            value={draft.minFirstTopup}
-            onChange={(e) => setDraft((p) => ({ ...p, minFirstTopup: e.target.value }))}
-            placeholder="50.00"
-          />
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <label htmlFor="minTransactionFeeAmount">Min txn fee</label>
-          <input
-            id="minTransactionFeeAmount"
-            type="number"
-            value={draft.minTransactionFeeAmount}
-            onChange={(e) => setDraft((p) => ({ ...p, minTransactionFeeAmount: e.target.value }))}
-            placeholder="0.50"
-          />
-        </div>
-      </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <input id="active" type="checkbox" checked={draft.active} onChange={(e) => setDraft((p) => ({ ...p, active: e.target.checked }))} />
         <label htmlFor="active">Active</label>
@@ -856,6 +1243,16 @@ export default function CardProductProvidersPage() {
         </Modal>
       )}
 
+      {showMetadata && (
+        <Modal title={`Edit metadata ${selected?.id}`} onClose={() => setShowMetadata(false)}>
+          {renderMetadataForm()}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+            <button type="button" onClick={() => setShowMetadata(false)} className="btn-neutral">Cancel</button>
+            <button type="button" onClick={handleMetadataUpdate} className="btn-primary">Save metadata</button>
+          </div>
+        </Modal>
+      )}
+
       {showDetail && (
         <Modal title={`Details ${selected?.id}`} onClose={() => setShowDetail(false)}>
           <DetailGrid
@@ -866,15 +1263,18 @@ export default function CardProductProvidersPage() {
               { label: 'Card provider ID', value: selected?.cardProviderId },
               { label: 'Card provider', value: selected?.cardProviderName },
               { label: 'Provider card program ID', value: selected?.cardProgramId || '—' },
+              { label: 'Label', value: selected?.label || '—' },
+              { label: 'Provider background image URL', value: selected?.backgroundImageUrl || '—' },
+              { label: 'Best for description', value: selected?.description || '—' },
+              { label: 'Best for codes', value: formatCodeList(selected?.bestFor) },
+              { label: 'Functionality codes', value: formatCodeList(selected?.functionalities) },
+              { label: 'Popular platforms', value: formatJson(selected?.popularPlatforms) },
+              { label: 'Capabilities', value: formatJson(selected?.capabilities) },
               { label: 'Currency', value: selected?.currency || '—' },
               { label: 'Price', value: selected?.price ?? '—' },
               { label: 'Purchase cost', value: selected?.purchaseCost ?? '—' },
-              { label: 'Monthly maintenance', value: selected?.monthlyMaintenanceCost ?? '—' },
               { label: 'Verification cost (USD)', value: selected?.verificationCost ?? '—' },
               { label: 'Unload fee (USD)', value: selected?.unloadFee ?? '—' },
-              { label: 'Max daily limit', value: selected?.maxDailyLimit ?? '—' },
-              { label: 'Min first top-up', value: selected?.minFirstTopup ?? '—' },
-              { label: 'Min txn fee', value: selected?.minTransactionFeeAmount ?? '—' },
               { label: 'Transaction fee %', value: selected?.transactionFeePercentage ?? '—' },
               { label: 'Interchange fee %', value: selected?.interchangeFeePercentage ?? '—' },
               { label: 'Min interchange fee (USD)', value: selected?.minInterchangeFeeAmount ?? '—' },
