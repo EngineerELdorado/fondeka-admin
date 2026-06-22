@@ -5,11 +5,34 @@ import { api } from '@/lib/api';
 
 const serviceOptions = ['LENDING', 'CRYPTO', 'WALLET', 'BILL_PAYMENTS', 'CARD', 'PAYMENT_REQUEST', 'E_SIM', 'AIRTIME_AND_DATA', 'OTHER'];
 
+const emptyVersionDraft = {
+  appVersion: '',
+  minMobileAppVersion: '',
+  minAndroidAppVersion: '',
+  minIosAppVersion: '',
+  forceUpdateTitle: '',
+  forceUpdateMessage: ''
+};
+
+const normalizeVersionDraft = (payload = {}) => ({
+  appVersion: payload?.appVersion ?? '',
+  minMobileAppVersion: payload?.minMobileAppVersion ?? '',
+  minAndroidAppVersion: payload?.minAndroidAppVersion ?? '',
+  minIosAppVersion: payload?.minIosAppVersion ?? '',
+  forceUpdateTitle: payload?.forceUpdateTitle ?? '',
+  forceUpdateMessage: payload?.forceUpdateMessage ?? ''
+});
+
+const nullableTrim = (value) => {
+  const trimmed = String(value || '').trim();
+  return trimmed ? trimmed : null;
+};
+
 export default function AppVersionPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [currentVersion, setCurrentVersion] = useState('');
-  const [draftVersion, setDraftVersion] = useState('');
+  const [currentConfig, setCurrentConfig] = useState(emptyVersionDraft);
+  const [draft, setDraft] = useState(emptyVersionDraft);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
   const [rules, setRules] = useState([]);
@@ -26,9 +49,9 @@ export default function AppVersionPage() {
     setError(null);
     try {
       const res = await api.appVersion.get();
-      const value = res?.appVersion ?? '';
-      setCurrentVersion(value);
-      setDraftVersion(value);
+      const nextDraft = normalizeVersionDraft(res);
+      setCurrentConfig(nextDraft);
+      setDraft(nextDraft);
     } catch (err) {
       setError(err.message || 'Failed to load global app version');
     } finally {
@@ -78,7 +101,7 @@ export default function AppVersionPage() {
   }, [rulesInfo, rulesError]);
 
   const handleUpdate = async () => {
-    const nextVersion = draftVersion.trim();
+    const nextVersion = draft.appVersion.trim();
     if (!nextVersion) {
       setError('Enter an app version.');
       return;
@@ -88,11 +111,19 @@ export default function AppVersionPage() {
     setError(null);
     setInfo(null);
     try {
-      const res = await api.appVersion.update({ appVersion: nextVersion });
-      const value = res?.appVersion ?? nextVersion;
-      setCurrentVersion(value);
-      setDraftVersion(value);
-      setInfo(`Global app version updated to ${value}.`);
+      const payload = {
+        appVersion: nextVersion,
+        minMobileAppVersion: nullableTrim(draft.minMobileAppVersion),
+        minAndroidAppVersion: nullableTrim(draft.minAndroidAppVersion),
+        minIosAppVersion: nullableTrim(draft.minIosAppVersion),
+        forceUpdateTitle: nullableTrim(draft.forceUpdateTitle),
+        forceUpdateMessage: nullableTrim(draft.forceUpdateMessage)
+      };
+      const res = await api.appVersion.update(payload);
+      const nextDraft = normalizeVersionDraft(res || payload);
+      setCurrentConfig(nextDraft);
+      setDraft(nextDraft);
+      setInfo('App version settings updated.');
     } catch (err) {
       setError(err.message || 'Failed to update app version');
     } finally {
@@ -163,7 +194,7 @@ export default function AppVersionPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div>
         <div style={{ fontSize: '22px', fontWeight: 800 }}>App Version</div>
-        <div style={{ color: 'var(--muted)' }}>Update the default app version for all accounts.</div>
+        <div style={{ color: 'var(--muted)' }}>Update backend app version and mobile force-update thresholds.</div>
       </div>
 
       {error && (
@@ -177,18 +208,53 @@ export default function AppVersionPage() {
         </div>
       )}
 
-      <div className="card" style={{ maxWidth: '520px', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        <div style={{ fontWeight: 800 }}>Global version</div>
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+        <div style={{ fontWeight: 800 }}>Global version and force update</div>
         <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-          {loading ? 'Loading global version...' : currentVersion ? `Current: ${currentVersion}` : 'No global version set.'}
+          {loading
+            ? 'Loading app version settings...'
+            : `Current API version: ${currentConfig.appVersion || 'not set'}. Force-update thresholds are only needed for must-have releases.`}
         </div>
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'end' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', flex: 1, minWidth: '200px' }}>
-            <span>Version</span>
-            <input value={draftVersion} onChange={(e) => setDraftVersion(e.target.value)} placeholder="1.2" />
+            <span>API app version</span>
+            <input value={draft.appVersion} onChange={(e) => setDraft((p) => ({ ...p, appVersion: e.target.value }))} placeholder="1.0" />
           </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', flex: 1, minWidth: '200px' }}>
+            <span>Minimum mobile app version</span>
+            <input value={draft.minMobileAppVersion} onChange={(e) => setDraft((p) => ({ ...p, minMobileAppVersion: e.target.value }))} placeholder="2.0.0" />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', flex: 1, minWidth: '200px' }}>
+            <span>Minimum Android app version</span>
+            <input value={draft.minAndroidAppVersion} onChange={(e) => setDraft((p) => ({ ...p, minAndroidAppVersion: e.target.value }))} placeholder="2.1.0" />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', flex: 1, minWidth: '200px' }}>
+            <span>Minimum iOS app version</span>
+            <input value={draft.minIosAppVersion} onChange={(e) => setDraft((p) => ({ ...p, minIosAppVersion: e.target.value }))} placeholder="2.0.5" />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', flex: 1, minWidth: '200px' }}>
+            <span>Force update title</span>
+            <input value={draft.forceUpdateTitle} onChange={(e) => setDraft((p) => ({ ...p, forceUpdateTitle: e.target.value }))} placeholder="Update required" />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', flex: 1, minWidth: '200px' }}>
+            <span>Force update message</span>
+            <textarea
+              rows={3}
+              value={draft.forceUpdateMessage}
+              onChange={(e) => setDraft((p) => ({ ...p, forceUpdateMessage: e.target.value }))}
+              placeholder="Please update Fondeka to continue."
+            />
+          </label>
+        </div>
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          Leave minimum version fields blank to clear force-update thresholds. Android and iOS override the global mobile threshold when set.
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button type="button" className="btn-neutral" onClick={() => setDraft(currentConfig)} disabled={loading || saving}>
+            Reset changes
+          </button>
           <button type="button" className="btn-primary" onClick={handleUpdate} disabled={loading || saving}>
-            {saving ? 'Saving...' : 'Update version'}
+            {saving ? 'Saving...' : 'Save app version settings'}
           </button>
         </div>
       </div>

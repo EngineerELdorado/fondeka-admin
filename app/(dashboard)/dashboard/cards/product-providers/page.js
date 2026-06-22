@@ -10,6 +10,8 @@ const emptyState = {
   cardProviderId: '',
   cardProgramId: '',
   label: '',
+  labelIcon: '',
+  labelBackgroundColor: '',
   backgroundImageUrl: '',
   description: '',
   bestForCodes: [],
@@ -120,6 +122,8 @@ const toPayload = (state) => {
     cardProviderId: Number(state.cardProviderId) || 0,
     cardProgramId: state.cardProgramId?.trim() ? state.cardProgramId.trim() : null,
     label: state.label?.trim() ? state.label.trim() : null,
+    labelIcon: state.labelIcon?.trim() ? state.labelIcon.trim() : null,
+    labelBackgroundColor: state.labelBackgroundColor?.trim() ? state.labelBackgroundColor.trim() : null,
     backgroundImageUrl: state.backgroundImageUrl?.trim() ? state.backgroundImageUrl.trim() : null,
     description: state.description?.trim() ? state.description.trim() : null,
     bestFor: bestFor.length ? bestFor : null,
@@ -203,6 +207,36 @@ const formatCodeList = (codes) => {
 const formatJson = (value) => {
   if (!value) return '—';
   return JSON.stringify(value, null, 2);
+};
+
+const renderLabelBadgeStyle = (row) => {
+  if (!row?.label && !row?.labelIcon && !row?.labelBackgroundColor) return '—';
+  const background = row.labelBackgroundColor || '#111827';
+  return (
+    <div style={{ display: 'grid', gap: '0.25rem', minWidth: '130px' }}>
+      <span
+        style={{
+          justifySelf: 'start',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '0.25rem',
+          padding: '0.2rem 0.45rem',
+          borderRadius: '999px',
+          background,
+          color: '#fff',
+          fontSize: '11px',
+          fontWeight: 800,
+          lineHeight: 1.2
+        }}
+      >
+        {row.labelIcon ? <span>{row.labelIcon}</span> : null}
+        <span>{row.label || 'LABEL'}</span>
+      </span>
+      <span style={{ color: 'var(--muted)', fontSize: '11px' }}>
+        {[row.labelIcon, row.labelBackgroundColor].filter(Boolean).join(' | ') || 'Default style'}
+      </span>
+    </div>
+  );
 };
 
 const Modal = ({ title, onClose, children }) => (
@@ -307,6 +341,11 @@ export default function CardProductProvidersPage() {
         render: (row) => row.label || '—'
       },
       {
+        key: 'labelBadgeStyle',
+        label: 'Badge style',
+        render: (row) => renderLabelBadgeStyle(row)
+      },
+      {
         key: 'backgroundImageUrl',
         label: 'Background',
         render: (row) => (row.backgroundImageUrl ? 'Set' : '—')
@@ -360,6 +399,8 @@ export default function CardProductProvidersPage() {
       cardProviderId: row.cardProviderId ?? '',
       cardProgramId: row.cardProgramId ?? '',
       label: row.label ?? '',
+      labelIcon: row.labelIcon ?? '',
+      labelBackgroundColor: row.labelBackgroundColor ?? '',
       backgroundImageUrl: row.backgroundImageUrl ?? '',
       description: row.description ?? '',
       bestForCodes: bestForCodes.filter((code) => defaultBestForCodes.has(code)),
@@ -891,6 +932,49 @@ export default function CardProductProvidersPage() {
           placeholder="SIMPLE, PREMIUM, VIP"
         />
       </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="labelIcon">Label icon</label>
+        <input
+          id="labelIcon"
+          value={draft.labelIcon}
+          onChange={(e) => setDraft((p) => ({ ...p, labelIcon: e.target.value }))}
+          placeholder="star, diamond, shield-checkmark"
+        />
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          Use the client app MaterialCommunityIcons name.
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="labelBackgroundColor">Label background color</label>
+        <input
+          id="labelBackgroundColor"
+          value={draft.labelBackgroundColor}
+          onChange={(e) => setDraft((p) => ({ ...p, labelBackgroundColor: e.target.value }))}
+          placeholder="#111827"
+        />
+      </div>
+      {(draft.label || draft.labelIcon || draft.labelBackgroundColor) && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <label>Label badge preview</label>
+          <div
+            style={{
+              alignSelf: 'flex-start',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              padding: '0.35rem 0.65rem',
+              borderRadius: '999px',
+              background: draft.labelBackgroundColor || '#111827',
+              color: '#fff',
+              fontSize: '12px',
+              fontWeight: 800
+            }}
+          >
+            {draft.labelIcon ? <span>{draft.labelIcon}</span> : null}
+            <span>{draft.label || 'LABEL'}</span>
+          </div>
+        </div>
+      )}
       <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="backgroundImageUrl">Provider background image URL</label>
         <input
@@ -1264,6 +1348,8 @@ export default function CardProductProvidersPage() {
               { label: 'Card provider', value: selected?.cardProviderName },
               { label: 'Provider card program ID', value: selected?.cardProgramId || '—' },
               { label: 'Label', value: selected?.label || '—' },
+              { label: 'Label icon', value: selected?.labelIcon || '—' },
+              { label: 'Label background color', value: selected?.labelBackgroundColor || '—' },
               { label: 'Provider background image URL', value: selected?.backgroundImageUrl || '—' },
               { label: 'Best for description', value: selected?.description || '—' },
               { label: 'Best for codes', value: formatCodeList(selected?.bestFor) },
