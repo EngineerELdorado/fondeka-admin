@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { DataTable } from '@/components/DataTable';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
 
@@ -352,10 +353,64 @@ const pickLatestAdminMessage = (txn) => {
   return found ? found.trim() : null;
 };
 
+const getAdminGroups = (session) => {
+  const accessTokenPayload = session?.tokens?.accessToken?.payload || null;
+  const idTokenPayload = session?.tokens?.idToken?.payload || null;
+  const rawGroups =
+    accessTokenPayload?.['cognito:groups'] ||
+    accessTokenPayload?.groups ||
+    idTokenPayload?.['cognito:groups'] ||
+    idTokenPayload?.groups;
+  return Array.isArray(rawGroups) ? rawGroups.map((group) => String(group).toUpperCase()) : [];
+};
+
+const toBoolean = (value) => value === true || String(value).toLowerCase() === 'true';
+
+const collectProviderProfiles = (txn) => {
+  const candidates = [
+    txn?.providerProfiles,
+    txn?.cardHolderProviderProfiles,
+    txn?.cardholderProviderProfiles,
+    txn?.cardHolder?.providerProfiles,
+    txn?.cardholder?.providerProfiles,
+    txn?.cardHolderResponse?.providerProfiles,
+    txn?.cardHolderProfile?.providerProfiles
+  ];
+  return candidates.find((candidate) => Array.isArray(candidate)) || [];
+};
+
+const hasVerifiedCardHolderProviderProfile = (txn) => {
+  if (!txn) return false;
+  const directValues = [
+    txn.cardHolderVerified,
+    txn.cardholderVerified,
+    txn.cardHolderProviderProfileVerified,
+    txn.providerProfileVerified,
+    txn.cardProviderProfileVerified,
+    txn.cardHolder?.verified,
+    txn.cardholder?.verified,
+    txn.providerProfile?.verified,
+    txn.cardHolderProviderProfile?.verified,
+    txn.cardProviderProfile?.verified
+  ];
+  return directValues.some(toBoolean) || collectProviderProfiles(txn).some((profile) => toBoolean(profile?.verified));
+};
+
+const forceCardOrderResponseMessage = (result) =>
+  result?.message ||
+  result?.orderMessage ||
+  result?.orderStatus ||
+  result?.status ||
+  result?.state ||
+  'Force card order retry requested.';
+
 export default function TransactionsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { session } = useAuth();
   const { pushToast } = useToast();
+  const adminGroups = useMemo(() => getAdminGroups(session), [session]);
+  const isSuperAdmin = adminGroups.includes('SUPER_ADMIN');
   const queryFilters = useMemo(() => {
     const transactionId = searchParams.get('transactionId');
     const referenceParam = searchParams.get('reference');
@@ -451,6 +506,9 @@ export default function TransactionsPage() {
   const [momoStatusLoading, setMomoStatusLoading] = useState(false);
   const [momoStatusResult, setMomoStatusResult] = useState(null);
   const [momoStatusError, setMomoStatusError] = useState(null);
+  const [forceCardOrderLoading, setForceCardOrderLoading] = useState(false);
+  const [forceCardOrderResult, setForceCardOrderResult] = useState(null);
+  const [forceCardOrderError, setForceCardOrderError] = useState(null);
   const [showBankPayoutComplete, setShowBankPayoutComplete] = useState(false);
   const [bankPayoutMessage, setBankPayoutMessage] = useState('');
   const [bankPayoutError, setBankPayoutError] = useState(null);
@@ -1024,6 +1082,8 @@ export default function TransactionsPage() {
     setBillStatusAuditError(null);
     setMomoStatusResult(null);
     setMomoStatusError(null);
+    setForceCardOrderResult(null);
+    setForceCardOrderError(null);
     setShowBankPayoutComplete(false);
     setBankPayoutMessage('');
     setBankPayoutError(null);
@@ -1158,6 +1218,14 @@ export default function TransactionsPage() {
     );
   }, [selected]);
 
+  const canForceResumeVerifiedCardOrder = useMemo(() => {
+    if (!selected || !isSuperAdmin) return false;
+    return (
+      normalizeEnumKey(selected?.action) === 'BUY_CARD' &&
+      normalizeEnumKey(selected?.status) === 'MANUAL_INTERVENTION_REQUIRED'
+    );
+  }, [isSuperAdmin, selected]);
+
   const bankPayoutMeta = useMemo(() => {
     if (!selected) {
       return { eligible: false, methodName: '', methodType: '', status: '', action: '' };
@@ -1236,6 +1304,35 @@ export default function TransactionsPage() {
     await fetchRows();
     const latest = await api.transactions.get(transactionId);
     if (latest) setSelected(latest);
+  };
+
+  const handleForceResumeVerifiedCardOrder = async () => {
+    const transactionId = selected?.transactionId || selected?.id;
+    if (!transactionId) {
+      setForceCardOrderError('Missing transaction id');
+      return;
+    }
+    const confirmed = window.confirm(
+      'Force card order retry for this verified card purchase? This may trigger provider card ordering.'
+    );
+    if (!confirmed) return;
+
+    setForceCardOrderLoading(true);
+    setForceCardOrderError(null);
+    setForceCardOrderResult(null);
+    try {
+      const res = await api.cardOrderRetries.forceResumeVerifiedOrder(transactionId);
+      setForceCardOrderResult(res || {});
+      pushToast({ tone: 'success', message: forceCardOrderResponseMessage(res) });
+      await refreshSelectedTransaction(transactionId);
+      await loadReceipt(transactionId);
+    } catch (err) {
+      const message = err?.message || 'Failed to force card order retry';
+      setForceCardOrderError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setForceCardOrderLoading(false);
+    }
   };
 
   const submitManualReconciliation = async () => {
@@ -2099,6 +2196,47 @@ export default function TransactionsPage() {
                   {!bankPayoutMeta.eligible && (
                     <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
                       Requires status FUNDED, action WITHDRAW_FROM_WALLET, and payment method EQUITY_DRC (BANK).
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {canForceResumeVerifiedCardOrder && (
+              <div className="card" style={{ padding: '1rem', borderColor: '#f59e0b', background: '#fffbeb' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                    <div style={{ fontWeight: 800 }}>Verified card order retry</div>
+                    <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                      Resume a stuck verified BUY_CARD transaction and trigger provider card ordering.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-danger btn-sm"
+                    onClick={handleForceResumeVerifiedCardOrder}
+                    disabled={forceCardOrderLoading}
+                  >
+                    {forceCardOrderLoading ? 'Retrying…' : 'Force card order retry'}
+                  </button>
+                </div>
+
+                <div style={{ marginTop: '0.75rem', display: 'grid', gap: '0.6rem' }}>
+                  <DetailGrid
+                    rows={[
+                      { label: 'Current status', value: selected?.status || '—' },
+                      { label: 'Action', value: formatEnumLabel(selected?.action, actionLabels) },
+                      { label: 'Provider', value: selected?.cardProviderName || selected?.cardProviderId || '—' },
+                      { label: 'Cardholder verified', value: hasVerifiedCardHolderProviderProfile(selected) ? 'Yes' : 'No' }
+                    ]}
+                  />
+                  {forceCardOrderError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{forceCardOrderError}</div>}
+                  {forceCardOrderResult && (
+                    <div style={{ display: 'grid', gap: '0.5rem' }}>
+                      <div style={{ color: '#15803d', fontWeight: 700 }}>{forceCardOrderResponseMessage(forceCardOrderResult)}</div>
+                      <pre style={{ margin: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: '12px', color: 'var(--muted)' }}>
+                        {formatWebhookPayload(forceCardOrderResult)}
+                      </pre>
                     </div>
                   )}
                 </div>
