@@ -273,6 +273,7 @@ export default function CardProductProvidersPage() {
   const [showEdit, setShowEdit] = useState(false);
   const [showMetadata, setShowMetadata] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
+  const [showOverrides, setShowOverrides] = useState(false);
   const [draft, setDraft] = useState(emptyState);
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -281,6 +282,14 @@ export default function CardProductProvidersPage() {
   const [metadataDefaults, setMetadataDefaults] = useState(null);
   const [metadataImportRows, setMetadataImportRows] = useState([]);
   const [platformDefaultToAdd, setPlatformDefaultToAdd] = useState('');
+  const [statusOverrides, setStatusOverrides] = useState([]);
+  const [statusOverridesLoading, setStatusOverridesLoading] = useState(false);
+  const [statusOverridesError, setStatusOverridesError] = useState(null);
+  const [statusOverrideFormId, setStatusOverrideFormId] = useState(null);
+  const [statusOverrideTargetType, setStatusOverrideTargetType] = useState('EMAIL');
+  const [statusOverrideAccountId, setStatusOverrideAccountId] = useState('');
+  const [statusOverrideEmail, setStatusOverrideEmail] = useState('');
+  const [statusOverrideActive, setStatusOverrideActive] = useState(true);
 
   const fetchRows = async () => {
     setLoading(true);
@@ -346,11 +355,6 @@ export default function CardProductProvidersPage() {
         render: (row) => renderLabelBadgeStyle(row)
       },
       {
-        key: 'backgroundImageUrl',
-        label: 'Background',
-        render: (row) => (row.backgroundImageUrl ? 'Set' : '—')
-      },
-      {
         key: 'price',
         label: 'Price',
         render: (row) => fmtAmount(row, 'price')
@@ -373,6 +377,7 @@ export default function CardProductProvidersPage() {
             <button type="button" onClick={() => openDetail(row)} className="btn-neutral">View</button>
             <button type="button" onClick={() => openEdit(row)} className="btn-neutral">Edit</button>
             <button type="button" onClick={() => openMetadata(row)} className="btn-neutral">Metadata</button>
+            <button type="button" onClick={() => openOverrides(row)} className="btn-neutral">Overrides</button>
             <button type="button" onClick={() => setConfirmDelete(row)} className="btn-danger">Delete</button>
           </div>
         )
@@ -439,6 +444,100 @@ export default function CardProductProvidersPage() {
       notesFr: row.notesFr ?? '',
       active: Boolean(row.active)
     };
+  };
+
+  const resetStatusOverrideForm = () => {
+    setStatusOverrideFormId(null);
+    setStatusOverrideTargetType('EMAIL');
+    setStatusOverrideAccountId('');
+    setStatusOverrideEmail('');
+    setStatusOverrideActive(true);
+  };
+
+  const loadStatusOverrides = async (mappingId) => {
+    if (!mappingId) return;
+    setStatusOverridesLoading(true);
+    setStatusOverridesError(null);
+    try {
+      const res = await api.cardProviderStatusOverrides.list();
+      const list = Array.isArray(res) ? res : res?.content || [];
+      setStatusOverrides((list || []).filter((override) => String(override.cardProductCardProviderId) === String(mappingId)));
+    } catch (err) {
+      setStatusOverrides([]);
+      setStatusOverridesError(err.message || 'Failed to load status overrides.');
+    } finally {
+      setStatusOverridesLoading(false);
+    }
+  };
+
+  const openOverrides = async (row) => {
+    setSelected(row);
+    setStatusOverrides([]);
+    setStatusOverridesError(null);
+    resetStatusOverrideForm();
+    setShowOverrides(true);
+    await loadStatusOverrides(row.id);
+  };
+
+  const openStatusOverrideForm = (override = null) => {
+    setStatusOverridesError(null);
+    setStatusOverrideFormId(override?.id || null);
+    setStatusOverrideTargetType(override?.email ? 'EMAIL' : 'ACCOUNT');
+    setStatusOverrideAccountId(override?.accountId ?? '');
+    setStatusOverrideEmail(override?.email || '');
+    setStatusOverrideActive(Boolean(override?.active ?? true));
+  };
+
+  const saveStatusOverride = async () => {
+    if (!selected?.id) return;
+    const targetIsEmail = statusOverrideTargetType === 'EMAIL';
+    const email = statusOverrideEmail.trim();
+    const accountId = Number(statusOverrideAccountId);
+    if (targetIsEmail && !email) {
+      setStatusOverridesError('Email is required for an email override.');
+      return;
+    }
+    if (!targetIsEmail && (!Number.isInteger(accountId) || accountId <= 0)) {
+      setStatusOverridesError('Account ID is required for an account override.');
+      return;
+    }
+    const payload = {
+      cardProductCardProviderId: Number(selected.id),
+      active: Boolean(statusOverrideActive),
+      ...(targetIsEmail ? { email } : { accountId })
+    };
+    setStatusOverridesLoading(true);
+    setStatusOverridesError(null);
+    try {
+      if (statusOverrideFormId) {
+        await api.cardProviderStatusOverrides.update(statusOverrideFormId, payload);
+        setInfo(`Updated status override for mapping ${selected.id}.`);
+      } else {
+        await api.cardProviderStatusOverrides.create(payload);
+        setInfo(`Created status override for mapping ${selected.id}.`);
+      }
+      resetStatusOverrideForm();
+      await loadStatusOverrides(selected.id);
+    } catch (err) {
+      setStatusOverridesError(err.message || 'Failed to save status override.');
+    } finally {
+      setStatusOverridesLoading(false);
+    }
+  };
+
+  const deleteStatusOverride = async (override) => {
+    if (!override?.id || !selected?.id) return;
+    setStatusOverridesLoading(true);
+    setStatusOverridesError(null);
+    try {
+      await api.cardProviderStatusOverrides.remove(override.id);
+      setInfo(`Deleted status override ${override.id}.`);
+      await loadStatusOverrides(selected.id);
+    } catch (err) {
+      setStatusOverridesError(err.message || 'Failed to delete status override.');
+    } finally {
+      setStatusOverridesLoading(false);
+    }
   };
 
   const openEdit = (row) => {
@@ -1000,6 +1099,21 @@ export default function CardProductProvidersPage() {
         <input id="purchaseCost" type="number" value={draft.purchaseCost} onChange={(e) => setDraft((p) => ({ ...p, purchaseCost: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="minFirstTopup">Initial card funding amount ({draft.currency || 'currency'})</label>
+        <input
+          id="minFirstTopup"
+          type="number"
+          min={0}
+          step="0.01"
+          value={draft.minFirstTopup}
+          onChange={(e) => setDraft((p) => ({ ...p, minFirstTopup: e.target.value }))}
+          placeholder="3.00"
+        />
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          Used as BridgeCard initial funding and included in card purchase commission calculation.
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="verificationCost">Verification cost (USD)</label>
         <input
           id="verificationCost"
@@ -1021,117 +1135,6 @@ export default function CardProductProvidersPage() {
           onChange={(e) => setDraft((p) => ({ ...p, unloadFee: e.target.value }))}
           placeholder="1.00"
         />
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="transactionFeePercentage">Transaction fee %</label>
-        <input
-          id="transactionFeePercentage"
-          type="number"
-          step="0.01"
-          min={0}
-          value={draft.transactionFeePercentage}
-          onChange={(e) => setDraft((p) => ({ ...p, transactionFeePercentage: e.target.value }))}
-        />
-      </div>
-      <div style={{ gridColumn: '1 / -1', display: 'grid', gap: '0.35rem' }}>
-        <div style={{ fontWeight: 700 }}>Fondeka Fees</div>
-        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-          Internal fee and interchange configuration used by Fondeka pricing.
-        </div>
-      </div>
-      <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <label htmlFor="interchangeFeePercentage">Interchange fee %</label>
-          <input
-            id="interchangeFeePercentage"
-            type="number"
-            min={0}
-            step="0.01"
-            value={draft.interchangeFeePercentage}
-            onChange={(e) => setDraft((p) => ({ ...p, interchangeFeePercentage: e.target.value }))}
-            placeholder="5.00"
-          />
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <label htmlFor="minInterchangeFeeAmount">Min interchange fee (USD)</label>
-          <input
-            id="minInterchangeFeeAmount"
-            type="number"
-            min={0}
-            step="0.01"
-            value={draft.minInterchangeFeeAmount}
-            onChange={(e) => setDraft((p) => ({ ...p, minInterchangeFeeAmount: e.target.value }))}
-            placeholder="2.00"
-          />
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <label htmlFor="maxInterchangeFeeAmount">Max interchange fee (USD)</label>
-          <input
-            id="maxInterchangeFeeAmount"
-            type="number"
-            min={0}
-            step="0.01"
-            value={draft.maxInterchangeFeeAmount}
-            onChange={(e) => setDraft((p) => ({ ...p, maxInterchangeFeeAmount: e.target.value }))}
-            placeholder="10.00"
-          />
-        </div>
-      </div>
-      <div style={{ gridColumn: '1 / -1', color: 'var(--muted)', fontSize: '12px' }}>
-        Leave all interchange fields empty for no interchange earnings; set percentage only for pure percent; set percentage + min/max for bounded earnings.
-      </div>
-      <div style={{ gridColumn: '1 / -1', display: 'grid', gap: '0.35rem' }}>
-        <div style={{ fontWeight: 700 }}>Provider Fees</div>
-        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-          Provider-side fallback fee estimate used for declined card-payment notifications when the webhook does not send explicit provider fee amounts.
-        </div>
-      </div>
-      <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <label htmlFor="providerTransactionFeePercentage">Provider transaction fee %</label>
-          <input
-            id="providerTransactionFeePercentage"
-            type="number"
-            min={0}
-            step="0.01"
-            value={draft.providerTransactionFeePercentage}
-            onChange={(e) => setDraft((p) => ({ ...p, providerTransactionFeePercentage: e.target.value }))}
-            placeholder="1.00"
-          />
-          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-            Percentage charged by the provider on card payments.
-          </div>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <label htmlFor="minProviderTransactionFeeAmount">Min provider transaction fee ({draft.currency || 'USD'})</label>
-          <input
-            id="minProviderTransactionFeeAmount"
-            type="number"
-            min={0}
-            step="0.01"
-            value={draft.minProviderTransactionFeeAmount}
-            onChange={(e) => setDraft((p) => ({ ...p, minProviderTransactionFeeAmount: e.target.value }))}
-            placeholder="1.00"
-          />
-          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-            Minimum provider fee amount charged per transaction.
-          </div>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <label htmlFor="maxProviderTransactionFeeAmount">Max provider transaction fee ({draft.currency || 'USD'})</label>
-          <input
-            id="maxProviderTransactionFeeAmount"
-            type="number"
-            min={0}
-            step="0.01"
-            value={draft.maxProviderTransactionFeeAmount}
-            onChange={(e) => setDraft((p) => ({ ...p, maxProviderTransactionFeeAmount: e.target.value }))}
-            placeholder="10.00"
-          />
-          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-            Optional cap on provider fee amount.
-          </div>
-        </div>
       </div>
       <div style={{ gridColumn: '1 / -1', display: 'grid', gap: '0.35rem' }}>
         <div style={{ fontWeight: 700 }}>App Display Fee Labels</div>
@@ -1307,6 +1310,118 @@ export default function CardProductProvidersPage() {
 
       <DataTable columns={columns} rows={rows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No mappings found" />
 
+      {showOverrides && (
+        <Modal title={`Status overrides ${selected?.id || ''}`} onClose={() => setShowOverrides(false)}>
+          <div style={{ display: 'grid', gap: '0.9rem' }}>
+            <DetailGrid
+              rows={[
+                { label: 'Mapping ID', value: selected?.id },
+                { label: 'Product', value: selected?.cardBrandName || selected?.cardProductId || '—' },
+                { label: 'Provider', value: selected?.cardProviderName || selected?.cardProviderId || '—' },
+                { label: 'Global active', value: selected?.active === null || selected?.active === undefined ? '—' : String(selected.active) }
+              ]}
+            />
+
+            {statusOverridesError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{statusOverridesError}</div>}
+
+            <div className="card" style={{ padding: '0.85rem', display: 'grid', gap: '0.75rem' }}>
+              <div style={{ fontWeight: 800 }}>{statusOverrideFormId ? 'Edit override' : 'Add override'}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.65rem', alignItems: 'end' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="statusOverrideTargetType">Target</label>
+                  <select id="statusOverrideTargetType" value={statusOverrideTargetType} onChange={(e) => setStatusOverrideTargetType(e.target.value)}>
+                    <option value="EMAIL">Email</option>
+                    <option value="ACCOUNT">Account ID</option>
+                  </select>
+                </div>
+                {statusOverrideTargetType === 'EMAIL' ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <label htmlFor="statusOverrideEmail">Email</label>
+                    <input
+                      id="statusOverrideEmail"
+                      type="email"
+                      value={statusOverrideEmail}
+                      onChange={(e) => setStatusOverrideEmail(e.target.value)}
+                      placeholder="qa@fondeka.com"
+                    />
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <label htmlFor="statusOverrideAccountId">Account ID</label>
+                    <input
+                      id="statusOverrideAccountId"
+                      type="number"
+                      min="1"
+                      value={statusOverrideAccountId}
+                      onChange={(e) => setStatusOverrideAccountId(e.target.value)}
+                      placeholder="45"
+                    />
+                  </div>
+                )}
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', minHeight: '40px' }}>
+                  <input type="checkbox" checked={statusOverrideActive} onChange={(e) => setStatusOverrideActive(e.target.checked)} />
+                  <span>{statusOverrideActive ? 'Expose mapping' : 'Hide mapping'}</span>
+                </label>
+                <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap' }}>
+                  <button type="button" className="btn-primary" onClick={saveStatusOverride} disabled={statusOverridesLoading}>
+                    {statusOverrideFormId ? 'Update' : 'Add'}
+                  </button>
+                  <button type="button" className="btn-neutral" onClick={resetStatusOverrideForm} disabled={statusOverridesLoading}>
+                    Reset
+                  </button>
+                </div>
+              </div>
+              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                Account overrides win over email overrides. Active exposes the mapping; inactive hides it.
+              </div>
+            </div>
+
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center', marginBottom: '0.55rem' }}>
+                <div style={{ fontWeight: 800 }}>Existing overrides</div>
+                <button type="button" className="btn-neutral btn-sm" onClick={() => loadStatusOverrides(selected?.id)} disabled={statusOverridesLoading}>
+                  {statusOverridesLoading ? 'Loading…' : 'Reload'}
+                </button>
+              </div>
+              {statusOverridesLoading && <div style={{ color: 'var(--muted)' }}>Loading overrides…</div>}
+              {!statusOverridesLoading && statusOverrides.length === 0 && <div style={{ color: 'var(--muted)' }}>No overrides for this mapping.</div>}
+              {!statusOverridesLoading && statusOverrides.length > 0 && (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '620px' }}>
+                    <thead>
+                      <tr>
+                        {['Target', 'Override', 'Updated', ''].map((header) => (
+                          <th key={header} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                            {header}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {statusOverrides.map((override) => (
+                        <tr key={override.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                          <td style={{ padding: '0.45rem' }}>{override.email ? `Email: ${override.email}` : `Account: #${override.accountId || '—'}`}</td>
+                          <td style={{ padding: '0.45rem' }}>{override.active ? 'Exposed' : 'Hidden'}</td>
+                          <td style={{ padding: '0.45rem' }}>{override.updatedAt || override.createdAt || '—'}</td>
+                          <td style={{ padding: '0.45rem', display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                            <button type="button" className="btn-neutral btn-sm" onClick={() => openStatusOverrideForm(override)}>
+                              Edit
+                            </button>
+                            <button type="button" className="btn-danger btn-sm" onClick={() => deleteStatusOverride(override)}>
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {showCreate && (
         <Modal title="Add product/provider mapping" onClose={() => setShowCreate(false)}>
           {renderForm()}
@@ -1359,15 +1474,9 @@ export default function CardProductProvidersPage() {
               { label: 'Currency', value: selected?.currency || '—' },
               { label: 'Price', value: selected?.price ?? '—' },
               { label: 'Purchase cost', value: selected?.purchaseCost ?? '—' },
+              { label: 'Initial card funding amount', value: formatAmount(selected, 'minFirstTopup') },
               { label: 'Verification cost (USD)', value: selected?.verificationCost ?? '—' },
               { label: 'Unload fee (USD)', value: selected?.unloadFee ?? '—' },
-              { label: 'Transaction fee %', value: selected?.transactionFeePercentage ?? '—' },
-              { label: 'Interchange fee %', value: selected?.interchangeFeePercentage ?? '—' },
-              { label: 'Min interchange fee (USD)', value: selected?.minInterchangeFeeAmount ?? '—' },
-              { label: 'Max interchange fee (USD)', value: selected?.maxInterchangeFeeAmount ?? '—' },
-              { label: 'Provider transaction fee %', value: selected?.providerTransactionFeePercentage ?? '—' },
-              { label: 'Min provider transaction fee', value: selected?.minProviderTransactionFeeAmount ?? '—' },
-              { label: 'Max provider transaction fee', value: selected?.maxProviderTransactionFeeAmount ?? '—' },
               { label: 'Fund card fee %', value: selected?.fundCardFeePercentage ?? '—' },
               { label: 'Minimum fund card fee', value: formatAmount(selected, 'minFundCardFeeAmount') },
               { label: 'Withdraw from card fee %', value: selected?.withdrawFromCardFeePercentage ?? '—' },

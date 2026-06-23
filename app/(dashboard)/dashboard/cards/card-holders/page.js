@@ -267,7 +267,6 @@ export default function CardHoldersPage() {
     { key: 'userEmail', label: 'User email' },
     { key: 'accountId', label: 'Account ID' },
     { key: 'providerProfiles', label: 'Provider state', render: (row) => providerProfilesSummary(row) },
-    { key: 'verified', label: 'Legacy verified', render: (row) => (row.verified ? 'Yes' : 'No') },
     {
       key: 'actions',
       label: 'Actions',

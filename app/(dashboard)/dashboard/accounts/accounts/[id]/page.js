@@ -73,6 +73,27 @@ const cardHolderProviderSummary = (holder) => {
   });
 };
 
+const cardProductProviderLabel = (mapping) => {
+  if (!mapping) return '—';
+  const product = mapping.cardBrandName || mapping.productName || mapping.cardProductName || `Product ${mapping.cardProductId || ''}`.trim();
+  const provider = mapping.cardProviderName || mapping.providerName || `Provider ${mapping.cardProviderId || ''}`.trim();
+  const label = mapping.label ? ` (${mapping.label})` : '';
+  return `${product || 'Product'} → ${provider || 'Provider'}${label}`;
+};
+
+const accountEmailValue = (account) => {
+  const candidates = [
+    account?.email,
+    account?.userEmail,
+    account?.customerEmail,
+    account?.contactEmail,
+    account?.contact?.email,
+    account?.user?.email,
+    account?.username
+  ];
+  return String(candidates.find((value) => typeof value === 'string' && value.includes('@')) || '').trim();
+};
+
 const MultiSelect = ({ label, options, values, onChange, helperText }) => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
     <div style={{ fontWeight: 600 }}>{label}</div>
@@ -599,6 +620,16 @@ const [notificationDataModal, setNotificationDataModal] = useState(null);
   const [cardPriceCpcpId, setCardPriceCpcpId] = useState('');
   const [cardPriceAmount, setCardPriceAmount] = useState('');
   const [cardPriceSaving, setCardPriceSaving] = useState(false);
+  const [cardProviderStatusOverrides, setCardProviderStatusOverrides] = useState([]);
+  const [cardProviderStatusLoading, setCardProviderStatusLoading] = useState(false);
+  const [cardProviderStatusError, setCardProviderStatusError] = useState(null);
+  const [showCardProviderStatusForm, setShowCardProviderStatusForm] = useState(false);
+  const [cardProviderStatusFormId, setCardProviderStatusFormId] = useState(null);
+  const [cardProviderStatusTargetType, setCardProviderStatusTargetType] = useState('ACCOUNT');
+  const [cardProviderStatusEmail, setCardProviderStatusEmail] = useState('');
+  const [cardProviderStatusCpcpId, setCardProviderStatusCpcpId] = useState('');
+  const [cardProviderStatusActive, setCardProviderStatusActive] = useState(true);
+  const [cardProviderStatusSaving, setCardProviderStatusSaving] = useState(false);
   const [loanProducts, setLoanProducts] = useState([]);
   const [loanRates, setLoanRates] = useState([]);
   const [loanRatesLoading, setLoanRatesLoading] = useState(false);
@@ -777,6 +808,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       await loadBillProductOverrides(targetId);
       await loadProviderRouting(targetId);
       await loadCardPrices(targetId);
+      await loadCardProviderStatusOverrides(targetId, acc);
       await loadLoanRates(targetId);
       await loadCryptoRates(targetId);
       await loadCryptoLimits(targetId);
@@ -1086,6 +1118,33 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       setCardPricesError(err.message || 'Failed to load card price overrides');
     } finally {
       setCardPricesLoading(false);
+    }
+  };
+
+  const loadCardProviderStatusOverrides = async (id = resolvedAccountId, sourceAccount = account) => {
+    const email = accountEmailValue(sourceAccount);
+    if ((id === null || id === undefined || id === '') && !email) return;
+    setCardProviderStatusLoading(true);
+    setCardProviderStatusError(null);
+    try {
+      const [accountRes, emailRes] = await Promise.all([
+        id === null || id === undefined || id === '' ? Promise.resolve([]) : api.accounts.cardProviderStatusOverrides.list(id),
+        email ? api.cardProviderStatusOverrides.list(new URLSearchParams({ email })) : Promise.resolve([])
+      ]);
+      const toList = (res) => (Array.isArray(res) ? res : res?.content || []);
+      const seen = new Set();
+      const merged = [...toList(accountRes), ...toList(emailRes)].filter((row) => {
+        const key = row?.id === null || row?.id === undefined ? `${row?.accountId || ''}:${row?.email || ''}:${row?.cardProductCardProviderId || ''}` : String(row.id);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      setCardProviderStatusOverrides(merged);
+    } catch (err) {
+      setCardProviderStatusOverrides([]);
+      setCardProviderStatusError(err.message || 'Failed to load card provider status overrides');
+    } finally {
+      setCardProviderStatusLoading(false);
     }
   };
 
@@ -2727,6 +2786,96 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     setCardPriceAmount('');
   };
 
+  const resetCardProviderStatusForm = () => {
+    setCardProviderStatusFormId(null);
+    setCardProviderStatusTargetType('ACCOUNT');
+    setCardProviderStatusEmail(accountEmailValue(account));
+    setCardProviderStatusCpcpId('');
+    setCardProviderStatusActive(true);
+  };
+
+  const openCardProviderStatusForm = (override = null) => {
+    setCardProviderStatusError(null);
+    setCardProviderStatusFormId(override?.id || null);
+    setCardProviderStatusTargetType(override?.email ? 'EMAIL' : 'ACCOUNT');
+    setCardProviderStatusEmail(override?.email || accountEmailValue(account));
+    setCardProviderStatusCpcpId(override?.cardProductCardProviderId ?? '');
+    setCardProviderStatusActive(Boolean(override?.active ?? true));
+    setShowCardProviderStatusForm(true);
+  };
+
+  const submitCardProviderStatusForm = async () => {
+    if (!cardProviderStatusCpcpId) {
+      setCardProviderStatusError('Product/provider is required');
+      return;
+    }
+    const mappingId = Number(cardProviderStatusCpcpId);
+    if (!Number.isInteger(mappingId) || mappingId <= 0) {
+      setCardProviderStatusError('Product/provider ID is invalid');
+      return;
+    }
+
+    const targetIsEmail = cardProviderStatusTargetType === 'EMAIL';
+    const email = cardProviderStatusEmail.trim();
+    if (targetIsEmail && !email) {
+      setCardProviderStatusError('Email is required for an email override');
+      return;
+    }
+    if (!targetIsEmail && (resolvedAccountId === null || resolvedAccountId === undefined)) {
+      setCardProviderStatusError('No account loaded');
+      return;
+    }
+
+    const payload = {
+      cardProductCardProviderId: mappingId,
+      active: Boolean(cardProviderStatusActive),
+      ...(targetIsEmail ? { email } : { accountId: Number(resolvedAccountId) })
+    };
+
+    setCardProviderStatusSaving(true);
+    setCardProviderStatusError(null);
+    try {
+      if (cardProviderStatusFormId) {
+        await api.cardProviderStatusOverrides.update(cardProviderStatusFormId, payload);
+        pushToast({ tone: 'success', message: 'Card provider status override updated' });
+      } else {
+        await api.cardProviderStatusOverrides.create(payload);
+        pushToast({ tone: 'success', message: 'Card provider status override added' });
+      }
+      resetCardProviderStatusForm();
+      setShowCardProviderStatusForm(false);
+      await loadCardProviderStatusOverrides(resolvedAccountId, account);
+    } catch (err) {
+      const message = err.message || 'Failed to save card provider status override';
+      setCardProviderStatusError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setCardProviderStatusSaving(false);
+    }
+  };
+
+  const deleteCardProviderStatusOverride = (override) => {
+    if (!override?.id) return;
+    const target = override.email ? `email ${override.email}` : `account #${override.accountId || resolvedAccountId}`;
+    openConfirm({
+      title: 'Delete card provider status override',
+      message: `Delete status override for ${target}?`,
+      onConfirm: async () => {
+        setCardProviderStatusError(null);
+        try {
+          await api.cardProviderStatusOverrides.remove(override.id);
+          pushToast({ tone: 'success', message: 'Card provider status override deleted' });
+          await loadCardProviderStatusOverrides(resolvedAccountId, account);
+        } catch (err) {
+          const message = err.message || 'Failed to delete card provider status override';
+          setCardProviderStatusError(message);
+          pushToast({ tone: 'error', message });
+          throw err;
+        }
+      }
+    });
+  };
+
   const submitCardPriceForm = async () => {
     if (resolvedAccountId === null || resolvedAccountId === undefined) {
       setCardPricesError('No account loaded');
@@ -4279,6 +4428,77 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                             </button>
                           )}
                           <button type="button" className="btn-danger btn-sm" onClick={() => deleteProviderRouting(row)}>
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="card" style={{ padding: '1rem', ...fadeInStyle(!cardProviderStatusLoading) }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+            <div style={{ fontWeight: 800 }}>Card Provider Status Overrides</div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Override card product/provider availability for this account or its email. Account overrides take priority over email overrides.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button type="button" className="btn-neutral btn-sm" onClick={() => loadCardProviderStatusOverrides(resolvedAccountId, accountView)} disabled={cardProviderStatusLoading}>
+              {cardProviderStatusLoading ? 'Loading…' : 'Reload'}
+            </button>
+            <button
+              type="button"
+              className="btn-primary btn-sm"
+              onClick={() => {
+                resetCardProviderStatusForm();
+                setShowCardProviderStatusForm(true);
+              }}
+            >
+              Add override
+            </button>
+          </div>
+        </div>
+
+        <div style={{ marginTop: '0.75rem' }}>
+          {cardProviderStatusError && <div style={{ color: '#b91c1c', fontWeight: 700, marginBottom: '0.4rem' }}>{cardProviderStatusError}</div>}
+          {cardProviderStatusLoading && <div style={{ color: 'var(--muted)' }}>Loading card provider status overrides…</div>}
+          {!cardProviderStatusLoading && cardProviderStatusOverrides.length === 0 && <div style={{ color: 'var(--muted)' }}>No card provider status overrides.</div>}
+          {!cardProviderStatusLoading && cardProviderStatusOverrides.length > 0 && (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '720px' }}>
+                <thead>
+                  <tr>
+                    {['Target', 'Product / Provider', 'Override', 'Updated', ''].map((h) => (
+                      <th key={h} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {cardProviderStatusOverrides.map((override) => {
+                    const match = cardProductCardProviders.find((c) => String(c.id) === String(override.cardProductCardProviderId));
+                    const targetLabel = override.email ? `Email: ${override.email}` : `Account: #${override.accountId || resolvedAccountId}`;
+                    return (
+                      <tr key={override.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '0.45rem' }}>{targetLabel}</td>
+                        <td style={{ padding: '0.45rem' }}>{match ? cardProductProviderLabel(match) : override.cardProductCardProviderId}</td>
+                        <td style={{ padding: '0.45rem' }}>
+                          <Badge>{override.active ? 'Exposed' : 'Hidden'}</Badge>
+                        </td>
+                        <td style={{ padding: '0.45rem' }}>{override.updatedAt ? formatDateTime(override.updatedAt) : '—'}</td>
+                        <td style={{ padding: '0.45rem', display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                          <button type="button" className="btn-neutral btn-sm" onClick={() => openCardProviderStatusForm(override)}>
+                            Edit
+                          </button>
+                          <button type="button" className="btn-danger btn-sm" onClick={() => deleteCardProviderStatusOverride(override)}>
                             Delete
                           </button>
                         </td>
@@ -6049,6 +6269,86 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               </button>
               <button type="button" className="btn-primary" onClick={submitCardPriceForm} disabled={cardPriceSaving}>
                 {cardPriceSaving ? 'Saving…' : cardPriceFormId ? 'Update' : 'Add'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showCardProviderStatusForm && (
+        <Modal
+          title={`${cardProviderStatusFormId ? 'Edit' : 'Add'} card provider status override`}
+          onClose={() => (!cardProviderStatusSaving ? setShowCardProviderStatusForm(false) : null)}
+        >
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            {cardProviderStatusError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{cardProviderStatusError}</div>}
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Set exactly one target. Account overrides win over email overrides when both exist.
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="cardProviderStatusTargetType">Target *</label>
+                <select
+                  id="cardProviderStatusTargetType"
+                  value={cardProviderStatusTargetType}
+                  onChange={(e) => setCardProviderStatusTargetType(e.target.value)}
+                >
+                  <option value="ACCOUNT">This account</option>
+                  <option value="EMAIL">Email</option>
+                </select>
+              </div>
+              {cardProviderStatusTargetType === 'EMAIL' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="cardProviderStatusEmail">Email *</label>
+                  <input
+                    id="cardProviderStatusEmail"
+                    type="email"
+                    value={cardProviderStatusEmail}
+                    onChange={(e) => setCardProviderStatusEmail(e.target.value)}
+                    placeholder="qa@fondeka.com"
+                  />
+                </div>
+              )}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="cardProviderStatusCpcpId">Product / Provider *</label>
+                <select
+                  id="cardProviderStatusCpcpId"
+                  value={cardProviderStatusCpcpId}
+                  onChange={(e) => setCardProviderStatusCpcpId(e.target.value)}
+                >
+                  <option value="">Select</option>
+                  {cardProductCardProviders.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {cardProductProviderLabel(c)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginTop: '1.45rem' }}>
+                <input
+                  type="checkbox"
+                  checked={cardProviderStatusActive}
+                  onChange={(e) => setCardProviderStatusActive(e.target.checked)}
+                />
+                <span>{cardProviderStatusActive ? 'Expose this provider' : 'Hide this provider'}</span>
+              </label>
+            </div>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn-neutral"
+                onClick={() => {
+                  if (!cardProviderStatusSaving) {
+                    resetCardProviderStatusForm();
+                    setShowCardProviderStatusForm(false);
+                  }
+                }}
+                disabled={cardProviderStatusSaving}
+              >
+                Cancel
+              </button>
+              <button type="button" className="btn-primary" onClick={submitCardProviderStatusForm} disabled={cardProviderStatusSaving}>
+                {cardProviderStatusSaving ? 'Saving…' : cardProviderStatusFormId ? 'Update' : 'Add'}
               </button>
             </div>
           </div>
