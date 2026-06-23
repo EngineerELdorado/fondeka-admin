@@ -404,6 +404,41 @@ const forceCardOrderResponseMessage = (result) =>
   result?.state ||
   'Force card order retry requested.';
 
+const emptyCardHolderVerification = {
+  checked: false,
+  loading: false,
+  verified: false,
+  holder: null,
+  profile: null,
+  error: null
+};
+
+const cardHolderProviderProfileName = (profile) =>
+  String(profile?.cardProviderName || profile?.providerName || profile?.cardProvider?.cardProviderName || profile?.cardProvider?.name || '')
+    .trim()
+    .toUpperCase();
+
+const providerProfileMatchesTransaction = (profile, txn) => {
+  const transactionProviderId = txn?.cardProviderId ?? txn?.providerId;
+  const profileProviderId = profile?.cardProviderId ?? profile?.providerId;
+  if (transactionProviderId !== null && transactionProviderId !== undefined && transactionProviderId !== '') {
+    return String(profileProviderId) === String(transactionProviderId);
+  }
+  const transactionProviderName = String(txn?.cardProviderName || txn?.providerName || '').trim().toUpperCase();
+  if (transactionProviderName) {
+    return cardHolderProviderProfileName(profile) === transactionProviderName;
+  }
+  return true;
+};
+
+const resolvePageContent = (res) => {
+  if (Array.isArray(res)) return res;
+  if (Array.isArray(res?.content)) return res.content;
+  if (Array.isArray(res?.data)) return res.data;
+  if (Array.isArray(res?.items)) return res.items;
+  return [];
+};
+
 export default function TransactionsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -509,6 +544,7 @@ export default function TransactionsPage() {
   const [forceCardOrderLoading, setForceCardOrderLoading] = useState(false);
   const [forceCardOrderResult, setForceCardOrderResult] = useState(null);
   const [forceCardOrderError, setForceCardOrderError] = useState(null);
+  const [cardHolderVerification, setCardHolderVerification] = useState(emptyCardHolderVerification);
   const [showBankPayoutComplete, setShowBankPayoutComplete] = useState(false);
   const [bankPayoutMessage, setBankPayoutMessage] = useState('');
   const [bankPayoutError, setBankPayoutError] = useState(null);
@@ -1084,6 +1120,7 @@ export default function TransactionsPage() {
     setMomoStatusError(null);
     setForceCardOrderResult(null);
     setForceCardOrderError(null);
+    setCardHolderVerification(emptyCardHolderVerification);
     setShowBankPayoutComplete(false);
     setBankPayoutMessage('');
     setBankPayoutError(null);
@@ -1218,13 +1255,77 @@ export default function TransactionsPage() {
     );
   }, [selected]);
 
-  const canForceResumeVerifiedCardOrder = useMemo(() => {
+  const isForceResumeCardOrderCandidate = useMemo(() => {
     if (!selected || !isSuperAdmin) return false;
     return (
       normalizeEnumKey(selected?.action) === 'BUY_CARD' &&
       normalizeEnumKey(selected?.status) === 'MANUAL_INTERVENTION_REQUIRED'
     );
   }, [isSuperAdmin, selected]);
+  const canForceResumeVerifiedCardOrder = isForceResumeCardOrderCandidate && cardHolderVerification.verified;
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadCardHolderVerification = async () => {
+      if (!isForceResumeCardOrderCandidate) {
+        setCardHolderVerification(emptyCardHolderVerification);
+        return;
+      }
+
+      const accountReference = String(selected?.accountReference || '').trim();
+      const email = String(selected?.customerEmail || '').trim();
+      const query = accountReference ? { accountReference } : email ? { email } : null;
+      if (!query) {
+        setCardHolderVerification({
+          ...emptyCardHolderVerification,
+          checked: true,
+          error: 'Card holder lookup needs an account reference or customer email.'
+        });
+        return;
+      }
+
+      setCardHolderVerification((prev) => ({ ...prev, loading: true, error: null }));
+      try {
+        const res = await api.cardHolders.list({ page: 0, size: 20, ...query });
+        if (cancelled) return;
+        const holders = resolvePageContent(res);
+        let matchedHolder = null;
+        let matchedProfile = null;
+        for (const holder of holders) {
+          const profiles = collectProviderProfiles(holder);
+          const profile = profiles.find((candidate) => providerProfileMatchesTransaction(candidate, selected) && toBoolean(candidate?.verified));
+          if (profile) {
+            matchedHolder = holder;
+            matchedProfile = profile;
+            break;
+          }
+        }
+        setCardHolderVerification({
+          checked: true,
+          loading: false,
+          verified: Boolean(matchedProfile),
+          holder: matchedHolder,
+          profile: matchedProfile,
+          error: null
+        });
+      } catch (err) {
+        if (cancelled) return;
+        setCardHolderVerification({
+          ...emptyCardHolderVerification,
+          checked: true,
+          error: err?.message || 'Failed to check card holder provider profile.'
+        });
+      }
+    };
+
+    loadCardHolderVerification();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isForceResumeCardOrderCandidate,
+    selected
+  ]);
 
   const bankPayoutMeta = useMemo(() => {
     if (!selected) {
@@ -1310,6 +1411,10 @@ export default function TransactionsPage() {
     const transactionId = selected?.transactionId || selected?.id;
     if (!transactionId) {
       setForceCardOrderError('Missing transaction id');
+      return;
+    }
+    if (!canForceResumeVerifiedCardOrder) {
+      setForceCardOrderError('Verified card holder provider profile was not found for this transaction.');
       return;
     }
     const confirmed = window.confirm(
@@ -2202,7 +2307,7 @@ export default function TransactionsPage() {
               </div>
             )}
 
-            {canForceResumeVerifiedCardOrder && (
+            {isForceResumeCardOrderCandidate && (
               <div className="card" style={{ padding: '1rem', borderColor: '#f59e0b', background: '#fffbeb' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
@@ -2215,9 +2320,9 @@ export default function TransactionsPage() {
                     type="button"
                     className="btn-danger btn-sm"
                     onClick={handleForceResumeVerifiedCardOrder}
-                    disabled={forceCardOrderLoading}
+                    disabled={forceCardOrderLoading || cardHolderVerification.loading || !canForceResumeVerifiedCardOrder}
                   >
-                    {forceCardOrderLoading ? 'Retrying…' : 'Force card order retry'}
+                    {forceCardOrderLoading ? 'Retrying…' : cardHolderVerification.loading ? 'Checking profile…' : 'Force card order retry'}
                   </button>
                 </div>
 
@@ -2227,9 +2332,26 @@ export default function TransactionsPage() {
                       { label: 'Current status', value: selected?.status || '—' },
                       { label: 'Action', value: formatEnumLabel(selected?.action, actionLabels) },
                       { label: 'Provider', value: selected?.cardProviderName || selected?.cardProviderId || '—' },
-                      { label: 'Cardholder verified', value: hasVerifiedCardHolderProviderProfile(selected) ? 'Yes' : 'No' }
+                      {
+                        label: 'Provider profile verified',
+                        value: cardHolderVerification.loading ? 'Checking…' : cardHolderVerification.verified ? 'Yes' : 'No'
+                      },
+                      {
+                        label: 'Matched profile',
+                        value: cardHolderVerification.profile
+                          ? `${cardHolderProviderProfileName(cardHolderVerification.profile) || cardHolderVerification.profile.cardProviderId || 'Provider'} • ${cardHolderVerification.profile.status || '—'}`
+                          : '—'
+                      }
                     ]}
                   />
+                  {cardHolderVerification.error && (
+                    <div style={{ color: '#b45309', fontWeight: 700 }}>{cardHolderVerification.error}</div>
+                  )}
+                  {cardHolderVerification.checked && !cardHolderVerification.loading && !cardHolderVerification.verified && !cardHolderVerification.error && (
+                    <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                      No verified provider profile was found for this transaction’s card holder/provider.
+                    </div>
+                  )}
                   {forceCardOrderError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{forceCardOrderError}</div>}
                   {forceCardOrderResult && (
                     <div style={{ display: 'grid', gap: '0.5rem' }}>
