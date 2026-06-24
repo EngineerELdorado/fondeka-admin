@@ -384,6 +384,12 @@ export default function ReferralCampaignsPage() {
   const [inspectRewardSize, setInspectRewardSize] = useState(50);
   const [inspectData, setInspectData] = useState(null);
   const [inspectLoading, setInspectLoading] = useState(false);
+  const [bindingInviterAccountId, setBindingInviterAccountId] = useState('');
+  const [bindingInviterEmail, setBindingInviterEmail] = useState('');
+  const [bindingInviteeAccountId, setBindingInviteeAccountId] = useState('');
+  const [bindingInviteeEmail, setBindingInviteeEmail] = useState('');
+  const [bindingReason, setBindingReason] = useState('');
+  const [bindingLoading, setBindingLoading] = useState(false);
 
   const [ruleCampaigns, setRuleCampaigns] = useState([]);
   const [selectedRuleCampaignId, setSelectedRuleCampaignId] = useState('');
@@ -600,6 +606,59 @@ export default function ReferralCampaignsPage() {
       return false;
     } finally {
       setInspectLoading(false);
+    }
+  };
+
+  const createManualReferralBinding = async () => {
+    const inviterAccountId = String(bindingInviterAccountId || '').trim();
+    const inviterEmail = String(bindingInviterEmail || '').trim();
+    const inviteeAccountId = String(bindingInviteeAccountId || '').trim();
+    const inviteeEmail = String(bindingInviteeEmail || '').trim();
+    const reason = String(bindingReason || '').trim();
+
+    if (!inviterAccountId && !inviterEmail) {
+      setError('Enter inviter account ID or inviter email.');
+      return;
+    }
+    if (!inviteeAccountId && !inviteeEmail) {
+      setError('Enter invitee account ID or invitee email.');
+      return;
+    }
+    if (inviterAccountId && (!Number.isInteger(Number(inviterAccountId)) || Number(inviterAccountId) <= 0)) {
+      setError('Inviter account ID must be a positive integer.');
+      return;
+    }
+    if (inviteeAccountId && (!Number.isInteger(Number(inviteeAccountId)) || Number(inviteeAccountId) <= 0)) {
+      setError('Invitee account ID must be a positive integer.');
+      return;
+    }
+
+    const payload = {
+      ...(inviterAccountId ? { inviterAccountId: Number(inviterAccountId) } : {}),
+      ...(inviterEmail ? { inviterEmail } : {}),
+      ...(inviteeAccountId ? { inviteeAccountId: Number(inviteeAccountId) } : {}),
+      ...(inviteeEmail ? { inviteeEmail } : {}),
+      ...(reason ? { reason } : {})
+    };
+
+    setBindingLoading(true);
+    setError(null);
+    setInfo(null);
+    try {
+      const res = await api.referrals.createBinding(payload);
+      setInfo(`Referral binding created${res?.id ? `: ${res.id}` : ''}.`);
+      setBindingReason('');
+      if (inviteeAccountId) {
+        setInspectAccountId(inviteeAccountId);
+        await fetchAccountReferralById(inviteeAccountId);
+      } else if (inviteeEmail) {
+        setInspectEmail(inviteeEmail);
+        await fetchAccountReferralByEmail(inviteeEmail);
+      }
+    } catch (err) {
+      setError(err?.message || 'Failed to create referral binding');
+    } finally {
+      setBindingLoading(false);
     }
   };
 
@@ -1341,6 +1400,62 @@ export default function ReferralCampaignsPage() {
           canNext={reviewPage + 1 < reviewTotalPages}
           emptyLabel="No suspicious pending rewards"
         />
+      </div>
+
+      <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+          <div style={{ fontWeight: 800 }}>Manual Referral Binding</div>
+          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+            Create a referral binding by account ID, email, or a mix of both. Reason is sent for audit history.
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.75rem' }}>
+          <div>
+            <label htmlFor="bindingInviterAccountId">Inviter account ID</label>
+            <input id="bindingInviterAccountId" type="number" min="1" value={bindingInviterAccountId} onChange={(e) => setBindingInviterAccountId(e.target.value)} placeholder="10" />
+          </div>
+          <div>
+            <label htmlFor="bindingInviterEmail">Inviter email</label>
+            <input id="bindingInviterEmail" type="email" value={bindingInviterEmail} onChange={(e) => setBindingInviterEmail(e.target.value)} placeholder="inviter@example.com" />
+          </div>
+          <div>
+            <label htmlFor="bindingInviteeAccountId">Invitee account ID</label>
+            <input id="bindingInviteeAccountId" type="number" min="1" value={bindingInviteeAccountId} onChange={(e) => setBindingInviteeAccountId(e.target.value)} placeholder="20" />
+          </div>
+          <div>
+            <label htmlFor="bindingInviteeEmail">Invitee email</label>
+            <input id="bindingInviteeEmail" type="email" value={bindingInviteeEmail} onChange={(e) => setBindingInviteeEmail(e.target.value)} placeholder="invitee@example.com" />
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <label htmlFor="bindingReason">Reason</label>
+          <textarea
+            id="bindingReason"
+            rows={2}
+            value={bindingReason}
+            onChange={(e) => setBindingReason(e.target.value)}
+            placeholder="User forgot to add inviter before transacting"
+          />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="btn-neutral"
+            onClick={() => {
+              setBindingInviterAccountId('');
+              setBindingInviterEmail('');
+              setBindingInviteeAccountId('');
+              setBindingInviteeEmail('');
+              setBindingReason('');
+            }}
+            disabled={bindingLoading}
+          >
+            Clear
+          </button>
+          <button type="button" className="btn-primary" onClick={createManualReferralBinding} disabled={bindingLoading}>
+            {bindingLoading ? 'Creating…' : 'Create binding'}
+          </button>
+        </div>
       </div>
 
       <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>

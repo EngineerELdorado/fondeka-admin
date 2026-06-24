@@ -1232,7 +1232,7 @@ export default function TransactionsPage() {
   const canRetryPostWebhook = useMemo(() => {
     if (!selected) return false;
     const status = String(selected.status || '').toUpperCase();
-    return status === 'FUNDED' || status === 'PROCESSING' || status === 'EXECUTING';
+    return status === 'FUNDED' || status === 'PROCESSING' || status === 'EXECUTING' || status === 'MANUAL_INTERVENTION_REQUIRED';
   }, [selected]);
 
   const canCheckMomoStatus = useMemo(() => {
@@ -2866,11 +2866,11 @@ export default function TransactionsPage() {
         <Modal title="Retry post-webhook fulfillment" onClose={() => (!postWebhookLoading ? setShowPostWebhookRetry(false) : null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ color: 'var(--muted)' }}>
-              Replays post-webhook fulfillment to resubmit the order to the provider. Allowed for FUNDED, PROCESSING, or EXECUTING transactions.
+              Reruns post-funding fulfillment without re-charging or re-debiting the user. Supports external rails and internal balance/crypto funding for FUNDED, PROCESSING, EXECUTING, or MANUAL_INTERVENTION_REQUIRED transactions.
             </div>
-            {!selected?.needsManualRefund && (
+            {!selected?.needsManualRefund && normalizeEnumKey(selected?.status) !== 'MANUAL_INTERVENTION_REQUIRED' && (
               <div style={{ color: '#b45309', fontWeight: 700 }}>
-                This transaction is not flagged for manual refund. Enable force to retry anyway.
+                This transaction is not flagged for manual intervention. Backend may require force=true for this status.
               </div>
             )}
             {postWebhookError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{postWebhookError}</div>}
@@ -2914,7 +2914,7 @@ export default function TransactionsPage() {
                 type="button"
                 className="btn-primary"
                 onClick={handlePostWebhookRetry}
-                disabled={postWebhookLoading || (!selected?.needsManualRefund && !postWebhookForce)}
+                disabled={postWebhookLoading}
               >
                 {postWebhookLoading ? 'Retrying…' : 'Confirm retry'}
               </button>

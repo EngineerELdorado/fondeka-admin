@@ -630,6 +630,12 @@ const [notificationDataModal, setNotificationDataModal] = useState(null);
   const [cardProviderStatusCpcpId, setCardProviderStatusCpcpId] = useState('');
   const [cardProviderStatusActive, setCardProviderStatusActive] = useState(true);
   const [cardProviderStatusSaving, setCardProviderStatusSaving] = useState(false);
+  const [manualReferralInviterAccountId, setManualReferralInviterAccountId] = useState('');
+  const [manualReferralInviterEmail, setManualReferralInviterEmail] = useState('');
+  const [manualReferralReason, setManualReferralReason] = useState('');
+  const [manualReferralSaving, setManualReferralSaving] = useState(false);
+  const [manualReferralError, setManualReferralError] = useState(null);
+  const [manualReferralInfo, setManualReferralInfo] = useState(null);
   const [loanProducts, setLoanProducts] = useState([]);
   const [loanRates, setLoanRates] = useState([]);
   const [loanRatesLoading, setLoanRatesLoading] = useState(false);
@@ -920,6 +926,51 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       pushToast({ tone: 'error', message });
     } finally {
       setCountrySaving(false);
+    }
+  };
+
+  const createManualReferralBindingForAccount = async () => {
+    const inviterAccountId = String(manualReferralInviterAccountId || '').trim();
+    const inviterEmail = String(manualReferralInviterEmail || '').trim();
+    const reason = String(manualReferralReason || '').trim();
+    const inviteeAccountId = account?.id ?? resolvedAccountId;
+    const inviteeEmail = accountEmailValue(account);
+
+    if (!inviterAccountId && !inviterEmail) {
+      setManualReferralError('Enter inviter account ID or inviter email.');
+      return;
+    }
+    if ((inviteeAccountId === null || inviteeAccountId === undefined || inviteeAccountId === '') && !inviteeEmail) {
+      setManualReferralError('Invitee account ID or email is required.');
+      return;
+    }
+    if (inviterAccountId && (!Number.isInteger(Number(inviterAccountId)) || Number(inviterAccountId) <= 0)) {
+      setManualReferralError('Inviter account ID must be a positive integer.');
+      return;
+    }
+
+    const payload = {
+      ...(inviterAccountId ? { inviterAccountId: Number(inviterAccountId) } : {}),
+      ...(inviterEmail ? { inviterEmail } : {}),
+      ...(inviteeAccountId !== null && inviteeAccountId !== undefined && inviteeAccountId !== '' ? { inviteeAccountId: Number(inviteeAccountId) } : { inviteeEmail }),
+      ...(reason ? { reason } : {})
+    };
+
+    setManualReferralSaving(true);
+    setManualReferralError(null);
+    setManualReferralInfo(null);
+    try {
+      const res = await api.referrals.createBinding(payload);
+      setManualReferralInfo(`Referral binding created${res?.id ? `: ${res.id}` : ''}.`);
+      setManualReferralReason('');
+      pushToast({ tone: 'success', message: 'Referral binding created.' });
+      await loadAccount();
+    } catch (err) {
+      const message = err.message || 'Failed to create referral binding';
+      setManualReferralError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setManualReferralSaving(false);
     }
   };
 
@@ -3159,6 +3210,75 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             />
           </div>
         ) : null}
+
+        <div style={{ marginTop: '0.9rem', display: 'grid', gap: '0.65rem', borderTop: '1px solid var(--border)', paddingTop: '0.85rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+            <div style={{ fontWeight: 700 }}>Create manual binding</div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Bind an inviter to this account. Account ID is used for this invitee when available.
+            </div>
+          </div>
+          {manualReferralError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{manualReferralError}</div>}
+          {manualReferralInfo && <div style={{ color: '#15803d', fontWeight: 700 }}>{manualReferralInfo}</div>}
+          <DetailGrid
+            rows={[
+              { label: 'Invitee account ID', value: accountView?.id ?? resolvedAccountId ?? '—' },
+              { label: 'Invitee email', value: accountEmailValue(accountView) || '—' }
+            ]}
+          />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="manualReferralInviterAccountId">Inviter account ID</label>
+              <input
+                id="manualReferralInviterAccountId"
+                type="number"
+                min="1"
+                value={manualReferralInviterAccountId}
+                onChange={(e) => setManualReferralInviterAccountId(e.target.value)}
+                placeholder="10"
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="manualReferralInviterEmail">Inviter email</label>
+              <input
+                id="manualReferralInviterEmail"
+                type="email"
+                value={manualReferralInviterEmail}
+                onChange={(e) => setManualReferralInviterEmail(e.target.value)}
+                placeholder="inviter@example.com"
+              />
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="manualReferralReason">Reason</label>
+            <textarea
+              id="manualReferralReason"
+              rows={2}
+              value={manualReferralReason}
+              onChange={(e) => setManualReferralReason(e.target.value)}
+              placeholder="Support correction"
+            />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn-neutral"
+              onClick={() => {
+                setManualReferralInviterAccountId('');
+                setManualReferralInviterEmail('');
+                setManualReferralReason('');
+                setManualReferralError(null);
+                setManualReferralInfo(null);
+              }}
+              disabled={manualReferralSaving}
+            >
+              Clear
+            </button>
+            <button type="button" className="btn-primary" onClick={createManualReferralBindingForAccount} disabled={manualReferralSaving}>
+              {manualReferralSaving ? 'Creating…' : 'Create binding'}
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="card" style={{ padding: '1rem' }}>
