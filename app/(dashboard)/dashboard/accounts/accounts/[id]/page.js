@@ -3211,6 +3211,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           </div>
         ) : null}
 
+        {!accountView?.invitedThroughReferral && (
         <div style={{ marginTop: '0.9rem', display: 'grid', gap: '0.65rem', borderTop: '1px solid var(--border)', paddingTop: '0.85rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
             <div style={{ fontWeight: 700 }}>Create manual binding</div>
@@ -3279,6 +3280,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             </button>
           </div>
         </div>
+        )}
       </div>
 
       <div className="card" style={{ padding: '1rem' }}>
