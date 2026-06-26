@@ -558,6 +558,10 @@ export default function TransactionsPage() {
   const [manualReconciliationMessage, setManualReconciliationMessage] = useState('');
   const [manualReconciliationSubmitError, setManualReconciliationSubmitError] = useState(null);
   const [manualReconciliationSubmitLoading, setManualReconciliationSubmitLoading] = useState(false);
+  const [showStatusChange, setShowStatusChange] = useState(false);
+  const [statusChangeValue, setStatusChangeValue] = useState('');
+  const [statusChangeError, setStatusChangeError] = useState(null);
+  const [statusChangeLoading, setStatusChangeLoading] = useState(false);
   const webhookEvents = Array.isArray(selected?.webhookEvents) ? selected.webhookEvents : [];
   const normalizedStatus = selected?.status?.toUpperCase?.() || '';
   const normalizedSelectedAction = normalizeEnumKey(selected?.action);
@@ -1131,6 +1135,9 @@ export default function TransactionsPage() {
     setManualReconciliationAction(null);
     setManualReconciliationMessage('');
     setManualReconciliationSubmitError(null);
+    setShowStatusChange(false);
+    setStatusChangeValue('');
+    setStatusChangeError(null);
   };
 
   const showRefundTransaction = async ({ refundReference, refundTransactionId }) => {
@@ -1405,6 +1412,39 @@ export default function TransactionsPage() {
     await fetchRows();
     const latest = await api.transactions.get(transactionId);
     if (latest) setSelected(latest);
+  };
+
+  const openStatusChange = () => {
+    setStatusChangeValue(normalizeEnumKey(selected?.status));
+    setStatusChangeError(null);
+    setShowStatusChange(true);
+  };
+
+  const submitStatusChange = async () => {
+    const transactionId = selected?.transactionId || selected?.id;
+    const nextStatus = normalizeEnumKey(statusChangeValue);
+    if (!transactionId) {
+      setStatusChangeError('Missing transaction id');
+      return;
+    }
+    if (!nextStatus) {
+      setStatusChangeError('Select a status.');
+      return;
+    }
+    setStatusChangeLoading(true);
+    setStatusChangeError(null);
+    try {
+      await api.transactions.updateStatus(transactionId, { status: nextStatus });
+      pushToast({ tone: 'success', message: `Transaction status changed to ${nextStatus}.` });
+      setShowStatusChange(false);
+      await refreshSelectedTransaction(transactionId);
+    } catch (err) {
+      const message = err?.status === 403 ? 'Only SUPER_ADMIN can change transaction status.' : err?.message || 'Failed to change transaction status';
+      setStatusChangeError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setStatusChangeLoading(false);
+    }
   };
 
   const handleForceResumeVerifiedCardOrder = async () => {
@@ -2820,6 +2860,11 @@ export default function TransactionsPage() {
                   Retry post-webhook
                 </button>
               )}
+              {isSuperAdmin && (
+                <button type="button" onClick={openStatusChange} className="btn-neutral">
+                  Change status
+                </button>
+              )}
               {canReplayFulfillment && (
                 <button type="button" onClick={() => setShowReplayConfirm(true)} className="btn-primary">
                   Replay loan fulfillment
@@ -2917,6 +2962,44 @@ export default function TransactionsPage() {
                 disabled={postWebhookLoading}
               >
                 {postWebhookLoading ? 'Retrying…' : 'Confirm retry'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showStatusChange && (
+        <Modal title="Change transaction status" onClose={() => (!statusChangeLoading ? setShowStatusChange(false) : null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ color: 'var(--muted)' }}>
+              This only updates the transaction status enum. It does not notify, fulfill, refund, update receipts, or trigger provider logic.
+            </div>
+            {statusChangeError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{statusChangeError}</div>}
+            <DetailGrid
+              rows={[
+                { label: 'Transaction ID', value: selected?.transactionId || selected?.id },
+                { label: 'Reference', value: selected?.reference },
+                { label: 'Current status', value: selected?.status },
+                { label: 'Action', value: formatEnumLabel(selected?.action, actionLabels) }
+              ]}
+            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="statusChangeValue">New status</label>
+              <select id="statusChangeValue" value={statusChangeValue} onChange={(e) => setStatusChangeValue(e.target.value)}>
+                <option value="">Select status</option>
+                {statusOptions.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn-neutral" onClick={() => setShowStatusChange(false)} disabled={statusChangeLoading}>
+                Cancel
+              </button>
+              <button type="button" className="btn-danger" onClick={submitStatusChange} disabled={statusChangeLoading || !statusChangeValue}>
+                {statusChangeLoading ? 'Changing…' : 'Change status'}
               </button>
             </div>
           </div>
