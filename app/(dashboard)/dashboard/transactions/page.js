@@ -353,15 +353,23 @@ const pickLatestAdminMessage = (txn) => {
   return found ? found.trim() : null;
 };
 
-const getAdminGroups = (session) => {
+const getAdminRoles = (session) => {
   const accessTokenPayload = session?.tokens?.accessToken?.payload || null;
   const idTokenPayload = session?.tokens?.idToken?.payload || null;
-  const rawGroups =
-    accessTokenPayload?.['cognito:groups'] ||
-    accessTokenPayload?.groups ||
-    idTokenPayload?.['cognito:groups'] ||
-    idTokenPayload?.groups;
-  return Array.isArray(rawGroups) ? rawGroups.map((group) => String(group).toUpperCase()) : [];
+  const roles = new Set();
+  [accessTokenPayload, idTokenPayload].forEach((payload) => {
+    if (!payload) return;
+    [payload.role, payload.adminRole, payload['custom:role']].forEach((role) => {
+      if (role) roles.add(String(role).trim().toUpperCase());
+    });
+    const rawGroups = payload['cognito:groups'] || payload.groups;
+    if (Array.isArray(rawGroups)) {
+      rawGroups.forEach((group) => roles.add(String(group).trim().toUpperCase()));
+    } else if (typeof rawGroups === 'string') {
+      rawGroups.split(',').forEach((group) => roles.add(String(group).trim().toUpperCase()));
+    }
+  });
+  return roles;
 };
 
 const toBoolean = (value) => value === true || String(value).toLowerCase() === 'true';
@@ -444,8 +452,8 @@ export default function TransactionsPage() {
   const searchParams = useSearchParams();
   const { session } = useAuth();
   const { pushToast } = useToast();
-  const adminGroups = useMemo(() => getAdminGroups(session), [session]);
-  const isSuperAdmin = adminGroups.includes('SUPER_ADMIN');
+  const adminRoles = useMemo(() => getAdminRoles(session), [session]);
+  const isSuperAdmin = adminRoles.has('SUPER_ADMIN');
   const queryFilters = useMemo(() => {
     const transactionId = searchParams.get('transactionId');
     const referenceParam = searchParams.get('reference');
