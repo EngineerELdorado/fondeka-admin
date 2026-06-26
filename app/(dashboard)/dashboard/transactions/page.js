@@ -54,7 +54,7 @@ const statusOptions = [
   'PROCESSING',
   'FAILED',
   'PENDING',
-  'CANCELLED',
+  'CANCELED',
   'REFUNDED',
   'REVERSED',
   'FUNDED',
