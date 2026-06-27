@@ -82,18 +82,11 @@ const providerBool = (value) => {
   return value ? 'Yes' : 'No';
 };
 
-const providerDate = (value) => {
-  if (!value) return '—';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
-};
-
 const buildProviderProfileRows = (holder) => {
   const profiles = getProviderProfiles(holder);
   return profiles.map((profile) => {
     const providerId = profile?.cardProviderId ?? profile?.providerId;
     const provider = providerProfileName(profile) || providerValue(providerId);
-    const transactionId = profile?.transactionId ?? profile?.transaction?.id;
     return {
       provider,
       cardProviderId: providerId,
@@ -101,8 +94,6 @@ const buildProviderProfileRows = (holder) => {
       reference: providerValue(profile?.externalReference),
       status: providerValue(profile?.status),
       verified: providerBool(profile?.verified),
-      transaction: transactionId ? String(transactionId) : '—',
-      updatedAt: providerDate(profile?.updatedAt),
       metaData: providerValue(profile?.metaData)
     };
   });
@@ -147,8 +138,6 @@ const ProviderProfilesPanel = ({ holder, canReset = false, onResetProvider, rese
               <div>Reference: <span style={{ color: 'var(--text)', fontWeight: 700 }}>{profile.reference}</span></div>
               <div>Status: <span style={{ color: 'var(--text)', fontWeight: 700 }}>{profile.status}</span></div>
               <div>Verified: <span style={{ color: 'var(--text)', fontWeight: 700 }}>{profile.verified}</span></div>
-              <div>Linked transaction: <span style={{ color: 'var(--text)', fontWeight: 700 }}>{profile.transaction}</span></div>
-              <div>Last updated: <span style={{ color: 'var(--text)', fontWeight: 700 }}>{profile.updatedAt}</span></div>
               {profile.metaData !== '—' && <div>Metadata: <span style={{ color: 'var(--text)', fontWeight: 700 }}>{profile.metaData}</span></div>}
             </div>
           </div>
