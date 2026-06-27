@@ -3184,13 +3184,15 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         ]}
       />
 
-      <div className="card" style={{ padding: '1rem' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <div style={{ fontWeight: 800 }}>Referral Attribution</div>
-          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-            {accountView?.invitedThroughReferral ? 'This account was created through a referral binding.' : 'Not referred.'}
+      <details className="card" style={{ padding: '1rem' }}>
+        <summary style={{ cursor: 'pointer', listStyle: 'none' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <div style={{ fontWeight: 800 }}>Referral Attribution</div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              {accountView?.invitedThroughReferral ? 'This account was created through a referral binding.' : 'Not referred.'}
+            </div>
           </div>
-        </div>
+        </summary>
 
         {accountView?.invitedThroughReferral ? (
           <div style={{ marginTop: '0.75rem' }}>
@@ -3281,7 +3283,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           </div>
         </div>
         )}
-      </div>
+      </details>
 
       <div className="card" style={{ padding: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>

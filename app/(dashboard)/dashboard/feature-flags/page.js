@@ -29,6 +29,7 @@ const CRYPTO_SPREAD_GLOBAL_KEY = 'crypto.spread.enabled';
 const CRYPTO_SPREAD_ACTION_PREFIX = 'crypto.spread.action.';
 const SHOW_CRYPTO_SPREAD_SECTION = false;
 const INTER_TRANSFER_FLAG_KEY = 'wallet.inter_transfer.enabled';
+const CARD_ORDERING_FEATURE_FLAG_KEY = 'card.order_card';
 const TRUSTED_DEVICE_GLOBAL_KEY = 'trusted_device_enforcement';
 const TRUSTED_DEVICE_ANDROID_KEY = 'trusted_device_enforcement.android';
 const TRUSTED_DEVICE_IOS_KEY = 'trusted_device_enforcement.ios';
@@ -118,6 +119,10 @@ const DISABLED_BEHAVIOR_OPTIONS = [
   { value: 'BLOCK_REQUEST', label: 'Block request' },
   { value: 'ACCEPT_AND_QUEUE', label: 'Accept and queue' }
 ];
+const QUEUED_PROVIDER_WORK_MODE_OPTIONS = [
+  { value: 'HOLD_ALL_PROVIDER_WORK', label: 'Hold all provider work' },
+  { value: 'ALLOW_CARD_HOLDER_VERIFICATION', label: 'Allow cardholder verification' }
+];
 
 const formatKeyPart = (value) =>
   String(value || '')
@@ -153,6 +158,15 @@ const normalizeDisabledBehavior = (value) => (value === 'ACCEPT_AND_QUEUE' ? 'AC
 const formatDisabledBehavior = (value) => {
   const normalized = normalizeDisabledBehavior(value);
   return DISABLED_BEHAVIOR_OPTIONS.find((option) => option.value === normalized)?.label || normalized;
+};
+const isCardOrderingFeatureFlag = (key) => String(key || '') === CARD_ORDERING_FEATURE_FLAG_KEY;
+const normalizeQueuedProviderWorkMode = (value, key) => {
+  if (value === 'ALLOW_CARD_HOLDER_VERIFICATION' && isCardOrderingFeatureFlag(key)) return 'ALLOW_CARD_HOLDER_VERIFICATION';
+  return 'HOLD_ALL_PROVIDER_WORK';
+};
+const formatQueuedProviderWorkMode = (value, key) => {
+  const normalized = normalizeQueuedProviderWorkMode(value, key);
+  return QUEUED_PROVIDER_WORK_MODE_OPTIONS.find((option) => option.value === normalized)?.label || normalized;
 };
 const isOutboxDispatchKey = (key) => String(key || '').startsWith('outbox.dispatch.');
 
@@ -257,6 +271,9 @@ function FeatureFlagMeta({ flag }) {
   return (
     <div style={{ display: 'grid', gap: '0.2rem', color: 'var(--muted)', fontSize: '12px', marginTop: '0.2rem' }}>
       <div>Disabled behavior: {formatDisabledBehavior(flag.disabledBehavior)}</div>
+      {normalizeDisabledBehavior(flag.disabledBehavior) === 'ACCEPT_AND_QUEUE' && (
+        <div>Queued provider work: {formatQueuedProviderWorkMode(flag.queuedProviderWorkMode, flag.key)}</div>
+      )}
       {dispatch && <div>Worker/provider dispatch control. Turning it off pauses provider submission but does not block transaction creation by itself.</div>}
     </div>
   );
@@ -297,6 +314,7 @@ export default function FeatureFlagsPage() {
   const [draftKey, setDraftKey] = useState('');
   const [draftEnabled, setDraftEnabled] = useState(true);
   const [draftDisabledBehavior, setDraftDisabledBehavior] = useState('BLOCK_REQUEST');
+  const [draftQueuedProviderWorkMode, setDraftQueuedProviderWorkMode] = useState('HOLD_ALL_PROVIDER_WORK');
   const [draftDisabledMessageEn, setDraftDisabledMessageEn] = useState('');
   const [draftDisabledMessageFr, setDraftDisabledMessageFr] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -304,6 +322,7 @@ export default function FeatureFlagsPage() {
   const [editLoading, setEditLoading] = useState(false);
   const [editDraftEnabled, setEditDraftEnabled] = useState(true);
   const [editDraftDisabledBehavior, setEditDraftDisabledBehavior] = useState('BLOCK_REQUEST');
+  const [editDraftQueuedProviderWorkMode, setEditDraftQueuedProviderWorkMode] = useState('HOLD_ALL_PROVIDER_WORK');
   const [editDraftDisabledMessageEn, setEditDraftDisabledMessageEn] = useState('');
   const [editDraftDisabledMessageFr, setEditDraftDisabledMessageFr] = useState('');
   const [overrideDialog, setOverrideDialog] = useState(null);
@@ -476,6 +495,7 @@ export default function FeatureFlagsPage() {
         key,
         enabled: Boolean(payload?.enabled),
         disabledBehavior: normalizeDisabledBehavior(payload?.disabledBehavior),
+        queuedProviderWorkMode: normalizeQueuedProviderWorkMode(payload?.queuedProviderWorkMode, key),
         disabledMessageEn: payload?.disabledMessageEn ?? '',
         disabledMessageFr: payload?.disabledMessageFr ?? ''
       };
@@ -494,6 +514,7 @@ export default function FeatureFlagsPage() {
         key,
         enabled: Boolean(res?.enabled),
         disabledBehavior: normalizeDisabledBehavior(res?.disabledBehavior),
+        queuedProviderWorkMode: normalizeQueuedProviderWorkMode(res?.queuedProviderWorkMode, key),
         disabledMessageEn: res?.disabledMessageEn ?? '',
         disabledMessageFr: res?.disabledMessageFr ?? ''
       };
@@ -503,6 +524,7 @@ export default function FeatureFlagsPage() {
           key,
           enabled: Boolean(fallbackFlag?.enabled),
           disabledBehavior: normalizeDisabledBehavior(fallbackFlag?.disabledBehavior),
+          queuedProviderWorkMode: normalizeQueuedProviderWorkMode(fallbackFlag?.queuedProviderWorkMode, key),
           disabledMessageEn: fallbackFlag?.disabledMessageEn ?? '',
           disabledMessageFr: fallbackFlag?.disabledMessageFr ?? ''
         };
@@ -518,7 +540,8 @@ export default function FeatureFlagsPage() {
       const res = await api.featureFlags.list();
       const list = (Array.isArray(res) ? res : []).map((flag) => ({
         ...flag,
-        disabledBehavior: normalizeDisabledBehavior(flag?.disabledBehavior)
+        disabledBehavior: normalizeDisabledBehavior(flag?.disabledBehavior),
+        queuedProviderWorkMode: normalizeQueuedProviderWorkMode(flag?.queuedProviderWorkMode, flag?.key)
       }));
       const hasCryptoCollectionGate = list.some((flag) => String(flag?.key) === CRYPTO_COLLECTION_GATE_KEY);
       const hasPublicEndpointsFlag = list.some((flag) => String(flag?.key) === CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY);
@@ -533,18 +556,18 @@ export default function FeatureFlagsPage() {
       const hasTransactionAuthIosFlag = list.some((flag) => String(flag?.key) === TRANSACTION_AUTH_IOS_KEY);
       const hasCustomerServiceEnabledFlag = list.some((flag) => String(flag?.key) === CUSTOMER_SERVICE_ENABLED_KEY);
       const defaults = [];
-      if (!hasCryptoCollectionGate) defaults.push({ key: CRYPTO_COLLECTION_GATE_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', isDefault: true });
-      if (!hasPublicEndpointsFlag) defaults.push({ key: CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', isDefault: true });
-      if (!hasNotificationPermissionWelcomeFlag) defaults.push({ key: NOTIFICATION_PERMISSION_WELCOME_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', isDefault: true });
-      if (!hasCryptoSpreadGlobal) defaults.push({ key: CRYPTO_SPREAD_GLOBAL_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', isDefault: true });
-      if (!hasInterTransferFlag) defaults.push({ key: INTER_TRANSFER_FLAG_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', isDefault: true });
-      if (!hasTrustedGlobalFlag) defaults.push({ key: TRUSTED_DEVICE_GLOBAL_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', isDefault: true });
-      if (!hasTrustedAndroidFlag) defaults.push({ key: TRUSTED_DEVICE_ANDROID_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', isDefault: true });
-      if (!hasTrustedIosFlag) defaults.push({ key: TRUSTED_DEVICE_IOS_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', isDefault: true });
-      if (!hasTransactionAuthGlobalFlag) defaults.push({ key: TRANSACTION_AUTH_GLOBAL_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', isDefault: true });
-      if (!hasTransactionAuthAndroidFlag) defaults.push({ key: TRANSACTION_AUTH_ANDROID_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', isDefault: true });
-      if (!hasTransactionAuthIosFlag) defaults.push({ key: TRANSACTION_AUTH_IOS_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', isDefault: true });
-      if (!hasCustomerServiceEnabledFlag) defaults.push({ key: CUSTOMER_SERVICE_ENABLED_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', isDefault: true });
+      if (!hasCryptoCollectionGate) defaults.push({ key: CRYPTO_COLLECTION_GATE_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK', isDefault: true });
+      if (!hasPublicEndpointsFlag) defaults.push({ key: CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK', isDefault: true });
+      if (!hasNotificationPermissionWelcomeFlag) defaults.push({ key: NOTIFICATION_PERMISSION_WELCOME_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK', isDefault: true });
+      if (!hasCryptoSpreadGlobal) defaults.push({ key: CRYPTO_SPREAD_GLOBAL_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK', isDefault: true });
+      if (!hasInterTransferFlag) defaults.push({ key: INTER_TRANSFER_FLAG_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK', isDefault: true });
+      if (!hasTrustedGlobalFlag) defaults.push({ key: TRUSTED_DEVICE_GLOBAL_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK', isDefault: true });
+      if (!hasTrustedAndroidFlag) defaults.push({ key: TRUSTED_DEVICE_ANDROID_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK', isDefault: true });
+      if (!hasTrustedIosFlag) defaults.push({ key: TRUSTED_DEVICE_IOS_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK', isDefault: true });
+      if (!hasTransactionAuthGlobalFlag) defaults.push({ key: TRANSACTION_AUTH_GLOBAL_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK', isDefault: true });
+      if (!hasTransactionAuthAndroidFlag) defaults.push({ key: TRANSACTION_AUTH_ANDROID_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK', isDefault: true });
+      if (!hasTransactionAuthIosFlag) defaults.push({ key: TRANSACTION_AUTH_IOS_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK', isDefault: true });
+      if (!hasCustomerServiceEnabledFlag) defaults.push({ key: CUSTOMER_SERVICE_ENABLED_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK', isDefault: true });
       setFlags([...defaults, ...list]);
     } catch (err) {
       setError(err.message);
@@ -600,6 +623,7 @@ export default function FeatureFlagsPage() {
       const payload = {
         enabled: nextEnabled,
         disabledBehavior: detail.disabledBehavior ?? 'BLOCK_REQUEST',
+        queuedProviderWorkMode: normalizeQueuedProviderWorkMode(detail.queuedProviderWorkMode, key),
         disabledMessageEn: detail.disabledMessageEn ?? '',
         disabledMessageFr: detail.disabledMessageFr ?? ''
       };
@@ -607,6 +631,7 @@ export default function FeatureFlagsPage() {
       syncFlagInState(key, {
         enabled: Boolean(res?.enabled),
         disabledBehavior: res?.disabledBehavior ?? payload.disabledBehavior,
+        queuedProviderWorkMode: res?.queuedProviderWorkMode ?? payload.queuedProviderWorkMode,
         disabledMessageEn: res?.disabledMessageEn ?? payload.disabledMessageEn,
         disabledMessageFr: res?.disabledMessageFr ?? payload.disabledMessageFr
       });
@@ -634,6 +659,7 @@ export default function FeatureFlagsPage() {
       const payload = {
         enabled: false,
         disabledBehavior: detail.disabledBehavior ?? 'BLOCK_REQUEST',
+        queuedProviderWorkMode: normalizeQueuedProviderWorkMode(detail.queuedProviderWorkMode, key),
         disabledMessageEn: detail.disabledMessageEn ?? '',
         disabledMessageFr: detail.disabledMessageFr ?? ''
       };
@@ -641,6 +667,7 @@ export default function FeatureFlagsPage() {
       syncFlagInState(key, {
         enabled: Boolean(res?.enabled),
         disabledBehavior: res?.disabledBehavior ?? payload.disabledBehavior,
+        queuedProviderWorkMode: res?.queuedProviderWorkMode ?? payload.queuedProviderWorkMode,
         disabledMessageEn: res?.disabledMessageEn ?? payload.disabledMessageEn,
         disabledMessageFr: res?.disabledMessageFr ?? payload.disabledMessageFr
       });
@@ -685,6 +712,7 @@ export default function FeatureFlagsPage() {
       const payload = {
         enabled: draftEnabled,
         disabledBehavior: draftDisabledBehavior,
+        queuedProviderWorkMode: normalizeQueuedProviderWorkMode(draftQueuedProviderWorkMode, key),
         disabledMessageEn: draftDisabledMessageEn,
         disabledMessageFr: draftDisabledMessageFr
       };
@@ -692,6 +720,7 @@ export default function FeatureFlagsPage() {
       syncFlagInState(key, {
         enabled: Boolean(res?.enabled),
         disabledBehavior: res?.disabledBehavior ?? payload.disabledBehavior,
+        queuedProviderWorkMode: res?.queuedProviderWorkMode ?? payload.queuedProviderWorkMode,
         disabledMessageEn: res?.disabledMessageEn ?? payload.disabledMessageEn,
         disabledMessageFr: res?.disabledMessageFr ?? payload.disabledMessageFr
       });
@@ -699,6 +728,7 @@ export default function FeatureFlagsPage() {
       setDraftKey('');
       setDraftEnabled(true);
       setDraftDisabledBehavior('BLOCK_REQUEST');
+      setDraftQueuedProviderWorkMode('HOLD_ALL_PROVIDER_WORK');
       setDraftDisabledMessageEn('');
       setDraftDisabledMessageFr('');
     } catch (err) {
@@ -748,6 +778,7 @@ export default function FeatureFlagsPage() {
       const detail = await loadFlagDetail(flag.key, flag);
       setEditDraftEnabled(Boolean(detail.enabled));
       setEditDraftDisabledBehavior(detail.disabledBehavior ?? 'BLOCK_REQUEST');
+      setEditDraftQueuedProviderWorkMode(normalizeQueuedProviderWorkMode(detail.queuedProviderWorkMode, flag.key));
       setEditDraftDisabledMessageEn(detail.disabledMessageEn ?? '');
       setEditDraftDisabledMessageFr(detail.disabledMessageFr ?? '');
     } catch (err) {
@@ -764,6 +795,7 @@ export default function FeatureFlagsPage() {
     const payload = {
       enabled: Boolean(editDraftEnabled),
       disabledBehavior: editDraftDisabledBehavior,
+      queuedProviderWorkMode: normalizeQueuedProviderWorkMode(editDraftQueuedProviderWorkMode, key),
       disabledMessageEn: editDraftDisabledMessageEn,
       disabledMessageFr: editDraftDisabledMessageFr
     };
@@ -775,6 +807,7 @@ export default function FeatureFlagsPage() {
       syncFlagInState(key, {
         enabled: Boolean(res?.enabled),
         disabledBehavior: res?.disabledBehavior ?? payload.disabledBehavior,
+        queuedProviderWorkMode: res?.queuedProviderWorkMode ?? payload.queuedProviderWorkMode,
         disabledMessageEn: res?.disabledMessageEn ?? payload.disabledMessageEn,
         disabledMessageFr: res?.disabledMessageFr ?? payload.disabledMessageFr
       });
@@ -1126,6 +1159,18 @@ export default function FeatureFlagsPage() {
               ))}
             </select>
           </div>
+          {draftDisabledBehavior === 'ACCEPT_AND_QUEUE' && isCardOrderingFeatureFlag(draftKey.trim()) ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="draftQueuedProviderWorkMode">Queued provider work</label>
+              <select id="draftQueuedProviderWorkMode" value={draftQueuedProviderWorkMode} onChange={(e) => setDraftQueuedProviderWorkMode(e.target.value)}>
+                {QUEUED_PROVIDER_WORK_MODE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
           <button
             type="button"
             onClick={handleCreateFlag}
@@ -1172,6 +1217,14 @@ export default function FeatureFlagsPage() {
               ? 'Outbox dispatch flags pause worker/provider submission when disabled. They do not block the original transaction creation by themselves.'
               : 'Block request rejects disabled user requests. Accept and queue allows the request to continue so provider work can be queued for later dispatch.'}
           </div>
+          {draftDisabledBehavior === 'ACCEPT_AND_QUEUE' && (
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Queued provider work mode:{' '}
+              {isCardOrderingFeatureFlag(draftKey.trim())
+                ? formatQueuedProviderWorkMode(draftQueuedProviderWorkMode, draftKey.trim())
+                : 'Hold all provider work'}
+            </div>
+          )}
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button
@@ -1180,6 +1233,7 @@ export default function FeatureFlagsPage() {
               setDraftKey(AVEC_LOAN_REQUEST_REASON_KEY);
               setDraftEnabled(true);
               setDraftDisabledBehavior('BLOCK_REQUEST');
+              setDraftQueuedProviderWorkMode('HOLD_ALL_PROVIDER_WORK');
               setDraftDisabledMessageEn('');
               setDraftDisabledMessageFr('');
             }}
@@ -1201,6 +1255,7 @@ export default function FeatureFlagsPage() {
               setDraftKey(CUSTOMER_SERVICE_ENABLED_KEY);
               setDraftEnabled(true);
               setDraftDisabledBehavior('BLOCK_REQUEST');
+              setDraftQueuedProviderWorkMode('HOLD_ALL_PROVIDER_WORK');
               setDraftDisabledMessageEn('');
               setDraftDisabledMessageFr('');
             }}
@@ -2002,6 +2057,31 @@ export default function FeatureFlagsPage() {
                       : 'Block request rejects disabled user requests. Accept and queue lets the request continue for later provider dispatch.'}
                   </div>
                 </div>
+                {editDraftDisabledBehavior === 'ACCEPT_AND_QUEUE' && isCardOrderingFeatureFlag(editDialog.key) ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <label htmlFor="editQueuedProviderWorkMode">Queued provider work</label>
+                    <select
+                      id="editQueuedProviderWorkMode"
+                      value={editDraftQueuedProviderWorkMode}
+                      onChange={(e) => setEditDraftQueuedProviderWorkMode(e.target.value)}
+                      disabled={savingKey === editDialog.key}
+                    >
+                      {QUEUED_PROVIDER_WORK_MODE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                      Allows cardholder creation/verification to continue while actual card ordering remains queued.
+                    </div>
+                  </div>
+                ) : null}
+                {editDraftDisabledBehavior === 'ACCEPT_AND_QUEUE' && !isCardOrderingFeatureFlag(editDialog.key) ? (
+                  <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                    Queued provider work mode: Hold all provider work.
+                  </div>
+                ) : null}
                 <div style={{ display: 'grid', gap: '0.65rem' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                     <label htmlFor="editDisabledMessageEn">Disabled message (English)</label>
