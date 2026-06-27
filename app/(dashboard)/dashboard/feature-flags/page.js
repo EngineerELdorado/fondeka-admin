@@ -114,6 +114,10 @@ const GENERIC_DISABLED_MESSAGE_HELP =
   'Optional. Shown to users when this feature is disabled. If left empty, the app will use the default maintenance message.';
 const SAVINGS_DISABLED_MESSAGE_HELP =
   'Optional. Shown to users in accountData.savingsAccess.message when savings is globally disabled. If left empty, the app will receive the default savings unavailable message.';
+const DISABLED_BEHAVIOR_OPTIONS = [
+  { value: 'BLOCK_REQUEST', label: 'Block request' },
+  { value: 'ACCEPT_AND_QUEUE', label: 'Accept and queue' }
+];
 
 const formatKeyPart = (value) =>
   String(value || '')
@@ -145,6 +149,12 @@ const getDisabledMessagePlaceholder = (key) =>
     : 'Optional. Shown to users when this feature is disabled.';
 
 const getDisabledMessageHelp = (key) => (key === SAVINGS_ENABLED_KEY ? SAVINGS_DISABLED_MESSAGE_HELP : GENERIC_DISABLED_MESSAGE_HELP);
+const normalizeDisabledBehavior = (value) => (value === 'ACCEPT_AND_QUEUE' ? 'ACCEPT_AND_QUEUE' : 'BLOCK_REQUEST');
+const formatDisabledBehavior = (value) => {
+  const normalized = normalizeDisabledBehavior(value);
+  return DISABLED_BEHAVIOR_OPTIONS.find((option) => option.value === normalized)?.label || normalized;
+};
+const isOutboxDispatchKey = (key) => String(key || '').startsWith('outbox.dispatch.');
 
 const isCryptoSpreadActionKey = (key) => String(key || '').startsWith(CRYPTO_SPREAD_ACTION_PREFIX);
 const actionFromCryptoSpreadKey = (key) => String(key || '').replace(CRYPTO_SPREAD_ACTION_PREFIX, '');
@@ -241,6 +251,17 @@ function CollapsibleSection({ title, subtitle = null, count = null, borderColor 
   );
 }
 
+function FeatureFlagMeta({ flag }) {
+  if (!flag?.key) return null;
+  const dispatch = isOutboxDispatchKey(flag.key);
+  return (
+    <div style={{ display: 'grid', gap: '0.2rem', color: 'var(--muted)', fontSize: '12px', marginTop: '0.2rem' }}>
+      <div>Disabled behavior: {formatDisabledBehavior(flag.disabledBehavior)}</div>
+      {dispatch && <div>Worker/provider dispatch control. Turning it off pauses provider submission but does not block transaction creation by itself.</div>}
+    </div>
+  );
+}
+
 const getOverrideErrorMessage = (err, fallback) => {
   if (err?.status === 404) return 'Account or email not found';
   return err?.message || fallback;
@@ -275,12 +296,14 @@ export default function FeatureFlagsPage() {
   const [confirm, setConfirm] = useState(null);
   const [draftKey, setDraftKey] = useState('');
   const [draftEnabled, setDraftEnabled] = useState(true);
+  const [draftDisabledBehavior, setDraftDisabledBehavior] = useState('BLOCK_REQUEST');
   const [draftDisabledMessageEn, setDraftDisabledMessageEn] = useState('');
   const [draftDisabledMessageFr, setDraftDisabledMessageFr] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [editDialog, setEditDialog] = useState(null);
   const [editLoading, setEditLoading] = useState(false);
   const [editDraftEnabled, setEditDraftEnabled] = useState(true);
+  const [editDraftDisabledBehavior, setEditDraftDisabledBehavior] = useState('BLOCK_REQUEST');
   const [editDraftDisabledMessageEn, setEditDraftDisabledMessageEn] = useState('');
   const [editDraftDisabledMessageFr, setEditDraftDisabledMessageFr] = useState('');
   const [overrideDialog, setOverrideDialog] = useState(null);
@@ -452,6 +475,7 @@ export default function FeatureFlagsPage() {
       const nextFlag = {
         key,
         enabled: Boolean(payload?.enabled),
+        disabledBehavior: normalizeDisabledBehavior(payload?.disabledBehavior),
         disabledMessageEn: payload?.disabledMessageEn ?? '',
         disabledMessageFr: payload?.disabledMessageFr ?? ''
       };
@@ -469,6 +493,7 @@ export default function FeatureFlagsPage() {
       return {
         key,
         enabled: Boolean(res?.enabled),
+        disabledBehavior: normalizeDisabledBehavior(res?.disabledBehavior),
         disabledMessageEn: res?.disabledMessageEn ?? '',
         disabledMessageFr: res?.disabledMessageFr ?? ''
       };
@@ -477,6 +502,7 @@ export default function FeatureFlagsPage() {
         return {
           key,
           enabled: Boolean(fallbackFlag?.enabled),
+          disabledBehavior: normalizeDisabledBehavior(fallbackFlag?.disabledBehavior),
           disabledMessageEn: fallbackFlag?.disabledMessageEn ?? '',
           disabledMessageFr: fallbackFlag?.disabledMessageFr ?? ''
         };
@@ -490,7 +516,10 @@ export default function FeatureFlagsPage() {
     setError(null);
     try {
       const res = await api.featureFlags.list();
-      const list = Array.isArray(res) ? res : [];
+      const list = (Array.isArray(res) ? res : []).map((flag) => ({
+        ...flag,
+        disabledBehavior: normalizeDisabledBehavior(flag?.disabledBehavior)
+      }));
       const hasCryptoCollectionGate = list.some((flag) => String(flag?.key) === CRYPTO_COLLECTION_GATE_KEY);
       const hasPublicEndpointsFlag = list.some((flag) => String(flag?.key) === CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY);
       const hasNotificationPermissionWelcomeFlag = list.some((flag) => String(flag?.key) === NOTIFICATION_PERMISSION_WELCOME_KEY);
@@ -504,18 +533,18 @@ export default function FeatureFlagsPage() {
       const hasTransactionAuthIosFlag = list.some((flag) => String(flag?.key) === TRANSACTION_AUTH_IOS_KEY);
       const hasCustomerServiceEnabledFlag = list.some((flag) => String(flag?.key) === CUSTOMER_SERVICE_ENABLED_KEY);
       const defaults = [];
-      if (!hasCryptoCollectionGate) defaults.push({ key: CRYPTO_COLLECTION_GATE_KEY, enabled: true, isDefault: true });
-      if (!hasPublicEndpointsFlag) defaults.push({ key: CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY, enabled: true, isDefault: true });
-      if (!hasNotificationPermissionWelcomeFlag) defaults.push({ key: NOTIFICATION_PERMISSION_WELCOME_KEY, enabled: true, isDefault: true });
-      if (!hasCryptoSpreadGlobal) defaults.push({ key: CRYPTO_SPREAD_GLOBAL_KEY, enabled: true, isDefault: true });
-      if (!hasInterTransferFlag) defaults.push({ key: INTER_TRANSFER_FLAG_KEY, enabled: true, isDefault: true });
-      if (!hasTrustedGlobalFlag) defaults.push({ key: TRUSTED_DEVICE_GLOBAL_KEY, enabled: true, isDefault: true });
-      if (!hasTrustedAndroidFlag) defaults.push({ key: TRUSTED_DEVICE_ANDROID_KEY, enabled: true, isDefault: true });
-      if (!hasTrustedIosFlag) defaults.push({ key: TRUSTED_DEVICE_IOS_KEY, enabled: true, isDefault: true });
-      if (!hasTransactionAuthGlobalFlag) defaults.push({ key: TRANSACTION_AUTH_GLOBAL_KEY, enabled: true, isDefault: true });
-      if (!hasTransactionAuthAndroidFlag) defaults.push({ key: TRANSACTION_AUTH_ANDROID_KEY, enabled: true, isDefault: true });
-      if (!hasTransactionAuthIosFlag) defaults.push({ key: TRANSACTION_AUTH_IOS_KEY, enabled: true, isDefault: true });
-      if (!hasCustomerServiceEnabledFlag) defaults.push({ key: CUSTOMER_SERVICE_ENABLED_KEY, enabled: true, isDefault: true });
+      if (!hasCryptoCollectionGate) defaults.push({ key: CRYPTO_COLLECTION_GATE_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', isDefault: true });
+      if (!hasPublicEndpointsFlag) defaults.push({ key: CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', isDefault: true });
+      if (!hasNotificationPermissionWelcomeFlag) defaults.push({ key: NOTIFICATION_PERMISSION_WELCOME_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', isDefault: true });
+      if (!hasCryptoSpreadGlobal) defaults.push({ key: CRYPTO_SPREAD_GLOBAL_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', isDefault: true });
+      if (!hasInterTransferFlag) defaults.push({ key: INTER_TRANSFER_FLAG_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', isDefault: true });
+      if (!hasTrustedGlobalFlag) defaults.push({ key: TRUSTED_DEVICE_GLOBAL_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', isDefault: true });
+      if (!hasTrustedAndroidFlag) defaults.push({ key: TRUSTED_DEVICE_ANDROID_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', isDefault: true });
+      if (!hasTrustedIosFlag) defaults.push({ key: TRUSTED_DEVICE_IOS_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', isDefault: true });
+      if (!hasTransactionAuthGlobalFlag) defaults.push({ key: TRANSACTION_AUTH_GLOBAL_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', isDefault: true });
+      if (!hasTransactionAuthAndroidFlag) defaults.push({ key: TRANSACTION_AUTH_ANDROID_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', isDefault: true });
+      if (!hasTransactionAuthIosFlag) defaults.push({ key: TRANSACTION_AUTH_IOS_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', isDefault: true });
+      if (!hasCustomerServiceEnabledFlag) defaults.push({ key: CUSTOMER_SERVICE_ENABLED_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', isDefault: true });
       setFlags([...defaults, ...list]);
     } catch (err) {
       setError(err.message);
@@ -570,12 +599,14 @@ export default function FeatureFlagsPage() {
       const detail = await loadFlagDetail(key, current);
       const payload = {
         enabled: nextEnabled,
+        disabledBehavior: detail.disabledBehavior ?? 'BLOCK_REQUEST',
         disabledMessageEn: detail.disabledMessageEn ?? '',
         disabledMessageFr: detail.disabledMessageFr ?? ''
       };
       const res = await api.featureFlags.update(key, payload);
       syncFlagInState(key, {
         enabled: Boolean(res?.enabled),
+        disabledBehavior: res?.disabledBehavior ?? payload.disabledBehavior,
         disabledMessageEn: res?.disabledMessageEn ?? payload.disabledMessageEn,
         disabledMessageFr: res?.disabledMessageFr ?? payload.disabledMessageFr
       });
@@ -602,12 +633,14 @@ export default function FeatureFlagsPage() {
       const detail = await loadFlagDetail(key, current);
       const payload = {
         enabled: false,
+        disabledBehavior: detail.disabledBehavior ?? 'BLOCK_REQUEST',
         disabledMessageEn: detail.disabledMessageEn ?? '',
         disabledMessageFr: detail.disabledMessageFr ?? ''
       };
       const res = await api.featureFlags.update(key, payload);
       syncFlagInState(key, {
         enabled: Boolean(res?.enabled),
+        disabledBehavior: res?.disabledBehavior ?? payload.disabledBehavior,
         disabledMessageEn: res?.disabledMessageEn ?? payload.disabledMessageEn,
         disabledMessageFr: res?.disabledMessageFr ?? payload.disabledMessageFr
       });
@@ -651,18 +684,21 @@ export default function FeatureFlagsPage() {
     try {
       const payload = {
         enabled: draftEnabled,
+        disabledBehavior: draftDisabledBehavior,
         disabledMessageEn: draftDisabledMessageEn,
         disabledMessageFr: draftDisabledMessageFr
       };
       const res = await api.featureFlags.update(key, payload);
       syncFlagInState(key, {
         enabled: Boolean(res?.enabled),
+        disabledBehavior: res?.disabledBehavior ?? payload.disabledBehavior,
         disabledMessageEn: res?.disabledMessageEn ?? payload.disabledMessageEn,
         disabledMessageFr: res?.disabledMessageFr ?? payload.disabledMessageFr
       });
       setInfo(`${formatResolvedDisplayLabel(key)} ${res?.enabled ? 'enabled' : 'disabled'}.`);
       setDraftKey('');
       setDraftEnabled(true);
+      setDraftDisabledBehavior('BLOCK_REQUEST');
       setDraftDisabledMessageEn('');
       setDraftDisabledMessageFr('');
     } catch (err) {
@@ -711,6 +747,7 @@ export default function FeatureFlagsPage() {
     try {
       const detail = await loadFlagDetail(flag.key, flag);
       setEditDraftEnabled(Boolean(detail.enabled));
+      setEditDraftDisabledBehavior(detail.disabledBehavior ?? 'BLOCK_REQUEST');
       setEditDraftDisabledMessageEn(detail.disabledMessageEn ?? '');
       setEditDraftDisabledMessageFr(detail.disabledMessageFr ?? '');
     } catch (err) {
@@ -726,6 +763,7 @@ export default function FeatureFlagsPage() {
     if (!key || savingKey === key) return;
     const payload = {
       enabled: Boolean(editDraftEnabled),
+      disabledBehavior: editDraftDisabledBehavior,
       disabledMessageEn: editDraftDisabledMessageEn,
       disabledMessageFr: editDraftDisabledMessageFr
     };
@@ -736,6 +774,7 @@ export default function FeatureFlagsPage() {
       const res = await api.featureFlags.update(key, payload);
       syncFlagInState(key, {
         enabled: Boolean(res?.enabled),
+        disabledBehavior: res?.disabledBehavior ?? payload.disabledBehavior,
         disabledMessageEn: res?.disabledMessageEn ?? payload.disabledMessageEn,
         disabledMessageFr: res?.disabledMessageFr ?? payload.disabledMessageFr
       });
@@ -1068,7 +1107,7 @@ export default function FeatureFlagsPage() {
       )}
 
       <CollapsibleSection title={t('featureFlags.createUpdate')}>
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: '0.65rem', alignItems: 'end' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1.2fr auto', gap: '0.65rem', alignItems: 'end' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="flagKey">{t('featureFlags.key')}</label>
             <input id="flagKey" placeholder="trusted_device_enforcement" value={draftKey} onChange={(e) => setDraftKey(e.target.value)} />
@@ -1077,6 +1116,16 @@ export default function FeatureFlagsPage() {
             <input type="checkbox" checked={draftEnabled} onChange={(e) => setDraftEnabled(e.target.checked)} />
             {draftEnabled ? t('featureFlags.enabled') : t('featureFlags.disabled')}
           </label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="draftDisabledBehavior">Disabled behavior</label>
+            <select id="draftDisabledBehavior" value={draftDisabledBehavior} onChange={(e) => setDraftDisabledBehavior(e.target.value)}>
+              {DISABLED_BEHAVIOR_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
           <button
             type="button"
             onClick={handleCreateFlag}
@@ -1118,6 +1167,11 @@ export default function FeatureFlagsPage() {
           <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
             {getDisabledMessageHelp(draftKey.trim())}
           </div>
+          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+            {isOutboxDispatchKey(draftKey.trim())
+              ? 'Outbox dispatch flags pause worker/provider submission when disabled. They do not block the original transaction creation by themselves.'
+              : 'Block request rejects disabled user requests. Accept and queue allows the request to continue so provider work can be queued for later dispatch.'}
+          </div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button
@@ -1125,6 +1179,7 @@ export default function FeatureFlagsPage() {
             onClick={() => {
               setDraftKey(AVEC_LOAN_REQUEST_REASON_KEY);
               setDraftEnabled(true);
+              setDraftDisabledBehavior('BLOCK_REQUEST');
               setDraftDisabledMessageEn('');
               setDraftDisabledMessageFr('');
             }}
@@ -1145,6 +1200,7 @@ export default function FeatureFlagsPage() {
             onClick={() => {
               setDraftKey(CUSTOMER_SERVICE_ENABLED_KEY);
               setDraftEnabled(true);
+              setDraftDisabledBehavior('BLOCK_REQUEST');
               setDraftDisabledMessageEn('');
               setDraftDisabledMessageFr('');
             }}
@@ -1621,6 +1677,7 @@ export default function FeatureFlagsPage() {
                     <div>
                       <div style={{ fontWeight: 700 }}>{label}</div>
                       <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{flag.key}</div>
+                      <FeatureFlagMeta flag={flag} />
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                       <button
@@ -1715,6 +1772,7 @@ export default function FeatureFlagsPage() {
                         <div>
                           <div style={{ fontWeight: 700 }}>{label}</div>
                           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{flag.key}</div>
+                          <FeatureFlagMeta flag={flag} />
                         </div>
                         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                           <button
@@ -1794,6 +1852,7 @@ export default function FeatureFlagsPage() {
                     <div>
                       <div style={{ fontWeight: 700 }}>{formatActionLabel(flag.key)}</div>
                       <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{flag.key}</div>
+                      <FeatureFlagMeta flag={flag} />
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                       <button
@@ -1922,6 +1981,26 @@ export default function FeatureFlagsPage() {
                 </label>
                 <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
                   Messages are stored independently from the toggle and are used only when the feature is disabled.
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="editDisabledBehavior">Disabled behavior</label>
+                  <select
+                    id="editDisabledBehavior"
+                    value={editDraftDisabledBehavior}
+                    onChange={(e) => setEditDraftDisabledBehavior(e.target.value)}
+                    disabled={savingKey === editDialog.key}
+                  >
+                    {DISABLED_BEHAVIOR_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                    {isOutboxDispatchKey(editDialog.key)
+                      ? 'Outbox dispatch flags pause worker/provider submission when disabled. Queued jobs stay pending and retry later.'
+                      : 'Block request rejects disabled user requests. Accept and queue lets the request continue for later provider dispatch.'}
+                  </div>
                 </div>
                 <div style={{ display: 'grid', gap: '0.65rem' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
