@@ -1099,6 +1099,29 @@ export default function CardProductProvidersPage() {
         <input id="purchaseCost" type="number" value={draft.purchaseCost} onChange={(e) => setDraft((p) => ({ ...p, purchaseCost: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="monthlyMaintenanceCost">Monthly maintenance cost</label>
+        <input
+          id="monthlyMaintenanceCost"
+          type="number"
+          min={0}
+          step="0.01"
+          value={draft.monthlyMaintenanceCost}
+          onChange={(e) => setDraft((p) => ({ ...p, monthlyMaintenanceCost: e.target.value }))}
+        />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="transactionFeePercentage">Transaction fee %</label>
+        <input
+          id="transactionFeePercentage"
+          type="number"
+          min={0}
+          step="0.01"
+          value={draft.transactionFeePercentage}
+          onChange={(e) => setDraft((p) => ({ ...p, transactionFeePercentage: e.target.value }))}
+          placeholder="3.25"
+        />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="minFirstTopup">Initial card funding amount ({draft.currency || 'currency'})</label>
         <input
           id="minFirstTopup"
@@ -1474,6 +1497,8 @@ export default function CardProductProvidersPage() {
               { label: 'Currency', value: selected?.currency || '—' },
               { label: 'Price', value: selected?.price ?? '—' },
               { label: 'Purchase cost', value: selected?.purchaseCost ?? '—' },
+              { label: 'Monthly maintenance cost', value: selected?.monthlyMaintenanceCost ?? '—' },
+              { label: 'Transaction fee %', value: selected?.transactionFeePercentage ?? '—' },
               { label: 'Initial card funding amount', value: formatAmount(selected, 'minFirstTopup') },
               { label: 'Verification cost (USD)', value: selected?.verificationCost ?? '—' },
               { label: 'Unload fee (USD)', value: selected?.unloadFee ?? '—' },
