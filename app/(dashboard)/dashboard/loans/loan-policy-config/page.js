@@ -26,6 +26,11 @@ const INTEGER_FIELDS = [
     key: 'payoutBlockPreDueDays',
     label: 'Pre-Due Reminder / Withdrawal Block Days',
     help: 'Number of days before a loan due date when reminders start and withdrawals/payouts are blocked.'
+  },
+  {
+    key: 'overdueBlacklistDays',
+    label: 'Late-loan blacklist threshold days',
+    help: 'Number of days after due date before the daily loan penalty cron automatically blacklists the account. Default is 15.'
   }
 ];
 
@@ -56,6 +61,7 @@ export default function LoanPolicyConfigPage() {
     untrustedEligibilityPercent: '',
     dailyPenaltyPercent: '',
     payoutBlockPreDueDays: '',
+    overdueBlacklistDays: '',
     likelembaLoanEligibilityEnabled: false
   });
   const [draft, setDraft] = useState({
@@ -63,6 +69,7 @@ export default function LoanPolicyConfigPage() {
     untrustedEligibilityPercent: '',
     dailyPenaltyPercent: '',
     payoutBlockPreDueDays: '',
+    overdueBlacklistDays: '',
     likelembaLoanEligibilityEnabled: false
   });
 
@@ -77,6 +84,7 @@ export default function LoanPolicyConfigPage() {
         untrustedEligibilityPercent: toFormValue(res?.untrustedEligibilityPercent),
         dailyPenaltyPercent: toFormValue(res?.dailyPenaltyPercent),
         payoutBlockPreDueDays: toFormValue(res?.payoutBlockPreDueDays),
+        overdueBlacklistDays: toFormValue(res?.overdueBlacklistDays),
         likelembaLoanEligibilityEnabled: Boolean(res?.likelembaLoanEligibilityEnabled)
       };
       setInitial(next);
@@ -127,6 +135,11 @@ export default function LoanPolicyConfigPage() {
     const payoutBlockPreDueDays = toNumberOrNull(draft.payoutBlockPreDueDays);
     if (payoutBlockPreDueDays === null || !Number.isInteger(payoutBlockPreDueDays) || payoutBlockPreDueDays < 1) {
       setError('Pre-due reminder / withdrawal block days must be an integer of 1 or greater.');
+      return;
+    }
+    const overdueBlacklistDays = toNumberOrNull(draft.overdueBlacklistDays);
+    if (overdueBlacklistDays === null || !Number.isInteger(overdueBlacklistDays) || overdueBlacklistDays < 1) {
+      setError('Late-loan blacklist threshold days must be an integer of 1 or greater.');
       return;
     }
     setSaving(true);
@@ -238,9 +251,16 @@ export default function LoanPolicyConfigPage() {
               disabled={loading || saving}
             />
             <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{field.help}</div>
-            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-              Users will start receiving loan reminders this many days before due date, and withdrawals/payouts will also be blocked starting the same day.
-            </div>
+            {field.key === 'payoutBlockPreDueDays' && (
+              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                Users will start receiving loan reminders this many days before due date, and withdrawals/payouts will also be blocked starting the same day.
+              </div>
+            )}
+            {field.key === 'overdueBlacklistDays' && (
+              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                Updating this value does not immediately blacklist accounts. The next daily penalty cron run uses the new threshold.
+              </div>
+            )}
           </div>
         ))}
       </div>
