@@ -93,8 +93,7 @@ const buildProviderProfileRows = (holder) => {
       id: profile?.id,
       reference: providerValue(profile?.externalReference),
       status: providerValue(profile?.status),
-      verified: providerBool(profile?.verified),
-      metaData: providerValue(profile?.metaData)
+      verified: providerBool(profile?.verified)
     };
   });
 };
@@ -138,7 +137,6 @@ const ProviderProfilesPanel = ({ holder, canReset = false, onResetProvider, rese
               <div>Reference: <span style={{ color: 'var(--text)', fontWeight: 700 }}>{profile.reference}</span></div>
               <div>Status: <span style={{ color: 'var(--text)', fontWeight: 700 }}>{profile.status}</span></div>
               <div>Verified: <span style={{ color: 'var(--text)', fontWeight: 700 }}>{profile.verified}</span></div>
-              {profile.metaData !== '—' && <div>Metadata: <span style={{ color: 'var(--text)', fontWeight: 700 }}>{profile.metaData}</span></div>}
             </div>
           </div>
         ))}
@@ -633,13 +631,9 @@ export default function CardHoldersPage() {
           <DetailGrid
             rows={[
               { label: 'ID', value: selected?.id },
-              { label: 'Internal ref', value: selected?.internalReference },
-              { label: 'Legacy BridgeCard ref', value: selected?.externalReference },
               { label: 'Account ID', value: selected?.accountId },
               { label: 'User name', value: selected?.userName },
-              { label: 'User email', value: selected?.userEmail },
-              { label: 'Legacy/common verified', value: selected?.verified ? 'Yes' : 'No' },
-              { label: 'Metadata', value: selected?.metaData }
+              { label: 'User email', value: selected?.userEmail }
             ]}
           />
           <ProviderProfilesPanel
