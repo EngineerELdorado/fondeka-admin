@@ -10,6 +10,7 @@ const sections = [
   { href: '/dashboard/cards/cards', title: 'Cards', blurb: 'Issue and control individual cards.' },
   { href: '/dashboard/cards/card-activities', title: 'Card Activities', blurb: 'Track deposits/withdrawals on cards.' },
   { href: '/dashboard/cards/card-purchase-intents', title: 'Card Purchase Intents', blurb: 'Purchase intents linked to transactions.' },
+  { href: '/dashboard/cards/card-policy-config', title: 'Card Policy Config', blurb: 'Configure provider readiness delays for card ordering.' },
   { href: '/dashboard/card-order-retries', title: 'Card Order Retries', blurb: 'Monitor and manage card order retry attempts.' }
 ];
 

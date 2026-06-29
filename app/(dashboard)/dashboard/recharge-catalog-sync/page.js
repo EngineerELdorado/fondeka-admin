@@ -65,6 +65,7 @@ export default function RechargeCatalogSyncPage() {
   const [countryFilter, setCountryFilter] = useState('');
   const [cronEnabledFilter, setCronEnabledFilter] = useState('');
   const [pendingProviders, setPendingProviders] = useState({});
+  const [clearingProviders, setClearingProviders] = useState({});
 
   const fetchRows = async () => {
     setLoading(true);
@@ -104,6 +105,27 @@ export default function RechargeCatalogSyncPage() {
       setError(err?.message || `Failed to trigger ${providerName} catalog sync.`);
     } finally {
       setPendingProviders((prev) => ({ ...prev, [providerName]: false }));
+    }
+  }, []);
+
+  const handleClear = useCallback(async (providerName) => {
+    if (!providerName) return;
+    const confirmed = window.confirm(`Clear cached recharge catalog data for ${providerName}?`);
+    if (!confirmed) return;
+
+    setClearingProviders((prev) => ({ ...prev, [providerName]: true }));
+    setError(null);
+    setInfo(null);
+    try {
+      const res = await api.rechargeCatalogSync.clear(providerName);
+      const status = String(res?.status || 'CLEARED').trim().toUpperCase();
+      const deletedKeys = typeof res?.deletedKeys === 'number' ? res.deletedKeys : null;
+      setInfo(`${res?.providerName || providerName} cache ${status.toLowerCase()}${deletedKeys !== null ? ` (${deletedKeys} keys deleted)` : ''}.`);
+      await fetchRows();
+    } catch (err) {
+      setError(err?.message || `Failed to clear ${providerName} catalog cache.`);
+    } finally {
+      setClearingProviders((prev) => ({ ...prev, [providerName]: false }));
     }
   }, []);
 
@@ -172,15 +194,24 @@ export default function RechargeCatalogSyncPage() {
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           {providerOptions.map((provider) => (
-            <button
-              key={provider}
-              type="button"
-              className="btn-primary"
-              onClick={() => handleTrigger(provider)}
-              disabled={Boolean(pendingProviders[provider])}
-            >
-              {pendingProviders[provider] ? `Triggering ${provider}…` : `Trigger ${provider}`}
-            </button>
+            <div key={provider} style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => handleTrigger(provider)}
+                disabled={Boolean(pendingProviders[provider]) || Boolean(clearingProviders[provider])}
+              >
+                {pendingProviders[provider] ? `Triggering ${provider}…` : `Trigger ${provider}`}
+              </button>
+              <button
+                type="button"
+                className="btn-danger"
+                onClick={() => handleClear(provider)}
+                disabled={Boolean(pendingProviders[provider]) || Boolean(clearingProviders[provider])}
+              >
+                {clearingProviders[provider] ? `Clearing ${provider}…` : `Clear ${provider} cache`}
+              </button>
+            </div>
           ))}
           <Link href="/dashboard" className="btn-neutral">
             {'<- Dashboard'}

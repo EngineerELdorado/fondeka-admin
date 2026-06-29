@@ -20,6 +20,7 @@ const navItems = [
   { href: '/dashboard/bills', labelKey: 'layout.nav.billsProducts' },
   { href: '/dashboard/bills/cegaweb-profiles', labelKey: 'layout.nav.cegawebProfiles' },
   { href: '/dashboard/cards', labelKey: 'layout.nav.cardsProducts' },
+  { href: '/dashboard/cards/card-policy-config', labelKey: 'layout.nav.cardPolicyConfig' },
   { href: '/dashboard/crypto', labelKey: 'layout.nav.cryptosProducts' },
   { href: '/dashboard/esim', labelKey: 'layout.nav.esimsProviders' },
   { href: '/dashboard/esim-products', labelKey: 'layout.nav.esimProducts' },
