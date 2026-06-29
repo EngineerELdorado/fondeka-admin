@@ -1247,8 +1247,8 @@ export default function TransactionsPage() {
 
   const canRetryPostWebhook = useMemo(() => {
     if (!selected) return false;
-    const status = String(selected.status || '').toUpperCase();
-    return status === 'FUNDED' || status === 'PROCESSING' || status === 'EXECUTING' || status === 'MANUAL_INTERVENTION_REQUIRED';
+    const status = normalizeEnumKey(selected.status);
+    return ['FUNDED', 'PROCESSING', 'EXECUTING', 'UNKNOWN', 'UNKOWN', 'MANUAL_INTERVENTION_REQUIRED'].includes(status);
   }, [selected]);
 
   const canCheckMomoStatus = useMemo(() => {

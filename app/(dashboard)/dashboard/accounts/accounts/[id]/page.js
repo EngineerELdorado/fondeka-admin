@@ -231,6 +231,57 @@ const formatDepositPromptThresholdValue = (value, { empty = 'Inherit global thre
 
 const pickFirstDefined = (...values) => values.find((value) => value !== null && value !== undefined && value !== '');
 
+const getNestedDeviceDetails = (account) => {
+  const candidates = [
+    account?.mobileDevice,
+    account?.lastSeenDevice,
+    account?.lastMobileDevice,
+    account?.clientDevice,
+    account?.device,
+    account?.trustedDevice,
+    account?.latestTrustedDevice,
+    account?.deviceDetails,
+    account?.mobileDeviceDetails
+  ];
+  return candidates.find((value) => value && typeof value === 'object' && !Array.isArray(value)) || null;
+};
+
+const resolveMobileDeviceDetails = (account) => {
+  const device = getNestedDeviceDetails(account) || {};
+  const pick = (...keys) => pickFirstDefined(...keys.map((key) => device?.[key]), ...keys.map((key) => account?.[key]));
+  const platform = pick(
+    'platform',
+    'devicePlatform',
+    'mobilePlatform',
+    'mobileDevicePlatform',
+    'lastSeenClientPlatform',
+    'os'
+  );
+  const rows = [
+    { label: 'Device platform', value: platform ? formatPlatformLabel(platform) : null },
+    { label: 'Device name', value: pick('deviceName', 'mobileDeviceName', 'name') },
+    { label: 'Device model', value: pick('deviceModel', 'model', 'mobileDeviceModel') },
+    { label: 'Manufacturer', value: pick('manufacturer', 'deviceManufacturer', 'brand') },
+    { label: 'OS version', value: pick('osVersion', 'deviceOsVersion', 'mobileOsVersion') },
+    { label: 'App build', value: pick('appBuild', 'buildNumber', 'mobileAppBuild', 'lastSeenClientBuild') },
+    { label: 'Device ID', value: pick('deviceId', 'mobileDeviceId', 'lastSeenDeviceId') },
+    { label: 'Device status', value: pick('status', 'deviceStatus') },
+    { label: 'Preferred language', value: pick('preferredLanguage', 'language', 'deviceLanguage') },
+    {
+      label: 'Device last seen',
+      value: (() => {
+        const value = pick('lastSeenAt', 'deviceLastSeenAt', 'mobileDeviceSeenAt', 'lastSeenClientAt');
+        return value ? formatDateTime(value) : null;
+      })()
+    }
+  ].filter((row) => row.value !== null && row.value !== undefined && row.value !== '');
+
+  return {
+    rows,
+    raw: Object.keys(device).length ? device : null
+  };
+};
+
 const resolveOwedAmount = (value) =>
   pickFirstDefined(value?.owedLoansAmount, value?.owedLoans, value?.loanBalance, value?.account?.loanBalance, value?.previousDebt);
 
@@ -2987,6 +3038,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
 
   const accountView = useMemo(() => account || {}, [account]);
   const authView = useMemo(() => resolveTransactionAuthValues(accountView), [accountView]);
+  const mobileDeviceDetails = useMemo(() => resolveMobileDeviceDetails(accountView), [accountView]);
   const txView = transactions || [];
   const cryptoWallets = accountView?.cryptoWallets || [];
   const owedBreakdown = useMemo(() => resolveOwedBreakdown(accountView), [accountView]);
@@ -3406,6 +3458,29 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
               Mobile app version seen at: <span style={{ fontWeight: 700 }}>{accountView?.mobileAppVersionAt ?? accountView?.lastSeenClientVersionAt ? formatDateTime(accountView?.mobileAppVersionAt ?? accountView?.lastSeenClientVersionAt) : 'Unknown'}</span>
             </div>
+            {mobileDeviceDetails.rows.length > 0 ? (
+              <div style={{ display: 'grid', gap: '0.2rem', marginTop: '0.4rem' }}>
+                {mobileDeviceDetails.rows.map((row) => (
+                  <div key={row.label} style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                    {row.label}: <span style={{ fontWeight: 700 }}>{row.value}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ color: 'var(--muted)', fontSize: '13px', marginTop: '0.4rem' }}>
+                Device details: <span style={{ fontWeight: 700 }}>Not yet reported</span>
+              </div>
+            )}
+            {mobileDeviceDetails.raw ? (
+              <details style={{ marginTop: '0.35rem' }}>
+                <summary style={{ cursor: 'pointer', color: 'var(--muted)', fontSize: '13px', fontWeight: 700 }}>
+                  Additional device details
+                </summary>
+                <pre style={{ margin: '0.45rem 0 0', whiteSpace: 'pre-wrap', overflowX: 'auto', color: 'var(--text)', fontSize: '12px' }}>
+                  {formatJsonFull(mobileDeviceDetails.raw)}
+                </pre>
+              </details>
+            ) : null}
           </div>
           <button type="button" className="btn-neutral btn-sm" onClick={loadAccount} disabled={loading}>
             {loading ? 'Refreshing...' : 'Refresh'}
