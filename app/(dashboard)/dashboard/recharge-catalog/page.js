@@ -105,7 +105,10 @@ const formatPlanBenefits = (row) => {
   if (presentValue(row?.displayBenefits)) return row.displayBenefits;
   if (presentValue(row?.benefits?.rawText)) return row.benefits.rawText;
   const parts = getBenefitParts(row?.benefits);
-  return parts.length ? parts.join(', ') : '—';
+  if (parts.length) return parts.join(', ');
+  if (presentValue(row?.notesShort)) return row.notesShort;
+  if (presentValue(row?.description)) return row.description;
+  return '—';
 };
 
 const formatDataBenefit = (benefits) => {
