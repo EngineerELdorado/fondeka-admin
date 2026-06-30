@@ -27,6 +27,7 @@ const navItems = [
   { href: '/dashboard/payment-requests', labelKey: 'layout.nav.paymentRequests' },
   { href: '/dashboard/recharge-catalog', labelKey: 'layout.nav.rechargeCatalog' },
   { href: '/dashboard/bills/utility-catalog', labelKey: 'layout.nav.utilityBillCatalog' },
+  { href: '/dashboard/recharge-operator-availability-policies', labelKey: 'layout.nav.rechargeOperatorAvailability' },
   { href: '/dashboard/recharge-provider-routing', labelKey: 'layout.nav.rechargeProviderRouting' },
   { href: '/dashboard/recharge-catalog-sync', labelKey: 'layout.nav.rechargeCatalogSync' },
   { href: '/dashboard/bills/utility-catalog-sync', labelKey: 'layout.nav.utilityBillCatalogSync' },
