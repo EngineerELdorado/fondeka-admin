@@ -77,6 +77,12 @@ const formatValue = (value) => {
   return String(value);
 };
 
+const formatAmountWithCurrency = (amount, currencyCode) => {
+  if (amount === null || amount === undefined || amount === '') return '—';
+  const currency = currencyCode ? ` ${currencyCode}` : '';
+  return `${amount}${currency}`;
+};
+
 const matchesSearchText = (row, searchText) => {
   const term = String(searchText || '').trim().toLowerCase();
   if (!term) return true;
@@ -173,15 +179,11 @@ export default function RechargeCatalogPage() {
   const columns = useMemo(
     () => [
       { key: 'providerName', label: 'Provider' },
-      { key: 'type', label: 'Type' },
-      { key: 'countryCode', label: 'Country' },
       { key: 'operatorName', label: 'Operator' },
-      { key: 'displayValue', label: 'Display Value', render: (row) => row.displayValue || '—' },
-      { key: 'displayBenefits', label: 'Display Benefits', render: (row) => row.displayBenefits || '—' },
-      { key: 'priceType', label: 'Price Type', render: (row) => row.priceType || '—' },
-      { key: 'denominationType', label: 'Denomination Type', render: (row) => row.denominationType || '—' },
+      { key: 'senderAmount', label: 'Customer pays', render: (row) => formatAmountWithCurrency(row.senderAmount, row.senderCurrencyCode) },
+      { key: 'displayBenefits', label: 'Plan benefits', render: (row) => row.displayBenefits || '—' },
+      { key: 'displayValue', label: 'Price/range', render: (row) => row.displayValue || '—' },
       { key: 'status', label: 'Status', render: (row) => row.status || '—' },
-      { key: 'lastSyncedAt', label: 'Last Synced', render: (row) => formatDateTime(row.lastSyncedAt) },
       {
         key: 'actions',
         label: 'Action',
@@ -416,20 +418,20 @@ export default function RechargeCatalogPage() {
           <DetailGrid
             rows={[
               { label: 'Provider', value: formatValue(selected.providerName) },
+              { label: 'Operator', value: formatValue(selected.operatorName) },
+              { label: 'Offer ID', value: formatValue(selected.offerId) },
+              { label: 'Customer pays', value: formatAmountWithCurrency(selected.senderAmount, selected.senderCurrencyCode) },
+              { label: 'Recipient receives', value: formatAmountWithCurrency(selected.destinationAmount, selected.destinationCurrencyCode) },
+              { label: 'Displayed price', value: formatValue(selected.displayValue) },
+              { label: 'Plan benefits', value: formatValue(selected.displayBenefits) },
+              { label: 'Price type', value: formatValue(selected.priceType) },
+              { label: 'Denomination', value: formatValue(selected.denominationType) },
+              { label: 'Status', value: formatValue(selected.status) },
               { label: 'Type', value: formatValue(selected.type) },
               { label: 'Country', value: formatValue(selected.countryCode) },
-              { label: 'Offer ID', value: formatValue(selected.offerId) },
               { label: 'Operator ID', value: formatValue(selected.operatorId) },
-              { label: 'Operator Name', value: formatValue(selected.operatorName) },
-              { label: 'Price Type', value: formatValue(selected.priceType) },
-              { label: 'Status', value: formatValue(selected.status) },
-              { label: 'Denomination Type', value: formatValue(selected.denominationType) },
-              { label: 'Sender Amount', value: formatValue(selected.senderAmount) },
               { label: 'Sender Currency', value: formatValue(selected.senderCurrencyCode) },
-              { label: 'Destination Amount', value: formatValue(selected.destinationAmount) },
               { label: 'Destination Currency', value: formatValue(selected.destinationCurrencyCode) },
-              { label: 'Display Value', value: formatValue(selected.displayValue) },
-              { label: 'Display Benefits', value: formatValue(selected.displayBenefits) },
               { label: 'Notes Short', value: formatValue(selected.notesShort) },
               { label: 'Notes', value: formatValue(selected.notes) },
               { label: 'Benefits', value: formatValue(selected.benefits) },
