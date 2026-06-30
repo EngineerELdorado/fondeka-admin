@@ -85,16 +85,19 @@ const formatAmountWithCurrency = (amount, currencyCode) => {
 
 const presentValue = (value) => value !== null && value !== undefined && value !== '';
 
-const getBenefitParts = (benefits = {}) => {
+const normalizeBenefits = (benefits) => (benefits && typeof benefits === 'object' ? benefits : {});
+
+const getBenefitParts = (benefits) => {
+  const normalizedBenefits = normalizeBenefits(benefits);
   const parts = [];
-  if (benefits.unlimitedData) {
+  if (normalizedBenefits.unlimitedData) {
     parts.push('Unlimited data');
-  } else if (presentValue(benefits.dataAmount) || presentValue(benefits.dataUnit)) {
-    parts.push(`${benefits.dataAmount ?? ''}${benefits.dataUnit ? ` ${benefits.dataUnit}` : ''}`.trim());
+  } else if (presentValue(normalizedBenefits.dataAmount) || presentValue(normalizedBenefits.dataUnit)) {
+    parts.push(`${normalizedBenefits.dataAmount ?? ''}${normalizedBenefits.dataUnit ? ` ${normalizedBenefits.dataUnit}` : ''}`.trim());
   }
-  if (presentValue(benefits.validityDays)) parts.push(`${benefits.validityDays} day(s)`);
-  if (presentValue(benefits.voiceMinutes)) parts.push(`${benefits.voiceMinutes} minutes`);
-  if (presentValue(benefits.smsCount)) parts.push(`${benefits.smsCount} SMS`);
+  if (presentValue(normalizedBenefits.validityDays)) parts.push(`${normalizedBenefits.validityDays} day(s)`);
+  if (presentValue(normalizedBenefits.voiceMinutes)) parts.push(`${normalizedBenefits.voiceMinutes} minutes`);
+  if (presentValue(normalizedBenefits.smsCount)) parts.push(`${normalizedBenefits.smsCount} SMS`);
   return parts.filter(Boolean);
 };
 
@@ -105,15 +108,17 @@ const formatPlanBenefits = (row) => {
   return parts.length ? parts.join(', ') : '—';
 };
 
-const formatDataBenefit = (benefits = {}) => {
-  if (benefits.unlimitedData) return 'Unlimited';
-  if (!presentValue(benefits.dataAmount) && !presentValue(benefits.dataUnit)) return '—';
-  return `${benefits.dataAmount ?? ''}${benefits.dataUnit ? ` ${benefits.dataUnit}` : ''}`.trim();
+const formatDataBenefit = (benefits) => {
+  const normalizedBenefits = normalizeBenefits(benefits);
+  if (normalizedBenefits.unlimitedData) return 'Unlimited';
+  if (!presentValue(normalizedBenefits.dataAmount) && !presentValue(normalizedBenefits.dataUnit)) return '—';
+  return `${normalizedBenefits.dataAmount ?? ''}${normalizedBenefits.dataUnit ? ` ${normalizedBenefits.dataUnit}` : ''}`.trim();
 };
 
-const formatValidityBenefit = (benefits = {}) => {
-  if (!presentValue(benefits.validityDays)) return '—';
-  return `${benefits.validityDays} day(s)`;
+const formatValidityBenefit = (benefits) => {
+  const normalizedBenefits = normalizeBenefits(benefits);
+  if (!presentValue(normalizedBenefits.validityDays)) return '—';
+  return `${normalizedBenefits.validityDays} day(s)`;
 };
 
 const matchesSearchText = (row, searchText) => {
