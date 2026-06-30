@@ -83,6 +83,39 @@ const formatAmountWithCurrency = (amount, currencyCode) => {
   return `${amount}${currency}`;
 };
 
+const presentValue = (value) => value !== null && value !== undefined && value !== '';
+
+const getBenefitParts = (benefits = {}) => {
+  const parts = [];
+  if (benefits.unlimitedData) {
+    parts.push('Unlimited data');
+  } else if (presentValue(benefits.dataAmount) || presentValue(benefits.dataUnit)) {
+    parts.push(`${benefits.dataAmount ?? ''}${benefits.dataUnit ? ` ${benefits.dataUnit}` : ''}`.trim());
+  }
+  if (presentValue(benefits.validityDays)) parts.push(`${benefits.validityDays} day(s)`);
+  if (presentValue(benefits.voiceMinutes)) parts.push(`${benefits.voiceMinutes} minutes`);
+  if (presentValue(benefits.smsCount)) parts.push(`${benefits.smsCount} SMS`);
+  return parts.filter(Boolean);
+};
+
+const formatPlanBenefits = (row) => {
+  if (presentValue(row?.displayBenefits)) return row.displayBenefits;
+  if (presentValue(row?.benefits?.rawText)) return row.benefits.rawText;
+  const parts = getBenefitParts(row?.benefits);
+  return parts.length ? parts.join(', ') : '—';
+};
+
+const formatDataBenefit = (benefits = {}) => {
+  if (benefits.unlimitedData) return 'Unlimited';
+  if (!presentValue(benefits.dataAmount) && !presentValue(benefits.dataUnit)) return '—';
+  return `${benefits.dataAmount ?? ''}${benefits.dataUnit ? ` ${benefits.dataUnit}` : ''}`.trim();
+};
+
+const formatValidityBenefit = (benefits = {}) => {
+  if (!presentValue(benefits.validityDays)) return '—';
+  return `${benefits.validityDays} day(s)`;
+};
+
 const matchesSearchText = (row, searchText) => {
   const term = String(searchText || '').trim().toLowerCase();
   if (!term) return true;
@@ -181,7 +214,9 @@ export default function RechargeCatalogPage() {
       { key: 'providerName', label: 'Provider' },
       { key: 'operatorName', label: 'Operator' },
       { key: 'senderAmount', label: 'Customer pays', render: (row) => formatAmountWithCurrency(row.senderAmount, row.senderCurrencyCode) },
-      { key: 'displayBenefits', label: 'Plan benefits', render: (row) => row.displayBenefits || '—' },
+      { key: 'displayBenefits', label: 'Benefits', render: (row) => formatPlanBenefits(row) },
+      { key: 'dataBenefit', label: 'Data', render: (row) => formatDataBenefit(row.benefits) },
+      { key: 'validityBenefit', label: 'Validity', render: (row) => formatValidityBenefit(row.benefits) },
       { key: 'displayValue', label: 'Price/range', render: (row) => row.displayValue || '—' },
       { key: 'status', label: 'Status', render: (row) => row.status || '—' },
       {
@@ -423,7 +458,11 @@ export default function RechargeCatalogPage() {
               { label: 'Customer pays', value: formatAmountWithCurrency(selected.senderAmount, selected.senderCurrencyCode) },
               { label: 'Recipient receives', value: formatAmountWithCurrency(selected.destinationAmount, selected.destinationCurrencyCode) },
               { label: 'Displayed price', value: formatValue(selected.displayValue) },
-              { label: 'Plan benefits', value: formatValue(selected.displayBenefits) },
+              { label: 'Plan benefits', value: formatPlanBenefits(selected) },
+              { label: 'Data', value: formatDataBenefit(selected.benefits) },
+              { label: 'Validity', value: formatValidityBenefit(selected.benefits) },
+              { label: 'Voice minutes', value: formatValue(selected.benefits?.voiceMinutes) },
+              { label: 'SMS count', value: formatValue(selected.benefits?.smsCount) },
               { label: 'Price type', value: formatValue(selected.priceType) },
               { label: 'Denomination', value: formatValue(selected.denominationType) },
               { label: 'Status', value: formatValue(selected.status) },
