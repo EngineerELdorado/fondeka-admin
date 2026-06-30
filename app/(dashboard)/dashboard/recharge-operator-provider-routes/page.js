@@ -6,12 +6,13 @@ import { DataTable } from '@/components/DataTable';
 import { api } from '@/lib/api';
 
 const rechargeTypeOptions = ['AIRTIME', 'DATA', 'BUNDLE'];
+const providerOptions = ['RELOADLY', 'ZENDIT'];
 const emptyDraft = {
   countryCode: 'CD',
   rechargeType: 'DATA',
-  operatorNamePattern: '',
-  phoneNumberPrefixes: '81,82',
-  messageKey: 'recharge.error.cd_data_bundle_vodacom_only',
+  operatorNamePattern: 'Airtel',
+  phoneNumberPrefixes: '97,98,99',
+  providerName: 'ZENDIT',
   active: true,
   rank: '1'
 };
@@ -58,13 +59,6 @@ const StatusBadge = ({ active }) => (
   </span>
 );
 
-const formatDateTime = (value) => {
-  if (!value) return '-';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString();
-};
-
 const normalizeList = (res) => {
   if (Array.isArray(res)) return res;
   if (Array.isArray(res?.content)) return res.content;
@@ -72,7 +66,14 @@ const normalizeList = (res) => {
   return [];
 };
 
-export default function RechargeOperatorAvailabilityPoliciesPage() {
+const formatDateTime = (value) => {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
+};
+
+export default function RechargeOperatorProviderRoutesPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
@@ -94,7 +95,7 @@ export default function RechargeOperatorAvailabilityPoliciesPage() {
     setError(null);
     try {
       const params = new URLSearchParams({ page: String(page), size: String(size) });
-      const res = await api.rechargeOperatorAvailabilityPolicies.list(params);
+      const res = await api.rechargeOperatorProviderRoutes.list(params);
       const list = normalizeList(res);
       setRows(list || []);
       setPageMeta({
@@ -104,7 +105,7 @@ export default function RechargeOperatorAvailabilityPoliciesPage() {
     } catch (err) {
       setRows([]);
       setPageMeta({ totalElements: null, totalPages: null });
-      setError(err?.message || 'Failed to load recharge operator availability policies.');
+      setError(err?.message || 'Failed to load recharge operator provider routes.');
     } finally {
       setLoading(false);
     }
@@ -119,13 +120,13 @@ export default function RechargeOperatorAvailabilityPoliciesPage() {
     const rechargeType = String(draft.rechargeType || '').trim().toUpperCase();
     const operatorNamePattern = String(draft.operatorNamePattern || '').trim();
     const phoneNumberPrefixes = String(draft.phoneNumberPrefixes || '').trim();
-    const messageKey = String(draft.messageKey || '').trim();
+    const providerName = String(draft.providerName || '').trim().toUpperCase();
     const rank = Number(draft.rank);
     if (!/^[A-Z]{2}$/.test(countryCode)) return 'Country must be a 2-letter ISO code.';
     if (!rechargeTypeOptions.includes(rechargeType)) return 'Recharge type is required.';
     if (!operatorNamePattern) return 'Operator name pattern is required.';
-    if (phoneNumberPrefixes && !/^\d+(?:\s*,\s*\d+)*$/.test(phoneNumberPrefixes)) return 'Phone number prefixes must be comma-separated digits, for example 81,82.';
-    if (!messageKey) return 'Message key is required.';
+    if (phoneNumberPrefixes && !/^\d+(?:\s*,\s*\d+)*$/.test(phoneNumberPrefixes)) return 'Phone number prefixes must be comma-separated digits, for example 97,98,99.';
+    if (!providerOptions.includes(providerName)) return 'Provider is required.';
     if (!Number.isInteger(rank) || rank < 0) return 'Rank must be an integer greater than or equal to 0.';
     return null;
   };
@@ -135,7 +136,7 @@ export default function RechargeOperatorAvailabilityPoliciesPage() {
     rechargeType: String(draft.rechargeType || '').trim().toUpperCase(),
     operatorNamePattern: String(draft.operatorNamePattern || '').trim(),
     phoneNumberPrefixes: String(draft.phoneNumberPrefixes || '').trim(),
-    messageKey: String(draft.messageKey || '').trim(),
+    providerName: String(draft.providerName || '').trim().toUpperCase(),
     active: Boolean(draft.active),
     rank: Number(draft.rank)
   });
@@ -155,13 +156,28 @@ export default function RechargeOperatorAvailabilityPoliciesPage() {
       rechargeType: row.rechargeType ?? '',
       operatorNamePattern: row.operatorNamePattern ?? '',
       phoneNumberPrefixes: row.phoneNumberPrefixes ?? '',
-      messageKey: row.messageKey ?? '',
+      providerName: row.providerName ?? '',
       active: Boolean(row.active),
       rank: row.rank === null || row.rank === undefined ? '1' : String(row.rank)
     });
     setShowEdit(true);
     setError(null);
     setInfo(null);
+  };
+
+  const openDetail = async (row) => {
+    setActionLoading(true);
+    setError(null);
+    setInfo(null);
+    try {
+      const data = await api.rechargeOperatorProviderRoutes.get(row.id);
+      setSelected(data || row);
+      setShowDetail(true);
+    } catch (err) {
+      setError(err?.message || `Failed to load recharge operator provider route ${row.id}.`);
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const handleCreate = async () => {
@@ -174,12 +190,12 @@ export default function RechargeOperatorAvailabilityPoliciesPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.rechargeOperatorAvailabilityPolicies.create(buildPayload());
-      setInfo('Created recharge operator availability policy.');
+      await api.rechargeOperatorProviderRoutes.create(buildPayload());
+      setInfo('Created recharge operator provider route.');
       setShowCreate(false);
       fetchRows();
     } catch (err) {
-      setError(err?.message || 'Failed to create recharge operator availability policy.');
+      setError(err?.message || 'Failed to create recharge operator provider route.');
     } finally {
       setActionLoading(false);
     }
@@ -196,12 +212,12 @@ export default function RechargeOperatorAvailabilityPoliciesPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.rechargeOperatorAvailabilityPolicies.update(selected.id, buildPayload());
-      setInfo(`Updated recharge operator availability policy ${selected.id}.`);
+      await api.rechargeOperatorProviderRoutes.update(selected.id, buildPayload());
+      setInfo(`Updated recharge operator provider route ${selected.id}.`);
       setShowEdit(false);
       fetchRows();
     } catch (err) {
-      setError(err?.message || `Failed to update recharge operator availability policy ${selected.id}.`);
+      setError(err?.message || `Failed to update recharge operator provider route ${selected.id}.`);
     } finally {
       setActionLoading(false);
     }
@@ -215,12 +231,12 @@ export default function RechargeOperatorAvailabilityPoliciesPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.rechargeOperatorAvailabilityPolicies.updateActive(id, nextActive);
-      setInfo(`${nextActive ? 'Activated' : 'Deactivated'} recharge operator availability policy ${id}.`);
+      await api.rechargeOperatorProviderRoutes.updateActive(id, nextActive);
+      setInfo(`${nextActive ? 'Activated' : 'Deactivated'} recharge operator provider route ${id}.`);
       setConfirmActive(null);
       fetchRows();
     } catch (err) {
-      setError(err?.message || `Failed to update recharge operator availability policy ${id}.`);
+      setError(err?.message || `Failed to update recharge operator provider route ${id}.`);
     } finally {
       setActionLoading(false);
     }
@@ -233,12 +249,12 @@ export default function RechargeOperatorAvailabilityPoliciesPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.rechargeOperatorAvailabilityPolicies.remove(id);
+      await api.rechargeOperatorProviderRoutes.remove(id);
       setConfirmDelete(null);
-      setInfo(`Deleted recharge operator availability policy ${id}.`);
+      setInfo(`Deleted recharge operator provider route ${id}.`);
       fetchRows();
     } catch (err) {
-      setError(err?.message || `Failed to delete recharge operator availability policy ${id}.`);
+      setError(err?.message || `Failed to delete recharge operator provider route ${id}.`);
     } finally {
       setActionLoading(false);
     }
@@ -247,6 +263,19 @@ export default function RechargeOperatorAvailabilityPoliciesPage() {
   const canPrev = page > 0;
   const canNext = pageMeta.totalPages === null ? rows.length === size : page + 1 < pageMeta.totalPages;
 
+  const detailRows = (row) => [
+    { label: 'ID', value: row?.id },
+    { label: 'Country', value: row?.countryCode },
+    { label: 'Recharge type', value: row?.rechargeType },
+    { label: 'Operator pattern', value: row?.operatorNamePattern },
+    { label: 'Phone prefixes', value: row?.phoneNumberPrefixes || '-' },
+    { label: 'Provider', value: row?.providerName },
+    { label: 'Rank', value: row?.rank },
+    { label: 'Active', value: row?.active ? 'Yes' : 'No' },
+    { label: 'Created', value: formatDateTime(row?.createdAt) },
+    { label: 'Updated', value: formatDateTime(row?.updatedAt) }
+  ];
+
   const columns = useMemo(
     () => [
       { key: 'id', label: 'ID' },
@@ -254,7 +283,7 @@ export default function RechargeOperatorAvailabilityPoliciesPage() {
       { key: 'rechargeType', label: 'Type' },
       { key: 'operatorNamePattern', label: 'Operator Pattern' },
       { key: 'phoneNumberPrefixes', label: 'Phone Prefixes', render: (row) => row.phoneNumberPrefixes || '-' },
-      { key: 'messageKey', label: 'Message Key' },
+      { key: 'providerName', label: 'Provider' },
       { key: 'rank', label: 'Rank' },
       { key: 'active', label: 'Active', render: (row) => <StatusBadge active={Boolean(row.active)} /> },
       {
@@ -262,7 +291,7 @@ export default function RechargeOperatorAvailabilityPoliciesPage() {
         label: 'Actions',
         render: (row) => (
           <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-            <button type="button" onClick={() => { setSelected(row); setShowDetail(true); }} className="btn-neutral btn-sm" disabled={actionLoading}>
+            <button type="button" onClick={() => openDetail(row)} className="btn-neutral btn-sm" disabled={actionLoading}>
               View
             </button>
             <button type="button" onClick={() => openEdit(row)} className="btn-neutral btn-sm" disabled={actionLoading}>
@@ -284,7 +313,7 @@ export default function RechargeOperatorAvailabilityPoliciesPage() {
   const renderForm = () => (
     <div style={{ display: 'grid', gap: '0.75rem' }}>
       <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-        If active policies exist for a country and recharge type, only matching operators are shown and allowed. Operator matching uses contains semantics. Prefixes are optional.
+        Routes are checked before broad country/type provider routing. Lower rank wins when multiple active routes match.
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -304,21 +333,28 @@ export default function RechargeOperatorAvailabilityPoliciesPage() {
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="operatorNamePattern">Operator name pattern</label>
-          <input id="operatorNamePattern" value={draft.operatorNamePattern} onChange={(e) => setDraft((p) => ({ ...p, operatorNamePattern: e.target.value }))} placeholder="Vodacom" />
+          <input id="operatorNamePattern" value={draft.operatorNamePattern} onChange={(e) => setDraft((p) => ({ ...p, operatorNamePattern: e.target.value }))} placeholder="Airtel" />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="phoneNumberPrefixes">Phone number prefixes</label>
-          <input id="phoneNumberPrefixes" value={draft.phoneNumberPrefixes} onChange={(e) => setDraft((p) => ({ ...p, phoneNumberPrefixes: e.target.value }))} placeholder="81,82" />
-          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Optional comma-separated national prefixes. Leave blank to check only the operator name.</div>
+          <input id="phoneNumberPrefixes" value={draft.phoneNumberPrefixes} onChange={(e) => setDraft((p) => ({ ...p, phoneNumberPrefixes: e.target.value }))} placeholder="97,98,99" />
+          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Comma-separated national prefixes after normalization.</div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <label htmlFor="providerName">Provider</label>
+          <select id="providerName" value={draft.providerName} onChange={(e) => setDraft((p) => ({ ...p, providerName: e.target.value }))}>
+            <option value="">Choose provider</option>
+            {providerOptions.map((provider) => (
+              <option key={provider} value={provider}>
+                {provider}
+              </option>
+            ))}
+          </select>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="rank">Rank</label>
           <input id="rank" type="number" min={0} step={1} value={draft.rank} onChange={(e) => setDraft((p) => ({ ...p, rank: e.target.value }))} />
         </div>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="messageKey">Message key</label>
-        <input id="messageKey" value={draft.messageKey} onChange={(e) => setDraft((p) => ({ ...p, messageKey: e.target.value }))} placeholder="recharge.error.cd_data_bundle_vodacom_only" />
       </div>
       <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
         <input type="checkbox" checked={draft.active} onChange={(e) => setDraft((p) => ({ ...p, active: e.target.checked }))} />
@@ -327,34 +363,21 @@ export default function RechargeOperatorAvailabilityPoliciesPage() {
     </div>
   );
 
-  const detailRows = (row) => [
-    { label: 'ID', value: row?.id },
-    { label: 'Country', value: row?.countryCode },
-    { label: 'Recharge type', value: row?.rechargeType },
-    { label: 'Operator pattern', value: row?.operatorNamePattern },
-    { label: 'Phone prefixes', value: row?.phoneNumberPrefixes || '-' },
-    { label: 'Message key', value: row?.messageKey },
-    { label: 'Rank', value: row?.rank },
-    { label: 'Active', value: row?.active ? 'Yes' : 'No' },
-    { label: 'Created', value: formatDateTime(row?.createdAt) },
-    { label: 'Updated', value: formatDateTime(row?.updatedAt) }
-  ];
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <div style={{ fontWeight: 800, fontSize: '20px' }}>Recharge Operator Availability</div>
+          <div style={{ fontWeight: 800, fontSize: '20px' }}>Recharge Operator Provider Routes</div>
           <div style={{ color: 'var(--muted)' }}>
-            Manage country/type operator allowlists for recharge catalogs and DATA/BUNDLE send error handling.
+            Choose which provider serves data or bundle offers for a specific operator and phone prefix.
           </div>
           <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-            No active policy means all provider catalog operators are allowed for that country and type.
+            If no matching routed provider has offers, backend falls back to the broad country/type provider route.
           </div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button type="button" className="btn-primary" onClick={openCreate}>
-            Add policy
+            Add route
           </button>
           <Link href="/dashboard" className="btn-neutral">
             {'<- Dashboard'}
@@ -363,13 +386,10 @@ export default function RechargeOperatorAvailabilityPoliciesPage() {
       </div>
 
       <div className="card" style={{ display: 'grid', gap: '0.35rem' }}>
-        <div style={{ fontWeight: 700 }}>Admin guidance</div>
-        <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-          For DR Congo DATA/BUNDLE, configure CD + Vodacom + phone prefixes 81,82. Matching runs after number normalization.
-        </div>
-        <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-          Changing active policies affects visible catalog operators and failed recharge messaging for matching country/type combinations. If phone prefixes are empty, the rule only checks the operator name.
-        </div>
+        <div style={{ fontWeight: 700 }}>Production examples</div>
+        <div style={{ color: 'var(--muted)', fontSize: '13px' }}>CD DATA Vodacom prefixes 81,82 {'->'} RELOADLY</div>
+        <div style={{ color: 'var(--muted)', fontSize: '13px' }}>CD BUNDLE Vodacom prefixes 81,82 {'->'} RELOADLY</div>
+        <div style={{ color: 'var(--muted)', fontSize: '13px' }}>CD DATA Airtel prefixes 97,98,99 {'->'} ZENDIT</div>
       </div>
 
       <div className="card" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -402,7 +422,7 @@ export default function RechargeOperatorAvailabilityPoliciesPage() {
       <DataTable
         columns={columns}
         rows={rows}
-        emptyLabel={loading ? 'Loading recharge operator availability policies...' : 'No recharge operator availability policies found.'}
+        emptyLabel={loading ? 'Loading recharge operator provider routes...' : 'No recharge operator provider routes found.'}
         page={page}
         pageSize={size}
         totalPages={pageMeta.totalPages}
@@ -414,49 +434,37 @@ export default function RechargeOperatorAvailabilityPoliciesPage() {
       />
 
       {showCreate && (
-        <Modal title="Add recharge operator availability policy" onClose={() => (!actionLoading ? setShowCreate(false) : null)}>
+        <Modal title="Add recharge operator provider route" onClose={() => (!actionLoading ? setShowCreate(false) : null)}>
           {renderForm()}
           <div className="modal-actions">
-            <button type="button" className="btn-neutral" onClick={() => setShowCreate(false)} disabled={actionLoading}>
-              Cancel
-            </button>
-            <button type="button" className="btn-primary" onClick={handleCreate} disabled={actionLoading}>
-              {actionLoading ? 'Saving...' : 'Create'}
-            </button>
+            <button type="button" className="btn-neutral" onClick={() => setShowCreate(false)} disabled={actionLoading}>Cancel</button>
+            <button type="button" className="btn-primary" onClick={handleCreate} disabled={actionLoading}>{actionLoading ? 'Saving...' : 'Create'}</button>
           </div>
         </Modal>
       )}
 
       {showEdit && (
-        <Modal title={`Edit recharge operator availability policy ${selected?.id || ''}`} onClose={() => (!actionLoading ? setShowEdit(false) : null)}>
+        <Modal title={`Edit recharge operator provider route ${selected?.id || ''}`} onClose={() => (!actionLoading ? setShowEdit(false) : null)}>
           {renderForm()}
           <div className="modal-actions">
-            <button type="button" className="btn-neutral" onClick={() => setShowEdit(false)} disabled={actionLoading}>
-              Cancel
-            </button>
-            <button type="button" className="btn-primary" onClick={handleUpdate} disabled={actionLoading}>
-              {actionLoading ? 'Saving...' : 'Update'}
-            </button>
+            <button type="button" className="btn-neutral" onClick={() => setShowEdit(false)} disabled={actionLoading}>Cancel</button>
+            <button type="button" className="btn-primary" onClick={handleUpdate} disabled={actionLoading}>{actionLoading ? 'Saving...' : 'Update'}</button>
           </div>
         </Modal>
       )}
 
       {showDetail && selected && (
-        <Modal title={`Recharge operator availability policy ${selected.id}`} onClose={() => setShowDetail(false)}>
+        <Modal title={`Recharge operator provider route ${selected.id}`} onClose={() => setShowDetail(false)}>
           <DetailGrid rows={detailRows(selected)} />
         </Modal>
       )}
 
       {confirmActive && (
-        <Modal title={`${confirmActive.active ? 'Deactivate' : 'Activate'} policy`} onClose={() => (!actionLoading ? setConfirmActive(null) : null)}>
-          <div style={{ color: 'var(--muted)' }}>
-            {confirmActive.active ? 'Deactivate' : 'Activate'} policy {confirmActive.id}?
-          </div>
-          <DetailGrid rows={detailRows(confirmActive).slice(1, 6)} />
+        <Modal title={`${confirmActive.active ? 'Deactivate' : 'Activate'} route`} onClose={() => (!actionLoading ? setConfirmActive(null) : null)}>
+          <div style={{ color: 'var(--muted)' }}>{confirmActive.active ? 'Deactivate' : 'Activate'} route {confirmActive.id}?</div>
+          <DetailGrid rows={detailRows(confirmActive).slice(1, 7)} />
           <div className="modal-actions">
-            <button type="button" className="btn-neutral" onClick={() => setConfirmActive(null)} disabled={actionLoading}>
-              Cancel
-            </button>
+            <button type="button" className="btn-neutral" onClick={() => setConfirmActive(null)} disabled={actionLoading}>Cancel</button>
             <button type="button" className="btn-primary" onClick={handleUpdateActive} disabled={actionLoading}>
               {actionLoading ? 'Saving...' : confirmActive.active ? 'Deactivate' : 'Activate'}
             </button>
@@ -465,18 +473,12 @@ export default function RechargeOperatorAvailabilityPoliciesPage() {
       )}
 
       {confirmDelete && (
-        <Modal title="Delete recharge operator availability policy" onClose={() => (!actionLoading ? setConfirmDelete(null) : null)}>
-          <div style={{ color: 'var(--muted)' }}>
-            Delete policy {confirmDelete.id}? This permanently removes it.
-          </div>
-          <DetailGrid rows={detailRows(confirmDelete).slice(1, 6)} />
+        <Modal title="Delete recharge operator provider route" onClose={() => (!actionLoading ? setConfirmDelete(null) : null)}>
+          <div style={{ color: 'var(--muted)' }}>Delete route {confirmDelete.id}? This permanently removes it.</div>
+          <DetailGrid rows={detailRows(confirmDelete).slice(1, 7)} />
           <div className="modal-actions">
-            <button type="button" className="btn-neutral" onClick={() => setConfirmDelete(null)} disabled={actionLoading}>
-              Cancel
-            </button>
-            <button type="button" className="btn-danger" onClick={handleDelete} disabled={actionLoading}>
-              {actionLoading ? 'Deleting...' : 'Delete'}
-            </button>
+            <button type="button" className="btn-neutral" onClick={() => setConfirmDelete(null)} disabled={actionLoading}>Cancel</button>
+            <button type="button" className="btn-danger" onClick={handleDelete} disabled={actionLoading}>{actionLoading ? 'Deleting...' : 'Delete'}</button>
           </div>
         </Modal>
       )}
