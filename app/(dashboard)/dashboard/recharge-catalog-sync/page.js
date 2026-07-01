@@ -14,7 +14,8 @@ const orderingModeOptions = [
 ];
 const defaultDataBundlePolicy = {
   combineDataAndBundles: true,
-  orderingMode: 'REQUESTED_TYPE_FIRST'
+  orderingMode: 'REQUESTED_TYPE_FIRST',
+  nightValidityLabelEnabled: true
 };
 
 const formatDateTime = (value) => {
@@ -104,7 +105,8 @@ export default function RechargeCatalogSyncPage() {
         combineDataAndBundles: res?.combineDataAndBundles !== false,
         orderingMode: orderingModeOptions.some((option) => option.value === res?.orderingMode)
           ? res.orderingMode
-          : defaultDataBundlePolicy.orderingMode
+          : defaultDataBundlePolicy.orderingMode,
+        nightValidityLabelEnabled: res?.nightValidityLabelEnabled !== false
       });
     } catch (err) {
       setDataBundlePolicy(defaultDataBundlePolicy);
@@ -126,14 +128,16 @@ export default function RechargeCatalogSyncPage() {
     try {
       const payload = {
         combineDataAndBundles: Boolean(dataBundlePolicy.combineDataAndBundles),
-        orderingMode: dataBundlePolicy.orderingMode || defaultDataBundlePolicy.orderingMode
+        orderingMode: dataBundlePolicy.orderingMode || defaultDataBundlePolicy.orderingMode,
+        nightValidityLabelEnabled: Boolean(dataBundlePolicy.nightValidityLabelEnabled)
       };
       const res = await api.rechargeCatalog.updateDataBundlePolicy(payload);
       setDataBundlePolicy({
         combineDataAndBundles: res?.combineDataAndBundles ?? payload.combineDataAndBundles,
         orderingMode: orderingModeOptions.some((option) => option.value === res?.orderingMode)
           ? res.orderingMode
-          : payload.orderingMode
+          : payload.orderingMode,
+        nightValidityLabelEnabled: res?.nightValidityLabelEnabled ?? payload.nightValidityLabelEnabled
       });
       setDataBundlePolicyInfo('Data and bundles catalog behavior saved.');
     } catch (err) {
@@ -311,6 +315,21 @@ export default function RechargeCatalogSyncPage() {
               disabled={dataBundlePolicyLoading || dataBundlePolicySaving}
             />
             <span>Combine Data and Bundles</span>
+          </label>
+
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', fontWeight: 700 }}>
+              <input
+                type="checkbox"
+                checked={Boolean(dataBundlePolicy.nightValidityLabelEnabled)}
+                onChange={(e) => setDataBundlePolicy((prev) => ({ ...prev, nightValidityLabelEnabled: e.target.checked }))}
+                disabled={dataBundlePolicyLoading || dataBundlePolicySaving}
+              />
+              <span>Show night-only label on inferred Zendit data offers</span>
+            </span>
+            <span style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              When enabled, Fondeka may append “valid at night 0h-6h” to larger same-price same-validity pure data offers. Disable this if the provider catalogue looks inconsistent. Provider benefits, data amount, validity, and pricing will still be returned.
+            </span>
           </label>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
