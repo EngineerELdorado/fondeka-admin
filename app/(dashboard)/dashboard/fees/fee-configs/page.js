@@ -33,6 +33,7 @@ const actionOptions = [
   'REPAY_LOAN',
   'SELL_CRYPTO',
   'SEND_AIRTIME',
+  'SEND_DATA_BUNDLES',
   'SEND_CRYPTO',
   'SETTLEMENT',
   'SWAP_CRYPTO',

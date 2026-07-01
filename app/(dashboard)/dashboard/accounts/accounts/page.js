@@ -191,6 +191,7 @@ export default function AccountsListPage() {
     'REPAY_LOAN',
     'SELL_CRYPTO',
     'SEND_AIRTIME',
+    'SEND_DATA_BUNDLES',
     'SEND_CRYPTO',
     'WITHDRAW_FROM_CARD',
     'PERSONAL_SAVING_DEPOSIT',
@@ -225,6 +226,7 @@ export default function AccountsListPage() {
   const [pricingExtraLoan, setPricingExtraLoan] = useState('');
   const [pricingMaxCollection, setPricingMaxCollection] = useState('');
   const [pricingMaxPayout, setPricingMaxPayout] = useState('');
+  const [pricingSendCryptoMinimum, setPricingSendCryptoMinimum] = useState('');
   const [pricingTransactionsEligible, setPricingTransactionsEligible] = useState('');
   const [pricingNote, setPricingNote] = useState('');
   const [pricingError, setPricingError] = useState(null);
@@ -917,6 +919,7 @@ export default function AccountsListPage() {
     setPricingExtraLoan(source?.extraLoanEligibilityAmount !== undefined && source?.extraLoanEligibilityAmount !== null ? String(source.extraLoanEligibilityAmount) : '0');
     setPricingMaxCollection(source?.maxCollectionAmount !== undefined && source?.maxCollectionAmount !== null ? String(source.maxCollectionAmount) : '');
     setPricingMaxPayout(source?.maxPayoutAmount !== undefined && source?.maxPayoutAmount !== null ? String(source.maxPayoutAmount) : '');
+    setPricingSendCryptoMinimum(source?.sendCryptoMinimumUsd !== undefined && source?.sendCryptoMinimumUsd !== null ? String(source.sendCryptoMinimumUsd) : '');
     setPricingTransactionsEligible(
       source?.transactionsEligibleForLoanEligibility === true
         ? 'true'
@@ -957,19 +960,31 @@ export default function AccountsListPage() {
       setPricingError('Max payout amount must be a number (or empty)');
       return;
     }
+    const sendCryptoMinimum = parseOptional(pricingSendCryptoMinimum);
+    if (Number.isNaN(sendCryptoMinimum)) {
+      setPricingError('Send crypto minimum must be 0 or more, or empty to use the global wallet policy minimum');
+      return;
+    }
 
     setPricingSaving(true);
     try {
+      const source = customPricing || {};
       const payload = {
+        baseLoanEligibilityPercent: source?.baseLoanEligibilityPercent ?? null,
         extraLoanEligibilityAmount: extraLoan,
         maxCollectionAmount: maxCollection,
         maxPayoutAmount: maxPayout,
+        cryptoProviderCollectionMinimumUsd: source?.cryptoProviderCollectionMinimumUsd ?? null,
+        sendCryptoMinimumUsd: sendCryptoMinimum,
         transactionsEligibleForLoanEligibility:
           pricingTransactionsEligible === 'true'
             ? true
             : pricingTransactionsEligible === 'false'
               ? false
               : null,
+        showDepositPrompt: source?.showDepositPrompt ?? null,
+        depositPromptThresholdAmount: source?.depositPromptThresholdAmount ?? null,
+        collectionSourceRiskBypass: source?.collectionSourceRiskBypass ?? null,
         note: pricingNote?.trim() ? pricingNote.trim() : null
       };
       await api.accounts.updateCustomPricing(selected.id, payload);
@@ -1393,6 +1408,13 @@ export default function AccountsListPage() {
                       { label: 'Extra loan eligibility', value: customPricing.extraLoanEligibilityAmount },
                       { label: 'Max collection', value: customPricing.maxCollectionAmount ?? 'Default' },
                       { label: 'Max payout', value: customPricing.maxPayoutAmount ?? 'Default' },
+                      {
+                        label: 'Send crypto minimum',
+                        value:
+                          customPricing.sendCryptoMinimumUsd !== null && customPricing.sendCryptoMinimumUsd !== undefined
+                            ? formatUsdAmount(customPricing.sendCryptoMinimumUsd)
+                            : 'Use global wallet policy minimum'
+                      },
                       {
                         label: 'Transactions count toward loan eligibility',
                         value:
@@ -1961,6 +1983,21 @@ export default function AccountsListPage() {
                 />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="sendCryptoMinimumUsd">Send crypto minimum (USD, optional)</label>
+                <input
+                  id="sendCryptoMinimumUsd"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={pricingSendCryptoMinimum}
+                  onChange={(e) => setPricingSendCryptoMinimum(e.target.value)}
+                  placeholder="Use global wallet policy minimum"
+                />
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                  Applies only to SEND_CRYPTO. Leave empty to inherit the global wallet policy minimum.
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="pricingNote">{t('common.note')} (optional)</label>
                 <input id="pricingNote" value={pricingNote} onChange={(e) => setPricingNote(e.target.value)} placeholder="VIP customer" />
               </div>
@@ -2029,4 +2066,9 @@ const formatAmount = (value) => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return String(value);
   return parsed.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+const formatUsdAmount = (value) => {
+  const formatted = formatAmount(value);
+  return formatted === '—' ? formatted : `${formatted} USD`;
 };

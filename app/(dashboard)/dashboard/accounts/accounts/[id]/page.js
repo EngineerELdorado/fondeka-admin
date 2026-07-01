@@ -212,6 +212,11 @@ const formatAmount = (value) => {
   return parsed.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
+const formatUsdAmount = (value) => {
+  const formatted = formatAmount(value);
+  return formatted === '—' ? formatted : `${formatted} USD`;
+};
+
 const formatAuthState = (value) => {
   if (value === null || value === undefined || value === '') return '—';
   return Boolean(value) ? 'ON' : 'OFF';
@@ -605,6 +610,7 @@ const [notificationDataModal, setNotificationDataModal] = useState(null);
   const [pricingExtraLoan, setPricingExtraLoan] = useState('');
   const [pricingMaxCollection, setPricingMaxCollection] = useState('');
   const [pricingMaxPayout, setPricingMaxPayout] = useState('');
+  const [pricingSendCryptoMinimum, setPricingSendCryptoMinimum] = useState('');
   const [pricingShowDepositPromptOverride, setPricingShowDepositPromptOverride] = useState('GLOBAL');
   const [pricingDepositPromptThresholdOverride, setPricingDepositPromptThresholdOverride] = useState('');
   const [pricingNote, setPricingNote] = useState('');
@@ -828,6 +834,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     'RECEIVE_CRYPTO',
     'SELL_CRYPTO',
     'SEND_AIRTIME',
+    'SEND_DATA_BUNDLES',
     'SEND_CRYPTO',
     'SWAP_CRYPTO',
     'WITHDRAW_FROM_CARD',
@@ -2023,6 +2030,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     setPricingExtraLoan(source?.extraLoanEligibilityAmount !== undefined && source?.extraLoanEligibilityAmount !== null ? String(source.extraLoanEligibilityAmount) : '0');
     setPricingMaxCollection(source?.maxCollectionAmount !== undefined && source?.maxCollectionAmount !== null ? String(source.maxCollectionAmount) : '');
     setPricingMaxPayout(source?.maxPayoutAmount !== undefined && source?.maxPayoutAmount !== null ? String(source.maxPayoutAmount) : '');
+    setPricingSendCryptoMinimum(source?.sendCryptoMinimumUsd !== undefined && source?.sendCryptoMinimumUsd !== null ? String(source.sendCryptoMinimumUsd) : '');
     setPricingShowDepositPromptOverride(
       source?.showDepositPrompt === null || source?.showDepositPrompt === undefined ? 'GLOBAL' : source.showDepositPrompt ? 'ENABLED' : 'DISABLED'
     );
@@ -2040,8 +2048,11 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     maxPayoutAmount,
     note,
     cryptoProviderCollectionMinimumUsd,
+    sendCryptoMinimumUsd,
+    transactionsEligibleForLoanEligibility,
     showDepositPrompt,
-    depositPromptThresholdAmount
+    depositPromptThresholdAmount,
+    collectionSourceRiskBypass
   } = {}) => ({
     baseLoanEligibilityPercent:
       baseLoanEligibilityPercent !== undefined ? baseLoanEligibilityPercent : (source?.baseLoanEligibilityPercent ?? null),
@@ -2053,10 +2064,16 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       maxPayoutAmount !== undefined ? maxPayoutAmount : (source?.maxPayoutAmount ?? null),
     cryptoProviderCollectionMinimumUsd:
       cryptoProviderCollectionMinimumUsd !== undefined ? cryptoProviderCollectionMinimumUsd : (source?.cryptoProviderCollectionMinimumUsd ?? null),
+    sendCryptoMinimumUsd:
+      sendCryptoMinimumUsd !== undefined ? sendCryptoMinimumUsd : (source?.sendCryptoMinimumUsd ?? null),
+    transactionsEligibleForLoanEligibility:
+      transactionsEligibleForLoanEligibility !== undefined ? transactionsEligibleForLoanEligibility : (source?.transactionsEligibleForLoanEligibility ?? null),
     showDepositPrompt:
       showDepositPrompt !== undefined ? showDepositPrompt : (source?.showDepositPrompt ?? null),
     depositPromptThresholdAmount:
       depositPromptThresholdAmount !== undefined ? depositPromptThresholdAmount : (source?.depositPromptThresholdAmount ?? null),
+    collectionSourceRiskBypass:
+      collectionSourceRiskBypass !== undefined ? collectionSourceRiskBypass : (source?.collectionSourceRiskBypass ?? null),
     note:
       note !== undefined ? note : (source?.note ?? null)
   });
@@ -2097,6 +2114,11 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       setPricingError('Max payout amount must be a number (or empty)');
       return;
     }
+    const sendCryptoMinimum = parseOptional(pricingSendCryptoMinimum);
+    if (Number.isNaN(sendCryptoMinimum)) {
+      setPricingError('Send crypto minimum must be 0 or more, or empty to use the global wallet policy minimum');
+      return;
+    }
 
     let showDepositPrompt = null;
     if (pricingShowDepositPromptOverride === 'ENABLED') showDepositPrompt = true;
@@ -2120,6 +2142,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         extraLoanEligibilityAmount: extraLoan,
         maxCollectionAmount: maxCollection,
         maxPayoutAmount: maxPayout,
+        sendCryptoMinimumUsd: sendCryptoMinimum,
         showDepositPrompt,
         depositPromptThresholdAmount,
         note: pricingNote?.trim() ? pricingNote.trim() : null
@@ -4027,6 +4050,13 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                   { label: 'Max collection', value: customPricing.maxCollectionAmount ?? 'Default' },
                   { label: 'Max payout', value: customPricing.maxPayoutAmount ?? 'Default' },
                   {
+                    label: 'Send crypto minimum',
+                    value:
+                      customPricing.sendCryptoMinimumUsd !== null && customPricing.sendCryptoMinimumUsd !== undefined
+                        ? formatUsdAmount(customPricing.sendCryptoMinimumUsd)
+                        : 'Use global wallet policy minimum'
+                  },
+                  {
                     label: 'Deposit prompt',
                     value: (
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
@@ -4118,6 +4148,15 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
                           <span>{formatAmount(effectiveCaps.cryptoProviderCollectionMinimumUsd)}</span>
                           <Badge>{formatEffectiveCapSource(effectiveCaps.cryptoProviderCollectionMinimumUsdSource)}</Badge>
+                        </span>
+                      )
+                    },
+                    {
+                      label: 'Send crypto minimum',
+                      value: (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                          <span>{formatUsdAmount(effectiveCaps.sendCryptoMinimumUsd)}</span>
+                          <Badge>{formatEffectiveCapSource(effectiveCaps.sendCryptoMinimumUsdSource)}</Badge>
                         </span>
                       )
                     }
@@ -5319,6 +5358,21 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                   onChange={(e) => setPricingMaxPayout(e.target.value)}
                   placeholder="300.00"
                 />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="sendCryptoMinimumUsd">Send crypto minimum (USD, optional)</label>
+                <input
+                  id="sendCryptoMinimumUsd"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={pricingSendCryptoMinimum}
+                  onChange={(e) => setPricingSendCryptoMinimum(e.target.value)}
+                  placeholder="Use global wallet policy minimum"
+                />
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                  Applies only to SEND_CRYPTO. Leave empty to inherit the global wallet policy minimum.
+                </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="pricingShowDepositPromptOverride">Account Deposit Prompt Override</label>
