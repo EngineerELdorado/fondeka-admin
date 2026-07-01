@@ -7,6 +7,15 @@ import { api } from '@/lib/api';
 
 const providerOptions = ['RELOADLY', 'ZENDIT'];
 const rechargeTypeOptions = ['AIRTIME', 'DATA', 'BUNDLE'];
+const orderingModeOptions = [
+  { value: 'REQUESTED_TYPE_FIRST', label: 'Match customer selection' },
+  { value: 'DATA_FIRST', label: 'Always Data first' },
+  { value: 'BUNDLE_FIRST', label: 'Always Bundles first' }
+];
+const defaultDataBundlePolicy = {
+  combineDataAndBundles: true,
+  orderingMode: 'REQUESTED_TYPE_FIRST'
+};
 
 const formatDateTime = (value) => {
   if (!value) return '—';
@@ -66,6 +75,11 @@ export default function RechargeCatalogSyncPage() {
   const [cronEnabledFilter, setCronEnabledFilter] = useState('');
   const [pendingProviders, setPendingProviders] = useState({});
   const [clearingProviders, setClearingProviders] = useState({});
+  const [dataBundlePolicy, setDataBundlePolicy] = useState(defaultDataBundlePolicy);
+  const [dataBundlePolicyLoading, setDataBundlePolicyLoading] = useState(false);
+  const [dataBundlePolicySaving, setDataBundlePolicySaving] = useState(false);
+  const [dataBundlePolicyError, setDataBundlePolicyError] = useState(null);
+  const [dataBundlePolicyInfo, setDataBundlePolicyInfo] = useState(null);
 
   const fetchRows = async () => {
     setLoading(true);
@@ -81,9 +95,53 @@ export default function RechargeCatalogSyncPage() {
     }
   };
 
+  const fetchDataBundlePolicy = async () => {
+    setDataBundlePolicyLoading(true);
+    setDataBundlePolicyError(null);
+    try {
+      const res = await api.rechargeCatalog.getDataBundlePolicy();
+      setDataBundlePolicy({
+        combineDataAndBundles: res?.combineDataAndBundles !== false,
+        orderingMode: orderingModeOptions.some((option) => option.value === res?.orderingMode)
+          ? res.orderingMode
+          : defaultDataBundlePolicy.orderingMode
+      });
+    } catch (err) {
+      setDataBundlePolicy(defaultDataBundlePolicy);
+      setDataBundlePolicyError(err?.message || 'Failed to load data and bundles catalog behavior.');
+    } finally {
+      setDataBundlePolicyLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchRows();
+    fetchDataBundlePolicy();
   }, []);
+
+  const saveDataBundlePolicy = async () => {
+    setDataBundlePolicySaving(true);
+    setDataBundlePolicyError(null);
+    setDataBundlePolicyInfo(null);
+    try {
+      const payload = {
+        combineDataAndBundles: Boolean(dataBundlePolicy.combineDataAndBundles),
+        orderingMode: dataBundlePolicy.orderingMode || defaultDataBundlePolicy.orderingMode
+      };
+      const res = await api.rechargeCatalog.updateDataBundlePolicy(payload);
+      setDataBundlePolicy({
+        combineDataAndBundles: res?.combineDataAndBundles ?? payload.combineDataAndBundles,
+        orderingMode: orderingModeOptions.some((option) => option.value === res?.orderingMode)
+          ? res.orderingMode
+          : payload.orderingMode
+      });
+      setDataBundlePolicyInfo('Data and bundles catalog behavior saved.');
+    } catch (err) {
+      setDataBundlePolicyError(err?.message || 'Failed to save data and bundles catalog behavior.');
+    } finally {
+      setDataBundlePolicySaving(false);
+    }
+  };
 
   const handleTrigger = useCallback(async (providerName) => {
     if (!providerName) return;
@@ -224,6 +282,67 @@ export default function RechargeCatalogSyncPage() {
         <SummaryCard label="Reloadly Slices" value={summary.reloadly} tone="reloadly" />
         <SummaryCard label="Zendit Slices" value={summary.zendit} tone="zendit" />
         <SummaryCard label="Cron Enabled" value={summary.cronEnabled} tone="cron" />
+      </div>
+
+      <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '1rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxWidth: '780px' }}>
+            <div style={{ fontWeight: 800 }}>Data &amp; Bundles Catalog Behavior</div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Customers often use data and bundles interchangeably. When combining is enabled, both offer types are returned together. The ordering setting controls which type appears first.
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn-neutral btn-sm"
+            onClick={fetchDataBundlePolicy}
+            disabled={dataBundlePolicyLoading || dataBundlePolicySaving}
+          >
+            {dataBundlePolicyLoading ? 'Loading…' : 'Reload policy'}
+          </button>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.75rem', alignItems: 'end' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', fontWeight: 700 }}>
+            <input
+              type="checkbox"
+              checked={Boolean(dataBundlePolicy.combineDataAndBundles)}
+              onChange={(e) => setDataBundlePolicy((prev) => ({ ...prev, combineDataAndBundles: e.target.checked }))}
+              disabled={dataBundlePolicyLoading || dataBundlePolicySaving}
+            />
+            <span>Combine Data and Bundles</span>
+          </label>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="dataBundleOrderingMode">Offer ordering</label>
+            <select
+              id="dataBundleOrderingMode"
+              value={dataBundlePolicy.orderingMode}
+              onChange={(e) => setDataBundlePolicy((prev) => ({ ...prev, orderingMode: e.target.value }))}
+              disabled={dataBundlePolicyLoading || dataBundlePolicySaving}
+            >
+              {orderingModeOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={saveDataBundlePolicy}
+              disabled={dataBundlePolicyLoading || dataBundlePolicySaving}
+            >
+              {dataBundlePolicySaving ? 'Saving…' : 'Save behavior'}
+            </button>
+          </div>
+        </div>
+
+        {dataBundlePolicyError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{dataBundlePolicyError}</div>}
+        {dataBundlePolicyInfo && <div style={{ color: '#15803d', fontWeight: 700 }}>{dataBundlePolicyInfo}</div>}
       </div>
 
       <div className="card" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
