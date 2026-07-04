@@ -2866,7 +2866,7 @@ export default function TransactionsPage() {
               )}
               {canRetryPostWebhook && (
                 <button type="button" onClick={openPostWebhookRetry} className="btn-primary">
-                  Retry post-webhook
+                  Retry transaction
                 </button>
               )}
               {isSuperAdmin && (
