@@ -41,7 +41,6 @@ const emptyState = {
   onlineTransactionFeePercentage: '',
   minOnlineTransactionFeeAmount: '',
   rank: '',
-  maxActiveCardsPerCardHolder: '',
   maxDailyLimit: '',
   minFirstTopup: '',
   minTransactionFeeAmount: '',
@@ -117,17 +116,6 @@ const toPayload = (state) => {
     if (!key) return;
     capabilities[key] = parseCapabilityValue(item?.value);
   });
-  const maxActiveCardsPerCardHolder =
-    state.maxActiveCardsPerCardHolder === '' || state.maxActiveCardsPerCardHolder === null || state.maxActiveCardsPerCardHolder === undefined
-      ? null
-      : Number(state.maxActiveCardsPerCardHolder);
-  if (
-    maxActiveCardsPerCardHolder !== null &&
-    (!Number.isInteger(maxActiveCardsPerCardHolder) || maxActiveCardsPerCardHolder < 0)
-  ) {
-    throw new Error('Max active cards per card holder must be empty, 0, or a positive integer.');
-  }
-
   return {
     cardProductId: Number(state.cardProductId) || 0,
     cardProviderId: Number(state.cardProviderId) || 0,
@@ -161,7 +149,6 @@ const toPayload = (state) => {
     onlineTransactionFeePercentage: state.onlineTransactionFeePercentage === '' ? null : Number(state.onlineTransactionFeePercentage),
     minOnlineTransactionFeeAmount: state.minOnlineTransactionFeeAmount === '' ? null : Number(state.minOnlineTransactionFeeAmount),
     rank: state.rank === '' ? null : Number(state.rank),
-    maxActiveCardsPerCardHolder,
     maxDailyLimit: state.maxDailyLimit === '' ? null : Number(state.maxDailyLimit),
     minFirstTopup: state.minFirstTopup === '' ? null : Number(state.minFirstTopup),
     minTransactionFeeAmount: state.minTransactionFeeAmount === '' ? null : Number(state.minTransactionFeeAmount),
@@ -180,9 +167,6 @@ const formatAmount = (row, key) => {
   if (!hasConfiguredValue(val)) return '—';
   return `${val}${row?.currency ? ` ${row.currency}` : ''}`;
 };
-
-const formatMaxActiveCardsPerCardHolder = (value) =>
-  value === null || value === undefined || Number(value) === 0 ? 'Unlimited' : value;
 
 const formatOperationFeeLine = (row, label, percentageKey, minAmountKey) => {
   const percentage = row?.[percentageKey];
@@ -380,11 +364,6 @@ export default function CardProductProvidersPage() {
         render: (row) => (row.rank === null || row.rank === undefined ? '—' : row.rank)
       },
       {
-        key: 'maxActiveCardsPerCardHolder',
-        label: 'Max active cards/card holder',
-        render: (row) => formatMaxActiveCardsPerCardHolder(row.maxActiveCardsPerCardHolder)
-      },
-      {
         key: 'active',
         label: 'Active',
         render: (row) => (row.active === null || row.active === undefined ? '—' : String(row.active))
@@ -455,7 +434,6 @@ export default function CardProductProvidersPage() {
       onlineTransactionFeePercentage: row.onlineTransactionFeePercentage ?? '',
       minOnlineTransactionFeeAmount: row.minOnlineTransactionFeeAmount ?? '',
       rank: row.rank ?? '',
-      maxActiveCardsPerCardHolder: row.maxActiveCardsPerCardHolder ?? '',
       maxDailyLimit: row.maxDailyLimit ?? '',
       minFirstTopup: row.minFirstTopup ?? '',
       minTransactionFeeAmount: row.minTransactionFeeAmount ?? '',
@@ -1292,21 +1270,6 @@ export default function CardProductProvidersPage() {
         <label htmlFor="rank">Rank</label>
         <input id="rank" type="number" value={draft.rank} onChange={(e) => setDraft((p) => ({ ...p, rank: e.target.value }))} />
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="maxActiveCardsPerCardHolder">Max active cards per card holder</label>
-        <input
-          id="maxActiveCardsPerCardHolder"
-          type="number"
-          min={0}
-          step={1}
-          value={draft.maxActiveCardsPerCardHolder}
-          onChange={(e) => setDraft((p) => ({ ...p, maxActiveCardsPerCardHolder: e.target.value }))}
-          placeholder="Unlimited"
-        />
-        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-          Leave empty or set to 0 for unlimited. Set a positive number to prevent a card holder from having more than this number of active cards with this provider.
-        </div>
-      </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <input id="active" type="checkbox" checked={draft.active} onChange={(e) => setDraft((p) => ({ ...p, active: e.target.checked }))} />
         <label htmlFor="active">Active</label>
@@ -1547,7 +1510,6 @@ export default function CardProductProvidersPage() {
               { label: 'Validity length', value: selected?.validityLength ?? '—' },
               { label: 'Validity type', value: selected?.validityType ?? '—' },
               { label: 'Rank', value: selected?.rank ?? '—' },
-              { label: 'Max active cards per card holder', value: formatMaxActiveCardsPerCardHolder(selected?.maxActiveCardsPerCardHolder) },
               { label: 'Notes (EN)', value: selected?.notesEn || '—' },
               { label: 'Notes (FR)', value: selected?.notesFr || '—' },
               { label: 'Active', value: selected?.active === undefined || selected?.active === null ? '—' : String(selected?.active) }

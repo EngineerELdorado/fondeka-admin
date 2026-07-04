@@ -5,13 +5,30 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
-const emptyState = { name: '', active: true, rank: '' };
+const emptyState = { name: '', active: true, rank: '', maxActiveCardsPerCardHolder: '' };
 
-const toPayload = (state) => ({
-  name: state.name,
-  active: Boolean(state.active),
-  rank: state.rank === '' ? null : Number(state.rank)
-});
+const toPayload = (state) => {
+  const maxActiveCardsPerCardHolder =
+    state.maxActiveCardsPerCardHolder === '' || state.maxActiveCardsPerCardHolder === null || state.maxActiveCardsPerCardHolder === undefined
+      ? null
+      : Number(state.maxActiveCardsPerCardHolder);
+  if (
+    maxActiveCardsPerCardHolder !== null &&
+    (!Number.isInteger(maxActiveCardsPerCardHolder) || maxActiveCardsPerCardHolder < 0)
+  ) {
+    throw new Error('Max active cards per cardholder must be empty, 0, or a positive integer.');
+  }
+
+  return {
+    name: state.name,
+    active: Boolean(state.active),
+    rank: state.rank === '' ? null : Number(state.rank),
+    maxActiveCardsPerCardHolder
+  };
+};
+
+const formatMaxActiveCardsPerCardHolder = (value) =>
+  value === null || value === undefined || Number(value) === 0 ? 'Unlimited' : value;
 
 const Modal = ({ title, onClose, children }) => (
   <div className="modal-backdrop">
@@ -75,6 +92,11 @@ export default function CardProvidersPage() {
     { key: 'id', label: 'ID' },
     { key: 'name', label: 'Name' },
     { key: 'rank', label: 'Rank' },
+    {
+      key: 'maxActiveCardsPerCardHolder',
+      label: 'Max active cards/cardholder',
+      render: (row) => formatMaxActiveCardsPerCardHolder(row.maxActiveCardsPerCardHolder)
+    },
     { key: 'active', label: 'Active' },
     {
       key: 'actions',
@@ -101,7 +123,8 @@ export default function CardProvidersPage() {
     setDraft({
       name: row.name ?? '',
       active: Boolean(row.active),
-      rank: row.rank ?? ''
+      rank: row.rank ?? '',
+      maxActiveCardsPerCardHolder: row.maxActiveCardsPerCardHolder ?? ''
     });
     setShowEdit(true);
     setInfo(null);
@@ -166,6 +189,21 @@ export default function CardProvidersPage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="rank">Rank</label>
         <input id="rank" type="number" value={draft.rank} onChange={(e) => setDraft((p) => ({ ...p, rank: e.target.value }))} />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="maxActiveCardsPerCardHolder">Max active cards per cardholder</label>
+        <input
+          id="maxActiveCardsPerCardHolder"
+          type="number"
+          min={0}
+          step={1}
+          value={draft.maxActiveCardsPerCardHolder}
+          onChange={(e) => setDraft((p) => ({ ...p, maxActiveCardsPerCardHolder: e.target.value }))}
+          placeholder="Unlimited"
+        />
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          Applies across all card products for this provider. Leave empty or set 0 for no limit.
+        </div>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <input id="active" type="checkbox" checked={draft.active} onChange={(e) => setDraft((p) => ({ ...p, active: e.target.checked }))} />
@@ -235,6 +273,7 @@ export default function CardProvidersPage() {
               { label: 'ID', value: selected?.id },
               { label: 'Name', value: selected?.name },
               { label: 'Rank', value: selected?.rank },
+              { label: 'Max active cards per cardholder', value: formatMaxActiveCardsPerCardHolder(selected?.maxActiveCardsPerCardHolder) },
               { label: 'Active', value: String(selected?.active) }
             ]}
           />
