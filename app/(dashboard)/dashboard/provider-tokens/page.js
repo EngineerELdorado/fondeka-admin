@@ -39,6 +39,9 @@ const formatDateTime = (value) => {
   return date.toLocaleString();
 };
 
+const tokenExpiresAt = (row) =>
+  row?.expiresAt ?? row?.expirationDateTime ?? row?.expirationDate ?? row?.expiryAt ?? row?.expiryDate ?? null;
+
 const maskToken = (value) => {
   const token = String(value || '');
   if (!token) return '-';
@@ -202,6 +205,7 @@ export default function ProviderTokensPage() {
       { key: 'providerName', label: 'Provider name' },
       { key: 'profileKey', label: 'Profile key' },
       { key: 'token', label: 'Token', render: (row) => maskToken(row.token) },
+      { key: 'expiresAt', label: 'Expires at', render: (row) => formatDateTime(tokenExpiresAt(row)) },
       { key: 'updatedAt', label: 'Updated at', render: (row) => formatDateTime(row.updatedAt) },
       {
         key: 'actions',
@@ -353,6 +357,7 @@ export default function ProviderTokensPage() {
               { label: 'Provider name', value: selected?.providerName },
               { label: 'Profile key', value: selected?.profileKey },
               { label: 'Token', value: selected?.token },
+              { label: 'Expires at', value: formatDateTime(tokenExpiresAt(selected)) },
               { label: 'Created at', value: formatDateTime(selected?.createdAt) },
               { label: 'Updated at', value: formatDateTime(selected?.updatedAt) }
             ]}
