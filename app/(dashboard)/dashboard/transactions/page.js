@@ -533,9 +533,6 @@ export default function TransactionsPage() {
   const [refundLookupResult, setRefundLookupResult] = useState(null);
   const [refundLookupError, setRefundLookupError] = useState(null);
   const [refundLookupLoading, setRefundLookupLoading] = useState(null);
-  const [showReplayConfirm, setShowReplayConfirm] = useState(false);
-  const [replayLoading, setReplayLoading] = useState(false);
-  const [replayError, setReplayError] = useState(null);
   const [showPostWebhookRetry, setShowPostWebhookRetry] = useState(false);
   const [postWebhookLoading, setPostWebhookLoading] = useState(false);
   const [postWebhookError, setPostWebhookError] = useState(null);
@@ -1229,14 +1226,6 @@ export default function TransactionsPage() {
     return effect === 'DEBIT' && (status === 'FAILED' || status === 'PROCESSING' || status === 'MANUAL_INTERVENTION_REQUIRED') && !refunded;
   }, [selected]);
 
-  const canReplayFulfillment = useMemo(() => {
-    if (!selected) return false;
-    const status = String(selected.status || '').toUpperCase();
-    const action = String(selected.action || '').toUpperCase();
-    if (action === 'LOAN_REQUEST') return false;
-    return status !== 'FAILED' && status !== 'CANCELED' && status !== 'CANCELLED';
-  }, [selected]);
-
   const canRefetchBillStatus = useMemo(() => {
     if (!selected) return false;
     const service = String(selected.service || '').toUpperCase();
@@ -1564,29 +1553,6 @@ export default function TransactionsPage() {
       pushToast({ tone: 'error', message });
     } finally {
       setPublishHashLoading(false);
-    }
-  };
-
-  const handleReplayFulfillment = async () => {
-    const transactionId = selected?.transactionId || selected?.id;
-    if (!transactionId) {
-      setReplayError('Missing transaction id');
-      return;
-    }
-    setReplayLoading(true);
-    setReplayError(null);
-    try {
-      await api.transactions.replayLoanFulfillment(transactionId, 'CREDIT');
-      pushToast({ tone: 'success', message: 'Loan fulfillment replay started.' });
-      setShowReplayConfirm(false);
-      await fetchRows();
-      await loadReceipt(transactionId);
-    } catch (err) {
-      const message = err?.message || 'Failed to replay loan fulfillment';
-      setReplayError(message);
-      pushToast({ tone: 'error', message });
-    } finally {
-      setReplayLoading(false);
     }
   };
 
@@ -2866,7 +2832,7 @@ export default function TransactionsPage() {
               )}
               {canRetryPostWebhook && (
                 <button type="button" onClick={openPostWebhookRetry} className="btn-primary">
-                  Retry transaction
+                  Retry
                 </button>
               )}
               {isSuperAdmin && (
@@ -2874,43 +2840,11 @@ export default function TransactionsPage() {
                   Change status
                 </button>
               )}
-              {canReplayFulfillment && (
-                <button type="button" onClick={() => setShowReplayConfirm(true)} className="btn-primary">
-                  Replay loan fulfillment
-                </button>
-              )}
               {canRefundSelected && (
                 <button type="button" onClick={() => setShowRefund(true)} className="btn-danger">
                   Refund to wallet
                 </button>
               )}
-            </div>
-          </div>
-        </Modal>
-      )}
-
-      {showReplayConfirm && (
-        <Modal title="Replay loan fulfillment" onClose={() => (!replayLoading ? setShowReplayConfirm(false) : null)}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <div style={{ color: 'var(--muted)' }}>
-              This will resume fulfillment for this PAY_LATER purchase and may update the transaction to FUNDED.
-            </div>
-            {replayError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{replayError}</div>}
-            <DetailGrid
-              rows={[
-                { label: 'Transaction ID', value: selected?.transactionId || selected?.id },
-                { label: 'Reference', value: selected?.reference },
-                { label: 'Action', value: formatEnumLabel(selected?.action, actionLabels) },
-                { label: 'Status', value: selected?.status }
-              ]}
-            />
-            <div className="modal-actions">
-              <button type="button" className="btn-neutral" onClick={() => setShowReplayConfirm(false)} disabled={replayLoading}>
-                Cancel
-              </button>
-              <button type="button" className="btn-primary" onClick={handleReplayFulfillment} disabled={replayLoading}>
-                {replayLoading ? 'Replaying…' : 'Confirm replay'}
-              </button>
             </div>
           </div>
         </Modal>

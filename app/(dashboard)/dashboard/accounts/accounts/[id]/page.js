@@ -17,6 +17,13 @@ const emptyNotificationAnnouncement = {
   startAt: '',
   endAt: ''
 };
+const bridgecardRegistrationModeOptions = [
+  { label: 'Use global setting', value: '' },
+  { label: 'Async registration - allows Bridgecard manual review', value: 'REGISTER_CARDHOLDER' },
+  { label: 'Synchronous registration - verifies immediately if successful', value: 'REGISTER_CARDHOLDER_SYNCHRONOUSLY' }
+];
+const bridgecardRegistrationModeLabel = (value) =>
+  bridgecardRegistrationModeOptions.find((option) => option.value === (value || ''))?.label || value || 'Use global setting';
 const toUtcInstant = (value) => {
   const trimmed = String(value || '').trim();
   if (!trimmed) return null;
@@ -613,6 +620,7 @@ const [notificationDataModal, setNotificationDataModal] = useState(null);
   const [pricingSendCryptoMinimum, setPricingSendCryptoMinimum] = useState('');
   const [pricingShowDepositPromptOverride, setPricingShowDepositPromptOverride] = useState('GLOBAL');
   const [pricingDepositPromptThresholdOverride, setPricingDepositPromptThresholdOverride] = useState('');
+  const [pricingBridgecardRegistrationMode, setPricingBridgecardRegistrationMode] = useState('');
   const [pricingNote, setPricingNote] = useState('');
   const [pricingError, setPricingError] = useState(null);
   const [pricingSaving, setPricingSaving] = useState(false);
@@ -2037,6 +2045,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     setPricingDepositPromptThresholdOverride(
       source?.depositPromptThresholdAmount !== undefined && source?.depositPromptThresholdAmount !== null ? String(source.depositPromptThresholdAmount) : ''
     );
+    setPricingBridgecardRegistrationMode(source?.bridgecardCardholderRegistrationMode || '');
     setPricingNote(source?.note ? String(source.note) : '');
   };
 
@@ -2052,7 +2061,8 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     transactionsEligibleForLoanEligibility,
     showDepositPrompt,
     depositPromptThresholdAmount,
-    collectionSourceRiskBypass
+    collectionSourceRiskBypass,
+    bridgecardCardholderRegistrationMode
   } = {}) => ({
     baseLoanEligibilityPercent:
       baseLoanEligibilityPercent !== undefined ? baseLoanEligibilityPercent : (source?.baseLoanEligibilityPercent ?? null),
@@ -2074,6 +2084,10 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       depositPromptThresholdAmount !== undefined ? depositPromptThresholdAmount : (source?.depositPromptThresholdAmount ?? null),
     collectionSourceRiskBypass:
       collectionSourceRiskBypass !== undefined ? collectionSourceRiskBypass : (source?.collectionSourceRiskBypass ?? null),
+    bridgecardCardholderRegistrationMode:
+      bridgecardCardholderRegistrationMode !== undefined
+        ? bridgecardCardholderRegistrationMode
+        : (source?.bridgecardCardholderRegistrationMode ?? null),
     note:
       note !== undefined ? note : (source?.note ?? null)
   });
@@ -2145,6 +2159,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         sendCryptoMinimumUsd: sendCryptoMinimum,
         showDepositPrompt,
         depositPromptThresholdAmount,
+        bridgecardCardholderRegistrationMode: pricingBridgecardRegistrationMode || null,
         note: pricingNote?.trim() ? pricingNote.trim() : null
       });
       await api.accounts.updateCustomPricing(resolvedAccountId, payload);
@@ -4057,6 +4072,10 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                         : 'Use global wallet policy minimum'
                   },
                   {
+                    label: 'Bridgecard cardholder registration',
+                    value: bridgecardRegistrationModeLabel(customPricing.bridgecardCardholderRegistrationMode)
+                  },
+                  {
                     label: 'Deposit prompt',
                     value: (
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
@@ -5397,6 +5416,23 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                   onChange={(e) => setPricingDepositPromptThresholdOverride(e.target.value)}
                   placeholder="Leave empty to inherit the global wallet policy"
                 />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="pricingBridgecardRegistrationMode">Bridgecard cardholder registration mode</label>
+                <select
+                  id="pricingBridgecardRegistrationMode"
+                  value={pricingBridgecardRegistrationMode}
+                  onChange={(e) => setPricingBridgecardRegistrationMode(e.target.value)}
+                >
+                  {bridgecardRegistrationModeOptions.map((option) => (
+                    <option key={option.value || 'GLOBAL'} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                  Choose how Bridgecard should register this specific user as a cardholder. Leave as Use global setting unless this user needs a different flow. Async registration allows Bridgecard manual review through callback. Synchronous registration attempts immediate verification and continues card ordering if successful.
+                </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="pricingNote">Note (optional)</label>

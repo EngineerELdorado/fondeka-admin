@@ -30,6 +30,13 @@ const defaultSort = {
 
 const sortByOptions = ['created_at', 'wallet_balance', 'crypto_balance', 'owed_loans'];
 const sortDirOptions = ['desc', 'asc'];
+const bridgecardRegistrationModeOptions = [
+  { label: 'Use global setting', value: '' },
+  { label: 'Async registration - allows Bridgecard manual review', value: 'REGISTER_CARDHOLDER' },
+  { label: 'Synchronous registration - verifies immediately if successful', value: 'REGISTER_CARDHOLDER_SYNCHRONOUSLY' }
+];
+const bridgecardRegistrationModeLabel = (value) =>
+  bridgecardRegistrationModeOptions.find((option) => option.value === (value || ''))?.label || value || 'Use global setting';
 
 const pickOwedLoans = (item) =>
   item?.owedLoansAmount ??
@@ -228,6 +235,7 @@ export default function AccountsListPage() {
   const [pricingMaxPayout, setPricingMaxPayout] = useState('');
   const [pricingSendCryptoMinimum, setPricingSendCryptoMinimum] = useState('');
   const [pricingTransactionsEligible, setPricingTransactionsEligible] = useState('');
+  const [pricingBridgecardRegistrationMode, setPricingBridgecardRegistrationMode] = useState('');
   const [pricingNote, setPricingNote] = useState('');
   const [pricingError, setPricingError] = useState(null);
   const [pricingSaving, setPricingSaving] = useState(false);
@@ -927,6 +935,7 @@ export default function AccountsListPage() {
           ? 'false'
           : ''
     );
+    setPricingBridgecardRegistrationMode(source?.bridgecardCardholderRegistrationMode || '');
     setPricingNote(source?.note ? String(source.note) : '');
   };
 
@@ -985,6 +994,7 @@ export default function AccountsListPage() {
         showDepositPrompt: source?.showDepositPrompt ?? null,
         depositPromptThresholdAmount: source?.depositPromptThresholdAmount ?? null,
         collectionSourceRiskBypass: source?.collectionSourceRiskBypass ?? null,
+        bridgecardCardholderRegistrationMode: pricingBridgecardRegistrationMode || null,
         note: pricingNote?.trim() ? pricingNote.trim() : null
       };
       await api.accounts.updateCustomPricing(selected.id, payload);
@@ -1423,6 +1433,10 @@ export default function AccountsListPage() {
                             : customPricing.transactionsEligibleForLoanEligibility === false
                               ? 'No'
                               : 'Inherit global default'
+                      },
+                      {
+                        label: 'Bridgecard cardholder registration',
+                        value: bridgecardRegistrationModeLabel(customPricing.bridgecardCardholderRegistrationMode)
                       },
                       { label: 'Note', value: customPricing.note ?? '—' },
                       { label: 'Updated', value: customPricing.updatedAt ? formatDateTime(customPricing.updatedAt) : '—' }
@@ -2012,6 +2026,23 @@ export default function AccountsListPage() {
                   <option value="true">Yes</option>
                   <option value="false">No</option>
                 </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="pricingBridgecardRegistrationMode">Bridgecard cardholder registration mode</label>
+                <select
+                  id="pricingBridgecardRegistrationMode"
+                  value={pricingBridgecardRegistrationMode}
+                  onChange={(e) => setPricingBridgecardRegistrationMode(e.target.value)}
+                >
+                  {bridgecardRegistrationModeOptions.map((option) => (
+                    <option key={option.value || 'GLOBAL'} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                  Choose how Bridgecard should register this specific user as a cardholder. Leave as Use global setting unless this user needs a different flow. Async registration allows Bridgecard manual review through callback. Synchronous registration attempts immediate verification and continues card ordering if successful.
+                </div>
               </div>
             </div>
             <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
