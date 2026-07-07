@@ -21,7 +21,9 @@ const emptyState = {
   bankAccountNumber: '',
   bankInstructions: '',
   bankInstructionsEn: '',
-  bankInstructionsFr: ''
+  bankInstructionsFr: '',
+  collectionDisabledMessageEn: '',
+  collectionDisabledMessageFr: ''
 };
 
 const toPayload = (state) => ({
@@ -40,7 +42,9 @@ const toPayload = (state) => ({
   bankAccountNumber: state.bankAccountNumber || null,
   bankInstructions: state.bankInstructions || null,
   bankInstructionsEn: state.bankInstructionsEn || null,
-  bankInstructionsFr: state.bankInstructionsFr || null
+  bankInstructionsFr: state.bankInstructionsFr || null,
+  collectionDisabledMessageEn: state.collectionDisabledMessageEn || null,
+  collectionDisabledMessageFr: state.collectionDisabledMessageFr || null
 });
 
 const toUpdatePayloadFromRow = (row, overrides = {}) => ({
@@ -60,6 +64,8 @@ const toUpdatePayloadFromRow = (row, overrides = {}) => ({
   bankInstructions: row.bankInstructions ?? null,
   bankInstructionsEn: row.bankInstructionsEn ?? null,
   bankInstructionsFr: row.bankInstructionsFr ?? null,
+  collectionDisabledMessageEn: row.collectionDisabledMessageEn ?? null,
+  collectionDisabledMessageFr: row.collectionDisabledMessageFr ?? null,
   ...overrides
 });
 
@@ -465,7 +471,9 @@ export default function PaymentMethodsPage() {
       bankAccountNumber: row.bankAccountNumber ?? '',
       bankInstructions: row.bankInstructions ?? '',
       bankInstructionsEn: row.bankInstructionsEn ?? '',
-      bankInstructionsFr: row.bankInstructionsFr ?? ''
+      bankInstructionsFr: row.bankInstructionsFr ?? '',
+      collectionDisabledMessageEn: row.collectionDisabledMessageEn ?? '',
+      collectionDisabledMessageFr: row.collectionDisabledMessageFr ?? ''
     });
     setShowEdit(true);
     setInfo(null);
@@ -619,6 +627,34 @@ export default function PaymentMethodsPage() {
           style={{ resize: 'vertical' }}
         />
       </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="collectionDisabledMessageEn">English message when collection is disabled</label>
+        <textarea
+          id="collectionDisabledMessageEn"
+          rows={3}
+          value={draft.collectionDisabledMessageEn}
+          onChange={(e) => setDraft((p) => ({ ...p, collectionDisabledMessageEn: e.target.value }))}
+          placeholder="M-Pesa collections are temporarily unavailable. Please choose another payment method or try again later."
+          style={{ resize: 'vertical' }}
+        />
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          Shown when Allow collection is off. Leave empty to use the generic localized default.
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="collectionDisabledMessageFr">French message when collection is disabled</label>
+        <textarea
+          id="collectionDisabledMessageFr"
+          rows={3}
+          value={draft.collectionDisabledMessageFr}
+          onChange={(e) => setDraft((p) => ({ ...p, collectionDisabledMessageFr: e.target.value }))}
+          placeholder="Les collectes M-Pesa sont temporairement indisponibles. Veuillez choisir une autre méthode de paiement ou réessayer plus tard."
+          style={{ resize: 'vertical' }}
+        />
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          Shown when Allow collection is off. Leave empty to use the generic localized default.
+        </div>
+      </div>
       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
         {[
           { key: 'active', label: 'Active', value: draft.active },
@@ -738,6 +774,8 @@ export default function PaymentMethodsPage() {
               { label: 'Instructions (EN)', value: selected?.bankInstructionsEn },
               { label: 'Instructions (FR)', value: selected?.bankInstructionsFr },
               { label: 'Instructions (generic)', value: selected?.bankInstructions },
+              { label: 'Collection disabled message (EN)', value: selected?.collectionDisabledMessageEn },
+              { label: 'Collection disabled message (FR)', value: selected?.collectionDisabledMessageFr },
               { label: 'Created', value: selected?.createdAt },
               { label: 'Updated', value: selected?.updatedAt }
             ]}
