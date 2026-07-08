@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useLocale } from '@/contexts/LocaleContext';
 import { api } from '@/lib/api';
 
@@ -469,6 +470,14 @@ export default function FeatureFlagsPage() {
       if (b === 'modules') return 1;
       return a.localeCompare(b);
     });
+    if (!groups.has('airtime')) {
+      sortedGroups.push(['airtime', []]);
+      sortedGroups.sort(([a], [b]) => {
+        if (a === 'modules') return -1;
+        if (b === 'modules') return 1;
+        return a.localeCompare(b);
+      });
+    }
     return sortedGroups.map(([groupKey, list]) => ({
       key: groupKey,
       label: groupKey === 'modules' ? 'Module flags' : formatKeyPart(groupKey),
@@ -1813,11 +1822,47 @@ export default function FeatureFlagsPage() {
 
       <div style={{ display: 'grid', gap: '0.85rem', maxWidth: '720px' }}>
         {loading && <div className="card">{t('featureFlags.loading')}</div>}
-        {!loading && otherFlags.length === 0 && <div className="card">{t('featureFlags.none')}</div>}
+        {!loading && groupedFlags.length === 0 && <div className="card">{t('featureFlags.none')}</div>}
         {groupedFlags.map((group) => (
           <Fragment key={group.key}>
-            <CollapsibleSection title={group.label} count={`${group.flags.length} flags`}>
+            <CollapsibleSection title={group.label} count={group.key === 'airtime' ? `${group.flags.length} flags · operator overrides` : `${group.flags.length} flags`}>
               <div style={{ display: 'grid', gap: '0.75rem' }}>
+                {group.key === 'airtime' && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: '1rem',
+                      border: '1px solid var(--border)',
+                      borderRadius: '10px',
+                      padding: '0.65rem 0.75rem',
+                      flexWrap: 'wrap'
+                    }}
+                  >
+                    <div style={{ display: 'grid', gap: '0.2rem' }}>
+                      <div style={{ fontWeight: 700 }}>{t('featureFlags.airtimeOperatorOverrides')}</div>
+                      <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                        {t('featureFlags.airtimeOperatorOverridesHelp')}
+                      </div>
+                    </div>
+                    <Link
+                      href="/dashboard/airtime-operator-feature-flag-overrides"
+                      style={{
+                        border: `1px solid var(--border)`,
+                        background: 'var(--surface)',
+                        padding: '0.45rem 0.7rem',
+                        borderRadius: '10px',
+                        cursor: 'pointer',
+                        color: 'var(--text)',
+                        textDecoration: 'none',
+                        fontWeight: 600
+                      }}
+                    >
+                      {t('featureFlags.manageOperatorOverrides')}
+                    </Link>
+                  </div>
+                )}
                 {group.flags.map((flag) => {
                   const label = formatResolvedLabel(flag.key);
                   const warning = WARNINGS[flag.key];

@@ -27,6 +27,7 @@ const navItems = [
   { href: '/dashboard/payment-requests', labelKey: 'layout.nav.paymentRequests' },
   { href: '/dashboard/recharge-catalog', labelKey: 'layout.nav.rechargeCatalog' },
   { href: '/dashboard/bills/utility-catalog', labelKey: 'layout.nav.utilityBillCatalog' },
+  { href: '/dashboard/airtime-operator-feature-flag-overrides', labelKey: 'layout.nav.airtimeOperatorOverrides' },
   { href: '/dashboard/recharge-operator-availability-policies', labelKey: 'layout.nav.rechargeOperatorAvailability' },
   { href: '/dashboard/recharge-operator-provider-routes', labelKey: 'layout.nav.rechargeOperatorProviderRoutes' },
   { href: '/dashboard/recharge-provider-routing', labelKey: 'layout.nav.rechargeProviderRouting' },
