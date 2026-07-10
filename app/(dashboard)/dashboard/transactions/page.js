@@ -571,6 +571,10 @@ export default function TransactionsPage() {
   const webhookEvents = Array.isArray(selected?.webhookEvents) ? selected.webhookEvents : [];
   const normalizedStatus = selected?.status?.toUpperCase?.() || '';
   const normalizedSelectedAction = normalizeEnumKey(selected?.action);
+  const normalizedSelectedService = normalizeEnumKey(selected?.service);
+  const isSelectedLoanTransaction =
+    normalizedSelectedService === 'LENDING' ||
+    ['LOAN_REQUEST', 'LOAN_DISBURSEMENT', 'REPAY_LOAN'].includes(normalizedSelectedAction);
   const isTerminalForManualReconciliation = ['COMPLETED', 'FAILED', 'CANCELED', 'CANCELLED'].includes(normalizedStatus);
   const showErrorMessage = ['FAILED', 'CANCELED', 'CANCELLED'].includes(normalizedStatus);
   const canCompleteOrFailSelected = !isTerminalForManualReconciliation;
@@ -2170,6 +2174,17 @@ export default function TransactionsPage() {
                 { label: 'Status', value: selected?.status },
                 { label: 'Updated at', value: formatDateTime(selected?.updatedAt) },
                 { label: 'Amount', value: `${selected?.amount ?? '—'} ${selected?.currency || ''}`.trim() },
+                ...(isSelectedLoanTransaction
+                  ? [
+                      {
+                        label: 'Expected interest',
+                        value:
+                          selected?.expectedInterestAmount === null || selected?.expectedInterestAmount === undefined
+                            ? '—'
+                            : `${selected.expectedInterestAmount} ${selected?.currency || ''}`.trim()
+                      }
+                    ]
+                  : []),
                 { label: 'Account ref', value: <CopyableValue value={selected?.accountReference} label="Account ref" onCopy={copyToClipboard} /> },
                 { label: 'Account balance', value: accountLoading ? 'Loading…' : accountSummary?.balance ?? '—' },
                 { label: 'Gross amount', value: selected?.grossAmount },
