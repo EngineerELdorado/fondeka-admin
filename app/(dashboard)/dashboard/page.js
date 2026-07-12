@@ -358,6 +358,7 @@ export default function DashboardPage() {
   const [billProviders, setBillProviders] = useState([]);
   const [countries, setCountries] = useState([]);
   const [showHoldings, setShowHoldings] = useState(false);
+  const [showCompletedBreakdown, setShowCompletedBreakdown] = useState(false);
   const [showRevenueBreakdown, setShowRevenueBreakdown] = useState(false);
   const [showSavingsBreakdown, setShowSavingsBreakdown] = useState(false);
   const [showCustomerLiabilities, setShowCustomerLiabilities] = useState(false);
@@ -685,6 +686,7 @@ export default function DashboardPage() {
     const list = Array.isArray(timeseries) ? timeseries : [];
     return list.reduce((sum, item) => sum + (Number(item?.providerFees) || 0), 0);
   }, [timeseries]);
+  const grossProfit = useMemo(() => totalRevenue - providerFeesTotal, [totalRevenue, providerFeesTotal]);
 
   const goToTransactions = (status) => {
     const params = new URLSearchParams();
@@ -825,13 +827,17 @@ export default function DashboardPage() {
       value: formatNumber(totals.completedCount),
       sub: `Volume ${formatCurrency(totals.completedVolume)}`,
       tone: '#16a34a',
-      onClick: () => goToTransactions('COMPLETED')
+      onClick: () => setShowCompletedBreakdown(true),
+      menu: {
+        label: t('dashboard.viewCompletedTransactions'),
+        onClick: () => goToTransactions('COMPLETED')
+      }
     },
     {
-      label: t('dashboard.providerFees'),
-      value: formatCurrency(providerFeesTotal),
-      sub: t('dashboard.totalProviderFees'),
-      tone: '#f97316'
+      label: t('dashboard.grossProfit'),
+      value: formatCurrency(grossProfit),
+      sub: t('dashboard.revenueLessProviderFees'),
+      tone: '#2563eb'
     },
     {
       label: t('dashboard.netProfit'),
@@ -1776,6 +1782,50 @@ export default function DashboardPage() {
                   <div style={{ fontWeight: 800, fontSize: '18px' }}>{item.value}</div>
                 </div>
               ))}
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showCompletedBreakdown && (
+        <Modal title={t('dashboard.completedBreakdownTitle')} onClose={() => setShowCompletedBreakdown(false)}>
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              {t('dashboard.completedBreakdownHelp')}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+              {[
+                { label: t('dashboard.completed'), value: formatNumber(totals.completedCount), tone: '#16a34a' },
+                { label: t('dashboard.volume'), value: formatCurrency(totals.completedVolume), tone: '#0f172a' },
+                { label: t('dashboard.bookedRevenue'), value: formatCurrency(totalRevenue), tone: '#15803d' },
+                { label: t('dashboard.providerFees'), value: formatCurrency(providerFeesTotal), tone: '#2563eb' },
+                { label: t('dashboard.grossProfit'), value: formatCurrency(grossProfit), tone: '#2563eb' },
+                { label: t('dashboard.referralCost'), value: formatCurrency(totalReferralCost), tone: '#ea580c' }
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.15rem',
+                    padding: '0.6rem',
+                    border: '1px solid var(--border)',
+                    borderRadius: '10px',
+                    background: item.label === t('dashboard.providerFees') ? 'rgba(37, 99, 235, 0.08)' : 'var(--surface)'
+                  }}
+                >
+                  <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{item.label}</div>
+                  <div style={{ fontWeight: 800, fontSize: '18px', color: item.tone }}>{item.value}</div>
+                </div>
+              ))}
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn-neutral" onClick={() => setShowCompletedBreakdown(false)}>
+                {t('common.close')}
+              </button>
+              <button type="button" className="btn-primary" onClick={() => goToTransactions('COMPLETED')}>
+                {t('dashboard.viewCompletedTransactions')}
+              </button>
             </div>
           </div>
         </Modal>

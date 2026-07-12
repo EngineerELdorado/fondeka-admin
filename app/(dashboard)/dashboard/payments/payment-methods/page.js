@@ -26,6 +26,125 @@ const emptyState = {
   collectionDisabledMessageFr: ''
 };
 
+const paymentMethodNameOptions = [
+  'AFRICELL_DRC',
+  'AFRIMONEY_DRC',
+  'AIRTIME_TOPUP',
+  'AIRTEL_DRC',
+  'AIRTEL_MONEY_DRC',
+  'APPLE_PAY_OR_GOOGLE_PAY',
+  'BANK',
+  'BNB',
+  'BTC',
+  'BTC_LIGHTENING',
+  'CARD',
+  'EQUITY_DRC',
+  'ETH',
+  'EURC',
+  'FONDEKA',
+  'FONDEKA_BALANCE',
+  'GHANA_MOBILE_MONEY',
+  'GHANA_BANK_TRANSFER',
+  'INT_EURO_BANK_ACCOUNT',
+  'INT_USD_BANK_ACCOUNT',
+  'MPESA_KENYA',
+  'AIRTEL_MONEY_KENYA',
+  'KENYA_BANK_TRANSFER',
+  'MTN_MOMO_CAMEROON',
+  'ORANGE_MONEY_CAMEROON',
+  'MTN_MOMO_COTE_DIVOIRE',
+  'ORANGE_MONEY_COTE_DIVOIRE',
+  'MOOV_MONEY_COTE_DIVOIRE',
+  'WAVE_COTE_DIVOIRE',
+  'MTN_MOMO_BENIN',
+  'ORANGE_MONEY_BENIN',
+  'MOOV_MONEY_BENIN',
+  'CELTIS_MONEY_BENIN',
+  'WAVE_BENIN',
+  'MTN_MOMO_UGANDA',
+  'AIRTEL_MONEY_UGANDA',
+  'TIGO_PESA_TANZANIA',
+  'AIRTEL_MONEY_TANZANIA',
+  'HALOPESA_TANZANIA',
+  'NIGERIA_NIP_BANK_TRANSFER',
+  'ORANGE_DRC',
+  'ORANGE_MONEY_DRC',
+  'OTHER_CRYPTOS',
+  'PAY_LATER',
+  'PAYPAL',
+  'SOL',
+  'STABLECOINS',
+  'USDC',
+  'USDT',
+  'VODACOM_DRC'
+].sort();
+
+const initialFilters = {
+  id: '',
+  name: '',
+  names: '',
+  type: '',
+  active: '',
+  allowingCollection: '',
+  allowingPayout: '',
+  defaultForFees: '',
+  countryId: '',
+  countryCode: '',
+  universal: '',
+  minRank: '',
+  maxRank: '',
+  hasBankInstructions: '',
+  hasCollectionDisabledMessage: '',
+  bankName: '',
+  q: ''
+};
+
+const paymentMethodTypeOptions = ['MOBILE_MONEY', 'BANK', 'CRYPTO', 'CARD', 'BALANCE', 'AIRTIME'];
+
+const booleanFilterOptions = [
+  { value: '', label: 'Any' },
+  { value: 'true', label: 'Yes' },
+  { value: 'false', label: 'No' }
+];
+
+const appendTrimmedParam = (params, key, value) => {
+  const trimmed = String(value ?? '').trim();
+  if (trimmed !== '') params.append(key, trimmed);
+};
+
+const buildPaymentMethodParams = ({ page, size, filters }) => {
+  const params = new URLSearchParams();
+  params.set('page', String(page));
+  params.set('size', String(size));
+
+  [
+    'id',
+    'name',
+    'type',
+    'active',
+    'allowingCollection',
+    'allowingPayout',
+    'defaultForFees',
+    'countryId',
+    'countryCode',
+    'universal',
+    'minRank',
+    'maxRank',
+    'hasBankInstructions',
+    'hasCollectionDisabledMessage',
+    'bankName',
+    'q'
+  ].forEach((key) => appendTrimmedParam(params, key, filters[key]));
+
+  String(filters.names ?? '')
+    .split(/[\s,]+/)
+    .map((name) => name.trim())
+    .filter(Boolean)
+    .forEach((name) => params.append('names', name));
+
+  return params;
+};
+
 const toPayload = (state) => ({
   name: state.name,
   displayName: state.displayName,
@@ -107,8 +226,12 @@ export default function PaymentMethodsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
+  const [pageMeta, setPageMeta] = useState({ totalElements: null, totalPages: null });
   const [countries, setCountries] = useState([]);
   const [arrangeBy, setArrangeBy] = useState('id');
+  const [filters, setFilters] = useState(initialFilters);
+  const [appliedFilters, setAppliedFilters] = useState(initialFilters);
+  const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [warning, setWarning] = useState(null);
@@ -329,11 +452,13 @@ export default function PaymentMethodsPage() {
     setError(null);
     setWarning(null);
     try {
-      const params = new URLSearchParams();
-      params.set('page', String(page));
-      params.set('size', String(size));
+      const params = buildPaymentMethodParams({ page, size, filters: appliedFilters });
       const res = await api.paymentMethods.list(params);
       const list = Array.isArray(res) ? res : res?.content || [];
+      setPageMeta({
+        totalElements: Array.isArray(res) ? null : Number.isFinite(res?.totalElements) ? res.totalElements : null,
+        totalPages: Array.isArray(res) ? null : Number.isFinite(res?.totalPages) ? res.totalPages : null
+      });
       setRows(list || []);
       await loadRailFlags(list || []);
     } catch (err) {
@@ -345,7 +470,7 @@ export default function PaymentMethodsPage() {
 
   useEffect(() => {
     fetchRows();
-  }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [page, size, appliedFilters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const fetchCountries = async () => {
@@ -453,6 +578,21 @@ export default function PaymentMethodsPage() {
     setWarning(null);
   };
 
+  const setFilterValue = (key, value) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const applyFilters = () => {
+    setAppliedFilters({ ...filters });
+    setPage(0);
+  };
+
+  const resetFilters = () => {
+    setFilters(initialFilters);
+    setAppliedFilters(initialFilters);
+    setPage(0);
+  };
+
   const openEdit = (row) => {
     setSelected(row);
     setDraft({
@@ -542,7 +682,12 @@ export default function PaymentMethodsPage() {
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="name">Name</label>
-        <input id="name" value={draft.name} onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))} />
+        <input id="name" list="paymentMethodNameOptions" value={draft.name} onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))} />
+        <datalist id="paymentMethodNameOptions">
+          {paymentMethodNameOptions.map((name) => (
+            <option key={name} value={name} />
+          ))}
+        </datalist>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="displayName">Display name</label>
@@ -708,7 +853,10 @@ export default function PaymentMethodsPage() {
         </div>
         <div>
           <label htmlFor="size">Size</label>
-          <input id="size" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
+          <input id="size" type="number" min={1} value={size} onChange={(e) => {
+            setSize(Number(e.target.value));
+            setPage(0);
+          }} />
         </div>
         <div>
           <label htmlFor="arrangeBy">Arrange by</label>
@@ -727,11 +875,140 @@ export default function PaymentMethodsPage() {
         </button>
       </div>
 
+      <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ fontWeight: 700 }}>Filters</div>
+          <button type="button" className="btn-neutral btn-sm" onClick={() => setShowFilters((prev) => !prev)}>
+            {showFilters ? 'Hide filters' : 'Show filters'}
+          </button>
+        </div>
+        {showFilters && (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button type="button" onClick={applyFilters} disabled={loading} className="btn-primary">Apply filters</button>
+              <button type="button" onClick={resetFilters} disabled={loading} className="btn-neutral">Reset</button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="filter-q">Search</label>
+            <input id="filter-q" value={filters.q} onChange={(e) => setFilterValue('q', e.target.value)} placeholder="Name, country, bank..." />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="filter-id">ID</label>
+            <input id="filter-id" type="number" min={0} value={filters.id} onChange={(e) => setFilterValue('id', e.target.value)} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="filter-name">Name</label>
+            <select id="filter-name" value={filters.name} onChange={(e) => setFilterValue('name', e.target.value)}>
+              <option value="">Any</option>
+              {paymentMethodNameOptions.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="filter-names">Names</label>
+            <input id="filter-names" value={filters.names} onChange={(e) => setFilterValue('names', e.target.value)} placeholder="MPESA_KENYA, AIRTEL_MONEY_KENYA" />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="filter-type">Type</label>
+            <select id="filter-type" value={filters.type} onChange={(e) => setFilterValue('type', e.target.value)}>
+              <option value="">Any</option>
+              {paymentMethodTypeOptions.map((type) => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="filter-country-code">Country</label>
+            <select id="filter-country-code" value={filters.countryCode} onChange={(e) => setFilterValue('countryCode', e.target.value)}>
+              <option value="">Any</option>
+              {countries.map((country) => {
+                const code = country.alpha2Code || country.alpha3Code || '';
+                if (!code) return null;
+                return (
+                  <option key={country.id || code} value={code}>
+                    {country.name} ({country.alpha2Code || country.alpha3Code})
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="filter-active">Active</label>
+            <select id="filter-active" value={filters.active} onChange={(e) => setFilterValue('active', e.target.value)}>
+              {booleanFilterOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="filter-allowing-collection">Allowing collection</label>
+            <select id="filter-allowing-collection" value={filters.allowingCollection} onChange={(e) => setFilterValue('allowingCollection', e.target.value)}>
+              {booleanFilterOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="filter-allowing-payout">Allowing payout</label>
+            <select id="filter-allowing-payout" value={filters.allowingPayout} onChange={(e) => setFilterValue('allowingPayout', e.target.value)}>
+              {booleanFilterOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="filter-default-for-fees">Default for fees</label>
+            <select id="filter-default-for-fees" value={filters.defaultForFees} onChange={(e) => setFilterValue('defaultForFees', e.target.value)}>
+              {booleanFilterOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="filter-universal">Universal</label>
+            <select id="filter-universal" value={filters.universal} onChange={(e) => setFilterValue('universal', e.target.value)}>
+              {booleanFilterOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="filter-min-rank">Min rank</label>
+            <input id="filter-min-rank" type="number" value={filters.minRank} onChange={(e) => setFilterValue('minRank', e.target.value)} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="filter-max-rank">Max rank</label>
+            <input id="filter-max-rank" type="number" value={filters.maxRank} onChange={(e) => setFilterValue('maxRank', e.target.value)} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="filter-bank-name">Bank name</label>
+            <input id="filter-bank-name" value={filters.bankName} onChange={(e) => setFilterValue('bankName', e.target.value)} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="filter-bank-instructions">Has bank instructions</label>
+            <select id="filter-bank-instructions" value={filters.hasBankInstructions} onChange={(e) => setFilterValue('hasBankInstructions', e.target.value)}>
+              {booleanFilterOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="filter-disabled-message">Has collection disabled message</label>
+            <select id="filter-disabled-message" value={filters.hasCollectionDisabledMessage} onChange={(e) => setFilterValue('hasCollectionDisabledMessage', e.target.value)}>
+              {booleanFilterOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </div>
+            </div>
+          </>
+        )}
+      </div>
+
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {warning && <div className="card" style={{ color: '#a16207', background: '#fffbeb', border: '1px solid #fcd34d', fontWeight: 700 }}>{warning}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
-      <DataTable columns={columns} rows={sortedRows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No payment methods found" />
+      <DataTable
+        columns={columns}
+        rows={sortedRows}
+        page={page}
+        pageSize={size}
+        totalPages={pageMeta.totalPages ?? undefined}
+        totalElements={pageMeta.totalElements ?? undefined}
+        canPrev={page > 0}
+        canNext={pageMeta.totalPages === null ? sortedRows.length >= Number(size) && sortedRows.length > 0 : page + 1 < pageMeta.totalPages}
+        onPageChange={setPage}
+        emptyLabel="No payment methods found"
+      />
 
       {showCreate && (
         <Modal title="Add payment method" onClose={() => setShowCreate(false)}>

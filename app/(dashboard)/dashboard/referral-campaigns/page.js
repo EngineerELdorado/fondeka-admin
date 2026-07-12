@@ -1008,8 +1008,8 @@ export default function ReferralCampaignsPage() {
     ];
 
   const analyticsCampaignRows = Array.isArray(analytics?.campaigns) ? analytics.campaigns : [];
-  const inspectInvitees = Array.isArray(inspectData?.invitees) ? inspectData.invitees : [];
-  const inspectRewards = Array.isArray(inspectData?.rewards) ? inspectData.rewards : [];
+  const inspectInvitees = useMemo(() => (Array.isArray(inspectData?.invitees) ? inspectData.invitees : []), [inspectData]);
+  const inspectRewards = useMemo(() => (Array.isArray(inspectData?.rewards) ? inspectData.rewards : []), [inspectData]);
   const selectedRuleCampaign = ruleCampaigns.find((item) => String(item?.id) === String(selectedRuleCampaignId)) || null;
   const localTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Local timezone';
   const payloadPreview = useMemo(() => {
@@ -1502,9 +1502,18 @@ export default function ReferralCampaignsPage() {
                 <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Invitees</div>
                 <DataTable
                   columns={[
-                    { key: 'accountId', label: 'Account ID' },
-                    { key: 'username', label: 'Username' },
-                    { key: 'createdAt', label: 'Created', render: (row) => formatDateTime(row.createdAt) }
+                    {
+                      key: 'inviteeAccountId',
+                      label: 'Account ID',
+                      render: (row) => row?.inviteeAccountId ? (
+                        <Link href={`/dashboard/accounts/accounts/${encodeURIComponent(row.inviteeAccountId)}`}>
+                          {row.inviteeAccountId}
+                        </Link>
+                      ) : '—'
+                    },
+                    { key: 'inviteeEmail', label: 'Email', render: (row) => row?.inviteeEmail || row?.email || row?.accountEmail || '—' },
+                    { key: 'inviteeName', label: 'Name', render: (row) => row?.inviteeName || row?.name || '—' },
+                    { key: 'createdAt', label: 'Invited', render: (row) => formatDateTime(row?.createdAt) }
                   ]}
                   rows={inspectInvitees}
                   pageSize={20}

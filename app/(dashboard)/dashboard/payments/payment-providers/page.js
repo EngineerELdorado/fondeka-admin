@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
 const emptyState = { name: '', active: true };
+const paymentProviderNameOptions = ['MAPLERAD'];
 
 const toPayload = (state) => ({
   name: state.name,
@@ -158,7 +159,12 @@ export default function PaymentProvidersPage() {
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="name">Name</label>
-        <input id="name" value={draft.name} onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))} />
+        <input id="name" list="paymentProviderNameOptions" value={draft.name} onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))} />
+        <datalist id="paymentProviderNameOptions">
+          {paymentProviderNameOptions.map((name) => (
+            <option key={name} value={name} />
+          ))}
+        </datalist>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <input id="active" type="checkbox" checked={draft.active} onChange={(e) => setDraft((p) => ({ ...p, active: e.target.checked }))} />

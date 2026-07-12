@@ -64,7 +64,8 @@ const paymentProviderNameOptions = [
   'AIRALO',
   'E_SIM_GO',
   'ZEND_IT',
-  'LIMIT_FLEX'
+  'LIMIT_FLEX',
+  'MAPLERAD'
 ];
 const cryptoNetworkNameOptions = ['BTC', 'ERC20', 'BEP20', 'TRC20', 'POLYGON', 'BSC', 'ARBITRUM', 'BASE', 'AVALANCHE', 'SOLANA'];
 

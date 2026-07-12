@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
 const emptyState = { token: '', providerName: '', profileKey: '' };
+const tokenProviderNameOptions = ['MAPLERAD'];
 
 const Modal = ({ title, onClose, children }) => (
   <div className="modal-backdrop">
@@ -232,7 +233,12 @@ export default function ProviderTokensPage() {
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="providerName">Provider name</label>
-        <input id="providerName" value={draft.providerName} onChange={(e) => setDraft((p) => ({ ...p, providerName: e.target.value }))} />
+        <input id="providerName" list="tokenProviderNameOptions" value={draft.providerName} onChange={(e) => setDraft((p) => ({ ...p, providerName: e.target.value }))} />
+        <datalist id="tokenProviderNameOptions">
+          {tokenProviderNameOptions.map((name) => (
+            <option key={name} value={name} />
+          ))}
+        </datalist>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="profileKey">Profile key</label>

@@ -73,6 +73,7 @@ const emptyState = {
   overrideSpecificFees: false,
   providerFeePercentage: '',
   providerFlatFee: '',
+  providerMinFee: '',
   ourFeePercentage: '',
   ourFlatFee: '',
   minAmount: '',
@@ -110,6 +111,7 @@ const toPayload = (state) => ({
   overrideSpecificFees: Boolean(state.overrideSpecificFees),
   providerFeePercentage: state.providerFeePercentage === '' ? null : Number(state.providerFeePercentage),
   providerFlatFee: state.providerFlatFee === '' ? null : Number(state.providerFlatFee),
+  providerMinFee: state.providerMinFee === '' ? null : Number(state.providerMinFee),
   ourFeePercentage: state.ourFeePercentage === '' ? null : Number(state.ourFeePercentage),
   ourFlatFee: state.ourFlatFee === '' ? null : Number(state.ourFlatFee),
   minAmount: state.minAmount === '' ? null : Number(state.minAmount),
@@ -499,6 +501,7 @@ export default function FeeConfigsPage() {
       },
       { key: 'providerFeePercentage', label: 'Provider %' },
       { key: 'providerFlatFee', label: 'Provider flat' },
+      { key: 'providerMinFee', label: 'Provider min fee' },
       { key: 'ourFeePercentage', label: 'Our %' },
       { key: 'ourFlatFee', label: 'Our flat' },
       {
@@ -564,6 +567,7 @@ export default function FeeConfigsPage() {
       overrideSpecificFees: Boolean(row.overrideSpecificFees),
       providerFeePercentage: row.providerFeePercentage ?? '',
       providerFlatFee: row.providerFlatFee ?? '',
+      providerMinFee: row.providerMinFee ?? '',
       ourFeePercentage: row.ourFeePercentage ?? '',
       ourFlatFee: row.ourFlatFee ?? '',
       minAmount: row.minAmount ?? '',
@@ -595,6 +599,7 @@ export default function FeeConfigsPage() {
     const numericFields = [
       { key: 'providerFeePercentage', value: state.providerFeePercentage },
       { key: 'providerFlatFee', value: state.providerFlatFee },
+      { key: 'providerMinFee', value: state.providerMinFee },
       { key: 'ourFeePercentage', value: state.ourFeePercentage },
       { key: 'ourFlatFee', value: state.ourFlatFee },
       { key: 'minAmount', value: state.minAmount },
@@ -683,6 +688,7 @@ export default function FeeConfigsPage() {
         ...p,
         providerFeePercentage: '',
         providerFlatFee: '',
+        providerMinFee: '',
         ourFeePercentage: '',
         ourFlatFee: '',
         feeApplicationMode: ''
@@ -918,6 +924,20 @@ export default function FeeConfigsPage() {
         />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="providerMinFee">Provider minimum fee</label>
+        <input
+          id="providerMinFee"
+          type="number"
+          min={0}
+          step="0.01"
+          value={draft.providerMinFee}
+          onChange={(e) => setDraft((p) => ({ ...p, providerMinFee: e.target.value }))}
+        />
+        <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+          Provider fee floor. This is separate from Minimum amount below.
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="ourFeePercentage">Our %</label>
         <input id="ourFeePercentage" type="number" min={0} value={draft.ourFeePercentage} onChange={(e) => setDraft((p) => ({ ...p, ourFeePercentage: e.target.value }))} />
       </div>
@@ -926,15 +946,15 @@ export default function FeeConfigsPage() {
         <input id="ourFlatFee" type="number" min={0} value={draft.ourFlatFee} onChange={(e) => setDraft((p) => ({ ...p, ourFlatFee: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="minAmount">Minimum amount</label>
+        <label htmlFor="minAmount">Transaction minimum amount</label>
         <input id="minAmount" type="number" min={0} step="0.01" value={draft.minAmount} onChange={(e) => setDraft((p) => ({ ...p, minAmount: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="maxAmount">Maximum amount</label>
+        <label htmlFor="maxAmount">Transaction maximum amount</label>
         <input id="maxAmount" type="number" min={0} step="0.01" value={draft.maxAmount} onChange={(e) => setDraft((p) => ({ ...p, maxAmount: e.target.value }))} />
       </div>
       <div style={{ gridColumn: '1 / -1', fontSize: '12px', color: 'var(--muted)' }}>
-        Leave both empty to make this the default fee for the scope. Set only minimum for amounts at or above that value. Set only maximum for amounts at or below that value. Set both to apply only within that range.
+        Transaction amount range only. Leave both empty to make this the default fee for the scope. Set only minimum for transaction amounts at or above that value. Set only maximum for transaction amounts at or below that value. Set both to apply only within that range.
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="feeApplicationMode">Fee application mode</label>
@@ -1346,11 +1366,12 @@ export default function FeeConfigsPage() {
               { label: 'Override specific fees', value: selected?.overrideSpecificFees ? 'Yes' : 'No' },
               { label: 'Provider %', value: selected?.providerFeePercentage },
               { label: 'Provider flat', value: selected?.providerFlatFee },
+              { label: 'Provider minimum fee', value: selected?.providerMinFee },
               { label: 'Our %', value: selected?.ourFeePercentage },
               { label: 'Our flat', value: selected?.ourFlatFee },
               { label: 'Amount range', value: formatAmountRange(selected?.minAmount, selected?.maxAmount) },
-              { label: 'Minimum amount', value: selected?.minAmount ?? '—' },
-              { label: 'Maximum amount', value: selected?.maxAmount ?? '—' },
+              { label: 'Transaction minimum amount', value: selected?.minAmount ?? '—' },
+              { label: 'Transaction maximum amount', value: selected?.maxAmount ?? '—' },
               {
                 label: 'Fee application mode',
                 value:
