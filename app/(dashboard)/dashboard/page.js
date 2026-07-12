@@ -682,11 +682,7 @@ export default function DashboardPage() {
   const totalReferralCost = useMemo(() => getReferralCostValue(totals), [totals]);
   const totalNetProfit = useMemo(() => totalRevenue - totalReferralCost, [totalRevenue, totalReferralCost]);
 
-  const providerFeesTotal = useMemo(() => {
-    const list = Array.isArray(timeseries) ? timeseries : [];
-    return list.reduce((sum, item) => sum + (Number(item?.providerFees) || 0), 0);
-  }, [timeseries]);
-  const grossProfit = useMemo(() => totalRevenue - providerFeesTotal, [totalRevenue, providerFeesTotal]);
+  const grossProfit = useMemo(() => totalRevenue, [totalRevenue]);
 
   const goToTransactions = (status) => {
     const params = new URLSearchParams();
@@ -836,7 +832,7 @@ export default function DashboardPage() {
     {
       label: t('dashboard.grossProfit'),
       value: formatCurrency(grossProfit),
-      sub: t('dashboard.revenueLessProviderFees'),
+      sub: t('dashboard.beforeReferralCosts'),
       tone: '#2563eb'
     },
     {
@@ -1798,7 +1794,6 @@ export default function DashboardPage() {
                 { label: t('dashboard.completed'), value: formatNumber(totals.completedCount), tone: '#16a34a' },
                 { label: t('dashboard.volume'), value: formatCurrency(totals.completedVolume), tone: '#0f172a' },
                 { label: t('dashboard.bookedRevenue'), value: formatCurrency(totalRevenue), tone: '#15803d' },
-                { label: t('dashboard.providerFees'), value: formatCurrency(providerFeesTotal), tone: '#2563eb' },
                 { label: t('dashboard.grossProfit'), value: formatCurrency(grossProfit), tone: '#2563eb' },
                 { label: t('dashboard.referralCost'), value: formatCurrency(totalReferralCost), tone: '#ea580c' }
               ].map((item) => (
@@ -1811,7 +1806,7 @@ export default function DashboardPage() {
                     padding: '0.6rem',
                     border: '1px solid var(--border)',
                     borderRadius: '10px',
-                    background: item.label === t('dashboard.providerFees') ? 'rgba(37, 99, 235, 0.08)' : 'var(--surface)'
+                    background: item.label === t('dashboard.grossProfit') ? 'rgba(37, 99, 235, 0.08)' : 'var(--surface)'
                   }}
                 >
                   <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{item.label}</div>
