@@ -1795,7 +1795,8 @@ export default function DashboardPage() {
                 { label: t('dashboard.volume'), value: formatCurrency(totals.completedVolume), tone: '#0f172a' },
                 { label: t('dashboard.bookedRevenue'), value: formatCurrency(totalRevenue), tone: '#15803d' },
                 { label: t('dashboard.grossProfit'), value: formatCurrency(grossProfit), tone: '#2563eb' },
-                { label: t('dashboard.referralCost'), value: formatCurrency(totalReferralCost), tone: '#ea580c' }
+                { label: t('dashboard.referralCost'), value: formatCurrency(totalReferralCost), tone: '#ea580c' },
+                { label: t('dashboard.netProfit'), value: formatCurrency(totalNetProfit), tone: '#15803d' }
               ].map((item) => (
                 <div
                   key={item.label}
