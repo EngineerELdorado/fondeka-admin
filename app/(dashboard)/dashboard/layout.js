@@ -62,6 +62,7 @@ const navItems = [
   { href: '/dashboard/referral-campaigns', labelKey: 'layout.nav.referralCampaigns' },
   { href: '/dashboard/notification-email-test', labelKey: 'layout.nav.emailTests' },
   { href: '/dashboard/provider-tokens', labelKey: 'layout.nav.providerTokens' },
+  { href: '/dashboard/providers/maplerad/sandbox', labelKey: 'layout.nav.mapleradSandbox' },
   { href: '/dashboard/cron-jobs', labelKey: 'layout.nav.cronJobs' },
   { href: '/dashboard/redis-caches', labelKey: 'layout.nav.redisCaches' },
   { href: '/dashboard/admins', labelKey: 'layout.nav.admins' },

@@ -29,7 +29,7 @@ Base URL: `${app.api.baseUrls.admin-api}` (default `/admin-api`). All endpoints 
 ## Payments
 - **Payment methods**: `/payment-methods` request `{ name:PaymentMethodName, displayName, logoUrl, type:PaymentMethodType, active?, allowingCollection?, allowingPayout?, rank?, countryId? }` response adds `countryName`.
 - **Payment providers**: `/payment-providers` `{ name:PaymentProviderName, active? }`.
-- **Payment method ↔ provider mapping**: `/payment-method-payment-providers` `{ paymentMethodId, paymentProviderId, rank, active? }`.
+- **Payment method ↔ provider mapping**: `/payment-method-payment-providers` `{ paymentMethodId, paymentProviderId, rank, active?, action?, context?, providerCode? }`. For Maplerad mobile money, `providerCode` is the per-relation institution/bank code and can differ between `COLLECTION` and `PAYOUT`.
 - **Payment method ↔ crypto network mapping**: `/payment-method-crypto-networks` `{ paymentMethodId, cryptoNetworkId, rank, active? }`.
 - **Fee configs**: `/fee-configs` `{ paymentMethodPaymentProviderId|null, action:Action, providerFeePercentage?, providerFlatFee?, ourFeePercentage?, ourFlatFee? }`.
 - **Reloadly operator amounts**: `/reloadly-operator-amounts` `{ paymentMethodPaymentProviderId, minAmount?, maxAmount?, operatorId }`.
@@ -86,6 +86,7 @@ Base URL: `${app.api.baseUrls.admin-api}` (default `/admin-api`). All endpoints 
 
 ## Providers / tokens
 - **Provider tokens**: `/provider-tokens` `{ providerName:TokenProviderName, token }`.
+- **Maplerad sandbox tools**: `/maplerad/currencies` returns supported currencies. `/maplerad/test-wallet/credit` accepts `{ amount:int, currency:string }` and credits the Maplerad sandbox wallet; backend rejects non-sandbox keys with `403`.
 - **Cega web tokens**: `/cega-web-tokens` `{ token }`.
 - **Stripe customers**: `/stripe-customers` `{ accountId, stripeId }` response adds `accountInternalReference`.
 

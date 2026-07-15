@@ -5,7 +5,7 @@ import Link from 'next/link';
 const sections = [
   { href: '/dashboard/payments/payment-methods', title: 'Payment Methods', blurb: 'Catalog of payment methods (name, display, type, active).' },
   { href: '/dashboard/payments/payment-providers', title: 'Payment Providers', blurb: 'Manage payment providers and ranking.' },
-  { href: '/dashboard/payments/method-providers', title: 'Method ↔ Provider', blurb: 'Map payment methods to providers with rank/active.' },
+  { href: '/dashboard/payments/method-providers', title: 'Method ↔ Provider', blurb: 'Map payment methods to providers with rank, active state, routing context, and provider codes.' },
   { href: '/dashboard/payments/method-crypto-networks', title: 'Method ↔ Crypto Network', blurb: 'Map payment methods to crypto networks.' },
   { href: '/dashboard/payments/payment-method-action-configs', title: 'Method Action Configs', blurb: 'Rules that include/exclude payment methods per action/country.' },
   { href: '/dashboard/fees/fee-configs', title: 'Fee Configs', blurb: 'Configure fees and default fee charging mode per action, service, country, and route.' }

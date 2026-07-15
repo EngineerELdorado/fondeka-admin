@@ -50,10 +50,11 @@ const actionOptions = [
 
 const contextOptions = ['COLLECTION', 'PAYOUT'];
 
-const emptyState = { paymentMethodId: '', paymentProviderId: '', rank: '', action: '', context: '', active: true };
+const emptyState = { paymentMethodId: '', paymentProviderId: '', rank: '', action: '', context: '', providerCode: '', active: true };
 
 const normalizeAction = (action) => (typeof action === 'string' ? action.trim().toUpperCase() : '');
 const normalizeContext = (context) => (typeof context === 'string' ? context.trim().toUpperCase() : '');
+const normalizeProviderCode = (providerCode) => (typeof providerCode === 'string' ? providerCode.trim() : '');
 
 const toPayload = (state) => ({
   paymentMethodId: Number(state.paymentMethodId) || 0,
@@ -61,6 +62,7 @@ const toPayload = (state) => ({
   rank: state.rank === '' ? null : Number(state.rank),
   action: normalizeAction(state.action) || null,
   context: normalizeAction(state.action) ? null : normalizeContext(state.context) || null,
+  providerCode: normalizeProviderCode(state.providerCode) || null,
   active: Boolean(state.active)
 });
 
@@ -78,6 +80,8 @@ const resolveRoutingTier = (row) => {
   if (row?.context) return { label: 'Context', color: '#1e3a8a', background: '#dbeafe' };
   return { label: 'Default', color: '#065f46', background: '#d1fae5' };
 };
+
+const isMapleradRelation = (row) => String(row?.paymentProviderName || '').toUpperCase().includes('MAPLERAD');
 
 const Modal = ({ title, onClose, children }) => (
   <div className="modal-backdrop">
@@ -207,6 +211,17 @@ export default function MethodProvidersPage() {
     { key: 'context', label: 'Context', render: (row) => row.context || '—' },
     { key: 'action', label: 'Action', render: (row) => row.action || '—' },
     {
+      key: 'providerCode',
+      label: 'Provider code',
+      render: (row) => {
+        const code = normalizeProviderCode(row.providerCode);
+        if (code) return code;
+        return isMapleradRelation(row) ? (
+          <span style={{ color: '#b91c1c', fontWeight: 700 }}>Missing</span>
+        ) : '—';
+      }
+    },
+    {
       key: 'countryName',
       label: 'Country',
       render: (row) => row.countryName || 'GLOBAL'
@@ -260,6 +275,7 @@ export default function MethodProvidersPage() {
       rank: row.rank ?? '',
       action: row.action ?? '',
       context: row.context ?? '',
+      providerCode: row.providerCode ?? '',
       active: Boolean(row.active)
     });
     setShowEdit(true);
@@ -423,6 +439,18 @@ export default function MethodProvidersPage() {
           ))}
         </select>
       </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="providerCode">Provider code</label>
+        <input
+          id="providerCode"
+          value={draft.providerCode}
+          onChange={(e) => setDraft((p) => ({ ...p, providerCode: e.target.value }))}
+          placeholder="Maplerad bank/institution code"
+        />
+        <div style={{ color: 'var(--muted)', fontSize: '12px', lineHeight: 1.4 }}>
+          For Maplerad mobile money, this is the institution/bank code for this exact method/provider/context relation. COLLECTION and PAYOUT can differ.
+        </div>
+      </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <input id="active" type="checkbox" checked={draft.active} onChange={(e) => setDraft((p) => ({ ...p, active: e.target.checked }))} />
         <label htmlFor="active">Active</label>
@@ -467,11 +495,15 @@ export default function MethodProvidersPage() {
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <div style={{ fontWeight: 800, fontSize: '20px' }}>Payment Method ↔ Provider</div>
-          <div style={{ color: 'var(--muted)' }}>Map methods to providers with default, context, and action overrides.</div>
+          <div style={{ color: 'var(--muted)' }}>Map methods to providers with routing overrides and per-relation provider codes.</div>
         </div>
         <Link href="/dashboard/payments" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
           ← Payments hub
         </Link>
+      </div>
+
+      <div className="card" style={{ color: 'var(--muted)', fontSize: '13px', lineHeight: 1.5 }}>
+        Maplerad mobile money bank codes now live on each method/provider relation as <strong>Provider code</strong>. COLLECTION and PAYOUT can use different codes; missing codes will make Maplerad transactions fail with “bank code is not configured”.
       </div>
 
       <div className="card" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -605,6 +637,7 @@ export default function MethodProvidersPage() {
               { label: 'Routing', value: resolveRoutingTier(selected || {}).label },
               { label: 'Action', value: selected?.action || 'Default (rank-based)' },
               { label: 'Context', value: selected?.context || 'Default (none)' },
+              { label: 'Provider code', value: selected?.providerCode || '—' },
               { label: 'Country', value: selected?.countryName || 'GLOBAL' },
               { label: 'Rank', value: selected?.rank },
               { label: 'Active', value: selected?.active ? 'Yes' : 'No' },
