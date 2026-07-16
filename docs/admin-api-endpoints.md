@@ -33,6 +33,7 @@ Base URL: `${app.api.baseUrls.admin-api}` (default `/admin-api`). All endpoints 
 - **Payment method ↔ crypto network mapping**: `/payment-method-crypto-networks` `{ paymentMethodId, cryptoNetworkId, rank, active? }`.
 - **Fee configs**: `/fee-configs` `{ paymentMethodPaymentProviderId|null, action:Action, providerFeePercentage?, providerFlatFee?, ourFeePercentage?, ourFlatFee? }`.
 - **Reloadly operator amounts**: `/reloadly-operator-amounts` `{ paymentMethodPaymentProviderId, minAmount?, maxAmount?, operatorId }`.
+- **Fiat FX rates**: `/fiat-exchange-rates` CRUD plus `POST /fiat-exchange-rates/sync/maplerad` to refresh Maplerad default pairs manually.
 
 ## Bills
 - **Products**: `/bill-products` `{ type:BillProductType, name:BillName, code:BillCode, displayName, logoUrl, icon, active?, rank?, internalFeePercentage?, internalFlatFeeAmount? }`.

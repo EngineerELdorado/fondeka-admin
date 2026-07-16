@@ -102,6 +102,7 @@ export default function FiatExchangeRatesPage() {
   const [draft, setDraft] = useState(emptyDraft);
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [syncingMaplerad, setSyncingMaplerad] = useState(false);
 
   const activeFilterChips = useMemo(() => {
     const chips = [];
@@ -283,6 +284,23 @@ export default function FiatExchangeRatesPage() {
     }
   };
 
+  const handleSyncMaplerad = async () => {
+    setSyncingMaplerad(true);
+    setError(null);
+    setInfo(null);
+    try {
+      const res = await api.fiatExchangeRates.syncMaplerad();
+      const refreshed = Number.isFinite(res?.refreshed) ? res.refreshed : 0;
+      const triggeredAt = res?.triggeredAt ? ` at ${formatDateTime(res.triggeredAt)}` : '';
+      setInfo(`Maplerad FX sync refreshed ${refreshed} default pair${refreshed === 1 ? '' : 's'}${triggeredAt}.`);
+      await fetchRows();
+    } catch (err) {
+      setError(err.message || 'Failed to sync Maplerad FX rates.');
+    } finally {
+      setSyncingMaplerad(false);
+    }
+  };
+
   const canPrev = page > 0;
   const canNext = pageMeta.totalPages === null ? rows.length === size : page + 1 < pageMeta.totalPages;
 
@@ -364,6 +382,9 @@ export default function FiatExchangeRatesPage() {
             </button>
             <button type="button" onClick={fetchRows} disabled={loading || actionLoading} className="btn-neutral btn-sm">
               {loading ? 'Refreshing...' : 'Refresh'}
+            </button>
+            <button type="button" onClick={handleSyncMaplerad} disabled={loading || actionLoading || syncingMaplerad} className="btn-primary btn-sm">
+              {syncingMaplerad ? 'Syncing Maplerad...' : 'Sync Maplerad'}
             </button>
             <button type="button" onClick={openCreate} disabled={actionLoading} className="btn-success btn-sm">
               Create rate
