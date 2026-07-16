@@ -28,6 +28,7 @@ Base URL: `${app.api.baseUrls.admin-api}` (default `/admin-api`). All endpoints 
 
 ## Payments
 - **Payment methods**: `/payment-methods` request `{ name:PaymentMethodName, displayName, logoUrl, type:PaymentMethodType, active?, allowingCollection?, allowingPayout?, rank?, countryId?, showCurrencyBadge?, currency? }` response adds `countryName`.
+- **Payment method status overrides**: `/payment-method-status-overrides` request `{ paymentMethodId, active, accountId }` or `{ paymentMethodId, active, email }`; exactly one target is allowed. List supports `paymentMethodId`, `accountId`, and `email` filters. Runtime precedence is account override, then email override, then global payment method active state.
 - **Payment providers**: `/payment-providers` `{ name:PaymentProviderName, active? }`.
 - **Payment method ↔ provider mapping**: `/payment-method-payment-providers` `{ paymentMethodId, paymentProviderId, rank, active?, action?, context?, providerCode? }`. For Maplerad mobile money, `providerCode` is the per-relation institution/bank code and can differ between `COLLECTION` and `PAYOUT`.
 - **Payment method ↔ crypto network mapping**: `/payment-method-crypto-networks` `{ paymentMethodId, cryptoNetworkId, rank, active? }`.

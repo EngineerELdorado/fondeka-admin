@@ -291,6 +291,15 @@ export default function PaymentMethodsPage() {
   const [overrideEmailEnabled, setOverrideEmailEnabled] = useState(true);
   const [overrideSaving, setOverrideSaving] = useState(false);
   const [overrideError, setOverrideError] = useState(null);
+  const [statusOverrideModal, setStatusOverrideModal] = useState(null);
+  const [statusOverrideTargetType, setStatusOverrideTargetType] = useState('account');
+  const [statusOverrideAccountId, setStatusOverrideAccountId] = useState('');
+  const [statusOverrideEmail, setStatusOverrideEmail] = useState('');
+  const [statusOverrideActive, setStatusOverrideActive] = useState(true);
+  const [statusOverrideSaving, setStatusOverrideSaving] = useState(false);
+  const [statusOverrideError, setStatusOverrideError] = useState(null);
+  const [statusOverrideRows, setStatusOverrideRows] = useState([]);
+  const [statusOverrideRowsLoading, setStatusOverrideRowsLoading] = useState(false);
 
   const getRailEnabled = (paymentMethodId, flow) => {
     const key = paymentMethodRailStateKey(paymentMethodId, flow);
@@ -387,6 +396,95 @@ export default function PaymentMethodsPage() {
     setOverrideEmail('');
     setOverrideEmailEnabled(true);
     setOverrideError(null);
+  };
+
+  const loadStatusOverridesForMethod = async (paymentMethodId) => {
+    if (!paymentMethodId) return;
+    setStatusOverrideRowsLoading(true);
+    try {
+      const res = await api.paymentMethodStatusOverrides.list(new URLSearchParams({ paymentMethodId: String(paymentMethodId), page: '0', size: '100' }));
+      const list = Array.isArray(res) ? res : res?.content || [];
+      setStatusOverrideRows(list || []);
+    } catch (err) {
+      setStatusOverrideError(err?.message || 'Failed to load existing status overrides.');
+      setStatusOverrideRows([]);
+    } finally {
+      setStatusOverrideRowsLoading(false);
+    }
+  };
+
+  const openStatusOverride = (row) => {
+    if (!row?.id) return;
+    setStatusOverrideModal(row);
+    setStatusOverrideTargetType('account');
+    setStatusOverrideAccountId('');
+    setStatusOverrideEmail('');
+    setStatusOverrideActive(Boolean(row.active));
+    setStatusOverrideError(null);
+    setStatusOverrideRows([]);
+    loadStatusOverridesForMethod(row.id);
+  };
+
+  const createStatusOverride = async () => {
+    if (!statusOverrideModal?.id) return;
+    const targetIsAccount = statusOverrideTargetType === 'account';
+    const accountId = String(statusOverrideAccountId || '').trim();
+    const email = String(statusOverrideEmail || '').trim();
+    if (targetIsAccount && !accountId) {
+      setStatusOverrideError('Account ID is required.');
+      return;
+    }
+    if (!targetIsAccount && !email) {
+      setStatusOverrideError('Email is required.');
+      return;
+    }
+    if (targetIsAccount && !Number.isFinite(Number(accountId))) {
+      setStatusOverrideError('Account ID must be a number.');
+      return;
+    }
+    if (!targetIsAccount && !email.includes('@')) {
+      setStatusOverrideError('Email must be valid.');
+      return;
+    }
+
+    setStatusOverrideSaving(true);
+    setStatusOverrideError(null);
+    setError(null);
+    setWarning(null);
+    setInfo(null);
+    try {
+      await api.paymentMethodStatusOverrides.create({
+        paymentMethodId: Number(statusOverrideModal.id),
+        active: Boolean(statusOverrideActive),
+        ...(targetIsAccount ? { accountId: Number(accountId) } : { email })
+      });
+      setInfo(`Payment method status override saved for ${statusOverrideModal.displayName || statusOverrideModal.name || statusOverrideModal.id}.`);
+      setStatusOverrideAccountId('');
+      setStatusOverrideEmail('');
+      await loadStatusOverridesForMethod(statusOverrideModal.id);
+    } catch (err) {
+      setStatusOverrideError(err?.message || 'Failed to save payment method status override.');
+    } finally {
+      setStatusOverrideSaving(false);
+    }
+  };
+
+  const deleteStatusOverride = async (override) => {
+    if (!override?.id || !statusOverrideModal?.id) return;
+    setStatusOverrideSaving(true);
+    setStatusOverrideError(null);
+    setError(null);
+    setWarning(null);
+    setInfo(null);
+    try {
+      await api.paymentMethodStatusOverrides.remove(override.id);
+      setInfo(`Payment method status override ${override.id} removed.`);
+      await loadStatusOverridesForMethod(statusOverrideModal.id);
+    } catch (err) {
+      setStatusOverrideError(err?.message || `Failed to remove override ${override.id}.`);
+    } finally {
+      setStatusOverrideSaving(false);
+    }
   };
 
   const upsertAccountOverride = async () => {
@@ -541,7 +639,18 @@ export default function PaymentMethodsPage() {
     { key: 'type', label: 'Type' },
     { key: 'rank', label: 'Rank' },
     { key: 'defaultForFees', label: 'Default for fees', render: (row) => (row.defaultForFees ? 'Yes' : 'No') },
-    { key: 'active', label: 'Active' },
+    {
+      key: 'active',
+      label: 'Active',
+      render: (row) => (
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+          <span>{row.active ? 'Yes' : 'No'}</span>
+          <button type="button" className="btn-neutral btn-sm" onClick={() => openStatusOverride(row)}>
+            Override
+          </button>
+        </div>
+      )
+    },
     {
       key: 'collectionGate',
       label: 'Collection Enabled',
@@ -1231,6 +1340,118 @@ export default function PaymentMethodsPage() {
             <div className="modal-actions">
               <button type="button" className="btn-neutral" onClick={() => setOverrideModal(null)} disabled={overrideSaving}>
                 Close
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {statusOverrideModal && (
+        <Modal
+          title={`Status override: ${statusOverrideModal.displayName || statusOverrideModal.name || statusOverrideModal.id}`}
+          onClose={() => (!statusOverrideSaving ? setStatusOverrideModal(null) : null)}
+        >
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <div style={{ color: 'var(--muted)', fontSize: '13px', lineHeight: 1.5 }}>
+              This creates a payment method active/inactive override. Account overrides win over email overrides, then global method status applies.
+            </div>
+            <div style={{ display: 'grid', gap: '0.5rem', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.65rem' }}>
+              <div style={{ fontWeight: 700 }}>Existing overrides for this method</div>
+              {statusOverrideRowsLoading && <div style={{ color: 'var(--muted)' }}>Loading overrides...</div>}
+              {!statusOverrideRowsLoading && statusOverrideRows.length === 0 && (
+                <div style={{ color: 'var(--muted)' }}>No overrides configured for this payment method.</div>
+              )}
+              {!statusOverrideRowsLoading && statusOverrideRows.length > 0 && (
+                <div style={{ display: 'grid', gap: '0.4rem' }}>
+                  {statusOverrideRows.map((override) => {
+                    const target = override.accountId !== null && override.accountId !== undefined ? `Account ${override.accountId}` : override.email || '-';
+                    return (
+                      <div
+                        key={override.id}
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '1fr auto auto',
+                          gap: '0.5rem',
+                          alignItems: 'center',
+                          padding: '0.5rem',
+                          border: '1px solid var(--border)',
+                          borderRadius: '8px'
+                        }}
+                      >
+                        <div style={{ display: 'grid', gap: '0.1rem' }}>
+                          <div style={{ fontWeight: 700 }}>{target}</div>
+                          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Override #{override.id}</div>
+                        </div>
+                        <span style={{ color: override.active ? '#15803d' : '#b91c1c', fontWeight: 800 }}>
+                          {override.active ? 'Active' : 'Inactive'}
+                        </span>
+                        <button type="button" className="btn-danger btn-sm" disabled={statusOverrideSaving} onClick={() => deleteStatusOverride(override)}>
+                          Remove
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontWeight: 700 }}>
+                <input
+                  type="radio"
+                  name="statusOverrideTargetType"
+                  value="account"
+                  checked={statusOverrideTargetType === 'account'}
+                  onChange={() => setStatusOverrideTargetType('account')}
+                />
+                Account
+              </label>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontWeight: 700 }}>
+                <input
+                  type="radio"
+                  name="statusOverrideTargetType"
+                  value="email"
+                  checked={statusOverrideTargetType === 'email'}
+                  onChange={() => setStatusOverrideTargetType('email')}
+                />
+                Email
+              </label>
+            </div>
+            {statusOverrideTargetType === 'account' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="statusOverrideAccountId">Account ID</label>
+                <input
+                  id="statusOverrideAccountId"
+                  type="number"
+                  value={statusOverrideAccountId}
+                  onChange={(e) => setStatusOverrideAccountId(e.target.value)}
+                />
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="statusOverrideEmail">Email</label>
+                <input
+                  id="statusOverrideEmail"
+                  type="email"
+                  value={statusOverrideEmail}
+                  onChange={(e) => setStatusOverrideEmail(e.target.value)}
+                />
+              </div>
+            )}
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+              <input
+                type="checkbox"
+                checked={statusOverrideActive}
+                onChange={(e) => setStatusOverrideActive(e.target.checked)}
+              />
+              Active for this target
+            </label>
+            {statusOverrideError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{statusOverrideError}</div>}
+            <div className="modal-actions">
+              <button type="button" className="btn-neutral" onClick={() => setStatusOverrideModal(null)} disabled={statusOverrideSaving}>
+                Cancel
+              </button>
+              <button type="button" className="btn-primary" onClick={createStatusOverride} disabled={statusOverrideSaving}>
+                {statusOverrideSaving ? 'Saving...' : 'Save override'}
               </button>
             </div>
           </div>

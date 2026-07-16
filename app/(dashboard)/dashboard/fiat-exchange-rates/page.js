@@ -95,6 +95,7 @@ export default function FiatExchangeRatesPage() {
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [warning, setWarning] = useState(null);
   const [info, setInfo] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
@@ -124,6 +125,7 @@ export default function FiatExchangeRatesPage() {
   const fetchRows = async () => {
     setLoading(true);
     setError(null);
+    setWarning(null);
     try {
       const params = new URLSearchParams();
       params.set('page', String(page));
@@ -190,6 +192,7 @@ export default function FiatExchangeRatesPage() {
     setSelected(null);
     setShowCreate(true);
     setError(null);
+    setWarning(null);
     setInfo(null);
   };
 
@@ -205,12 +208,14 @@ export default function FiatExchangeRatesPage() {
     });
     setShowEdit(true);
     setError(null);
+    setWarning(null);
     setInfo(null);
   };
 
   const openDetail = async (row) => {
     setActionLoading(true);
     setError(null);
+    setWarning(null);
     setInfo(null);
     try {
       const data = await api.fiatExchangeRates.get(row.id);
@@ -231,6 +236,7 @@ export default function FiatExchangeRatesPage() {
     }
     setActionLoading(true);
     setError(null);
+    setWarning(null);
     setInfo(null);
     try {
       await api.fiatExchangeRates.create(buildPayload());
@@ -253,6 +259,7 @@ export default function FiatExchangeRatesPage() {
     }
     setActionLoading(true);
     setError(null);
+    setWarning(null);
     setInfo(null);
     try {
       await api.fiatExchangeRates.update(selected.id, buildPayload());
@@ -271,6 +278,7 @@ export default function FiatExchangeRatesPage() {
     const id = confirmDelete.id;
     setActionLoading(true);
     setError(null);
+    setWarning(null);
     setInfo(null);
     try {
       await api.fiatExchangeRates.remove(id);
@@ -287,12 +295,16 @@ export default function FiatExchangeRatesPage() {
   const handleSyncMaplerad = async () => {
     setSyncingMaplerad(true);
     setError(null);
+    setWarning(null);
     setInfo(null);
     try {
       const res = await api.fiatExchangeRates.syncMaplerad();
       const refreshed = Number.isFinite(res?.refreshed) ? res.refreshed : 0;
-      const triggeredAt = res?.triggeredAt ? ` at ${formatDateTime(res.triggeredAt)}` : '';
-      setInfo(`Maplerad FX sync refreshed ${refreshed} default pair${refreshed === 1 ? '' : 's'}${triggeredAt}.`);
+      if (refreshed === 0) {
+        setWarning('No rates were refreshed. Check provider credentials or existing provider support for the pairs.');
+      } else {
+        setInfo(`Maplerad FX rates synced. Refreshed: ${refreshed}.`);
+      }
       await fetchRows();
     } catch (err) {
       setError(err.message || 'Failed to sync Maplerad FX rates.');
@@ -384,7 +396,7 @@ export default function FiatExchangeRatesPage() {
               {loading ? 'Refreshing...' : 'Refresh'}
             </button>
             <button type="button" onClick={handleSyncMaplerad} disabled={loading || actionLoading || syncingMaplerad} className="btn-primary btn-sm">
-              {syncingMaplerad ? 'Syncing Maplerad...' : 'Sync Maplerad'}
+              {syncingMaplerad ? 'Syncing Maplerad FX rates...' : 'Sync Maplerad FX rates'}
             </button>
             <button type="button" onClick={openCreate} disabled={actionLoading} className="btn-success btn-sm">
               Create rate
@@ -464,6 +476,7 @@ export default function FiatExchangeRatesPage() {
       </div>
 
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
+      {warning && <div className="card" style={{ color: '#92400e', background: '#fffbeb', border: '1px solid #fde68a', fontWeight: 700 }}>{warning}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
       <DataTable
