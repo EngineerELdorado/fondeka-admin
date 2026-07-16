@@ -27,7 +27,7 @@ Base URL: `${app.api.baseUrls.admin-api}` (default `/admin-api`). All endpoints 
 - **Addresses**: CRUD `/addresses` body `{ municipalityId, postalCode, street, houseNo, userId }`.
 
 ## Payments
-- **Payment methods**: `/payment-methods` request `{ name:PaymentMethodName, displayName, logoUrl, type:PaymentMethodType, active?, allowingCollection?, allowingPayout?, rank?, countryId? }` response adds `countryName`.
+- **Payment methods**: `/payment-methods` request `{ name:PaymentMethodName, displayName, logoUrl, type:PaymentMethodType, active?, allowingCollection?, allowingPayout?, rank?, countryId?, showCurrencyBadge?, currency? }` response adds `countryName`.
 - **Payment providers**: `/payment-providers` `{ name:PaymentProviderName, active? }`.
 - **Payment method ↔ provider mapping**: `/payment-method-payment-providers` `{ paymentMethodId, paymentProviderId, rank, active?, action?, context?, providerCode? }`. For Maplerad mobile money, `providerCode` is the per-relation institution/bank code and can differ between `COLLECTION` and `PAYOUT`.
 - **Payment method ↔ crypto network mapping**: `/payment-method-crypto-networks` `{ paymentMethodId, cryptoNetworkId, rank, active? }`.

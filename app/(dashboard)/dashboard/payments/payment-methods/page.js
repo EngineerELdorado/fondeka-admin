@@ -16,6 +16,8 @@ const emptyState = {
   rank: '',
   countryId: '',
   defaultForFees: false,
+  showCurrencyBadge: false,
+  currency: '',
   bankName: '',
   bankAccountName: '',
   bankAccountNumber: '',
@@ -100,6 +102,7 @@ const initialFilters = {
 };
 
 const paymentMethodTypeOptions = ['MOBILE_MONEY', 'BANK', 'CRYPTO', 'CARD', 'BALANCE', 'AIRTIME'];
+const currencyOptions = ['USD', 'CDF', 'KES', 'UGX', 'GHS', 'XAF', 'XOF'];
 
 const booleanFilterOptions = [
   { value: '', label: 'Any' },
@@ -156,6 +159,8 @@ const toPayload = (state) => ({
   rank: state.rank === '' ? null : Number(state.rank),
   countryId: state.countryId === '' ? null : Number(state.countryId),
   defaultForFees: Boolean(state.defaultForFees),
+  showCurrencyBadge: Boolean(state.showCurrencyBadge),
+  currency: String(state.currency || '').trim().toUpperCase() || null,
   bankName: state.bankName || null,
   bankAccountName: state.bankAccountName || null,
   bankAccountNumber: state.bankAccountNumber || null,
@@ -177,6 +182,8 @@ const toUpdatePayloadFromRow = (row, overrides = {}) => ({
   rank: row.rank === '' ? null : Number(row.rank),
   countryId: row.countryId === '' ? null : Number(row.countryId),
   defaultForFees: false,
+  showCurrencyBadge: Boolean(row.showCurrencyBadge),
+  currency: String(row.currency || '').trim().toUpperCase() || null,
   bankName: row.bankName ?? null,
   bankAccountName: row.bankAccountName ?? null,
   bankAccountNumber: row.bankAccountNumber ?? null,
@@ -221,6 +228,38 @@ const resolveFlagEnabled = (response) => {
 
 const paymentMethodRailFlagKey = (paymentMethodId, flow) => `payment.method.${paymentMethodId}.${flow}.enabled`;
 const paymentMethodRailStateKey = (paymentMethodId, flow) => `${paymentMethodId}:${flow}`;
+const normalizeCurrency = (value) => String(value || '').trim().toUpperCase();
+
+const validateDraft = (state) => {
+  const currency = normalizeCurrency(state.currency);
+  if (state.showCurrencyBadge && !currency) return 'Currency is required when Show currency badge is on.';
+  if (currency && !/^[A-Z]{3}$/.test(currency)) return 'Currency must be a 3-letter uppercase ISO-style code.';
+  return null;
+};
+
+const CurrencyBadge = ({ currency }) => {
+  const code = normalizeCurrency(currency);
+  if (!code) return '—';
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minWidth: '44px',
+        padding: '0.18rem 0.45rem',
+        borderRadius: '999px',
+        border: '1px solid var(--border)',
+        background: 'var(--accent-soft)',
+        color: 'var(--accent)',
+        fontWeight: 800,
+        fontSize: '12px'
+      }}
+    >
+      {code}
+    </span>
+  );
+};
 
 export default function PaymentMethodsPage() {
   const [rows, setRows] = useState([]);
@@ -489,6 +528,16 @@ export default function PaymentMethodsPage() {
     { key: 'id', label: 'ID' },
     { key: 'displayName', label: 'Display' },
     { key: 'countryName', label: 'Country', render: (row) => row.countryName || 'GLOBAL' },
+    {
+      key: 'currency',
+      label: 'Currency',
+      render: (row) => {
+        const currency = normalizeCurrency(row.currency);
+        if (!currency) return '—';
+        if (row.showCurrencyBadge) return <CurrencyBadge currency={currency} />;
+        return <span style={{ color: 'var(--muted)', fontWeight: 700 }}>{currency}</span>;
+      }
+    },
     { key: 'type', label: 'Type' },
     { key: 'rank', label: 'Rank' },
     { key: 'defaultForFees', label: 'Default for fees', render: (row) => (row.defaultForFees ? 'Yes' : 'No') },
@@ -606,6 +655,8 @@ export default function PaymentMethodsPage() {
       rank: row.rank ?? '',
       countryId: row.countryId ?? '',
       defaultForFees: Boolean(row.defaultForFees),
+      showCurrencyBadge: Boolean(row.showCurrencyBadge),
+      currency: row.currency ?? '',
       bankName: row.bankName ?? '',
       bankAccountName: row.bankAccountName ?? '',
       bankAccountNumber: row.bankAccountNumber ?? '',
@@ -633,6 +684,11 @@ export default function PaymentMethodsPage() {
     setError(null);
     setInfo(null);
     try {
+      const validationError = validateDraft(draft);
+      if (validationError) {
+        setError(validationError);
+        return;
+      }
       const res = await api.paymentMethods.create(toPayload(draft));
       const newId = res?.id;
       if (draft.defaultForFees && newId) {
@@ -651,6 +707,11 @@ export default function PaymentMethodsPage() {
     setError(null);
     setInfo(null);
     try {
+      const validationError = validateDraft(draft);
+      if (validationError) {
+        setError(validationError);
+        return;
+      }
       await api.paymentMethods.update(selected.id, toPayload(draft));
       if (draft.defaultForFees) {
         await unsetOtherDefaults(selected.id);
@@ -711,6 +772,39 @@ export default function PaymentMethodsPage() {
             </option>
           ))}
         </select>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="currency">Currency</label>
+        <input
+          id="currency"
+          list="paymentMethodCurrencyOptions"
+          value={draft.currency}
+          onChange={(e) => setDraft((p) => ({ ...p, currency: e.target.value.toUpperCase() }))}
+          placeholder="USD, CDF, KES..."
+        />
+        <datalist id="paymentMethodCurrencyOptions">
+          {currencyOptions.map((currency) => (
+            <option key={currency} value={currency} />
+          ))}
+        </datalist>
+        <div style={{ color: draft.showCurrencyBadge && !normalizeCurrency(draft.currency) ? '#b45309' : 'var(--muted)', fontSize: '12px' }}>
+          Use the API currency field only; do not infer currency from name or country.
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+          <input
+            type="checkbox"
+            checked={draft.showCurrencyBadge}
+            onChange={(e) => setDraft((p) => ({ ...p, showCurrencyBadge: e.target.checked }))}
+            style={{ width: '18px', height: '18px' }}
+          />
+          Show currency badge
+        </label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--muted)', fontSize: '12px' }}>
+          <span>Badge preview:</span>
+          {draft.showCurrencyBadge ? <CurrencyBadge currency={draft.currency} /> : <span>Off</span>}
+        </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="logoUrl">Logo URL</label>
@@ -1040,6 +1134,8 @@ export default function PaymentMethodsPage() {
               { label: 'Type', value: selected?.type },
               { label: 'Rank', value: selected?.rank },
               { label: 'Country', value: selected?.countryName || 'GLOBAL' },
+              { label: 'Show currency badge', value: selected?.showCurrencyBadge ? 'Yes' : 'No' },
+              { label: 'Currency', value: selected?.currency || '—' },
               { label: 'Active', value: selected?.active ? 'Yes' : 'No' },
               { label: 'Allow collection', value: selected?.allowingCollection ? 'Yes' : 'No' },
               { label: 'Allow payout', value: selected?.allowingPayout ? 'Yes' : 'No' },
