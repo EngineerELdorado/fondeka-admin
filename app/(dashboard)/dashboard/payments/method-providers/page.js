@@ -49,13 +49,60 @@ const actionOptions = [
 ].sort();
 
 const contextOptions = ['COLLECTION', 'PAYOUT'];
+const booleanOptions = [
+  { value: '', label: 'All' },
+  { value: 'true', label: 'Yes' },
+  { value: 'false', label: 'No' }
+];
+
+const filterConfigs = [
+  { key: 'id', label: 'ID', type: 'number' },
+  { key: 'q', label: 'Search', placeholder: 'mpesa, 187, KES...' },
+  { key: 'paymentMethodId', label: 'Payment Method', type: 'paymentMethod' },
+  { key: 'paymentMethodName', label: 'Method name' },
+  { key: 'paymentMethodDisplayName', label: 'Method display name' },
+  { key: 'paymentMethodType', label: 'Method type' },
+  { key: 'paymentMethodActive', label: 'Method active', type: 'boolean' },
+  { key: 'allowingCollection', label: 'Allows collection', type: 'boolean' },
+  { key: 'allowingPayout', label: 'Allows payout', type: 'boolean' },
+  { key: 'defaultForFees', label: 'Default for fees', type: 'boolean' },
+  { key: 'showCurrencyBadge', label: 'Show currency badge', type: 'boolean' },
+  { key: 'currency', label: 'Currency', placeholder: 'KES' },
+  { key: 'countryId', label: 'Country ID', type: 'number' },
+  { key: 'countryCode', label: 'Country code', placeholder: 'KE' },
+  { key: 'countryName', label: 'Country name' },
+  { key: 'paymentProviderId', label: 'Payment Provider', type: 'paymentProvider' },
+  { key: 'paymentProviderName', label: 'Provider name' },
+  { key: 'paymentProviderActive', label: 'Provider active', type: 'boolean' },
+  { key: 'active', label: 'Relation active', type: 'boolean' },
+  { key: 'providerCode', label: 'Provider code', placeholder: '187' },
+  { key: 'action', label: 'Action', type: 'action' },
+  { key: 'context', label: 'Context', type: 'context' },
+  { key: 'minRank', label: 'Min rank', type: 'number' },
+  { key: 'maxRank', label: 'Max rank', type: 'number' },
+  { key: 'createdFrom', label: 'Created from', placeholder: '2026-07-01T00:00:00Z' },
+  { key: 'createdTo', label: 'Created to', placeholder: '2026-07-31T23:59:59Z' },
+  { key: 'updatedFrom', label: 'Updated from', placeholder: '2026-07-01T00:00:00Z' },
+  { key: 'updatedTo', label: 'Updated to', placeholder: '2026-07-31T23:59:59Z' }
+];
 
 const emptyState = { paymentMethodId: '', paymentProviderId: '', rank: '', action: '', context: '', providerCode: '', currency: '', active: true };
+const emptyFilters = Object.fromEntries(filterConfigs.map((filter) => [filter.key, '']));
 
 const normalizeAction = (action) => (typeof action === 'string' ? action.trim().toUpperCase() : '');
 const normalizeContext = (context) => (typeof context === 'string' ? context.trim().toUpperCase() : '');
 const normalizeProviderCode = (providerCode) => (typeof providerCode === 'string' ? providerCode.trim() : '');
 const normalizeCurrency = (currency) => (typeof currency === 'string' ? currency.trim().toUpperCase() : '');
+const normalizeCountryCode = (countryCode) => (typeof countryCode === 'string' ? countryCode.trim().toUpperCase() : '');
+
+const normalizeFilterValue = (key, value) => {
+  const trimmed = typeof value === 'string' ? value.trim() : value;
+  if (key === 'action') return normalizeAction(trimmed);
+  if (key === 'context') return normalizeContext(trimmed);
+  if (key === 'currency') return normalizeCurrency(trimmed);
+  if (key === 'countryCode') return normalizeCountryCode(trimmed);
+  return trimmed;
+};
 
 const toPayload = (state) => ({
   paymentMethodId: Number(state.paymentMethodId) || 0,
@@ -124,20 +171,8 @@ export default function MethodProvidersPage() {
   const [draft, setDraft] = useState(emptyState);
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
-  const [filters, setFilters] = useState({
-    paymentMethodId: '',
-    paymentProviderId: '',
-    active: '',
-    action: '',
-    context: ''
-  });
-  const [appliedFilters, setAppliedFilters] = useState({
-    paymentMethodId: '',
-    paymentProviderId: '',
-    active: '',
-    action: '',
-    context: ''
-  });
+  const [filters, setFilters] = useState(emptyFilters);
+  const [appliedFilters, setAppliedFilters] = useState(emptyFilters);
 
   const fetchRows = useCallback(async () => {
     setLoading(true);
@@ -146,11 +181,12 @@ export default function MethodProvidersPage() {
       const params = new URLSearchParams();
       params.set('page', String(page));
       params.set('size', String(size));
-      if (appliedFilters.paymentMethodId) params.set('paymentMethodId', appliedFilters.paymentMethodId);
-      if (appliedFilters.paymentProviderId) params.set('paymentProviderId', appliedFilters.paymentProviderId);
-      if (appliedFilters.active !== '') params.set('active', appliedFilters.active);
-      if (appliedFilters.action) params.set('action', normalizeAction(appliedFilters.action));
-      if (appliedFilters.context) params.set('context', normalizeContext(appliedFilters.context));
+      Object.entries(appliedFilters).forEach(([key, value]) => {
+        const normalized = normalizeFilterValue(key, value);
+        if (normalized !== '' && normalized !== null && normalized !== undefined) {
+          params.set(key, String(normalized));
+        }
+      });
       const res = await api.paymentMethodPaymentProviders.list(params);
       const list = Array.isArray(res) ? res : res?.content || [];
       setRows(list || []);
@@ -477,35 +513,97 @@ export default function MethodProvidersPage() {
 
   const handleApplyFilters = () => {
     setPage(0);
-    setAppliedFilters({
-      paymentMethodId: filters.paymentMethodId,
-      paymentProviderId: filters.paymentProviderId,
-      active: filters.active,
-      action: normalizeAction(filters.action),
-      context: normalizeContext(filters.context)
-    });
+    setAppliedFilters(
+      Object.fromEntries(filterConfigs.map((filter) => [filter.key, normalizeFilterValue(filter.key, filters[filter.key]) || '']))
+    );
   };
 
   const handleClearFilters = () => {
-    const cleared = {
-      paymentMethodId: '',
-      paymentProviderId: '',
-      active: '',
-      action: '',
-      context: ''
-    };
     setPage(0);
-    setFilters(cleared);
-    setAppliedFilters(cleared);
+    setFilters(emptyFilters);
+    setAppliedFilters(emptyFilters);
   };
 
-  const hasActiveFilters = Boolean(
-    appliedFilters.paymentMethodId ||
-    appliedFilters.paymentProviderId ||
-    appliedFilters.active !== '' ||
-    appliedFilters.action ||
-    appliedFilters.context
-  );
+  const hasActiveFilters = Object.values(appliedFilters).some((value) => value !== '');
+
+  const renderFilterControl = (filter) => {
+    const value = filters[filter.key] ?? '';
+    const onChange = (nextValue) => setFilters((previous) => ({ ...previous, [filter.key]: nextValue }));
+
+    if (filter.type === 'paymentMethod') {
+      return (
+        <select id={`filter-${filter.key}`} value={value} onChange={(e) => onChange(e.target.value)}>
+          <option value="">All methods</option>
+          {methods.map((method) => (
+            <option key={method.id} value={method.id}>
+              {method.name || method.displayName || method.id}
+            </option>
+          ))}
+        </select>
+      );
+    }
+
+    if (filter.type === 'paymentProvider') {
+      return (
+        <select id={`filter-${filter.key}`} value={value} onChange={(e) => onChange(e.target.value)}>
+          <option value="">All providers</option>
+          {providers.map((provider) => (
+            <option key={provider.id} value={provider.id}>
+              {provider.name || provider.displayName || provider.id}
+            </option>
+          ))}
+        </select>
+      );
+    }
+
+    if (filter.type === 'boolean') {
+      return (
+        <select id={`filter-${filter.key}`} value={value} onChange={(e) => onChange(e.target.value)}>
+          {booleanOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      );
+    }
+
+    if (filter.type === 'action') {
+      return (
+        <select id={`filter-${filter.key}`} value={value} onChange={(e) => onChange(e.target.value)}>
+          <option value="">All actions</option>
+          {actionOptions.map((action) => (
+            <option key={action} value={action}>
+              {action}
+            </option>
+          ))}
+        </select>
+      );
+    }
+
+    if (filter.type === 'context') {
+      return (
+        <select id={`filter-${filter.key}`} value={value} onChange={(e) => onChange(e.target.value)}>
+          <option value="">All contexts</option>
+          {contextOptions.map((context) => (
+            <option key={context} value={context}>
+              {context}
+            </option>
+          ))}
+        </select>
+      );
+    }
+
+    return (
+      <input
+        id={`filter-${filter.key}`}
+        type={filter.type || 'text'}
+        value={value}
+        placeholder={filter.placeholder || ''}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    );
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -553,66 +651,12 @@ export default function MethodProvidersPage() {
       </div>
 
       <div className="card" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <label htmlFor="filterPaymentMethodId">Payment Method</label>
-          <select
-            id="filterPaymentMethodId"
-            value={filters.paymentMethodId}
-            onChange={(e) => setFilters((p) => ({ ...p, paymentMethodId: e.target.value }))}
-          >
-            <option value="">All methods</option>
-            {methods.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name || m.displayName || m.id}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <label htmlFor="filterPaymentProviderId">Payment Provider</label>
-          <select
-            id="filterPaymentProviderId"
-            value={filters.paymentProviderId}
-            onChange={(e) => setFilters((p) => ({ ...p, paymentProviderId: e.target.value }))}
-          >
-            <option value="">All providers</option>
-            {providers.map((prov) => (
-              <option key={prov.id} value={prov.id}>
-                {prov.name || prov.displayName || prov.id}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <label htmlFor="filterActive">Active</label>
-          <select id="filterActive" value={filters.active} onChange={(e) => setFilters((p) => ({ ...p, active: e.target.value }))}>
-            <option value="">All</option>
-            <option value="true">Active</option>
-            <option value="false">Inactive</option>
-          </select>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <label htmlFor="filterAction">Action</label>
-          <select id="filterAction" value={filters.action} onChange={(e) => setFilters((p) => ({ ...p, action: e.target.value }))}>
-            <option value="">All actions</option>
-            {actionOptions.map((action) => (
-              <option key={action} value={action}>
-                {action}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <label htmlFor="filterContext">Context</label>
-          <select id="filterContext" value={filters.context} onChange={(e) => setFilters((p) => ({ ...p, context: e.target.value }))}>
-            <option value="">All contexts</option>
-            {contextOptions.map((context) => (
-              <option key={context} value={context}>
-                {context}
-              </option>
-            ))}
-          </select>
-        </div>
+        {filterConfigs.map((filter) => (
+          <div key={filter.key} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor={`filter-${filter.key}`}>{filter.label}</label>
+            {renderFilterControl(filter)}
+          </div>
+        ))}
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.5rem' }}>
           <button type="button" onClick={handleApplyFilters} className="btn-primary">Apply filters</button>
           <button type="button" onClick={handleClearFilters} className="btn-neutral" disabled={!hasActiveFilters}>Clear</button>
