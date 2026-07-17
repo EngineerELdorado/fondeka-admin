@@ -50,11 +50,12 @@ const actionOptions = [
 
 const contextOptions = ['COLLECTION', 'PAYOUT'];
 
-const emptyState = { paymentMethodId: '', paymentProviderId: '', rank: '', action: '', context: '', providerCode: '', active: true };
+const emptyState = { paymentMethodId: '', paymentProviderId: '', rank: '', action: '', context: '', providerCode: '', currency: '', active: true };
 
 const normalizeAction = (action) => (typeof action === 'string' ? action.trim().toUpperCase() : '');
 const normalizeContext = (context) => (typeof context === 'string' ? context.trim().toUpperCase() : '');
 const normalizeProviderCode = (providerCode) => (typeof providerCode === 'string' ? providerCode.trim() : '');
+const normalizeCurrency = (currency) => (typeof currency === 'string' ? currency.trim().toUpperCase() : '');
 
 const toPayload = (state) => ({
   paymentMethodId: Number(state.paymentMethodId) || 0,
@@ -63,6 +64,7 @@ const toPayload = (state) => ({
   action: normalizeAction(state.action) || null,
   context: normalizeAction(state.action) ? null : normalizeContext(state.context) || null,
   providerCode: normalizeProviderCode(state.providerCode) || null,
+  currency: normalizeCurrency(state.currency) || null,
   active: Boolean(state.active)
 });
 
@@ -221,6 +223,7 @@ export default function MethodProvidersPage() {
         ) : '—';
       }
     },
+    { key: 'currency', label: 'Currency', render: (row) => normalizeCurrency(row.currency) || '—' },
     {
       key: 'countryName',
       label: 'Country',
@@ -276,6 +279,7 @@ export default function MethodProvidersPage() {
       action: row.action ?? '',
       context: row.context ?? '',
       providerCode: row.providerCode ?? '',
+      currency: row.currency ?? '',
       active: Boolean(row.active)
     });
     setShowEdit(true);
@@ -449,6 +453,19 @@ export default function MethodProvidersPage() {
         />
         <div style={{ color: 'var(--muted)', fontSize: '12px', lineHeight: 1.4 }}>
           For Maplerad mobile money, this is the institution/bank code for this exact method/provider/context relation. COLLECTION and PAYOUT can differ.
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="currency">Currency</label>
+        <input
+          id="currency"
+          value={draft.currency}
+          onChange={(e) => setDraft((p) => ({ ...p, currency: e.target.value.toUpperCase() }))}
+          placeholder="USD"
+          maxLength={3}
+        />
+        <div style={{ color: 'var(--muted)', fontSize: '12px', lineHeight: 1.4 }}>
+          Optional ISO-style currency for this exact method/provider relation, such as USD, CDF, KES, UGX, GHS, XAF, or XOF.
         </div>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -638,6 +655,7 @@ export default function MethodProvidersPage() {
               { label: 'Action', value: selected?.action || 'Default (rank-based)' },
               { label: 'Context', value: selected?.context || 'Default (none)' },
               { label: 'Provider code', value: selected?.providerCode || '—' },
+              { label: 'Currency', value: normalizeCurrency(selected?.currency) || '—' },
               { label: 'Country', value: selected?.countryName || 'GLOBAL' },
               { label: 'Rank', value: selected?.rank },
               { label: 'Active', value: selected?.active ? 'Yes' : 'No' },
