@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 
 const defaultDraft = { currency: 'KES', amount: '1000' };
-const defaultBankCodeFilters = { country: '' };
 
 const RawJson = ({ title, data }) => (
   <div className="card" style={{ display: 'grid', gap: '0.5rem' }}>
@@ -51,19 +50,11 @@ const collectCurrencyCodes = (value, out = new Set()) => {
   return out;
 };
 
-const extractBankCodes = (response) => {
-  const data = response?.providerResponse?.data || response?.data || [];
-  return Array.isArray(data) ? data : [];
-};
-
 export default function MapleradSandboxPage() {
   const [draft, setDraft] = useState(defaultDraft);
-  const [bankCodeFilters, setBankCodeFilters] = useState(defaultBankCodeFilters);
   const [currenciesResponse, setCurrenciesResponse] = useState(null);
-  const [bankCodesResponse, setBankCodesResponse] = useState(null);
   const [creditResponse, setCreditResponse] = useState(null);
   const [loadingCurrencies, setLoadingCurrencies] = useState(false);
-  const [loadingBankCodes, setLoadingBankCodes] = useState(false);
   const [crediting, setCrediting] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
@@ -72,8 +63,6 @@ export default function MapleradSandboxPage() {
     const list = Array.from(collectCurrencyCodes(currenciesResponse)).sort();
     return list.length ? list : ['KES', 'USD', 'GHS'];
   }, [currenciesResponse]);
-
-  const bankCodes = useMemo(() => extractBankCodes(bankCodesResponse), [bankCodesResponse]);
 
   const refreshCurrencies = useCallback(async () => {
     setLoadingCurrencies(true);
@@ -97,30 +86,6 @@ export default function MapleradSandboxPage() {
   useEffect(() => {
     refreshCurrencies();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const refreshBankCodes = async () => {
-    const country = String(bankCodeFilters.country || '').trim().toUpperCase();
-    if (country && !/^[A-Z]{2}$/.test(country)) {
-      setError('Country must be a 2-letter uppercase ISO country code.');
-      setInfo(null);
-      return;
-    }
-    setLoadingBankCodes(true);
-    setError(null);
-    setInfo(null);
-    try {
-      const params = country ? new URLSearchParams({ country }) : undefined;
-      const res = await api.maplerad.bankCodes(params);
-      setBankCodesResponse(res);
-      setBankCodeFilters((prev) => ({ ...prev, country }));
-      setInfo(`Loaded Maplerad bank codes${country ? ` for ${country}` : ''}.`);
-    } catch (err) {
-      setBankCodesResponse(err?.data || null);
-      setError(err?.message || 'Failed to load Maplerad bank codes.');
-    } finally {
-      setLoadingBankCodes(false);
-    }
-  };
 
   const validateDraft = () => {
     const amount = Number(draft.amount);
@@ -190,52 +155,6 @@ export default function MapleradSandboxPage() {
       </div>
 
       <div className="card" style={{ display: 'grid', gap: '0.85rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <div>
-            <div style={{ fontWeight: 800 }}>Bank codes / institutions</div>
-            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Fetch Maplerad institution codes, optionally narrowed by country.</div>
-          </div>
-          <button type="button" onClick={refreshBankCodes} disabled={loadingBankCodes || crediting} className="btn-primary">
-            {loadingBankCodes ? 'Refreshing...' : 'Refresh bank codes'}
-          </button>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="bankCodeCountry">Country</label>
-            <input
-              id="bankCodeCountry"
-              value={bankCodeFilters.country}
-              onChange={(e) => setBankCodeFilters((prev) => ({ ...prev, country: e.target.value.toUpperCase() }))}
-              placeholder="KE"
-              maxLength={2}
-            />
-          </div>
-        </div>
-        {bankCodes.length > 0 && (
-          <div className="table-scroll" style={{ overflowX: 'auto' }}>
-            <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  <th style={{ textAlign: 'left', padding: '0.65rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>Code</th>
-                  <th style={{ textAlign: 'left', padding: '0.65rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>Name</th>
-                  <th style={{ textAlign: 'left', padding: '0.65rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>Country</th>
-                </tr>
-              </thead>
-              <tbody>
-                {bankCodes.map((bankCode, index) => (
-                  <tr key={`${bankCode.code || index}-${bankCode.country || ''}`} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td style={{ padding: '0.65rem', fontWeight: 700 }}>{bankCode.code || '-'}</td>
-                    <td style={{ padding: '0.65rem' }}>{bankCode.name || '-'}</td>
-                    <td style={{ padding: '0.65rem' }}>{bankCode.country || '-'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      <div className="card" style={{ display: 'grid', gap: '0.85rem' }}>
         <div>
           <div style={{ fontWeight: 800 }}>Credit sandbox wallet</div>
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Amount must be a positive integer. Currency can be selected or typed as an uppercase ISO code.</div>
@@ -275,7 +194,6 @@ export default function MapleradSandboxPage() {
       </div>
 
       <RawJson title="Currencies provider response" data={currenciesResponse} />
-      <RawJson title="Bank codes provider response" data={bankCodesResponse} />
       <RawJson title="Credit provider response" data={creditResponse} />
     </div>
   );
