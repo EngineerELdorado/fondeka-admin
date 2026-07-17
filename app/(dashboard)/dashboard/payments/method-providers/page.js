@@ -173,6 +173,7 @@ export default function MethodProvidersPage() {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [filters, setFilters] = useState(emptyFilters);
   const [appliedFilters, setAppliedFilters] = useState(emptyFilters);
+  const [showFilters, setShowFilters] = useState(false);
 
   const fetchRows = useCallback(async () => {
     setLoading(true);
@@ -650,17 +651,30 @@ export default function MethodProvidersPage() {
         </button>
       </div>
 
-      <div className="card" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
-        {filterConfigs.map((filter) => (
-          <div key={filter.key} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor={`filter-${filter.key}`}>{filter.label}</label>
-            {renderFilterControl(filter)}
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: showFilters ? '0.75rem' : 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontWeight: 700 }}>Filters</div>
+            {hasActiveFilters && <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Filters are currently applied.</div>}
           </div>
-        ))}
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.5rem' }}>
-          <button type="button" onClick={handleApplyFilters} className="btn-primary">Apply filters</button>
-          <button type="button" onClick={handleClearFilters} className="btn-neutral" disabled={!hasActiveFilters}>Clear</button>
+          <button type="button" className="btn-neutral" onClick={() => setShowFilters((value) => !value)}>
+            {showFilters ? 'Hide filters' : 'Show filters'}
+          </button>
         </div>
+        {showFilters && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+            {filterConfigs.map((filter) => (
+              <div key={filter.key} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor={`filter-${filter.key}`}>{filter.label}</label>
+                {renderFilterControl(filter)}
+              </div>
+            ))}
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.5rem' }}>
+              <button type="button" onClick={handleApplyFilters} className="btn-primary">Apply filters</button>
+              <button type="button" onClick={handleClearFilters} className="btn-neutral" disabled={!hasActiveFilters}>Clear</button>
+            </div>
+          </div>
+        )}
       </div>
 
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
