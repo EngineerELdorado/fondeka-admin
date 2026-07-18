@@ -22,6 +22,8 @@ const emptyDraft = {
   sourceCurrency: 'USD',
   targetCurrency: '',
   rate: '',
+  collectionMarginPercent: '',
+  payoutMarginPercent: '',
   fetchedAt: '',
   rawPayload: ''
 };
@@ -83,6 +85,16 @@ const toIsoOrNull = (value) => {
 };
 
 const upperTrim = (value) => String(value || '').trim().toUpperCase();
+const nullableNumber = (value) => {
+  if (value === '' || value === null || value === undefined) return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+};
+
+const formatPercent = (value) => {
+  if (value === null || value === undefined || value === '') return '-';
+  return `${value}%`;
+};
 
 export default function FiatExchangeRatesPage() {
   const [rows, setRows] = useState([]);
@@ -162,11 +174,15 @@ export default function FiatExchangeRatesPage() {
     const sourceCurrency = upperTrim(draft.sourceCurrency);
     const targetCurrency = upperTrim(draft.targetCurrency);
     const rate = Number(draft.rate);
+    const collectionMarginPercent = nullableNumber(draft.collectionMarginPercent);
+    const payoutMarginPercent = nullableNumber(draft.payoutMarginPercent);
     if (!provider) return 'Provider is required.';
     if (!sourceCurrency) return 'Source currency is required.';
     if (!targetCurrency) return 'Target currency is required.';
     if (sourceCurrency === targetCurrency) return 'Source and target currency cannot be the same.';
     if (!Number.isFinite(rate) || rate <= 0) return 'Rate must be a positive number.';
+    if (draft.collectionMarginPercent !== '' && (collectionMarginPercent === null || collectionMarginPercent < 0)) return 'Collection margin must be zero or a positive number.';
+    if (draft.payoutMarginPercent !== '' && (payoutMarginPercent === null || payoutMarginPercent < 0)) return 'Payout margin must be zero or a positive number.';
     if (!toIsoOrNull(draft.fetchedAt)) return 'Fetched at must be a valid date and time.';
     const duplicate = rows.find((row) => (
       row.id !== selected?.id
@@ -183,6 +199,8 @@ export default function FiatExchangeRatesPage() {
     sourceCurrency: upperTrim(draft.sourceCurrency),
     targetCurrency: upperTrim(draft.targetCurrency),
     rate: Number(draft.rate),
+    collectionMarginPercent: nullableNumber(draft.collectionMarginPercent),
+    payoutMarginPercent: nullableNumber(draft.payoutMarginPercent),
     fetchedAt: toIsoOrNull(draft.fetchedAt),
     rawPayload: draft.rawPayload.trim() || null
   });
@@ -203,6 +221,8 @@ export default function FiatExchangeRatesPage() {
       sourceCurrency: row.sourceCurrency ?? '',
       targetCurrency: row.targetCurrency ?? '',
       rate: row.rate ?? '',
+      collectionMarginPercent: row.collectionMarginPercent ?? '',
+      payoutMarginPercent: row.payoutMarginPercent ?? '',
       fetchedAt: toDateTimeLocal(row.fetchedAt),
       rawPayload: row.rawPayload ?? ''
     });
@@ -321,6 +341,8 @@ export default function FiatExchangeRatesPage() {
     { key: 'provider', label: 'Provider' },
     { key: 'pair', label: 'Pair', render: (row) => `${row.sourceCurrency || '-'} / ${row.targetCurrency || '-'}` },
     { key: 'rate', label: 'Rate' },
+    { key: 'collectionMarginPercent', label: 'Collection margin', render: (row) => formatPercent(row.collectionMarginPercent) },
+    { key: 'payoutMarginPercent', label: 'Payout margin', render: (row) => formatPercent(row.payoutMarginPercent) },
     { key: 'fetchedAt', label: 'Fetched at', render: (row) => formatDateTime(row.fetchedAt) },
     { key: 'updatedAt', label: 'Updated at', hideOnMobile: true, render: (row) => formatDateTime(row.updatedAt) },
     {
@@ -354,6 +376,30 @@ export default function FiatExchangeRatesPage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="rate">Rate</label>
         <input id="rate" type="number" min="0" step="0.000001" value={draft.rate} onChange={(e) => setDraft((p) => ({ ...p, rate: e.target.value }))} />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="collectionMarginPercent">Collection margin %</label>
+        <input
+          id="collectionMarginPercent"
+          type="number"
+          min="0"
+          step="0.01"
+          value={draft.collectionMarginPercent}
+          onChange={(e) => setDraft((p) => ({ ...p, collectionMarginPercent: e.target.value }))}
+          placeholder="2"
+        />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="payoutMarginPercent">Payout margin %</label>
+        <input
+          id="payoutMarginPercent"
+          type="number"
+          min="0"
+          step="0.01"
+          value={draft.payoutMarginPercent}
+          onChange={(e) => setDraft((p) => ({ ...p, payoutMarginPercent: e.target.value }))}
+          placeholder="2"
+        />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="fetchedAt">Fetched at</label>
@@ -522,6 +568,8 @@ export default function FiatExchangeRatesPage() {
               { label: 'Source currency', value: selected?.sourceCurrency },
               { label: 'Target currency', value: selected?.targetCurrency },
               { label: 'Rate', value: selected?.rate },
+              { label: 'Collection margin', value: formatPercent(selected?.collectionMarginPercent) },
+              { label: 'Payout margin', value: formatPercent(selected?.payoutMarginPercent) },
               { label: 'Fetched at', value: formatDateTime(selected?.fetchedAt) },
               { label: 'Created at', value: formatDateTime(selected?.createdAt) },
               { label: 'Updated at', value: formatDateTime(selected?.updatedAt) },
