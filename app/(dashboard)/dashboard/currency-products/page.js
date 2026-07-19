@@ -4,9 +4,21 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
+import COUNTRIES from '@/data/countries';
 
-const currencyOptions = ['USD', 'CDF', 'EUR', 'KES', 'GHS', 'XAF'];
+const currencyOptions = ['USD', 'CDF', 'EUR', 'KES', 'UGX', 'GHS', 'XAF'];
 const rateProviderOptions = ['MANUAL', 'MAPLERAD'];
+const priorityCountryCodes = ['CD', 'KE', 'UG'];
+const countryOptions = [
+  ...priorityCountryCodes
+    .map((code) => COUNTRIES.find((country) => country.cca2 === code))
+    .filter(Boolean),
+  ...COUNTRIES.filter((country, index, list) => (
+    !priorityCountryCodes.includes(country.cca2)
+    && list.findIndex((candidate) => candidate.cca2 === country.cca2) === index
+  ))
+];
+const countryByCode = new Map(countryOptions.map((country) => [country.cca2, country]));
 
 const emptyDraft = {
   currency: '',
@@ -20,7 +32,9 @@ const emptyDraft = {
   collectionMarginPercent: '',
   payoutMarginPercent: '',
   rateProvider: 'MANUAL',
-  rateFetchedAt: ''
+  rateFetchedAt: '',
+  countryCodes: [],
+  defaultCountryCodes: []
 };
 
 const Modal = ({ title, onClose, children }) => (
@@ -79,6 +93,23 @@ const toIsoOrNull = (value) => {
 
 const upperTrim = (value) => String(value || '').trim().toUpperCase();
 
+const normalizeCountryCodes = (value) => {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.map(upperTrim).filter(Boolean))];
+};
+
+const mergeCountryCodes = (...values) => normalizeCountryCodes(values.flat());
+
+const formatCountryCodes = (value) => {
+  const codes = normalizeCountryCodes(value);
+  return codes.length ? codes.join(', ') : '-';
+};
+
+const formatCountryLabel = (code) => {
+  const country = countryByCode.get(code);
+  return country ? `${code} - ${country.name}` : code;
+};
+
 const nullableNumber = (value) => {
   if (value === '' || value === null || value === undefined) return null;
   const number = Number(value);
@@ -100,6 +131,7 @@ export default function CurrencyProductsPage() {
   const [draft, setDraft] = useState(emptyDraft);
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [countryPopup, setCountryPopup] = useState(null);
 
   const fetchRows = async () => {
     setLoading(true);
@@ -132,6 +164,8 @@ export default function CurrencyProductsPage() {
     const rate = Number(draft.rate);
     const collectionMarginPercent = nullableNumber(draft.collectionMarginPercent);
     const payoutMarginPercent = nullableNumber(draft.payoutMarginPercent);
+    const countryCodes = normalizeCountryCodes(draft.countryCodes);
+    const defaultCountryCodes = normalizeCountryCodes(draft.defaultCountryCodes);
     if (!currency) return 'Currency is required.';
     if (!draft.displayName.trim()) return 'Display name is required.';
     if (!baseCurrency) return 'Base currency is required.';
@@ -140,23 +174,30 @@ export default function CurrencyProductsPage() {
     if (draft.payoutMarginPercent !== '' && (payoutMarginPercent === null || payoutMarginPercent < 0)) return 'Payout margin must be zero or a positive number.';
     if (!upperTrim(draft.rateProvider)) return 'Rate provider is required.';
     if (draft.rateFetchedAt && !toIsoOrNull(draft.rateFetchedAt)) return 'Rate fetched at must be a valid date and time.';
+    if (defaultCountryCodes.some((code) => !countryCodes.includes(code))) return 'Default countries must also be included in country availability.';
     return null;
   };
 
-  const buildPayload = () => ({
-    currency: upperTrim(draft.currency),
-    displayName: draft.displayName.trim(),
-    logoUrl: draft.logoUrl.trim() || null,
-    active: Boolean(draft.active),
-    walletEnabled: Boolean(draft.walletEnabled),
-    legacyBalanceBacked: Boolean(draft.legacyBalanceBacked),
-    baseCurrency: upperTrim(draft.baseCurrency),
-    rate: Number(draft.rate),
-    collectionMarginPercent: nullableNumber(draft.collectionMarginPercent),
-    payoutMarginPercent: nullableNumber(draft.payoutMarginPercent),
-    rateProvider: upperTrim(draft.rateProvider),
-    rateFetchedAt: toIsoOrNull(draft.rateFetchedAt)
-  });
+  const buildPayload = () => {
+    const defaultCountryCodes = normalizeCountryCodes(draft.defaultCountryCodes);
+    const countryCodes = mergeCountryCodes(draft.countryCodes, defaultCountryCodes);
+    return {
+      currency: upperTrim(draft.currency),
+      displayName: draft.displayName.trim(),
+      logoUrl: draft.logoUrl.trim() || null,
+      active: Boolean(draft.active),
+      walletEnabled: Boolean(draft.walletEnabled),
+      legacyBalanceBacked: Boolean(draft.legacyBalanceBacked),
+      baseCurrency: upperTrim(draft.baseCurrency),
+      rate: Number(draft.rate),
+      collectionMarginPercent: nullableNumber(draft.collectionMarginPercent),
+      payoutMarginPercent: nullableNumber(draft.payoutMarginPercent),
+      rateProvider: upperTrim(draft.rateProvider),
+      rateFetchedAt: toIsoOrNull(draft.rateFetchedAt),
+      countryCodes,
+      defaultCountryCodes
+    };
+  };
 
   const openCreate = () => {
     setDraft({ ...emptyDraft, rateFetchedAt: toDateTimeLocal(new Date().toISOString()) });
@@ -180,7 +221,9 @@ export default function CurrencyProductsPage() {
       collectionMarginPercent: row.collectionMarginPercent ?? '',
       payoutMarginPercent: row.payoutMarginPercent ?? '',
       rateProvider: row.rateProvider ?? 'MANUAL',
-      rateFetchedAt: toDateTimeLocal(row.rateFetchedAt)
+      rateFetchedAt: toDateTimeLocal(row.rateFetchedAt),
+      countryCodes: normalizeCountryCodes(row.countryCodes),
+      defaultCountryCodes: normalizeCountryCodes(row.defaultCountryCodes)
     });
     setShowEdit(true);
     setError(null);
@@ -272,7 +315,9 @@ export default function CurrencyProductsPage() {
       await api.currencyProducts.update(row.id, {
         currency: row.currency,
         displayName: row.displayName,
-        active: false
+        active: false,
+        countryCodes: normalizeCountryCodes(row.countryCodes),
+        defaultCountryCodes: normalizeCountryCodes(row.defaultCountryCodes)
       });
       setInfo(`Deactivated currency product ${row.currency || row.id}.`);
       fetchRows();
@@ -285,6 +330,23 @@ export default function CurrencyProductsPage() {
 
   const canPrev = page > 0;
   const canNext = pageMeta.totalPages === null ? rows.length === size : page + 1 < pageMeta.totalPages;
+
+  const renderCountryTrigger = (row, field, label) => {
+    const codes = normalizeCountryCodes(row[field]);
+    if (!codes.length) return '-';
+    return (
+      <button
+        type="button"
+        className="btn-neutral btn-sm"
+        onClick={() => setCountryPopup({
+          title: `${label} - ${row.currency || `Product ${row.id}`}`,
+          codes
+        })}
+      >
+        View {codes.length}
+      </button>
+    );
+  };
 
   const columns = [
     {
@@ -303,6 +365,8 @@ export default function CurrencyProductsPage() {
     { key: 'displayName', label: 'Display name' },
     { key: 'rate', label: 'Rate' },
     { key: 'baseCurrency', label: 'Base' },
+    { key: 'countryCodes', label: 'Countries', render: (row) => renderCountryTrigger(row, 'countryCodes', 'Country availability') },
+    { key: 'defaultCountryCodes', label: 'Defaults', render: (row) => renderCountryTrigger(row, 'defaultCountryCodes', 'Default in countries') },
     { key: 'collectionMarginPercent', label: 'Collection margin', render: (row) => formatPercent(row.collectionMarginPercent) },
     { key: 'payoutMarginPercent', label: 'Payout margin', render: (row) => formatPercent(row.payoutMarginPercent) },
     { key: 'walletEnabled', label: 'Wallet', render: (row) => formatBool(row.walletEnabled) },
@@ -337,6 +401,25 @@ export default function CurrencyProductsPage() {
     </label>
   );
 
+  const renderCountryMultiSelect = (id, label, value, onChange) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+      <label htmlFor={id}>{label}</label>
+      <select
+        id={id}
+        multiple
+        value={normalizeCountryCodes(value)}
+        onChange={(e) => onChange(Array.from(e.target.selectedOptions, (option) => option.value))}
+        style={{ minHeight: '132px' }}
+      >
+        {countryOptions.map((country) => (
+          <option key={country.cca2} value={country.cca2}>
+            {country.cca2} - {country.name}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
   const renderForm = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       {renderCurrencyInput('currency', 'Currency', draft.currency, (e) => setDraft((p) => ({ ...p, currency: e.target.value.toUpperCase() })))}
@@ -369,6 +452,15 @@ export default function CurrencyProductsPage() {
         <label htmlFor="rateFetchedAt">Rate fetched at</label>
         <input id="rateFetchedAt" type="datetime-local" value={draft.rateFetchedAt} onChange={(e) => setDraft((p) => ({ ...p, rateFetchedAt: e.target.value }))} />
       </div>
+      {renderCountryMultiSelect('countryCodes', 'Country availability', draft.countryCodes, (countryCodes) => setDraft((p) => ({
+        ...p,
+        countryCodes: mergeCountryCodes(countryCodes, p.defaultCountryCodes)
+      })))}
+      {renderCountryMultiSelect('defaultCountryCodes', 'Default in countries', draft.defaultCountryCodes, (defaultCountryCodes) => setDraft((p) => ({
+        ...p,
+        defaultCountryCodes: normalizeCountryCodes(defaultCountryCodes),
+        countryCodes: mergeCountryCodes(p.countryCodes, defaultCountryCodes)
+      })))}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
         {renderCheckbox('active', 'Active', draft.active, (e) => setDraft((p) => ({ ...p, active: e.target.checked })))}
         {renderCheckbox('walletEnabled', 'Wallet enabled', draft.walletEnabled, (e) => setDraft((p) => ({ ...p, walletEnabled: e.target.checked })))}
@@ -476,6 +568,8 @@ export default function CurrencyProductsPage() {
               { label: 'Wallet enabled', value: formatBool(selected?.walletEnabled) },
               { label: 'Legacy balance backed', value: formatBool(selected?.legacyBalanceBacked) },
               { label: 'Base currency', value: selected?.baseCurrency },
+              { label: 'Country availability', value: formatCountryCodes(selected?.countryCodes) },
+              { label: 'Default in countries', value: formatCountryCodes(selected?.defaultCountryCodes) },
               { label: 'Rate', value: selected?.rate },
               { label: 'Collection margin', value: formatPercent(selected?.collectionMarginPercent) },
               { label: 'Payout margin', value: formatPercent(selected?.payoutMarginPercent) },
@@ -485,6 +579,23 @@ export default function CurrencyProductsPage() {
               { label: 'Updated at', value: formatDateTime(selected?.updatedAt) }
             ]}
           />
+        </Modal>
+      )}
+
+      {countryPopup && (
+        <Modal title={countryPopup.title} onClose={() => setCountryPopup(null)}>
+          <div style={{ display: 'grid', gap: '0.5rem', maxHeight: '60vh', overflow: 'auto' }}>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              {countryPopup.codes.length} {countryPopup.codes.length === 1 ? 'country' : 'countries'}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem' }}>
+              {countryPopup.codes.map((code) => (
+                <div key={code} style={{ padding: '0.55rem 0.65rem', border: '1px solid var(--border)', borderRadius: '8px', fontWeight: 700 }}>
+                  {formatCountryLabel(code)}
+                </div>
+              ))}
+            </div>
+          </div>
         </Modal>
       )}
 
