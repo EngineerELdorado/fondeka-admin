@@ -22,6 +22,7 @@ const navItems = [
   { href: '/dashboard/cards', labelKey: 'layout.nav.cardsProducts' },
   { href: '/dashboard/cards/card-policy-config', labelKey: 'layout.nav.cardPolicyConfig' },
   { href: '/dashboard/crypto', labelKey: 'layout.nav.cryptosProducts' },
+  { href: '/dashboard/currency-products', labelKey: 'layout.nav.currencyProducts' },
   { href: '/dashboard/esim', labelKey: 'layout.nav.esimsProviders' },
   { href: '/dashboard/esim-products', labelKey: 'layout.nav.esimProducts' },
   { href: '/dashboard/payment-requests', labelKey: 'layout.nav.paymentRequests' },
