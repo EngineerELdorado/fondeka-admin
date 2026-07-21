@@ -56,6 +56,7 @@ const navItems = [
   { href: '/dashboard/notification-default-channels', labelKey: 'layout.nav.notificationDefaults' },
   { href: '/dashboard/notification-delivery-policy', labelKey: 'layout.nav.notificationDeliveryPolicy' },
   { href: '/dashboard/whatsapp-template-catalog', labelKey: 'layout.nav.whatsappTemplateCatalog' },
+  { href: '/dashboard/whatsapp-message-deliveries', labelKey: 'layout.nav.whatsappMessageDeliveries' },
   { href: '/dashboard/notification-announcement-event-policy', labelKey: 'layout.nav.announcementEventPolicy' },
   { href: '/dashboard/notification-push-campaigns', labelKey: 'layout.nav.pushCampaigns' },
   { href: '/dashboard/notification-anonymous-installs', labelKey: 'layout.nav.anonymousInstalls' },
