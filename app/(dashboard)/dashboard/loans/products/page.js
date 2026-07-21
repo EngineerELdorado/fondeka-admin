@@ -17,6 +17,7 @@ const emptyState = {
   interestPercentage: '',
   minAmount: '',
   maxAmount: '',
+  currency: 'USD',
   finePercentage: '',
   rank: '',
   loanType: '',
@@ -36,6 +37,7 @@ const toPayload = (state) => ({
   interestPercentage: state.interestPercentage === '' ? null : Number(state.interestPercentage),
   minAmount: state.minAmount === '' ? null : Number(state.minAmount),
   maxAmount: state.maxAmount === '' ? null : Number(state.maxAmount),
+  currency: String(state.currency || 'USD').trim().toUpperCase(),
   finePercentage: state.finePercentage === '' ? null : Number(state.finePercentage),
   rank: state.rank === '' ? null : Number(state.rank),
   loanType: state.loanType,
@@ -66,6 +68,21 @@ const DetailGrid = ({ rows }) => (
   </div>
 );
 
+const normalizeList = (response) => {
+  if (Array.isArray(response)) return response;
+  if (Array.isArray(response?.content)) return response.content;
+  if (Array.isArray(response?.items)) return response.items;
+  if (Array.isArray(response?.data)) return response.data;
+  return [];
+};
+
+const normalizeCurrency = (value) => String(value || 'USD').trim().toUpperCase();
+
+const formatAmountWithCurrency = (amount, currency) => {
+  if (amount === null || amount === undefined || amount === '') return '—';
+  return `${amount} ${normalizeCurrency(currency)}`.trim();
+};
+
 export default function LoanProductsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
@@ -79,6 +96,19 @@ export default function LoanProductsPage() {
   const [draft, setDraft] = useState(emptyState);
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [currencyProducts, setCurrencyProducts] = useState([]);
+
+  const currencyOptions = useMemo(() => {
+    const activeCurrencies = normalizeList(currencyProducts)
+      .filter((item) => item?.active !== false && item?.walletEnabled !== false)
+      .map((item) => normalizeCurrency(item?.currency))
+      .filter(Boolean);
+    return Array.from(new Set(['USD', ...activeCurrencies])).sort((left, right) => {
+      if (left === 'USD') return -1;
+      if (right === 'USD') return 1;
+      return left.localeCompare(right);
+    });
+  }, [currencyProducts]);
 
   const fetchRows = async () => {
     setLoading(true);
@@ -97,12 +127,28 @@ export default function LoanProductsPage() {
     }
   };
 
+  const fetchCurrencyProducts = async () => {
+    try {
+      const res = await api.currencyProducts.list(new URLSearchParams({ page: '0', size: '250' }));
+      setCurrencyProducts(normalizeList(res));
+    } catch {
+      setCurrencyProducts([]);
+    }
+  };
+
   useEffect(() => {
     fetchRows();
   }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    fetchCurrencyProducts();
+  }, []);
+
   const columns = useMemo(() => [
     { key: 'title', label: 'Title' },
+    { key: 'currency', label: 'Currency', render: (row) => normalizeCurrency(row.currency) },
+    { key: 'minAmount', label: 'Min', render: (row) => formatAmountWithCurrency(row.minAmount, row.currency) },
+    { key: 'maxAmount', label: 'Max', render: (row) => formatAmountWithCurrency(row.maxAmount, row.currency) },
     {
       key: 'duration',
       label: 'Duration',
@@ -149,6 +195,7 @@ export default function LoanProductsPage() {
       interestPercentage: row.interestPercentage ?? '',
       minAmount: row.minAmount ?? '',
       maxAmount: row.maxAmount ?? '',
+      currency: normalizeCurrency(row.currency),
       finePercentage: row.finePercentage ?? '',
       rank: row.rank ?? '',
       loanType: row.loanType ?? '',
@@ -248,6 +295,16 @@ export default function LoanProductsPage() {
         <input id="interestPercentage" type="number" value={draft.interestPercentage} onChange={(e) => setDraft((p) => ({ ...p, interestPercentage: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="currency">Currency</label>
+        <select id="currency" value={draft.currency} onChange={(e) => setDraft((p) => ({ ...p, currency: e.target.value }))}>
+          {currencyOptions.map((currency) => (
+            <option key={currency} value={currency}>
+              {currency}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="minAmount">Min amount</label>
         <input id="minAmount" type="number" value={draft.minAmount} onChange={(e) => setDraft((p) => ({ ...p, minAmount: e.target.value }))} />
       </div>
@@ -271,6 +328,11 @@ export default function LoanProductsPage() {
         <label htmlFor="code">Code</label>
         <input id="code" value={draft.code} onChange={(e) => setDraft((p) => ({ ...p, code: e.target.value }))} />
       </div>
+      {showEdit && (
+        <div style={{ gridColumn: '1 / -1', color: '#92400e', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '10px', padding: '0.75rem', fontSize: '13px', fontWeight: 700 }}>
+          Changing currency affects new loans created from this product. Existing issued loans keep their own currency.
+        </div>
+      )}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <input id="active" type="checkbox" checked={draft.active} onChange={(e) => setDraft((p) => ({ ...p, active: e.target.checked }))} />
         <label htmlFor="active">Active</label>
@@ -341,13 +403,14 @@ export default function LoanProductsPage() {
               { label: 'Short description', value: selected?.shortDescription },
               { label: 'Code', value: selected?.code },
               { label: 'Loan type', value: selected?.loanType },
+              { label: 'Currency', value: normalizeCurrency(selected?.currency) },
               { label: 'Interest %', value: selected?.interestPercentage },
               { label: 'Interest type', value: selected?.interestType },
               { label: 'Repayment plan', value: selected?.repaymentPlan },
               { label: 'Duration type', value: selected?.durationType },
               { label: 'Max duration', value: selected?.maxDuration },
-              { label: 'Min amount', value: selected?.minAmount },
-              { label: 'Max amount', value: selected?.maxAmount },
+              { label: 'Min amount', value: formatAmountWithCurrency(selected?.minAmount, selected?.currency) },
+              { label: 'Max amount', value: formatAmountWithCurrency(selected?.maxAmount, selected?.currency) },
               { label: 'Fine %', value: selected?.finePercentage },
               { label: 'Rank', value: selected?.rank },
               { label: 'Active', value: selected?.active ? 'Yes' : 'No' },

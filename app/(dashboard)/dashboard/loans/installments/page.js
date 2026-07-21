@@ -44,6 +44,13 @@ const DetailGrid = ({ rows }) => (
   </div>
 );
 
+const normalizeCurrency = (value) => String(value || '').trim().toUpperCase();
+
+const formatAmountWithCurrency = (amount, currency) => {
+  if (amount === null || amount === undefined || amount === '') return '—';
+  return `${amount} ${normalizeCurrency(currency)}`.trim();
+};
+
 export default function LoanInstallmentsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
@@ -82,7 +89,8 @@ export default function LoanInstallmentsPage() {
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
     { key: 'loanId', label: 'Loan ID' },
-    { key: 'amount', label: 'Amount' },
+    { key: 'amount', label: 'Amount', render: (row) => formatAmountWithCurrency(row.amount, row.currency || row.loan?.currency) },
+    { key: 'fineAmount', label: 'Fine', render: (row) => formatAmountWithCurrency(row.fineAmount, row.currency || row.loan?.currency) },
     { key: 'dueAt', label: 'Due at' },
     { key: 'repaymentStatus', label: 'Status' },
     {
@@ -253,8 +261,9 @@ export default function LoanInstallmentsPage() {
             rows={[
               { label: 'ID', value: selected?.id },
               { label: 'Loan ID', value: selected?.loanId },
-              { label: 'Amount', value: selected?.amount },
-              { label: 'Fine amount', value: selected?.fineAmount },
+              { label: 'Currency', value: normalizeCurrency(selected?.currency || selected?.loan?.currency) || '—' },
+              { label: 'Amount', value: formatAmountWithCurrency(selected?.amount, selected?.currency || selected?.loan?.currency) },
+              { label: 'Fine amount', value: formatAmountWithCurrency(selected?.fineAmount, selected?.currency || selected?.loan?.currency) },
               { label: 'Due at', value: selected?.dueAt },
               { label: 'Repayment status', value: selected?.repaymentStatus },
               { label: 'Created', value: selected?.createdAt },

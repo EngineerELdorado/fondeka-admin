@@ -174,6 +174,41 @@ export default function LoanApplicationsPage() {
     return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
+  const normalizeCurrency = (value) => String(value || '').trim().toUpperCase();
+
+  const formatMoney = (amount, currency) => `${formatAmount(amount)} ${normalizeCurrency(currency)}`.trim();
+
+  const getInstallmentPayments = (installment) => {
+    const payments = installment?.loanInstallmentPayments || installment?.installmentPayments || installment?.payments || [];
+    return Array.isArray(payments) ? payments : [];
+  };
+
+  const resolvePaymentFxRate = (payment) => payment?.fxRate ?? payment?.exchangeRate ?? payment?.billingFxRate ?? payment?.appliedFxRate;
+
+  const hasPaymentCurrencyMismatch = (payment) => {
+    const paidCurrency = normalizeCurrency(payment?.currency);
+    const billingCurrency = normalizeCurrency(payment?.billingCurrency);
+    return Boolean(paidCurrency && billingCurrency && paidCurrency !== billingCurrency);
+  };
+
+  const renderRepaymentBreakdown = (payments) => {
+    if (!payments.length) return '—';
+    return (
+      <div style={{ display: 'grid', gap: '0.35rem' }}>
+        {payments.map((payment, index) => (
+          <div key={payment?.id || payment?.transactionId || index} style={{ display: 'grid', gap: '0.15rem' }}>
+            <div>Paid: {formatMoney(payment?.amount, payment?.currency)}</div>
+            <div>Applied: {formatMoney(payment?.billingAmount ?? payment?.amount, payment?.billingCurrency || payment?.currency)}</div>
+            {(payment?.requestAmount !== null && payment?.requestAmount !== undefined) || payment?.requestCurrency ? (
+              <div>Requested: {formatMoney(payment?.requestAmount, payment?.requestCurrency)}</div>
+            ) : null}
+            {hasPaymentCurrencyMismatch(payment) ? <div>FX: {resolvePaymentFxRate(payment) ?? '—'}</div> : null}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   const hasUnpaidNextDueInstallment = (row) => {
     const status = String(row?.nextDueInstallment?.repaymentStatus || row?.nextDueInstallment?.status || '').toUpperCase();
     return row?.nextDueInstallment && status !== 'PAID';
@@ -786,13 +821,13 @@ export default function LoanApplicationsPage() {
               { label: 'ID', value: selected?.id },
               { label: 'Reference', value: selected?.loanReference },
               { label: 'Customer', value: selected?.customer },
-              { label: 'Given amount', value: `${formatAmount(selected?.givenAmount)} ${selected?.currency || ''}`.trim() },
-              { label: 'Interest amount', value: `${formatAmount(selected?.interestAmount)} ${selected?.currency || ''}`.trim() },
-              { label: 'Due amount', value: `${formatAmount(selected?.amount)} ${selected?.currency || ''}`.trim() },
-              { label: 'Paid amount', value: `${formatAmount(selected?.paidAmount)} ${selected?.currency || ''}`.trim() },
-              { label: 'Remaining balance', value: `${formatAmount(selected?.remainingBalance)} ${selected?.currency || ''}`.trim() },
-              { label: 'Total Fines', value: `${formatAmount(selected?.fineAmount)} ${selected?.currency || ''}`.trim() },
-              { label: 'Outstanding Fines', value: `${formatAmount(selected?.outstandingFineAmount)} ${selected?.currency || ''}`.trim() },
+              { label: 'Given amount', value: formatMoney(selected?.givenAmount, selected?.currency) },
+              { label: 'Interest amount', value: formatMoney(selected?.interestAmount, selected?.currency) },
+              { label: 'Due amount', value: formatMoney(selected?.amount, selected?.currency) },
+              { label: 'Paid amount', value: formatMoney(selected?.paidAmount, selected?.currency) },
+              { label: 'Remaining balance', value: formatMoney(selected?.remainingBalance, selected?.currency) },
+              { label: 'Total Fines', value: formatMoney(selected?.fineAmount, selected?.currency) },
+              { label: 'Outstanding Fines', value: formatMoney(selected?.outstandingFineAmount, selected?.currency) },
               { label: 'Type', value: selected?.loanType },
               { label: 'Status', value: selected?.applicationStatus },
               {
@@ -820,13 +855,14 @@ export default function LoanApplicationsPage() {
             <div style={{ fontWeight: 800, marginBottom: '0.35rem' }}>Installments</div>
             {selected?.loanInstallments?.length ? (
               <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '500px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '680px' }}>
                   <thead>
                     <tr style={{ textAlign: 'left', borderBottom: `1px solid var(--border)` }}>
                       <th style={{ padding: '0.4rem' }}>Due date</th>
                       <th style={{ padding: '0.4rem' }}>Amount</th>
                       <th style={{ padding: '0.4rem' }}>Fine</th>
                       <th style={{ padding: '0.4rem' }}>Status</th>
+                      <th style={{ padding: '0.4rem' }}>Repayments</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -855,11 +891,12 @@ export default function LoanApplicationsPage() {
                               )}
                             </div>
                           </td>
-                          <td style={{ padding: '0.45rem' }}>{`${formatAmount(inst.installmentAmount)} ${inst.currency || ''}`.trim()}</td>
-                          <td style={{ padding: '0.45rem' }}>{formatAmount(inst.installmentFineAmount)}</td>
+                          <td style={{ padding: '0.45rem' }}>{formatMoney(inst.installmentAmount, inst.currency || selected?.currency)}</td>
+                          <td style={{ padding: '0.45rem' }}>{formatMoney(inst.installmentFineAmount, inst.currency || selected?.currency)}</td>
                           <td style={{ padding: '0.45rem' }}>
                             <RepaymentBadge value={inst.repaymentStatus || '—'} />
                           </td>
+                          <td style={{ padding: '0.45rem' }}>{renderRepaymentBreakdown(getInstallmentPayments(inst))}</td>
                         </tr>
                       );
                     })}

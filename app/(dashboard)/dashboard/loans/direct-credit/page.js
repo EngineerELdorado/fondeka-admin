@@ -22,6 +22,7 @@ const pickLoanProductName = (item) =>
   item?.title || item?.name || item?.displayName || item?.code || `Loan product #${item?.id}`;
 
 const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
+const normalizeCurrency = (value) => String(value || 'USD').trim().toUpperCase();
 
 export default function DirectLoanCreditPage() {
   const [form, setForm] = useState(emptyForm);
@@ -57,6 +58,11 @@ export default function DirectLoanCreditPage() {
   const transactionId = result?.transactionId;
   const loanReference = result?.loanDetails?.loanReference || result?.loanDetails?.reference || result?.loanDetails?.loanRef || '';
   const loanId = result?.loanDetails?.loanId || result?.loanDetails?.id || '';
+  const selectedLoanProduct = useMemo(
+    () => loanProducts.find((item) => String(item?.id) === String(form.loanProductId)) || null,
+    [form.loanProductId, loanProducts]
+  );
+  const selectedLoanCurrency = normalizeCurrency(selectedLoanProduct?.currency);
 
   const submit = async () => {
     setError(null);
@@ -175,14 +181,14 @@ export default function DirectLoanCreditPage() {
               <option value="">Select loan product</option>
               {loanProducts.map((item) => (
                 <option key={item.id} value={item.id}>
-                  {pickLoanProductName(item)} ({item.id})
+                  {pickLoanProductName(item)} ({item.id}) - {normalizeCurrency(item.currency)}
                 </option>
               ))}
             </select>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="amount">Amount</label>
+            <label htmlFor="amount">Amount ({selectedLoanCurrency})</label>
             <input
               id="amount"
               type="number"
@@ -193,6 +199,9 @@ export default function DirectLoanCreditPage() {
               onChange={(e) => setForm((prev) => ({ ...prev, amount: e.target.value }))}
               disabled={submitting}
             />
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Interpreted in the selected loan product currency.
+            </div>
           </div>
         </div>
 

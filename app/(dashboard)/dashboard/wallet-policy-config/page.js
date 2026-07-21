@@ -80,6 +80,7 @@ const formatUsdValue = (value) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed.toFixed(2) : String(value);
 };
+const normalizeCurrencyCode = (value) => String(value || '').trim().toUpperCase();
 const normalizeList = (response) => {
   if (Array.isArray(response)) return response;
   if (Array.isArray(response?.items)) return response.items;
@@ -99,6 +100,15 @@ const normalizeRailMap = (value) => {
     Object.entries(value)
       .map(([key, enabled]) => [String(key || '').trim().toUpperCase(), enabled === true])
       .filter(([key]) => key.includes(':'))
+      .sort(([left], [right]) => left.localeCompare(right))
+  );
+};
+const normalizeDepositPromptThresholdAmounts = (value) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value)
+      .map(([currency, amount]) => [normalizeCurrencyCode(currency), formatUsdValue(amount)])
+      .filter(([currency, amount]) => currency && amount !== '')
       .sort(([left], [right]) => left.localeCompare(right))
   );
 };
@@ -254,12 +264,15 @@ export default function WalletPolicyConfigPage() {
   const [sendCryptoAutoPayoutRails, setSendCryptoAutoPayoutRails] = useState({});
   const [cryptoProducts, setCryptoProducts] = useState([]);
   const [cryptoNetworks, setCryptoNetworks] = useState([]);
+  const [currencyProducts, setCurrencyProducts] = useState([]);
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [railDraftCurrency, setRailDraftCurrency] = useState('');
   const [railDraftNetwork, setRailDraftNetwork] = useState('');
   const [railDraftEnabled, setRailDraftEnabled] = useState(true);
   const [reviewPromptCompletedTransactionsThreshold, setReviewPromptCompletedTransactionsThreshold] = useState('');
+  const [showDepositPrompt, setShowDepositPrompt] = useState(false);
   const [depositPromptThresholdAmount, setDepositPromptThresholdAmount] = useState('');
+  const [depositPromptThresholdAmounts, setDepositPromptThresholdAmounts] = useState({});
   const [transactionsEligibleForLoanEligibility, setTransactionsEligibleForLoanEligibility] = useState(true);
   const [autoRefundBlockedActions, setAutoRefundBlockedActions] = useState([]);
   const [autoRefundTimeoutAllowedActions, setAutoRefundTimeoutAllowedActions] = useState([]);
@@ -400,22 +413,48 @@ export default function WalletPolicyConfigPage() {
     [paymentMethods]
   );
 
+  const activeFiatCurrencyOptions = useMemo(() => {
+    const byCurrency = new Map();
+    for (const product of normalizeList(currencyProducts)) {
+      if (product?.active === false) continue;
+      const currency = normalizeCurrencyCode(product?.currency);
+      if (!currency || byCurrency.has(currency)) continue;
+      byCurrency.set(currency, {
+        currency,
+        label: String(product?.displayName || currency).trim() || currency
+      });
+    }
+    for (const currency of Object.keys(depositPromptThresholdAmounts || {})) {
+      const normalizedCurrency = normalizeCurrencyCode(currency);
+      if (normalizedCurrency && !byCurrency.has(normalizedCurrency)) {
+        byCurrency.set(normalizedCurrency, { currency: normalizedCurrency, label: normalizedCurrency });
+      }
+    }
+    return Array.from(byCurrency.values()).sort((left, right) => {
+      if (left.currency === 'USD') return -1;
+      if (right.currency === 'USD') return 1;
+      return left.currency.localeCompare(right.currency);
+    });
+  }, [currencyProducts, depositPromptThresholdAmounts]);
+
   const loadConfig = async () => {
     setLoading(true);
     setError(null);
     setInfo(null);
     try {
       const params = new URLSearchParams({ page: '0', size: '250' });
-      const [res, cryptoProductsRes, cryptoNetworksRes, paymentMethodsRes] = await Promise.all([
+      const [res, cryptoProductsRes, cryptoNetworksRes, paymentMethodsRes, currencyProductsRes] = await Promise.all([
         api.walletPolicyConfig.get(),
         api.cryptoProducts.list(params),
         api.cryptoNetworks.list(params),
-        api.paymentMethods.list(params)
+        api.paymentMethods.list(params),
+        api.currencyProducts.list(params)
       ]);
       setConfigSnapshot(res || {});
       setCryptoProducts(normalizeList(cryptoProductsRes));
       setCryptoNetworks(normalizeList(cryptoNetworksRes));
       setPaymentMethods(normalizeList(paymentMethodsRes));
+      setCurrencyProducts(normalizeList(currencyProductsRes));
       const value = res?.interTransferCooldownMinutes;
       setCooldown(value === null || value === undefined ? '' : String(value));
       const incomingActions = Array.isArray(res?.payoutRateLimitActions) ? res.payoutRateLimitActions : [];
@@ -442,7 +481,9 @@ export default function WalletPolicyConfigPage() {
       setCardDetailsProviderFailureCacheFallbackEnabled(res?.cardDetailsProviderFailureCacheFallbackEnabled !== false);
       setSendCryptoExternalProviderEnabled(Boolean(res?.sendCryptoExternalProviderEnabled));
       setSendCryptoAutoPayoutRails(normalizeRailMap(res?.sendCryptoAutoPayoutRails));
+      setShowDepositPrompt(Boolean(res?.showDepositPrompt));
       setDepositPromptThresholdAmount(formatUsdValue(res?.depositPromptThresholdAmount));
+      setDepositPromptThresholdAmounts(normalizeDepositPromptThresholdAmounts(res?.depositPromptThresholdAmounts));
       setTransactionsEligibleForLoanEligibility(res?.transactionsEligibleForLoanEligibility !== false);
       const reviewPromptThreshold = res?.reviewPromptCompletedTransactionsThreshold;
       setReviewPromptCompletedTransactionsThreshold(
@@ -589,6 +630,18 @@ export default function WalletPolicyConfigPage() {
     const payoutKycThresholdRaw = String(payoutKycThresholdUsd || '').trim();
     const reviewPromptThresholdRaw = String(reviewPromptCompletedTransactionsThreshold || '').trim();
     const depositPromptThresholdRaw = String(depositPromptThresholdAmount || '').trim();
+    const normalizedDepositPromptThresholdAmounts = {};
+    for (const [currency, amount] of Object.entries(depositPromptThresholdAmounts || {})) {
+      const normalizedCurrency = normalizeCurrencyCode(currency);
+      const rawAmount = String(amount ?? '').trim();
+      if (!normalizedCurrency || rawAmount === '') continue;
+      const parsedAmount = Number(rawAmount);
+      if (!Number.isFinite(parsedAmount) || parsedAmount < 0) {
+        setError(`Deposit prompt threshold for ${normalizedCurrency} must be zero or a positive amount.`);
+        return;
+      }
+      normalizedDepositPromptThresholdAmounts[normalizedCurrency] = parsedAmount.toFixed(2);
+    }
     const normalizedCardDetailsFetchMode = normalizeCardDetailsFetchMode(cardDetailsFetchMode);
     const cardDetailsCacheMaxAgeSecondsRaw = String(cardDetailsCacheMaxAgeSeconds || '').trim();
     const cardDetailsCacheMaxAgeSecondsParsed =
@@ -639,6 +692,10 @@ export default function WalletPolicyConfigPage() {
       (!Number.isInteger(reviewPromptThresholdParsed) || reviewPromptThresholdParsed < MIN_REVIEW_PROMPT_THRESHOLD)
     ) {
       setError(`Review prompt completed transactions threshold must be a positive integer greater than or equal to ${MIN_REVIEW_PROMPT_THRESHOLD}.`);
+      return;
+    }
+    if (depositPromptThresholdRaw !== '' && (!Number.isFinite(depositPromptThresholdParsed) || depositPromptThresholdParsed < 0)) {
+      setError('Legacy deposit prompt threshold must be zero or a positive USD amount.');
       return;
     }
     const normalizedCollectionSourceRiskRules = [];
@@ -730,12 +787,14 @@ export default function WalletPolicyConfigPage() {
         cardDetailsProviderFailureCacheFallbackEnabled: Boolean(cardDetailsProviderFailureCacheFallbackEnabled),
         sendCryptoExternalProviderEnabled: Boolean(sendCryptoExternalProviderEnabled),
         sendCryptoAutoPayoutRails: normalizedSendCryptoAutoPayoutRails,
+        showDepositPrompt: Boolean(showDepositPrompt),
         depositPromptThresholdAmount:
           depositPromptThresholdRaw === ''
             ? null
             : Number.isFinite(depositPromptThresholdParsed)
               ? depositPromptThresholdParsed.toFixed(2)
               : depositPromptThresholdRaw,
+        depositPromptThresholdAmounts: normalizedDepositPromptThresholdAmounts,
         transactionsEligibleForLoanEligibility: Boolean(transactionsEligibleForLoanEligibility),
         reviewPromptCompletedTransactionsThreshold:
           reviewPromptThresholdRaw === '' ? null : reviewPromptThresholdParsed,
@@ -2155,9 +2214,14 @@ export default function WalletPolicyConfigPage() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gap: '0.5rem', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '12px' }}>
+          <div style={{ display: 'grid', gap: '0.75rem', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-              <div style={{ fontWeight: 700 }}>Home Deposit Prompt Threshold</div>
+              <div style={{ display: 'grid', gap: '0.2rem' }}>
+                <div style={{ fontWeight: 700 }}>Deposit prompt thresholds</div>
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                  Configure wallet-specific deposit prompt thresholds for active fiat currencies.
+                </div>
+              </div>
               <span
                 style={{
                   display: 'inline-flex',
@@ -2166,23 +2230,99 @@ export default function WalletPolicyConfigPage() {
                   borderRadius: '999px',
                   fontSize: '12px',
                   fontWeight: 700,
-                  background: String(depositPromptThresholdAmount || '').trim() !== '' ? '#ecfccb' : '#f3f4f6',
-                  color: String(depositPromptThresholdAmount || '').trim() !== '' ? '#3f6212' : '#374151'
+                  background: showDepositPrompt ? '#ecfccb' : '#f3f4f6',
+                  color: showDepositPrompt ? '#3f6212' : '#374151'
                 }}
               >
-                {String(depositPromptThresholdAmount || '').trim() !== '' ? 'Threshold-based' : 'Client fallback'}
+                {showDepositPrompt ? 'Prompts enabled' : 'Prompts disabled'}
               </span>
             </div>
 
-            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-              Visibility is managed by `wallet.deposit_prompt`.
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+              <input
+                type="checkbox"
+                checked={showDepositPrompt}
+                onChange={(e) => setShowDepositPrompt(e.target.checked)}
+                disabled={loading || saving}
+              />
+              Enable deposit prompts globally
+            </label>
+
+            <div style={{ display: 'grid', gap: '0.55rem' }}>
+              <div style={{ display: 'grid', gap: '0.2rem' }}>
+                <div style={{ fontWeight: 700 }}>Currency thresholds</div>
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                  Blank values are omitted from `depositPromptThresholdAmounts`. Wallets without their own threshold will not show the deposit prompt.
+                </div>
+              </div>
+
+              {activeFiatCurrencyOptions.length > 0 ? (
+                <div style={{ display: 'grid', gap: '0.5rem' }}>
+                  {activeFiatCurrencyOptions.map((product) => {
+                    const currency = product.currency;
+                    return (
+                      <div
+                        key={currency}
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'minmax(160px, 1fr) minmax(180px, 1fr)',
+                          gap: '0.6rem',
+                          alignItems: 'end'
+                        }}
+                      >
+                        <div style={{ display: 'grid', gap: '0.1rem' }}>
+                          <div style={{ fontWeight: 800 }}>{currency}</div>
+                          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{product.label}</div>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                          <label htmlFor={`depositPromptThresholdAmounts-${currency}`}>Threshold amount ({currency})</label>
+                          <input
+                            id={`depositPromptThresholdAmounts-${currency}`}
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            inputMode="decimal"
+                            value={depositPromptThresholdAmounts?.[currency] ?? ''}
+                            onChange={(e) => {
+                              const nextValue = e.target.value;
+                              setDepositPromptThresholdAmounts((prev) => ({
+                                ...(prev && typeof prev === 'object' ? prev : {}),
+                                [currency]: nextValue
+                              }));
+                            }}
+                            onBlur={() => {
+                              setDepositPromptThresholdAmounts((prev) => {
+                                const next = { ...(prev && typeof prev === 'object' ? prev : {}) };
+                                const nextValue = formatUsdValue(String(next[currency] ?? '').trim());
+                                if (nextValue === '') {
+                                  delete next[currency];
+                                } else {
+                                  next[currency] = nextValue;
+                                }
+                                return next;
+                              });
+                            }}
+                            placeholder={currency === 'USD' ? '5.00' : '0.00'}
+                            disabled={loading || saving}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ padding: '0.85rem', border: '1px dashed var(--border)', borderRadius: '12px', color: 'var(--muted)', fontSize: '13px' }}>
+                  No active fiat currency products found.
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxWidth: '320px' }}>
-              <label htmlFor="depositPromptThresholdAmount">Deposit Prompt Threshold Amount</label>
+              <label htmlFor="depositPromptThresholdAmount">Legacy USD threshold</label>
               <input
                 id="depositPromptThresholdAmount"
                 type="number"
+                min="0"
                 step="0.01"
                 inputMode="decimal"
                 value={depositPromptThresholdAmount}
@@ -2192,7 +2332,7 @@ export default function WalletPolicyConfigPage() {
                 disabled={loading || saving}
               />
               <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-                Show the prompt when balance is below this amount. Leave empty for client fallback.
+                Backward-compatible USD-only threshold. New clients should use the currency thresholds above.
               </div>
             </div>
           </div>

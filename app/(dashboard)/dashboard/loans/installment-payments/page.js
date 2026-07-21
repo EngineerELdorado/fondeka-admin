@@ -46,6 +46,22 @@ const DetailGrid = ({ rows }) => (
   </div>
 );
 
+const normalizeCurrency = (value) => String(value || '').trim().toUpperCase();
+
+const formatAmountWithCurrency = (amount, currency) => {
+  if (amount === null || amount === undefined || amount === '') return '—';
+  return `${amount} ${normalizeCurrency(currency)}`.trim();
+};
+
+const resolveFxRate = (row) => row?.fxRate ?? row?.exchangeRate ?? row?.billingFxRate ?? row?.appliedFxRate;
+
+const hasCurrencyMismatch = (row) => {
+  const paidCurrency = normalizeCurrency(row?.currency);
+  const billingCurrency = normalizeCurrency(row?.billingCurrency);
+  if (!paidCurrency || !billingCurrency) return false;
+  return paidCurrency !== billingCurrency;
+};
+
 export default function LoanInstallmentPaymentsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
@@ -86,7 +102,12 @@ export default function LoanInstallmentPaymentsPage() {
       { key: 'id', label: 'ID' },
       { key: 'loanInstallmentId', label: 'Installment ID' },
       { key: 'transactionId', label: 'Transaction ID' },
-      { key: 'amount', label: 'Amount' },
+      { key: 'amount', label: 'Paid', render: (row) => formatAmountWithCurrency(row.amount, row.currency) },
+      {
+        key: 'billingAmount',
+        label: 'Applied',
+        render: (row) => formatAmountWithCurrency(row.billingAmount ?? row.amount, row.billingCurrency || row.currency)
+      },
       { key: 'paidAt', label: 'Paid at' },
       {
         key: 'actions',
@@ -286,7 +307,10 @@ export default function LoanInstallmentPaymentsPage() {
               { label: 'ID', value: selected?.id },
               { label: 'Installment ID', value: selected?.loanInstallmentId },
               { label: 'Transaction ID', value: selected?.transactionId },
-              { label: 'Amount', value: selected?.amount },
+              { label: 'Paid amount', value: formatAmountWithCurrency(selected?.amount, selected?.currency) },
+              { label: 'Applied to loan', value: formatAmountWithCurrency(selected?.billingAmount ?? selected?.amount, selected?.billingCurrency || selected?.currency) },
+              { label: 'Requested amount', value: formatAmountWithCurrency(selected?.requestAmount, selected?.requestCurrency) },
+              ...(hasCurrencyMismatch(selected) ? [{ label: 'FX rate', value: resolveFxRate(selected) ?? '—' }] : []),
               { label: 'Paid at', value: selected?.paidAt }
             ]}
           />
