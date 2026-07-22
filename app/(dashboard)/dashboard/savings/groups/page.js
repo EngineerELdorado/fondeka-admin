@@ -13,7 +13,7 @@ import {
   TypeBadge,
   formatCount,
   formatDate,
-  formatMoney,
+  formatUsdReferenceAmount,
   pickFirst
 } from '@/components/SavingsAdmin';
 import { api } from '@/lib/api';
@@ -162,7 +162,7 @@ export default function GroupSavingsPage() {
       { key: 'pending', label: t('savings.groups.pendingContributions'), render: (row) => formatCount(row?.pendingContributionCount) },
       { key: 'paid', label: t('savings.groups.paidContributions'), render: (row) => formatCount(row?.paidContributionCount) },
       { key: 'overdue', label: t('savings.groups.overdueContributions'), render: (row) => formatCount(row?.overdueContributionCount) },
-      { key: 'treasuryBalance', label: t('savings.groups.treasuryBalance'), render: (row) => (getGroupType(row) === 'AVEC' ? formatMoney(getTreasuryBalance(row)) : '—') },
+      { key: 'treasuryBalance', label: `${t('savings.groups.treasuryBalance')} (USD ref)`, render: (row) => (getGroupType(row) === 'AVEC' ? formatUsdReferenceAmount(row, 'usdTreasuryBalance', 'treasuryBalance') : '—') },
       { key: 'createdAt', label: t('savings.groups.created'), render: (row) => formatDate(pickFirst(row?.createdAt, row?.createdDate)) },
       {
         key: 'actions',

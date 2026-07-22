@@ -33,6 +33,40 @@ export const formatMoney = (value, currency = 'USD') => {
   }
 };
 
+export const normalizeCurrency = (value) => String(value || '').trim().toUpperCase();
+
+export const hasMoneyValue = (value) => value !== null && value !== undefined && value !== '';
+
+export const isUsableReferenceValue = (referenceValue, localValue, localCurrency) => {
+  if (!hasMoneyValue(referenceValue)) return false;
+  const referenceNumber = Number(referenceValue);
+  const localNumber = Number(localValue);
+  return !(referenceNumber === 0 && normalizeCurrency(localCurrency) !== 'USD' && Number.isFinite(localNumber) && localNumber !== 0);
+};
+
+export const formatUsdReferenceAmount = (row, referenceField, localField, currencyField = 'currency') => {
+  const localCurrency = normalizeCurrency(row?.[currencyField]);
+  if (isUsableReferenceValue(row?.[referenceField], row?.[localField], localCurrency)) {
+    return formatMoney(row?.[referenceField], normalizeCurrency(row?.referenceCurrency) || 'USD');
+  }
+  if (localCurrency === 'USD') return formatMoney(row?.[localField], 'USD');
+  return '—';
+};
+
+export const formatLocalAndReferenceMoney = (localValue, localCurrency, referenceValue, referenceCurrency = 'USD') => {
+  const formattedLocal = formatMoney(localValue, normalizeCurrency(localCurrency) || 'USD');
+  if (formattedLocal === '—') return formattedLocal;
+  const normalizedLocalCurrency = normalizeCurrency(localCurrency);
+  const normalizedReferenceCurrency = normalizeCurrency(referenceCurrency) || 'USD';
+  if (normalizedLocalCurrency === normalizedReferenceCurrency || !isUsableReferenceValue(referenceValue, localValue, normalizedLocalCurrency)) return formattedLocal;
+  return (
+    <span>
+      <span>{formattedLocal}</span>
+      <span style={{ color: 'var(--muted)' }}> ({formatMoney(referenceValue, normalizedReferenceCurrency)})</span>
+    </span>
+  );
+};
+
 export const formatCount = (value) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed.toLocaleString() : '—';

@@ -47,11 +47,12 @@ const formatEnumLabel = (value) => {
     .join(' ');
 };
 
-const getReferralCostValue = (row) => Number(row?.referralCost) || 0;
+const getReferralCostValue = (row) => Number(row?.usdReferralCost ?? row?.referralCost) || 0;
 const getRevenueValue = (row) => {
+  if (row?.usdRevenue !== undefined && row?.usdRevenue !== null) return Number(row.usdRevenue) || 0;
   if (row?.revenue !== undefined && row?.revenue !== null) return Number(row.revenue) || 0;
-  const fee = Number(row?.fee ?? row?.feeRevenue) || 0;
-  const commission = Number(row?.commission ?? row?.commissionRevenue) || 0;
+  const fee = Number(row?.usdInternalFeeAmount ?? row?.usdFee ?? row?.fee ?? row?.feeRevenue) || 0;
+  const commission = Number(row?.usdCommissionAmount ?? row?.usdCommission ?? row?.commission ?? row?.commissionRevenue) || 0;
   return fee + commission;
 };
 const getPaidRevenueValue = (row) => {
@@ -593,6 +594,7 @@ export default function DashboardPage() {
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
         .map((p) => ({
           ...p,
+          revenue: getRevenueValue(p),
           paidRevenue: getPaidRevenueValue(p),
           unpaidRevenue: getUnpaidRevenueValue(p),
           referralCost: getReferralCostValue(p),

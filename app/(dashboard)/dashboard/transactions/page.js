@@ -618,23 +618,48 @@ export default function TransactionsPage() {
     return num.toFixed(8).replace(/\.?0+$/, '');
   };
 
-  const formatMoneyAmount = (value) => {
+  const formatMoneyAmount = useCallback((value) => {
     if (value === null || value === undefined || value === '') return '—';
     const num = Number(value);
     if (!Number.isFinite(num)) return String(value);
     return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
-  };
+  }, []);
+
+  const hasValue = (value) => value !== null && value !== undefined && value !== '';
+
+  const normalizeCurrency = (value) => String(value || '').trim().toUpperCase();
+
+  const formatMoneyWithCurrency = useCallback((amount, currency) => {
+    if (!hasValue(amount)) return '—';
+    return `${formatMoneyAmount(amount)} ${normalizeCurrency(currency)}`.trim();
+  }, [formatMoneyAmount]);
+
+  const formatUsdAmount = useCallback((amount) => formatMoneyWithCurrency(amount, 'USD'), [formatMoneyWithCurrency]);
+
+  const formatLocalAndUsd = useCallback((row, localField, localCurrencyField = 'currency', usdField = `usd${localField.charAt(0).toUpperCase()}${localField.slice(1)}`) => {
+    const local = formatMoneyWithCurrency(row?.[localField], row?.[localCurrencyField]);
+    const usd = row?.[usdField];
+    const localCurrency = normalizeCurrency(row?.[localCurrencyField]);
+    if (!hasValue(usd) || localCurrency === 'USD') return local;
+    return (
+      <span>
+        <span>{local}</span>
+        <span style={{ color: 'var(--muted)' }}> ({formatUsdAmount(usd)})</span>
+      </span>
+    );
+  }, [formatMoneyWithCurrency, formatUsdAmount]);
 
   const hasLoanEligibilitySnapshot = Boolean(
     selected?.loanEligibilityRecorded ||
-    selected?.loanEligibilityRevenueAmount !== null ||
-    selected?.loanEligibilityRevenueAmount !== undefined ||
-    selected?.loanEligibilityAmount !== null ||
-    selected?.loanEligibilityAmount !== undefined ||
-    selected?.loanEligibilityReversalAmount !== null ||
-    selected?.loanEligibilityReversalAmount !== undefined ||
-    selected?.loanEligibilityNetAmount !== null ||
-    selected?.loanEligibilityNetAmount !== undefined ||
+    hasValue(selected?.loanEligibilityRevenueAmount) ||
+    hasValue(selected?.loanEligibilityRevenueCurrency) ||
+    hasValue(selected?.revenueAmount) ||
+    hasValue(selected?.loanEligibilitySourceRevenueAmount) ||
+    hasValue(selected?.loanEligibilitySourceRevenueCurrency) ||
+    hasValue(selected?.sourceRevenueAmount) ||
+    hasValue(selected?.loanEligibilityAmount) ||
+    hasValue(selected?.loanEligibilityReversalAmount) ||
+    hasValue(selected?.loanEligibilityNetAmount) ||
     selected?.loanEligibilityRuleSource ||
     selected?.loanEligibilityRuleConfigId
   );
@@ -1028,12 +1053,12 @@ export default function TransactionsPage() {
       {
         key: 'amount',
         label: 'Amount',
-        render: (row) => `${row.amount ?? '—'} ${row.currency || ''}`.trim()
+        render: (row) => formatLocalAndUsd(row, 'amount', 'currency', 'usdAmount')
       },
       {
         key: 'referralCostAmount',
         label: 'Referral cost',
-        render: (row) => (row.referralCostAmount === null || row.referralCostAmount === undefined ? '—' : `${row.referralCostAmount} ${row.currency || ''}`.trim())
+        render: (row) => formatMoneyWithCurrency(row.referralCostAmount, row.currency)
       },
       {
         key: 'paymentMethodName',
@@ -1100,7 +1125,7 @@ export default function TransactionsPage() {
         )
       }
     ],
-    [openTransactionOwnerAccount]
+    [formatLocalAndUsd, formatMoneyWithCurrency, openTransactionOwnerAccount]
   );
 
   const openDetail = (row) => {
@@ -2173,7 +2198,8 @@ export default function TransactionsPage() {
                 { label: 'Effect', value: selected?.balanceEffect },
                 { label: 'Status', value: selected?.status },
                 { label: 'Updated at', value: formatDateTime(selected?.updatedAt) },
-                { label: 'Amount', value: `${selected?.amount ?? '—'} ${selected?.currency || ''}`.trim() },
+                { label: 'Amount', value: formatLocalAndUsd(selected, 'amount', 'currency', 'usdAmount') },
+                { label: 'USD FX rate', value: selected?.usdFxRate ?? '—' },
                 ...(isSelectedLoanTransaction
                   ? [
                       {
@@ -2181,24 +2207,44 @@ export default function TransactionsPage() {
                         value:
                           selected?.expectedInterestAmount === null || selected?.expectedInterestAmount === undefined
                             ? '—'
-                            : `${selected.expectedInterestAmount} ${selected?.currency || ''}`.trim()
+                            : formatMoneyWithCurrency(selected.expectedInterestAmount, selected?.currency)
                       }
                     ]
                   : []),
                 { label: 'Account ref', value: <CopyableValue value={selected?.accountReference} label="Account ref" onCopy={copyToClipboard} /> },
                 { label: 'Account balance', value: accountLoading ? 'Loading…' : accountSummary?.balance ?? '—' },
-                { label: 'Gross amount', value: selected?.grossAmount },
-                { label: 'External fee', value: selected?.externalFeeAmount },
-                { label: 'Internal fee', value: selected?.internalFeeAmount },
-                { label: 'Other fees', value: selected?.otherFeesAmount },
-                { label: 'All fees', value: selected?.allFees },
-                { label: 'Commission amount', value: selected?.commissionAmount },
+                { label: 'Gross amount', value: formatLocalAndUsd(selected, 'grossAmount', 'currency', 'usdGrossAmount') },
+                { label: 'External fee', value: formatLocalAndUsd(selected, 'externalFeeAmount', 'currency', 'usdExternalFeeAmount') },
+                { label: 'Internal fee', value: formatLocalAndUsd(selected, 'internalFeeAmount', 'currency', 'usdInternalFeeAmount') },
+                { label: 'Other fees', value: formatMoneyWithCurrency(selected?.otherFeesAmount, selected?.currency) },
+                { label: 'All fees', value: formatLocalAndUsd(selected, 'allFees', 'currency', 'usdAllFees') },
+                { label: 'Commission amount', value: formatLocalAndUsd(selected, 'commissionAmount', 'currency', 'usdCommissionAmount') },
+                {
+                  label: 'Platform revenue (local)',
+                  value:
+                    hasValue(selected?.internalFeeAmount) || hasValue(selected?.commissionAmount)
+                      ? formatMoneyWithCurrency((Number(selected?.internalFeeAmount) || 0) + (Number(selected?.commissionAmount) || 0), selected?.currency)
+                      : '—'
+                },
+                {
+                  label: 'Platform revenue (USD)',
+                  value:
+                    hasValue(selected?.usdInternalFeeAmount) || hasValue(selected?.usdCommissionAmount)
+                      ? formatUsdAmount((Number(selected?.usdInternalFeeAmount) || 0) + (Number(selected?.usdCommissionAmount) || 0))
+                      : '—'
+                },
+                { label: 'Settlement amount', value: formatLocalAndUsd(selected, 'settlementAmount', 'currency', 'usdSettlementAmount') },
+                { label: 'Settlement fees', value: formatLocalAndUsd(selected, 'settlementAllFees', 'currency', 'usdSettlementAllFees') },
+                { label: 'Settlement net', value: formatLocalAndUsd(selected, 'settlementNet', 'currency', 'usdSettlementNet') },
+                { label: 'Request amount', value: formatMoneyWithCurrency(selected?.requestAmount, selected?.requestCurrency) },
+                { label: 'Billing amount', value: formatMoneyWithCurrency(selected?.billingAmount, selected?.billingCurrency) },
+                { label: 'Billing FX rate', value: selected?.billingFxRate ?? '—' },
                 {
                   label: 'Referral cost',
                   value:
                     selected?.referralCostAmount === null || selected?.referralCostAmount === undefined
                       ? '—'
-                      : `${selected.referralCostAmount} ${selected?.currency || ''}`.trim()
+                      : formatMoneyWithCurrency(selected.referralCostAmount, selected?.currency)
                 },
                 { label: 'Customer', value: selected?.customer || '—' },
                 { label: 'Username', value: selected?.username || '—' },
@@ -2266,7 +2312,20 @@ export default function TransactionsPage() {
                   <DetailGrid
                     rows={[
                       { label: 'Recorded', value: selected?.loanEligibilityRecorded === true ? 'Yes' : selected?.loanEligibilityRecorded === false ? 'No' : '—' },
-                      { label: 'Revenue amount', value: formatMoneyAmount(selected?.loanEligibilityRevenueAmount) },
+                      {
+                        label: 'Source revenue',
+                        value: formatMoneyWithCurrency(
+                          selected?.loanEligibilitySourceRevenueAmount ?? selected?.sourceRevenueAmount,
+                          selected?.loanEligibilitySourceRevenueCurrency ?? selected?.sourceRevenueCurrency
+                        )
+                      },
+                      {
+                        label: 'Revenue amount',
+                        value: formatMoneyWithCurrency(
+                          selected?.loanEligibilityRevenueAmount ?? selected?.revenueAmount,
+                          selected?.loanEligibilityRevenueCurrency ?? selected?.revenueCurrency ?? 'USD'
+                        )
+                      },
                       {
                         label: 'Eligibility % of revenue',
                         value:
@@ -2274,9 +2333,9 @@ export default function TransactionsPage() {
                             ? '—'
                             : `${formatMoneyAmount(selected?.loanEligibilityPercentOfRevenue)}%`
                       },
-                      { label: 'Eligibility amount', value: formatMoneyAmount(selected?.loanEligibilityAmount) },
-                      { label: 'Reversal amount', value: formatMoneyAmount(selected?.loanEligibilityReversalAmount) },
-                      { label: 'Net amount', value: formatMoneyAmount(selected?.loanEligibilityNetAmount) },
+                      { label: 'Eligibility amount', value: formatMoneyWithCurrency(selected?.loanEligibilityAmount, selected?.loanEligibilityCurrency || 'USD') },
+                      { label: 'Reversal amount', value: formatMoneyWithCurrency(selected?.loanEligibilityReversalAmount, selected?.loanEligibilityCurrency || 'USD') },
+                      { label: 'Net amount', value: formatMoneyWithCurrency(selected?.loanEligibilityNetAmount, selected?.loanEligibilityCurrency || 'USD') },
                       { label: 'Rule source', value: selected?.loanEligibilityRuleSource || '—' },
                       { label: 'Rule config ID', value: selected?.loanEligibilityRuleConfigId ?? '—' },
                       {
@@ -2975,7 +3034,7 @@ export default function TransactionsPage() {
                 { label: 'Transaction ID', value: selected?.transactionId || selected?.id },
                 { label: 'Reference', value: selected?.reference },
                 { label: 'Status', value: selected?.status },
-                { label: 'Amount', value: `${selected?.amount ?? '—'} ${selected?.currency || ''}`.trim() },
+                { label: 'Amount', value: formatLocalAndUsd(selected, 'amount', 'currency', 'usdAmount') },
                 { label: 'Method', value: selected?.paymentMethodName || '—' }
               ]}
             />
@@ -3287,7 +3346,7 @@ export default function TransactionsPage() {
               </div>
               <div>
                 <span style={{ color: 'var(--muted)' }}>Amount:</span>{' '}
-                <span style={{ fontWeight: 800 }}>{`${selected?.amount ?? '—'} ${selected?.currency || ''}`.trim()}</span>
+                <span style={{ fontWeight: 800 }}>{formatLocalAndUsd(selected, 'amount', 'currency', 'usdAmount')}</span>
               </div>
             </div>
 

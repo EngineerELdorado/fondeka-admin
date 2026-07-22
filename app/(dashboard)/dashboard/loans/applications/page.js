@@ -176,7 +176,36 @@ export default function LoanApplicationsPage() {
 
   const normalizeCurrency = (value) => String(value || '').trim().toUpperCase();
 
-  const formatMoney = (amount, currency) => `${formatAmount(amount)} ${normalizeCurrency(currency)}`.trim();
+  const hasAmount = (value) => value !== null && value !== undefined && value !== '';
+
+  const isUsableUsdReference = (row, usdField, localField) => {
+    if (!hasAmount(row?.[usdField])) return false;
+    const usdNumber = Number(row?.[usdField]);
+    const localNumber = Number(row?.[localField]);
+    return !(usdNumber === 0 && normalizeCurrency(row?.currency) !== 'USD' && Number.isFinite(localNumber) && localNumber !== 0);
+  };
+
+  const formatMoney = (amount, currency) => {
+    if (!hasAmount(amount)) return '—';
+    return `${formatAmount(amount)} ${normalizeCurrency(currency)}`.trim();
+  };
+
+  const formatUsdReference = (row, usdField, localField) => {
+    if (isUsableUsdReference(row, usdField, localField)) return formatMoney(row?.[usdField], row?.referenceCurrency || 'USD');
+    if (normalizeCurrency(row?.currency) === 'USD') return formatMoney(row?.[localField], 'USD');
+    return '—';
+  };
+
+  const formatLocalAndUsdReference = (row, localField, usdField) => {
+    const local = formatMoney(row?.[localField], row?.currency);
+    if (local === '—' || normalizeCurrency(row?.currency) === 'USD' || !isUsableUsdReference(row, usdField, localField)) return local;
+    return (
+      <span>
+        <span>{local}</span>
+        <span style={{ color: 'var(--muted)' }}> ({formatMoney(row?.[usdField], row?.referenceCurrency || 'USD')})</span>
+      </span>
+    );
+  };
 
   const getInstallmentPayments = (installment) => {
     const payments = installment?.loanInstallmentPayments || installment?.installmentPayments || installment?.payments || [];
@@ -279,13 +308,19 @@ export default function LoanApplicationsPage() {
         loanType: item.loan?.loanType || item.loanType,
         applicationStatus: item.loan?.applicationStatus || item.applicationStatus,
         amount: item.loan?.amount ?? item.amount,
+        usdAmount: item.loan?.usdAmount ?? item.usdAmount,
         paidAmount: item.loan?.paidAmount ?? item.paidAmount,
         remainingBalance: item.loan?.remainingBalance ?? item.remainingBalance,
+        usdRemainingBalance: item.loan?.usdRemainingBalance ?? item.usdRemainingBalance,
         repaymentStatus: item.loan?.repaymentStatus ?? item.repaymentStatus,
         fineAmount: item.loan?.fineAmount ?? item.fineAmount,
         outstandingFineAmount: item.loan?.outstandingFineAmount ?? item.outstandingFineAmount,
         givenAmount: item.loan?.givenAmount ?? item.givenAmount,
+        usdGivenAmount: item.loan?.usdGivenAmount ?? item.usdGivenAmount,
         interestAmount: item.loan?.interestAmount ?? item.interestAmount,
+        usdInterestAmount: item.loan?.usdInterestAmount ?? item.usdInterestAmount,
+        usdFxRate: item.loan?.usdFxRate ?? item.usdFxRate,
+        referenceCurrency: item.loan?.referenceCurrency ?? item.referenceCurrency,
         currency: item.loan?.currency || item.currency,
         createdAt: item.loan?.createdAt || item.createdAt,
         accountId: item.accountId ?? item.loan?.accountId ?? item.account?.id,
@@ -438,8 +473,7 @@ export default function LoanApplicationsPage() {
     }
   };
 
-  const columns = useMemo(
-    () => [
+  const columns = [
       { key: 'id', label: 'ID' },
       { key: 'createdAt', label: 'Created', render: (row) => formatDateTime(row.createdAt) },
       { key: 'loanReference', label: 'Loan ref' },
@@ -493,38 +527,38 @@ export default function LoanApplicationsPage() {
       },
       {
         key: 'givenAmount',
-        label: 'Principal',
-        render: (row) => `${formatAmount(row.givenAmount)} ${row.currency || ''}`.trim()
+        label: 'Principal (USD ref)',
+        render: (row) => formatUsdReference(row, 'usdGivenAmount', 'givenAmount')
       },
       {
         key: 'interestAmount',
-        label: 'Interest',
-        render: (row) => `${formatAmount(row.interestAmount)} ${row.currency || ''}`.trim()
+        label: 'Interest (USD ref)',
+        render: (row) => formatUsdReference(row, 'usdInterestAmount', 'interestAmount')
       },
       {
         key: 'amount',
-        label: 'Due',
-        render: (row) => `${formatAmount(row.amount)} ${row.currency || ''}`.trim()
+        label: 'Due (USD ref)',
+        render: (row) => formatUsdReference(row, 'usdAmount', 'amount')
       },
       {
         key: 'paidAmount',
         label: 'Paid',
-        render: (row) => `${formatAmount(row.paidAmount)} ${row.currency || ''}`.trim()
+        render: (row) => formatMoney(row.paidAmount, row.currency)
       },
       {
         key: 'remainingBalance',
-        label: 'Remaining',
-        render: (row) => `${formatAmount(row.remainingBalance)} ${row.currency || ''}`.trim()
+        label: 'Remaining (USD ref)',
+        render: (row) => formatUsdReference(row, 'usdRemainingBalance', 'remainingBalance')
       },
       {
         key: 'fineAmount',
         label: 'Total Fines',
-        render: (row) => `${formatAmount(row.fineAmount)} ${row.currency || ''}`.trim()
+        render: (row) => formatMoney(row.fineAmount, row.currency)
       },
       {
         key: 'outstandingFineAmount',
         label: 'Outstanding Fines',
-        render: (row) => `${formatAmount(row.outstandingFineAmount)} ${row.currency || ''}`.trim()
+        render: (row) => formatMoney(row.outstandingFineAmount, row.currency)
       },
       {
         key: 'nextDueInstallment',
@@ -604,9 +638,7 @@ export default function LoanApplicationsPage() {
           </div>
         )
       }
-    ],
-    [openLoanOwnerAccount]
-  );
+  ];
 
   const handleAction = async () => {
     if (!confirmAction?.row?.id) return;
@@ -821,11 +853,12 @@ export default function LoanApplicationsPage() {
               { label: 'ID', value: selected?.id },
               { label: 'Reference', value: selected?.loanReference },
               { label: 'Customer', value: selected?.customer },
-              { label: 'Given amount', value: formatMoney(selected?.givenAmount, selected?.currency) },
-              { label: 'Interest amount', value: formatMoney(selected?.interestAmount, selected?.currency) },
-              { label: 'Due amount', value: formatMoney(selected?.amount, selected?.currency) },
+              { label: 'Given amount', value: formatLocalAndUsdReference(selected, 'givenAmount', 'usdGivenAmount') },
+              { label: 'Interest amount', value: formatLocalAndUsdReference(selected, 'interestAmount', 'usdInterestAmount') },
+              { label: 'Due amount', value: formatLocalAndUsdReference(selected, 'amount', 'usdAmount') },
               { label: 'Paid amount', value: formatMoney(selected?.paidAmount, selected?.currency) },
-              { label: 'Remaining balance', value: formatMoney(selected?.remainingBalance, selected?.currency) },
+              { label: 'Remaining balance', value: formatLocalAndUsdReference(selected, 'remainingBalance', 'usdRemainingBalance') },
+              { label: 'USD FX rate', value: selected?.usdFxRate ?? '—' },
               { label: 'Total Fines', value: formatMoney(selected?.fineAmount, selected?.currency) },
               { label: 'Outstanding Fines', value: formatMoney(selected?.outstandingFineAmount, selected?.currency) },
               { label: 'Type', value: selected?.loanType },
@@ -925,8 +958,8 @@ export default function LoanApplicationsPage() {
               { label: 'Account ref', value: confirmBlacklist.accountReference },
               { label: 'Blacklist', value: isBlacklisted(confirmBlacklist) ? 'Blacklisted' : 'Not blacklisted' },
               { label: 'Repayment', value: <RepaymentBadge value={confirmBlacklist.repaymentStatus || confirmBlacklist.nextDueInstallment?.repaymentStatus || 'LATE'} /> },
-              { label: 'Remaining', value: `${formatAmount(confirmBlacklist.remainingBalance)} ${confirmBlacklist.currency || ''}`.trim() },
-              { label: 'Outstanding fines', value: `${formatAmount(confirmBlacklist.outstandingFineAmount)} ${confirmBlacklist.currency || ''}`.trim() }
+              { label: 'Remaining', value: formatLocalAndUsdReference(confirmBlacklist, 'remainingBalance', 'usdRemainingBalance') },
+              { label: 'Outstanding fines', value: formatMoney(confirmBlacklist.outstandingFineAmount, confirmBlacklist.currency) }
             ]}
           />
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.75rem' }}>

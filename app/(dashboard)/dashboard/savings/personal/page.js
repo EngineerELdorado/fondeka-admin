@@ -14,7 +14,9 @@ import {
   StatusBadge,
   formatDate,
   formatDateTime,
+  formatLocalAndReferenceMoney,
   formatMoney,
+  formatUsdReferenceAmount,
   pickFirst
 } from '@/components/SavingsAdmin';
 import { api } from '@/lib/api';
@@ -58,12 +60,19 @@ const getStatus = (row) => pickFirst(row?.status, row?.savingStatus, 'UNKNOWN');
 const getDeletedAt = (row) => pickFirst(row?.deletedAt);
 const isDeletedSaving = (row) => Boolean(getDeletedAt(row));
 const getPrincipalBalance = (row) => pickFirst(row?.principalBalance, row?.currentPrincipalBalance, row?.balance);
+const getUsdPrincipalBalance = (row) => pickFirst(row?.usdPrincipalBalance, row?.usdCurrentPrincipalBalance);
 const getEstimatedInterest = (row) => pickFirst(row?.estimatedInterestAmount, row?.estimatedInterest, row?.interestEstimate);
+const getUsdEstimatedInterest = (row) => pickFirst(row?.usdEstimatedInterestAmount, row?.usdEstimatedInterest);
 const getPayableInterest = (row) => pickFirst(row?.payableInterestAmount, row?.payableInterest);
+const getUsdPayableInterest = (row) => pickFirst(row?.usdPayableInterestAmount, row?.usdPayableInterest);
 const getForfeitableInterest = (row) => pickFirst(row?.forfeitableInterestAmount, row?.forfeitableInterest);
+const getUsdForfeitableInterest = (row) => pickFirst(row?.usdForfeitableInterestAmount, row?.usdForfeitableInterest);
 const getProjectedTotal = (row) => pickFirst(row?.totalEstimatedValue, row?.projectedTotalValue, row?.estimatedTotalValue);
+const getUsdProjectedTotal = (row) => pickFirst(row?.usdTotalEstimatedValue, row?.usdProjectedTotalValue, row?.usdEstimatedTotalValue);
 const getWithdrawableAmount = (row) => pickFirst(row?.withdrawableAmount, row?.availableWithdrawalAmount);
+const getUsdWithdrawableAmount = (row) => pickFirst(row?.usdWithdrawableAmount, row?.usdAvailableWithdrawalAmount);
 const getWithdrawablePrincipalAmount = (row) => pickFirst(row?.withdrawablePrincipalAmount, row?.withdrawablePrincipal, row?.availablePrincipalAmount);
+const getUsdWithdrawablePrincipalAmount = (row) => pickFirst(row?.usdWithdrawablePrincipalAmount, row?.usdWithdrawablePrincipal, row?.usdAvailablePrincipalAmount);
 const getAppliedInterestPercentage = (row) => pickFirst(row?.interestPercentage, row?.appliedInterestPercentage, row?.savingInterestPercentage);
 const getAppliedInterestType = (row) => pickFirst(row?.interestType, row?.appliedInterestType, row?.savingInterestType);
 const getAppliedLockDurationDays = (row) => pickFirst(row?.appliedLockDurationDays, row?.lockDurationDays);
@@ -91,6 +100,7 @@ const getProductBehaviorSummary = (row) => {
 };
 const getActivityType = (row) => pickFirst(row?.activityType, row?.type, row?.action);
 const getActivityAmount = (row) => pickFirst(row?.amount, row?.principalAmount, row?.value);
+const getActivityCurrency = (row) => pickFirst(row?.currency, row?.savingCurrency, row?.transaction?.currency);
 const getActivitySavingId = (row) => pickFirst(row?.savingId, row?.saving?.id, row?.personalSavingId);
 const getActivityTransactionId = (row) => pickFirst(row?.transactionId, row?.transaction?.transactionId, row?.transaction?.id);
 const getActivityPaymentMethod = (row) =>
@@ -124,6 +134,25 @@ const formatMoneyAmount = (value) => {
   const num = Number(value);
   if (!Number.isFinite(num)) return String(value);
   return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+};
+const formatMoneyWithCurrency = (amount, currency) => {
+  if (amount === null || amount === undefined || amount === '') return '—';
+  return `${formatMoneyAmount(amount)} ${String(currency || '').trim().toUpperCase()}`.trim();
+};
+const formatTransactionLocalAndUsd = (row, localField, usdField) => {
+  const local = formatMoneyWithCurrency(row?.[localField], row?.currency);
+  const localCurrency = String(row?.currency || '').trim().toUpperCase();
+  const usdValue = row?.[usdField];
+  const localNumber = Number(row?.[localField]);
+  const usdNumber = Number(usdValue);
+  const hasUsableUsd = usdValue !== null && usdValue !== undefined && usdValue !== '' && !(usdNumber === 0 && localCurrency !== 'USD' && Number.isFinite(localNumber) && localNumber !== 0);
+  if (local === '—' || localCurrency === 'USD' || !hasUsableUsd) return local;
+  return (
+    <span>
+      <span>{local}</span>
+      <span style={{ color: 'var(--muted)' }}> ({formatMoneyWithCurrency(usdValue, row?.referenceCurrency || 'USD')})</span>
+    </span>
+  );
 };
 const hasAnyValue = (...values) => values.some((value) => value !== null && value !== undefined && value !== '');
 const pickLatestAdminMessage = (txn) => {
@@ -563,9 +592,9 @@ export default function PersonalSavingsPage() {
           </div>
         )
       },
-      { key: 'principalBalance', label: 'Principal', render: (row) => formatMoney(getPrincipalBalance(row)) },
-      { key: 'estimatedInterest', label: 'Estimated Interest', render: (row) => formatMoney(getEstimatedInterest(row)) },
-      { key: 'projectedTotal', label: 'Projected Total', render: (row) => formatMoney(getProjectedTotal(row)) },
+      { key: 'principalBalance', label: 'Principal (USD ref)', render: (row) => formatUsdReferenceAmount(row, 'usdPrincipalBalance', 'principalBalance') },
+      { key: 'estimatedInterest', label: 'Estimated Interest (USD ref)', render: (row) => formatUsdReferenceAmount(row, 'usdEstimatedInterestAmount', 'estimatedInterestAmount') },
+      { key: 'projectedTotal', label: 'Projected Total (USD ref)', render: (row) => formatUsdReferenceAmount(row, 'usdTotalEstimatedValue', 'totalEstimatedValue') },
       { key: 'createdAt', label: 'Created / Start', render: (row) => formatDate(getStartDate(row)) },
       { key: 'deletedAt', label: t('savings.personal.deletedAt'), render: (row) => formatDateTime(getDeletedAt(row)) },
       {
@@ -634,6 +663,9 @@ export default function PersonalSavingsPage() {
   const activityTransactionHasLoanEligibilitySnapshot = hasAnyValue(
     activityTransactionDetail?.loanEligibilityRecorded,
     activityTransactionDetail?.loanEligibilityRevenueAmount,
+    activityTransactionDetail?.loanEligibilityRevenueCurrency,
+    activityTransactionDetail?.loanEligibilitySourceRevenueAmount,
+    activityTransactionDetail?.loanEligibilitySourceRevenueCurrency,
     activityTransactionDetail?.loanEligibilityPercentOfRevenue,
     activityTransactionDetail?.loanEligibilityAmount,
     activityTransactionDetail?.loanEligibilityReversalAmount,
@@ -813,11 +845,11 @@ export default function PersonalSavingsPage() {
                   pageSize={100}
                   columns={[
                     { key: 'activityType', label: 'Type', render: (row) => getActivityType(row) || '—' },
-                    { key: 'amount', label: 'Amount', render: (row) => formatMoney(getActivityAmount(row)) },
+                    { key: 'amount', label: 'Amount', render: (row) => formatMoney(getActivityAmount(row), getActivityCurrency(row)) },
                     {
                       key: 'estimatedInterest',
                       label: 'Estimated Interest',
-                      render: (row) => formatMoney(pickFirst(row?.estimatedInterestAmount, row?.estimatedInterest))
+                      render: (row) => formatMoney(pickFirst(row?.estimatedInterestAmount, row?.estimatedInterest), getActivityCurrency(row))
                     },
                     {
                       key: 'paymentMethod',
@@ -890,34 +922,38 @@ export default function PersonalSavingsPage() {
               <SectionCard title={t('savings.personal.valueState')} description={t('savings.personal.valueStateDescription')}>
                 <MetricStrip
                   items={[
-                    { label: 'Principal Balance', value: formatMoney(getPrincipalBalance(detail)), hint: 'Tracked principal value' },
+                    {
+                      label: 'Principal Balance',
+                      value: formatLocalAndReferenceMoney(getPrincipalBalance(detail), detail?.currency, getUsdPrincipalBalance(detail), detail?.referenceCurrency),
+                      hint: 'Tracked principal value'
+                    },
                     {
                       label: 'Withdrawable Amount',
-                      value: formatMoney(getWithdrawableAmount(detail)),
+                      value: formatLocalAndReferenceMoney(getWithdrawableAmount(detail), detail?.currency, getUsdWithdrawableAmount(detail), detail?.referenceCurrency),
                       hint: 'Actual amount available to withdraw',
                       valueTone: '#15803d'
                     },
                     {
                       label: 'Estimated Interest',
-                      value: formatMoney(getEstimatedInterest(detail)),
+                      value: formatLocalAndReferenceMoney(getEstimatedInterest(detail), detail?.currency, getUsdEstimatedInterest(detail), detail?.referenceCurrency),
                       hint: 'Accrued or projected interest so far',
                       valueTone: '#92400e'
                     },
                     {
                       label: 'Payable Interest Now',
-                      value: formatMoney(getPayableInterest(detail)),
+                      value: formatLocalAndReferenceMoney(getPayableInterest(detail), detail?.currency, getUsdPayableInterest(detail), detail?.referenceCurrency),
                       hint: 'Interest actually payable at this moment',
                       valueTone: '#15803d'
                     },
                     {
                       label: 'Forfeitable Interest',
-                      value: formatMoney(getForfeitableInterest(detail)),
+                      value: formatLocalAndReferenceMoney(getForfeitableInterest(detail), detail?.currency, getUsdForfeitableInterest(detail), detail?.referenceCurrency),
                       hint: 'Interest lost on an early locked-saving break before maturity',
                       valueTone: '#b45309'
                     },
                     {
                       label: 'Projected Total Value',
-                      value: formatMoney(getProjectedTotal(detail)),
+                      value: formatLocalAndReferenceMoney(getProjectedTotal(detail), detail?.currency, getUsdProjectedTotal(detail), detail?.referenceCurrency),
                       hint: 'Projected, not wallet-available value',
                       valueTone: '#475569'
                     }
@@ -936,7 +972,7 @@ export default function PersonalSavingsPage() {
                       value: isInterestInformationalOnly(detail) ? 'Informational only' : 'Payable amount controlled by product state',
                       hint: getProductBehaviorSummary(detail)
                     },
-                    { label: 'Withdrawable Principal', value: formatMoney(getWithdrawablePrincipalAmount(detail)) },
+                    { label: 'Withdrawable Principal', value: formatLocalAndReferenceMoney(getWithdrawablePrincipalAmount(detail), detail?.currency, getUsdWithdrawablePrincipalAmount(detail), detail?.referenceCurrency) },
                     {
                       label: 'Early Withdrawal Status',
                       value: String(getProductCode(detail) || '').toUpperCase() === SAVING_PRODUCT_CODE_LOCKED
@@ -993,14 +1029,15 @@ export default function PersonalSavingsPage() {
                 { label: 'Effect', value: activityTransactionDetail?.balanceEffect || '—' },
                 { label: 'Status', value: activityTransactionDetail?.status || '—' },
                 { label: 'Updated at', value: formatDateTime(activityTransactionDetail?.updatedAt) },
-                { label: 'Amount', value: `${activityTransactionDetail?.amount ?? '—'} ${activityTransactionDetail?.currency || ''}`.trim() },
+                { label: 'Amount', value: formatTransactionLocalAndUsd(activityTransactionDetail, 'amount', 'usdAmount') },
+                { label: 'USD FX rate', value: activityTransactionDetail?.usdFxRate ?? '—' },
                 { label: 'Account ref', value: activityTransactionDetail?.accountReference || '—' },
-                { label: 'Gross amount', value: activityTransactionDetail?.grossAmount ?? '—' },
-                { label: 'External fee', value: activityTransactionDetail?.externalFeeAmount ?? '—' },
-                { label: 'Internal fee', value: activityTransactionDetail?.internalFeeAmount ?? '—' },
-                { label: 'Other fees', value: activityTransactionDetail?.otherFeesAmount ?? '—' },
-                { label: 'All fees', value: activityTransactionDetail?.allFees ?? '—' },
-                { label: 'Commission amount', value: activityTransactionDetail?.commissionAmount ?? '—' },
+                { label: 'Gross amount', value: formatTransactionLocalAndUsd(activityTransactionDetail, 'grossAmount', 'usdGrossAmount') },
+                { label: 'External fee', value: formatTransactionLocalAndUsd(activityTransactionDetail, 'externalFeeAmount', 'usdExternalFeeAmount') },
+                { label: 'Internal fee', value: formatTransactionLocalAndUsd(activityTransactionDetail, 'internalFeeAmount', 'usdInternalFeeAmount') },
+                { label: 'Other fees', value: formatMoneyWithCurrency(activityTransactionDetail?.otherFeesAmount, activityTransactionDetail?.currency) },
+                { label: 'All fees', value: formatTransactionLocalAndUsd(activityTransactionDetail, 'allFees', 'usdAllFees') },
+                { label: 'Commission amount', value: formatTransactionLocalAndUsd(activityTransactionDetail, 'commissionAmount', 'usdCommissionAmount') },
                 {
                   label: 'Referral cost',
                   value:
@@ -1061,7 +1098,20 @@ export default function PersonalSavingsPage() {
                   <DetailGrid
                     rows={[
                       { label: 'Recorded', value: activityTransactionDetail?.loanEligibilityRecorded === true ? 'Yes' : activityTransactionDetail?.loanEligibilityRecorded === false ? 'No' : '—' },
-                      { label: 'Revenue amount', value: formatMoneyAmount(activityTransactionDetail?.loanEligibilityRevenueAmount) },
+                      {
+                        label: 'Source revenue',
+                        value: formatMoneyWithCurrency(
+                          activityTransactionDetail?.loanEligibilitySourceRevenueAmount ?? activityTransactionDetail?.sourceRevenueAmount,
+                          activityTransactionDetail?.loanEligibilitySourceRevenueCurrency ?? activityTransactionDetail?.sourceRevenueCurrency
+                        )
+                      },
+                      {
+                        label: 'Revenue amount',
+                        value: formatMoneyWithCurrency(
+                          activityTransactionDetail?.loanEligibilityRevenueAmount ?? activityTransactionDetail?.revenueAmount,
+                          activityTransactionDetail?.loanEligibilityRevenueCurrency ?? activityTransactionDetail?.revenueCurrency ?? 'USD'
+                        )
+                      },
                       {
                         label: 'Eligibility % of revenue',
                         value:
@@ -1070,9 +1120,9 @@ export default function PersonalSavingsPage() {
                             ? '—'
                             : `${formatMoneyAmount(activityTransactionDetail.loanEligibilityPercentOfRevenue)}%`
                       },
-                      { label: 'Eligibility amount', value: formatMoneyAmount(activityTransactionDetail?.loanEligibilityAmount) },
-                      { label: 'Reversal amount', value: formatMoneyAmount(activityTransactionDetail?.loanEligibilityReversalAmount) },
-                      { label: 'Net amount', value: formatMoneyAmount(activityTransactionDetail?.loanEligibilityNetAmount) },
+                      { label: 'Eligibility amount', value: formatMoneyWithCurrency(activityTransactionDetail?.loanEligibilityAmount, activityTransactionDetail?.loanEligibilityCurrency ?? 'USD') },
+                      { label: 'Reversal amount', value: formatMoneyWithCurrency(activityTransactionDetail?.loanEligibilityReversalAmount, activityTransactionDetail?.loanEligibilityCurrency ?? 'USD') },
+                      { label: 'Net amount', value: formatMoneyWithCurrency(activityTransactionDetail?.loanEligibilityNetAmount, activityTransactionDetail?.loanEligibilityCurrency ?? 'USD') },
                       { label: 'Rule source', value: activityTransactionDetail?.loanEligibilityRuleSource || '—' },
                       { label: 'Rule config ID', value: activityTransactionDetail?.loanEligibilityRuleConfigId ?? '—' },
                       {

@@ -224,6 +224,12 @@ const formatUsdAmount = (value) => {
   return formatted === '—' ? formatted : `${formatted} USD`;
 };
 
+const formatAmountWithCurrency = (value, currency) => {
+  const formatted = formatAmount(value);
+  const normalizedCurrency = String(currency || '').trim().toUpperCase();
+  return formatted === '—' || !normalizedCurrency ? formatted : `${formatted} ${normalizedCurrency}`;
+};
+
 const formatAuthState = (value) => {
   if (value === null || value === undefined || value === '') return '—';
   return Boolean(value) ? 'ON' : 'OFF';
@@ -3287,11 +3293,11 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           },
           {
             label: 'Total profit',
-            value: loanEligibility ? formatAmount(loanEligibility.profit) : '—'
+            value: loanEligibility ? formatAmountWithCurrency(loanEligibility.profit, loanEligibility.profitCurrency || 'USD') : '—'
           },
           {
             label: 'Eligible loan',
-            value: loanEligibility ? formatAmount(loanEligibility.earnedEligibility) : accountView?.eligibleLoanAmount
+            value: loanEligibility ? formatAmountWithCurrency(loanEligibility.earnedEligibility, loanEligibility.eligibilityCurrency || 'USD') : accountView?.eligibleLoanAmount
           }
         ]}
       />
@@ -3597,7 +3603,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               {loanEligibilityLoading
                 ? 'Loading…'
                 : loanEligibility
-                  ? `Available eligibility: ${formatAmount(loanEligibility.availableEligibility)}`
+                  ? `Available eligibility: ${formatAmountWithCurrency(loanEligibility.availableEligibility, loanEligibility.eligibilityCurrency || 'USD')}`
                   : 'No eligibility data available.'}
             </div>
           </div>
@@ -3637,8 +3643,8 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             <div style={{ display: 'grid', gap: '0.85rem' }}>
               <DetailGrid
                 rows={[
-                  { label: 'Available Eligibility', value: formatAmount(loanEligibility.availableEligibility) },
-                  { label: 'Total Earned Eligibility', value: formatAmount(loanEligibility.earnedEligibility) },
+                  { label: 'Available Eligibility', value: formatAmountWithCurrency(loanEligibility.availableEligibility, loanEligibility.eligibilityCurrency || 'USD') },
+                  { label: 'Total Earned Eligibility', value: formatAmountWithCurrency(loanEligibility.earnedEligibility, loanEligibility.eligibilityCurrency || 'USD') },
                   { label: 'Outstanding Active Loan Balance', value: formatAmount(loanEligibility.activeLoanBalance) },
                   { label: 'Archived Debt Balance', value: formatAmount(loanEligibility.archivedDebtBalance) }
                 ]}
@@ -3647,13 +3653,13 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                 rows={[
                   { label: 'Account ID', value: loanEligibility.accountId },
                   { label: 'Has completed tx', value: loanEligibility.hasCompletedTransactions ? 'Yes' : 'No' },
-                  { label: 'Profit', value: formatAmount(loanEligibility.profit) },
-                  { label: 'Legacy Base Eligibility', value: formatAmount(loanEligibility.baseEligibility) },
-                  { label: 'Extra eligibility', value: formatAmount(loanEligibility.extraEligibility) },
-                  { label: 'Total eligibility (reference)', value: formatAmount(loanEligibility.totalEligibility) },
+                  { label: 'Profit', value: formatAmountWithCurrency(loanEligibility.profit, loanEligibility.profitCurrency || 'USD') },
+                  { label: 'Legacy Base Eligibility', value: formatAmountWithCurrency(loanEligibility.baseEligibility, loanEligibility.eligibilityCurrency || 'USD') },
+                  { label: 'Extra eligibility', value: formatAmountWithCurrency(loanEligibility.extraEligibility, loanEligibility.eligibilityCurrency || 'USD') },
+                  { label: 'Total eligibility (reference)', value: formatAmountWithCurrency(loanEligibility.totalEligibility, loanEligibility.eligibilityCurrency || 'USD') },
                   { label: 'Outstanding Loan Balance', value: formatAmount(loanEligibility.outstandingLoanBalance) },
-                  { label: 'Legacy Migrated Eligibility', value: formatAmount(loanEligibility.legacyMigratedEligibility) },
-                  { label: 'Admin Legacy Adjustment', value: formatAmount(loanEligibility.legacyAdjustmentAmount) }
+                  { label: 'Legacy Migrated Eligibility', value: formatAmountWithCurrency(loanEligibility.legacyMigratedEligibility, loanEligibility.eligibilityCurrency || 'USD') },
+                  { label: 'Admin Legacy Adjustment', value: formatAmountWithCurrency(loanEligibility.legacyAdjustmentAmount, loanEligibility.eligibilityCurrency || 'USD') }
                 ]}
               />
               <div style={{ color: 'var(--muted)', fontSize: '12px' }}>

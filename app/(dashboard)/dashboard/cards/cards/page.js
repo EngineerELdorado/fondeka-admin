@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
+import { useAuth } from '@/contexts/AuthContext';
 
 const statusOptions = ['IN_PREPARATION', 'ACTIVE', 'FAILED', 'BLOCKED_BY_USER', 'BLOCKED_BY_ADMIN', 'BLOCKED_BY_PROVIDER'];
 
@@ -162,6 +163,7 @@ const cardProviderLabelFrom = (...sources) => {
 };
 
 export default function CardsPage() {
+  const { session } = useAuth();
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
@@ -198,6 +200,20 @@ export default function CardsPage() {
   const [providerTxEndDate, setProviderTxEndDate] = useState('');
   const [paymentMethods, setPaymentMethods] = useState([]);
   const providerTxLastRequestRef = useRef(new Map());
+
+  const isSuperAdmin = useMemo(() => {
+    const payload = session?.tokens?.idToken?.payload || session?.tokens?.accessToken?.payload;
+    const role = payload?.role || payload?.['custom:role'];
+    if (role && String(role).toUpperCase() === 'SUPER_ADMIN') return true;
+    const groups = payload?.['cognito:groups'] || payload?.groups;
+    if (Array.isArray(groups)) {
+      return groups.some((group) => String(group).toUpperCase() === 'SUPER_ADMIN');
+    }
+    if (typeof groups === 'string') {
+      return groups.split(',').some((group) => String(group).trim().toUpperCase() === 'SUPER_ADMIN');
+    }
+    return false;
+  }, [session]);
 
   const formatDateTime = (value) => {
     if (!value) return '—';
@@ -327,7 +343,7 @@ export default function CardsPage() {
     fetchPaymentMethods();
   }, []);
 
-  const columns = useMemo(() => [
+  const columns = [
     { key: 'id', label: 'ID' },
     { key: 'name', label: 'Name' },
     {
@@ -381,7 +397,7 @@ export default function CardsPage() {
       label: 'Actions',
       render: (row) => (
         <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-          <button type="button" onClick={() => openDetail(row)} className="btn-neutral">View</button>
+          {isSuperAdmin ? <button type="button" onClick={() => openDetail(row)} className="btn-neutral">View</button> : null}
           <button type="button" onClick={() => openEdit(row)} className="btn-neutral">Edit</button>
           {canAdminUnblock(row) ? (
             <button type="button" onClick={() => setConfirmUnblock(row)} className="btn-success">Unblock</button>
@@ -393,7 +409,7 @@ export default function CardsPage() {
         </div>
       )
     }
-  ], []);
+  ];
 
   const openCreate = () => {
     setDraft(emptyState);

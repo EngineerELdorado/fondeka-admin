@@ -18,6 +18,7 @@ import {
   formatCount,
   formatDate,
   formatDateTime,
+  formatLocalAndReferenceMoney,
   formatMoney,
   humanizeEnum,
   pickFirst
@@ -113,6 +114,7 @@ const getName = (group) => pickFirst(group?.name, group?.groupName);
 const getCreator = (group) => pickFirst(group?.createdByAccountId, group?.creatorAccountId, group?.creator?.accountId);
 const getCreatedAt = (group) => pickFirst(group?.createdAt, group?.createdDate);
 const getTreasuryBalance = (group) => pickFirst(group?.treasuryBalance, group?.currentTreasuryBalance);
+const getUsdTreasuryBalance = (group) => pickFirst(group?.usdTreasuryBalance, group?.usdCurrentTreasuryBalance);
 const getCurrentCycleNumber = (group) => pickFirst(group?.currentCycleNumber, group?.cycleNumber);
 const getCurrentRoundNumber = (group) => pickFirst(group?.currentRoundNumber, group?.roundNumber);
 const getMembersCount = (group) => pickFirst(group?.activeMemberCount, group?.memberCount);
@@ -1399,7 +1401,7 @@ export default function GroupSavingDetailPage() {
             { label: 'Overdue Contributions', value: formatCount(group?.overdueContributionCount), valueTone: '#b91c1c' },
             {
               label: 'Treasury Balance',
-              value: isAvec ? formatMoney(getTreasuryBalance(group)) : '—',
+              value: isAvec ? formatLocalAndReferenceMoney(getTreasuryBalance(group), group?.currency, getUsdTreasuryBalance(group), group?.referenceCurrency) : '—',
               hint: isAvec ? 'AVEC only' : 'Not applicable'
             },
             {
@@ -1455,7 +1457,11 @@ export default function GroupSavingDetailPage() {
             <SectionCard title="Treasury Summary" description="AVEC groups are treasury and governance driven.">
               <MetricStrip
                 items={[
-                  { label: 'Current Treasury Balance', value: formatMoney(getTreasuryBalance(group)), valueTone: '#0369a1' },
+                  {
+                    label: 'Current Treasury Balance',
+                    value: formatLocalAndReferenceMoney(getTreasuryBalance(group), group?.currency, getUsdTreasuryBalance(group), group?.referenceCurrency),
+                    valueTone: '#0369a1'
+                  },
                   { label: 'Pending Withdrawal Requests', value: formatCount(treasuryWithdrawals.filter((item) => String(pickFirst(item?.status, '')).toUpperCase().includes('PENDING')).length) },
                   { label: 'Active Loans', value: formatCount(loans.filter((item) => String(pickFirst(item?.status, '')).toUpperCase() === 'ACTIVE').length) },
                   {
@@ -1671,8 +1677,8 @@ export default function GroupSavingDetailPage() {
               },
               { key: 'roundNumber', label: 'Round / Cycle', render: (row) => formatRoundCycleLabel(row, pickFirst(row?.groupRoundNumber, row?.currentRoundNumber), pickFirst(row?.groupCycleNumber, row?.currentCycleNumber)) },
               { key: 'member', label: 'Member Name', render: (row) => getContributionMemberName(row) },
-              { key: 'amountDue', label: 'Amount Due', render: (row) => formatMoney(pickFirst(row?.amountDue, row?.dueAmount)) },
-              { key: 'amountPaid', label: 'Amount Paid', render: (row) => formatMoney(pickFirst(row?.amountPaid, row?.paidAmount)) },
+              { key: 'amountDue', label: 'Amount Due', render: (row) => formatMoney(pickFirst(row?.amountDue, row?.dueAmount), row?.currency || group?.currency) },
+              { key: 'amountPaid', label: 'Amount Paid', render: (row) => formatLocalAndReferenceMoney(pickFirst(row?.amountPaid, row?.paidAmount), row?.currency || group?.currency, row?.usdAmountPaid, row?.referenceCurrency) },
               { key: 'status', label: 'Status', render: (row) => <StatusBadge value={pickFirst(row?.status, 'UNKNOWN')} /> },
               { key: 'dueDate', label: 'Due Date', render: (row) => formatDateTime(row?.dueDate) },
               { key: 'overdue', label: 'Overdue', render: (row) => (Boolean(pickFirst(row?.overdue, row?.isOverdue, false)) ? 'Yes' : 'No') },
@@ -1786,7 +1792,7 @@ export default function GroupSavingDetailPage() {
                 render: (row) => formatRoundCycleLabel(row, pickFirst(row?.cycle?.roundNumber), pickFirst(row?.cycle?.cycleNumber))
               },
               { key: 'beneficiary', label: 'Beneficiary', render: (row) => getBeneficiaryName(row) },
-              { key: 'amount', label: 'Amount', render: (row) => formatMoney(pickFirst(row?.amount, row?.payoutAmount)) },
+              { key: 'amount', label: 'Amount', render: (row) => formatMoney(pickFirst(row?.amount, row?.payoutAmount), row?.currency || group?.currency) },
               { key: 'status', label: 'Status', render: (row) => <StatusBadge value={pickFirst(row?.status, 'UNKNOWN')} /> },
               { key: 'transactionId', label: 'Transaction ID', render: (row) => pickFirst(row?.transactionId, row?.transaction?.id, '—') },
               { key: 'paidAt', label: 'Paid Date', render: (row) => formatDateTime(pickFirst(row?.paidAt, row?.createdAt)) },
@@ -1934,9 +1940,9 @@ export default function GroupSavingDetailPage() {
             pageSize={100}
             columns={[
               { key: 'borrower', label: 'Borrower', render: (row) => getBorrowerName(row) },
-              { key: 'principal', label: 'Principal', render: (row) => formatMoney(pickFirst(row?.principal, row?.principalAmount)) },
-              { key: 'interest', label: 'Interest', render: (row) => formatMoney(pickFirst(row?.interest, row?.interestAmount)) },
-              { key: 'totalDue', label: 'Total Due', render: (row) => formatMoney(pickFirst(row?.totalDue, row?.amountDue)) },
+              { key: 'principal', label: 'Principal', render: (row) => formatLocalAndReferenceMoney(pickFirst(row?.principal, row?.principalAmount), row?.currency || group?.currency, row?.usdPrincipalAmount, row?.referenceCurrency) },
+              { key: 'interest', label: 'Interest', render: (row) => formatLocalAndReferenceMoney(pickFirst(row?.interest, row?.interestAmount), row?.currency || group?.currency, row?.usdInterestAmount, row?.referenceCurrency) },
+              { key: 'totalDue', label: 'Total Due', render: (row) => formatLocalAndReferenceMoney(pickFirst(row?.totalDue, row?.totalDueAmount, row?.amountDue), row?.currency || group?.currency, row?.usdTotalDueAmount, row?.referenceCurrency) },
               { key: 'dueDate', label: 'Due Date', render: (row) => formatDateTime(row?.dueDate) },
               { key: 'status', label: 'Status', render: (row) => <StatusBadge value={pickFirst(row?.status, 'UNKNOWN')} /> },
               { key: 'scheduled', label: 'Scheduled Repayments', render: (row) => formatCount(row?.scheduledRepaymentCount) },
@@ -2014,8 +2020,8 @@ export default function GroupSavingDetailPage() {
               { key: 'borrower', label: 'Borrower', render: (row) => getBorrowerName(row) },
               { key: 'sequence', label: 'Installment', render: (row) => pickFirst(row?.installmentSequence, row?.sequenceNumber, '—') },
               { key: 'dueDate', label: 'Due Date', render: (row) => formatDateTime(row?.dueDate) },
-              { key: 'amountDue', label: 'Amount Due', render: (row) => formatMoney(pickFirst(row?.amountDue, row?.dueAmount)) },
-              { key: 'amountPaid', label: 'Amount Paid', render: (row) => formatMoney(pickFirst(row?.amountPaid, row?.paidAmount)) },
+              { key: 'amountDue', label: 'Amount Due', render: (row) => formatMoney(pickFirst(row?.amountDue, row?.dueAmount), row?.currency || group?.currency) },
+              { key: 'amountPaid', label: 'Amount Paid', render: (row) => formatLocalAndReferenceMoney(pickFirst(row?.amountPaid, row?.paidAmount), row?.currency || group?.currency, row?.usdAmountPaid, row?.referenceCurrency) },
               { key: 'status', label: 'Status', render: (row) => <StatusBadge value={pickFirst(row?.status, 'UNKNOWN')} /> },
               { key: 'overdue', label: 'Overdue', render: (row) => (Boolean(pickFirst(row?.overdue, row?.isOverdue, false)) ? 'Yes' : 'No') },
               { key: 'daysOverdue', label: 'Days Overdue', render: (row) => formatCount(row?.daysOverdue) },
@@ -2052,7 +2058,7 @@ export default function GroupSavingDetailPage() {
             pageSize={100}
             columns={[
               { key: 'requester', label: 'Requester', render: (row) => getRequesterName(row) },
-              { key: 'amount', label: 'Amount', render: (row) => formatMoney(pickFirst(row?.amount, row?.withdrawalAmount)) },
+              { key: 'amount', label: 'Amount', render: (row) => formatMoney(pickFirst(row?.amount, row?.withdrawalAmount), row?.currency || group?.currency) },
               { key: 'status', label: 'Status', render: (row) => <StatusBadge value={pickFirst(row?.status, 'UNKNOWN')} /> },
               { key: 'approvalCount', label: 'Approvals', render: (row) => `${formatCount(row?.approvalCount)} / ${formatCount(row?.requiredApprovals)}` },
               { key: 'paidAt', label: 'Paid Date', render: (row) => formatDateTime(pickFirst(row?.paidAt, row?.completedAt)) },
@@ -2275,13 +2281,13 @@ export default function GroupSavingDetailPage() {
             rows={[
               { label: 'Policy ID', value: pickFirst(policy?.policyId, policy?.id, '—') },
               { label: 'Group ID', value: pickFirst(policy?.groupId, groupId, '—') },
-              { label: 'Current Contribution Amount', value: formatMoney(pickFirst(policy?.contributionAmount, policy?.effectiveContributionAmount, policy?.minimumContributionAmount)) },
-              { label: 'Effective Contribution Amount', value: formatMoney(policy?.effectiveContributionAmount) },
+              { label: 'Current Contribution Amount', value: formatMoney(pickFirst(policy?.contributionAmount, policy?.effectiveContributionAmount, policy?.minimumContributionAmount), group?.currency) },
+              { label: 'Effective Contribution Amount', value: formatMoney(policy?.effectiveContributionAmount, group?.currency) },
               { label: 'Current Contribution Mode', value: humanizeEnum(pickFirst(policy?.contributionMode, '—')) },
               { label: 'Current Turn Count', value: formatCount(policy?.turnCount) },
               { label: 'Current Round Duration Months', value: formatCount(policy?.roundDurationMonths) },
               { label: 'Current Total Cycles Per Round', value: formatCount(policy?.totalCyclesPerRound) },
-              { label: 'Current Round Target Contribution Amount', value: formatMoney(policy?.roundTargetContributionAmount) },
+              { label: 'Current Round Target Contribution Amount', value: formatMoney(policy?.roundTargetContributionAmount, group?.currency) },
               { label: 'Current Loan Approval Threshold', value: pickFirst(policy?.loanApprovalThresholdPercent, policy?.loanApprovalThreshold, '—') },
               {
                 label: 'Current Treasury Withdrawal Threshold',
