@@ -16,7 +16,6 @@ import {
   formatDateTime,
   formatLocalAndReferenceMoney,
   formatMoney,
-  formatUsdReferenceAmount,
   pickFirst
 } from '@/components/SavingsAdmin';
 import { api } from '@/lib/api';
@@ -592,9 +591,9 @@ export default function PersonalSavingsPage() {
           </div>
         )
       },
-      { key: 'principalBalance', label: 'Principal (USD ref)', render: (row) => formatUsdReferenceAmount(row, 'usdPrincipalBalance', 'principalBalance') },
-      { key: 'estimatedInterest', label: 'Estimated Interest (USD ref)', render: (row) => formatUsdReferenceAmount(row, 'usdEstimatedInterestAmount', 'estimatedInterestAmount') },
-      { key: 'projectedTotal', label: 'Projected Total (USD ref)', render: (row) => formatUsdReferenceAmount(row, 'usdTotalEstimatedValue', 'totalEstimatedValue') },
+      { key: 'principalBalance', label: 'Principal', render: (row) => formatLocalAndReferenceMoney(getPrincipalBalance(row), row?.currency, getUsdPrincipalBalance(row), row?.referenceCurrency) },
+      { key: 'estimatedInterest', label: 'Estimated Interest', render: (row) => formatLocalAndReferenceMoney(getEstimatedInterest(row), row?.currency, getUsdEstimatedInterest(row), row?.referenceCurrency) },
+      { key: 'projectedTotal', label: 'Projected Total', render: (row) => formatLocalAndReferenceMoney(getProjectedTotal(row), row?.currency, getUsdProjectedTotal(row), row?.referenceCurrency) },
       { key: 'createdAt', label: 'Created / Start', render: (row) => formatDate(getStartDate(row)) },
       { key: 'deletedAt', label: t('savings.personal.deletedAt'), render: (row) => formatDateTime(getDeletedAt(row)) },
       {

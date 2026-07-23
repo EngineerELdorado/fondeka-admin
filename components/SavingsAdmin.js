@@ -50,7 +50,7 @@ export const formatUsdReferenceAmount = (row, referenceField, localField, curren
     return formatMoney(row?.[referenceField], normalizeCurrency(row?.referenceCurrency) || 'USD');
   }
   if (localCurrency === 'USD') return formatMoney(row?.[localField], 'USD');
-  return '—';
+  return formatMoney(row?.[localField], localCurrency || 'USD');
 };
 
 export const formatLocalAndReferenceMoney = (localValue, localCurrency, referenceValue, referenceCurrency = 'USD') => {

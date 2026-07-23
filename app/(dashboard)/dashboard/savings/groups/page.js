@@ -13,7 +13,7 @@ import {
   TypeBadge,
   formatCount,
   formatDate,
-  formatUsdReferenceAmount,
+  formatLocalAndReferenceMoney,
   pickFirst
 } from '@/components/SavingsAdmin';
 import { api } from '@/lib/api';
@@ -34,6 +34,7 @@ const getGroupType = (row) => String(pickFirst(row?.type, row?.groupType, 'UNKNO
 const getGroupStatus = (row) => pickFirst(row?.status, row?.groupStatus, 'UNKNOWN');
 const getCreatorAccount = (row) => pickFirst(row?.createdByAccountId, row?.creatorAccountId, row?.creator?.accountId);
 const getTreasuryBalance = (row) => pickFirst(row?.treasuryBalance, row?.currentTreasuryBalance);
+const getUsdTreasuryBalance = (row) => pickFirst(row?.usdTreasuryBalance, row?.usdCurrentTreasuryBalance);
 const getCurrentRoundNumber = (row) => pickFirst(row?.currentRoundNumber, row?.roundNumber);
 const getDeletedAt = (row) => pickFirst(row?.deletedAt);
 const isDeletedGroup = (row) => Boolean(getDeletedAt(row));
@@ -162,7 +163,7 @@ export default function GroupSavingsPage() {
       { key: 'pending', label: t('savings.groups.pendingContributions'), render: (row) => formatCount(row?.pendingContributionCount) },
       { key: 'paid', label: t('savings.groups.paidContributions'), render: (row) => formatCount(row?.paidContributionCount) },
       { key: 'overdue', label: t('savings.groups.overdueContributions'), render: (row) => formatCount(row?.overdueContributionCount) },
-      { key: 'treasuryBalance', label: `${t('savings.groups.treasuryBalance')} (USD ref)`, render: (row) => (getGroupType(row) === 'AVEC' ? formatUsdReferenceAmount(row, 'usdTreasuryBalance', 'treasuryBalance') : '—') },
+      { key: 'treasuryBalance', label: t('savings.groups.treasuryBalance'), render: (row) => (getGroupType(row) === 'AVEC' ? formatLocalAndReferenceMoney(getTreasuryBalance(row), row?.currency, getUsdTreasuryBalance(row), row?.referenceCurrency) : '—') },
       { key: 'createdAt', label: t('savings.groups.created'), render: (row) => formatDate(pickFirst(row?.createdAt, row?.createdDate)) },
       {
         key: 'actions',

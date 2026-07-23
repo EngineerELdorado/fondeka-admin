@@ -640,7 +640,10 @@ export default function TransactionsPage() {
     const local = formatMoneyWithCurrency(row?.[localField], row?.[localCurrencyField]);
     const usd = row?.[usdField];
     const localCurrency = normalizeCurrency(row?.[localCurrencyField]);
-    if (!hasValue(usd) || localCurrency === 'USD') return local;
+    const usdNumber = Number(usd);
+    const localNumber = Number(row?.[localField]);
+    const hasUsableUsd = hasValue(usd) && !(usdNumber === 0 && localCurrency !== 'USD' && Number.isFinite(localNumber) && localNumber !== 0);
+    if (!hasUsableUsd || localCurrency === 'USD') return local;
     return (
       <span>
         <span>{local}</span>
@@ -2231,6 +2234,8 @@ export default function TransactionsPage() {
                   value:
                     hasValue(selected?.usdInternalFeeAmount) || hasValue(selected?.usdCommissionAmount)
                       ? formatUsdAmount((Number(selected?.usdInternalFeeAmount) || 0) + (Number(selected?.usdCommissionAmount) || 0))
+                      : normalizeCurrency(selected?.currency) === 'USD' && (hasValue(selected?.internalFeeAmount) || hasValue(selected?.commissionAmount))
+                        ? formatUsdAmount((Number(selected?.internalFeeAmount) || 0) + (Number(selected?.commissionAmount) || 0))
                       : '—'
                 },
                 { label: 'Settlement amount', value: formatLocalAndUsd(selected, 'settlementAmount', 'currency', 'usdSettlementAmount') },

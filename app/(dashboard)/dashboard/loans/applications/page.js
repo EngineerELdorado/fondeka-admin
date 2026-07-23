@@ -193,7 +193,7 @@ export default function LoanApplicationsPage() {
   const formatUsdReference = (row, usdField, localField) => {
     if (isUsableUsdReference(row, usdField, localField)) return formatMoney(row?.[usdField], row?.referenceCurrency || 'USD');
     if (normalizeCurrency(row?.currency) === 'USD') return formatMoney(row?.[localField], 'USD');
-    return '—';
+    return formatMoney(row?.[localField], row?.currency);
   };
 
   const formatLocalAndUsdReference = (row, localField, usdField) => {
@@ -527,17 +527,17 @@ export default function LoanApplicationsPage() {
       },
       {
         key: 'givenAmount',
-        label: 'Principal (USD ref)',
+        label: 'Principal',
         render: (row) => formatUsdReference(row, 'usdGivenAmount', 'givenAmount')
       },
       {
         key: 'interestAmount',
-        label: 'Interest (USD ref)',
+        label: 'Interest',
         render: (row) => formatUsdReference(row, 'usdInterestAmount', 'interestAmount')
       },
       {
         key: 'amount',
-        label: 'Due (USD ref)',
+        label: 'Due',
         render: (row) => formatUsdReference(row, 'usdAmount', 'amount')
       },
       {
@@ -547,7 +547,7 @@ export default function LoanApplicationsPage() {
       },
       {
         key: 'remainingBalance',
-        label: 'Remaining (USD ref)',
+        label: 'Remaining',
         render: (row) => formatUsdReference(row, 'usdRemainingBalance', 'remainingBalance')
       },
       {
