@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
@@ -8,6 +8,32 @@ import COUNTRIES from '@/data/countries';
 
 const currencyOptions = ['USD', 'CDF', 'EUR', 'KES', 'UGX', 'GHS', 'XAF'];
 const rateProviderOptions = ['MANUAL', 'MAPLERAD'];
+const fallbackActionOptions = [
+  'FUND_WALLET',
+  'WITHDRAW_FROM_WALLET',
+  'REPAY_LOAN',
+  'LOAN_DISBURSEMENT',
+  'PERSONAL_SAVING_DEPOSIT',
+  'PERSONAL_SAVING_WITHDRAWAL',
+  'GROUP_SAVING_CONTRIBUTION',
+  'GROUP_SAVING_PAYOUT',
+  'PAY_ELECTRICITY_BILL',
+  'PAY_INTERNET_BILL',
+  'PAY_TV_SUBSCRIPTION',
+  'PAY_WATER_BILL',
+  'SEND_AIRTIME',
+  'SEND_DATA_BUNDLES',
+  'FUND_CARD',
+  'WITHDRAW_FROM_CARD',
+  'BUY_CARD',
+  'BUY_CRYPTO',
+  'SELL_CRYPTO',
+  'SEND_CRYPTO',
+  'RECEIVE_CRYPTO',
+  'PAY_REQUEST',
+  'SETTLEMENT'
+].sort();
+const fallbackFeeApplicationModeOptions = ['EXCLUSIVE', 'INCLUSIVE'];
 const priorityCountryCodes = ['CD', 'KE', 'UG'];
 const countryOptions = [
   ...priorityCountryCodes
@@ -35,6 +61,20 @@ const emptyDraft = {
   rateFetchedAt: '',
   countryCodes: [],
   defaultCountryCodes: []
+};
+
+const emptyPreviewDraft = {
+  amount: '10',
+  sourceCurrency: 'USD',
+  targetCurrency: 'CDF',
+  action: '',
+  paymentMethodId: '',
+  billProductId: '',
+  providerName: '',
+  feeApplicationMode: '',
+  fiatWalletId: '',
+  savingId: '',
+  groupSavingId: ''
 };
 
 const Modal = ({ title, onClose, children }) => (
@@ -116,6 +156,53 @@ const nullableNumber = (value) => {
   return Number.isFinite(number) ? number : null;
 };
 
+const nullableInteger = (value) => {
+  if (value === '' || value === null || value === undefined) return null;
+  const number = Number(value);
+  return Number.isInteger(number) ? number : null;
+};
+
+const hasValue = (value) => value !== null && value !== undefined && value !== '';
+
+const formatAmount = (value) => {
+  if (!hasValue(value)) return '-';
+  const number = Number(value);
+  if (!Number.isFinite(number)) return String(value);
+  return number.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 8 });
+};
+
+const formatMoney = (amount, currency) => {
+  if (!hasValue(amount)) return '-';
+  return `${formatAmount(amount)} ${upperTrim(currency)}`.trim();
+};
+
+const formatRate = (value) => {
+  if (!hasValue(value)) return '-';
+  const number = Number(value);
+  if (!Number.isFinite(number)) return String(value);
+  return number.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 18 });
+};
+
+const formatJson = (value) => {
+  if (value === null || value === undefined) return '-';
+  if (typeof value === 'string') return value;
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+};
+
+const toList = (res) => (Array.isArray(res) ? res : res?.content || []);
+
+const uniqueSorted = (values) => [...new Set(values.map(upperTrim).filter(Boolean))].sort();
+
+const optionLabel = (item, fallbackPrefix) => {
+  const name = item?.displayName || item?.name || item?.code || item?.currency || item?.reference;
+  const suffix = item?.active === false ? ' (inactive)' : '';
+  return `${name || `${fallbackPrefix} #${item?.id ?? '-'}`}${item?.id !== null && item?.id !== undefined ? ` (#${item.id})` : ''}${suffix}`;
+};
+
 export default function CurrencyProductsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
@@ -132,6 +219,53 @@ export default function CurrencyProductsPage() {
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [countryPopup, setCountryPopup] = useState(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewDraft, setPreviewDraft] = useState(emptyPreviewDraft);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState(null);
+  const [previewResult, setPreviewResult] = useState(null);
+  const [previewOptionsLoading, setPreviewOptionsLoading] = useState(false);
+  const [previewOptionsError, setPreviewOptionsError] = useState(null);
+  const [currencyProductOptions, setCurrencyProductOptions] = useState([]);
+  const [paymentMethodOptions, setPaymentMethodOptions] = useState([]);
+  const [billProductOptions, setBillProductOptions] = useState([]);
+  const [paymentProviderOptions, setPaymentProviderOptions] = useState([]);
+  const [feeConfigOptions, setFeeConfigOptions] = useState([]);
+  const [paymentMethodActionConfigOptions, setPaymentMethodActionConfigOptions] = useState([]);
+
+  const previewCurrencyOptions = useMemo(
+    () => uniqueSorted([
+      ...currencyProductOptions.map((item) => item?.currency),
+      ...currencyProductOptions.map((item) => item?.baseCurrency),
+      ...currencyOptions
+    ]),
+    [currencyProductOptions]
+  );
+
+  const previewActionOptions = useMemo(
+    () => uniqueSorted([
+      ...feeConfigOptions.map((item) => item?.action),
+      ...paymentMethodActionConfigOptions.map((item) => item?.action),
+      ...fallbackActionOptions
+    ]),
+    [feeConfigOptions, paymentMethodActionConfigOptions]
+  );
+
+  const previewFeeModeOptions = useMemo(
+    () => uniqueSorted([
+      ...feeConfigOptions.map((item) => item?.feeApplicationMode),
+      ...fallbackFeeApplicationModeOptions
+    ]),
+    [feeConfigOptions]
+  );
+
+  const previewProviderOptions = useMemo(
+    () => uniqueSorted([
+      ...paymentProviderOptions.map((item) => item?.name),
+      ...paymentProviderOptions.map((item) => item?.displayName)
+    ]),
+    [paymentProviderOptions]
+  );
 
   const fetchRows = async () => {
     setLoading(true);
@@ -157,6 +291,42 @@ export default function CurrencyProductsPage() {
   useEffect(() => {
     fetchRows();
   }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const loadPreviewOptions = async () => {
+      setPreviewOptionsLoading(true);
+      setPreviewOptionsError(null);
+      const params = new URLSearchParams({ page: '0', size: '500' });
+      try {
+        const [
+          currenciesRes,
+          paymentMethodsRes,
+          billProductsRes,
+          paymentProvidersRes,
+          feeConfigsRes,
+          actionConfigsRes
+        ] = await Promise.all([
+          api.currencyProducts.list(params),
+          api.paymentMethods.list(params),
+          api.billProducts.list(params),
+          api.paymentProviders.list(params),
+          api.feeConfigs.list(params),
+          api.paymentMethodActionConfigs.list(params)
+        ]);
+        setCurrencyProductOptions(toList(currenciesRes));
+        setPaymentMethodOptions(toList(paymentMethodsRes));
+        setBillProductOptions(toList(billProductsRes));
+        setPaymentProviderOptions(toList(paymentProvidersRes));
+        setFeeConfigOptions(toList(feeConfigsRes));
+        setPaymentMethodActionConfigOptions(toList(actionConfigsRes));
+      } catch (err) {
+        setPreviewOptionsError(err.message || 'Failed to load simulator dropdown options.');
+      } finally {
+        setPreviewOptionsLoading(false);
+      }
+    };
+    loadPreviewOptions();
+  }, []);
 
   const validateDraft = () => {
     const currency = upperTrim(draft.currency);
@@ -203,6 +373,19 @@ export default function CurrencyProductsPage() {
     setDraft({ ...emptyDraft, rateFetchedAt: toDateTimeLocal(new Date().toISOString()) });
     setSelected(null);
     setShowCreate(true);
+    setError(null);
+    setInfo(null);
+  };
+
+  const openPreview = (row = null) => {
+    setPreviewDraft({
+      ...emptyPreviewDraft,
+      sourceCurrency: row?.baseCurrency || emptyPreviewDraft.sourceCurrency,
+      targetCurrency: row?.currency || emptyPreviewDraft.targetCurrency
+    });
+    setPreviewResult(null);
+    setPreviewError(null);
+    setShowPreview(true);
     setError(null);
     setInfo(null);
   };
@@ -328,6 +511,66 @@ export default function CurrencyProductsPage() {
     }
   };
 
+  const buildPreviewPayload = () => {
+    const payload = {
+      amount: nullableNumber(previewDraft.amount),
+      sourceCurrency: upperTrim(previewDraft.sourceCurrency),
+      targetCurrency: upperTrim(previewDraft.targetCurrency)
+    };
+    [
+      'action',
+      'providerName',
+      'feeApplicationMode'
+    ].forEach((key) => {
+      const value = String(previewDraft[key] || '').trim();
+      if (value) payload[key] = value.toUpperCase();
+    });
+    [
+      'paymentMethodId',
+      'billProductId',
+      'fiatWalletId',
+      'savingId',
+      'groupSavingId'
+    ].forEach((key) => {
+      const value = nullableInteger(previewDraft[key]);
+      if (value !== null) payload[key] = value;
+    });
+    return payload;
+  };
+
+  const handlePreviewConversion = async () => {
+    const amount = nullableNumber(previewDraft.amount);
+    if (amount === null || amount < 0) {
+      setPreviewError('Amount must be zero or positive.');
+      return;
+    }
+    if (!upperTrim(previewDraft.sourceCurrency)) {
+      setPreviewError('Source currency is required.');
+      return;
+    }
+    if (!upperTrim(previewDraft.targetCurrency)) {
+      setPreviewError('Target currency is required.');
+      return;
+    }
+    const idFields = ['paymentMethodId', 'billProductId', 'fiatWalletId', 'savingId', 'groupSavingId'];
+    const invalidIdField = idFields.find((field) => String(previewDraft[field] || '').trim() && nullableInteger(previewDraft[field]) === null);
+    if (invalidIdField) {
+      setPreviewError(`${invalidIdField} must be a whole number.`);
+      return;
+    }
+    setPreviewLoading(true);
+    setPreviewError(null);
+    setPreviewResult(null);
+    try {
+      const res = await api.fiatExchangeRates.previewConversion(buildPreviewPayload());
+      setPreviewResult(res || null);
+    } catch (err) {
+      setPreviewError(err.message || 'Failed to preview conversion.');
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
   const canPrev = page > 0;
   const canNext = pageMeta.totalPages === null ? rows.length === size : page + 1 < pageMeta.totalPages;
 
@@ -378,6 +621,7 @@ export default function CurrencyProductsPage() {
       label: 'Actions',
       render: (row) => (
         <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+          <button type="button" onClick={() => openPreview(row)} className="btn-neutral" disabled={actionLoading || previewLoading}>Simulate Exchange</button>
           <button type="button" onClick={() => openDetail(row)} className="btn-neutral" disabled={actionLoading}>View</button>
           <button type="button" onClick={() => openEdit(row)} className="btn-neutral" disabled={actionLoading}>Edit</button>
           {row.active ? <button type="button" onClick={() => handleDeactivate(row)} className="btn-neutral" disabled={actionLoading}>Deactivate</button> : null}
@@ -469,6 +713,116 @@ export default function CurrencyProductsPage() {
     </div>
   );
 
+  const renderPreviewInput = (id, label, options = {}) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+      <label htmlFor={id}>{label}</label>
+      <input
+        id={id}
+        type={options.type || 'text'}
+        min={options.min}
+        step={options.step}
+        list={options.list}
+        value={previewDraft[id]}
+        placeholder={options.placeholder}
+        onChange={(e) => setPreviewDraft((p) => ({ ...p, [id]: options.uppercase ? e.target.value.toUpperCase() : e.target.value }))}
+      />
+    </div>
+  );
+
+  const renderPreviewSelect = (id, label, options, config = {}) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+      <label htmlFor={id}>{label}</label>
+      <select
+        id={id}
+        value={previewDraft[id]}
+        disabled={config.disabled}
+        onChange={(e) => setPreviewDraft((p) => ({ ...p, [id]: e.target.value }))}
+      >
+        <option value="">{config.emptyLabel || 'None'}</option>
+        {options.map((option) => {
+          const value = config.getValue ? config.getValue(option) : option;
+          const labelText = config.getLabel ? config.getLabel(option) : option;
+          return (
+            <option key={String(value)} value={String(value)}>
+              {labelText}
+            </option>
+          );
+        })}
+      </select>
+    </div>
+  );
+
+  const renderPreviewResult = () => {
+    if (!previewResult) return null;
+    const fee = previewResult.feePreview;
+    const providerErrors = Array.isArray(previewResult.providerErrors) ? previewResult.providerErrors : [];
+    return (
+      <div style={{ display: 'grid', gap: '0.75rem' }}>
+        <DetailGrid
+          rows={[
+            { label: 'Source amount', value: formatMoney(previewResult.sourceAmount, previewResult.sourceCurrency) },
+            { label: 'Target currency', value: previewResult.targetCurrency || '-' },
+            { label: 'Provider', value: previewResult.provider || '-' },
+            { label: 'Reference', value: previewResult.reference || '-' },
+            { label: 'Fetched at', value: formatDateTime(previewResult.fetchedAt) }
+          ]}
+        />
+        <DetailGrid
+          rows={[
+            { label: 'Raw rate', value: formatRate(previewResult.rawRate) },
+            { label: 'Raw converted', value: formatMoney(previewResult.rawConvertedAmount, previewResult.targetCurrency) },
+            { label: 'Collection margin', value: formatPercent(previewResult.collectionMarginPercent) },
+            { label: 'Collection margin amount', value: formatMoney(previewResult.collectionMarginAmount, previewResult.targetCurrency) },
+            { label: 'Collection rate', value: formatRate(previewResult.collectionRate) },
+            { label: 'Collection converted', value: formatMoney(previewResult.collectionConvertedAmount, previewResult.targetCurrency) },
+            { label: 'Payout margin', value: formatPercent(previewResult.payoutMarginPercent) },
+            { label: 'Payout margin amount', value: formatMoney(previewResult.payoutMarginAmount, previewResult.targetCurrency) },
+            { label: 'Payout rate', value: formatRate(previewResult.payoutRate) },
+            { label: 'Payout converted', value: formatMoney(previewResult.payoutConvertedAmount, previewResult.targetCurrency) }
+          ]}
+        />
+        <DetailGrid
+          rows={[
+            { label: 'Action', value: previewResult.action || '-' },
+            { label: 'Action flow', value: previewResult.actionMarginFlow || '-' },
+            { label: 'Action margin', value: formatPercent(previewResult.actionMarginPercent) },
+            { label: 'Action margin amount', value: formatMoney(previewResult.actionMarginAmount, previewResult.targetCurrency) },
+            { label: 'Action rate', value: formatRate(previewResult.actionRate) },
+            { label: 'Action converted', value: formatMoney(previewResult.actionConvertedAmount, previewResult.targetCurrency) },
+            { label: 'Fee-adjusted source', value: formatMoney(previewResult.feeAdjustedSourceAmount, previewResult.feeAdjustedSourceCurrency) },
+            { label: 'Fee-adjusted converted', value: formatMoney(previewResult.feeAdjustedConvertedAmount, previewResult.targetCurrency) }
+          ]}
+        />
+        {fee ? (
+          <DetailGrid
+            rows={[
+              { label: 'Requested amount', value: formatMoney(fee.requestedAmount, fee.requestedCurrency) },
+              { label: 'Requested fee mode', value: fee.requestedFeeApplicationMode || '-' },
+              { label: 'Applied fee mode', value: fee.appliedFeeApplicationMode || '-' },
+              { label: 'Fees', value: formatMoney(fee.fees, fee.requestedCurrency) },
+              { label: 'Net amount', value: formatMoney(fee.netAmount, fee.requestedCurrency) },
+              { label: 'Gross amount', value: formatMoney(fee.grossAmount, fee.requestedCurrency) },
+              { label: 'Payment amount', value: formatMoney(fee.paymentAmount, fee.paymentCurrency) },
+              { label: 'Billing amount', value: formatMoney(fee.billingAmount, fee.billingCurrency) },
+              { label: 'Billing FX rate', value: formatRate(fee.billingFxRate) },
+              { label: 'Billing FX provider', value: fee.billingFxProvider || '-' },
+              { label: 'Total to pay', value: formatMoney(fee.totalToPay, fee.requestedCurrency) },
+              { label: 'Fees percentage', value: formatPercent(fee.feesPercentage) }
+            ]}
+          />
+        ) : null}
+        <details className="card" style={{ padding: '0.75rem' }}>
+          <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Metadata</summary>
+          <pre style={{ margin: '0.75rem 0 0', whiteSpace: 'pre-wrap', overflow: 'auto' }}>{formatJson(previewResult.metadata)}</pre>
+        </details>
+        <details className="card" style={{ padding: '0.75rem' }} open={providerErrors.length > 0}>
+          <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Provider errors ({providerErrors.length})</summary>
+          <pre style={{ margin: '0.75rem 0 0', whiteSpace: 'pre-wrap', overflow: 'auto' }}>{formatJson(providerErrors)}</pre>
+        </details>
+      </div>
+    );
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <datalist id="currencyProductCurrencyOptions">
@@ -494,6 +848,9 @@ export default function CurrencyProductsPage() {
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
             <button type="button" onClick={fetchRows} disabled={loading || actionLoading} className="btn-neutral btn-sm">
               {loading ? 'Refreshing...' : 'Refresh'}
+            </button>
+            <button type="button" onClick={() => openPreview()} disabled={previewLoading} className="btn-neutral btn-sm">
+              Simulate Exchange
             </button>
             <button type="button" onClick={openCreate} disabled={actionLoading} className="btn-success btn-sm">
               Create product
@@ -579,6 +936,52 @@ export default function CurrencyProductsPage() {
               { label: 'Updated at', value: formatDateTime(selected?.updatedAt) }
             ]}
           />
+        </Modal>
+      )}
+
+      {showPreview && (
+        <Modal title="Simulate Exchange" onClose={() => (!previewLoading ? setShowPreview(false) : null)}>
+          <div style={{ display: 'grid', gap: '0.85rem' }}>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              QA preview only. This does not create transactions, debit wallets, credit balances, or call payment providers.
+            </div>
+            {previewOptionsLoading ? <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Loading backend options...</div> : null}
+            {previewOptionsError ? <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{previewOptionsError}</div> : null}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.75rem' }}>
+              {renderPreviewInput('amount', 'Amount', { type: 'number', min: '0', step: '0.000001' })}
+              {renderPreviewSelect('sourceCurrency', 'Source currency', previewCurrencyOptions, { emptyLabel: 'Select source currency' })}
+              {renderPreviewSelect('targetCurrency', 'Target currency', previewCurrencyOptions, { emptyLabel: 'Select target currency' })}
+            </div>
+            <details>
+              <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Optional context</summary>
+              <div style={{ marginTop: '0.75rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.75rem' }}>
+                {renderPreviewSelect('action', 'Action', previewActionOptions, { emptyLabel: 'No action' })}
+                {renderPreviewSelect('paymentMethodId', 'Payment method', paymentMethodOptions, {
+                  emptyLabel: 'No payment method',
+                  getValue: (item) => item.id,
+                  getLabel: (item) => optionLabel(item, 'Payment method')
+                })}
+                {renderPreviewSelect('billProductId', 'Bill product', billProductOptions, {
+                  emptyLabel: 'No bill product',
+                  getValue: (item) => item.id,
+                  getLabel: (item) => optionLabel(item, 'Bill product')
+                })}
+                {renderPreviewSelect('providerName', 'Provider', previewProviderOptions, { emptyLabel: 'No provider' })}
+                {renderPreviewSelect('feeApplicationMode', 'Fee application mode', previewFeeModeOptions, { emptyLabel: 'Backend default' })}
+                {renderPreviewInput('fiatWalletId', 'Fiat wallet ID', { type: 'number', min: '1', step: '1' })}
+                {renderPreviewInput('savingId', 'Saving ID', { type: 'number', min: '1', step: '1' })}
+                {renderPreviewInput('groupSavingId', 'Group saving ID', { type: 'number', min: '1', step: '1' })}
+              </div>
+            </details>
+            {previewError ? <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{previewError}</div> : null}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button type="button" onClick={() => setShowPreview(false)} className="btn-neutral" disabled={previewLoading}>Close</button>
+              <button type="button" onClick={handlePreviewConversion} className="btn-primary" disabled={previewLoading}>
+                {previewLoading ? 'Simulating...' : 'Run preview'}
+              </button>
+            </div>
+            {renderPreviewResult()}
+          </div>
         </Modal>
       )}
 
