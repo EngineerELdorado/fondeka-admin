@@ -6,7 +6,8 @@ const sections = [
   { href: '/dashboard/payment-requests/requests', title: 'Payment Requests', blurb: 'Search, create, and manage payment requests.' },
   { href: '/dashboard/payment-requests/items', title: 'Request Items', blurb: 'Line items linked to payment requests.' },
   { href: '/dashboard/payment-requests/payments', title: 'Request Payments', blurb: 'Payments made toward requests.' },
-  { href: '/dashboard/payment-requests/settlement-options', title: 'Settlement Options', blurb: 'Control custom settlement rules per request type.' }
+  { href: '/dashboard/payment-requests/settlement-options', title: 'Settlement Options', blurb: 'Control custom settlement rules per request type.' },
+  { href: '/dashboard/payment-requests/wallet-settlement-policy', title: 'Wallet Settlement Currency', blurb: 'Choose whether wallet-funded payment requests settle in request or payer currency.' }
 ];
 
 export default function PaymentRequestsHubPage() {

@@ -53,6 +53,49 @@ const sumCryptoWalletBalances = (wallets) =>
     return Number.isFinite(amount) ? total + amount : total;
   }, 0);
 
+const normalizeFiatWallets = (wallets) =>
+  (Array.isArray(wallets) ? wallets : [])
+    .map((wallet) => ({
+      id: wallet?.fiatWalletId ?? wallet?.id ?? null,
+      currency: String(wallet?.currency || '').trim().toUpperCase(),
+      displayName: wallet?.displayName || wallet?.name || '',
+      balance: wallet?.balance,
+      walletEnabled: wallet?.walletEnabled !== false,
+      legacyBalanceBacked: wallet?.legacyBalanceBacked === true
+    }))
+    .filter((wallet) => wallet.currency);
+
+const formatWalletAmount = (value, currency) => {
+  if (value === null || value === undefined || value === '') return '—';
+  const amount = Number(value);
+  const formatted = Number.isFinite(amount)
+    ? amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : String(value);
+  return currency ? `${formatted} ${currency}` : formatted;
+};
+
+const usdFiatWallet = (wallets) => normalizeFiatWallets(wallets).find((wallet) => wallet.currency === 'USD') || null;
+
+const fiatWalletSummary = (wallets, fallbackBalance) => {
+  const list = normalizeFiatWallets(wallets);
+  if (!list.length) return formatWalletAmount(fallbackBalance, 'USD');
+  return list
+    .slice(0, 3)
+    .map((wallet) => formatWalletAmount(wallet.balance, wallet.currency))
+    .join(' | ');
+};
+
+const fiatWalletCurrencyOptions = (wallets) => {
+  const codes = normalizeFiatWallets(wallets).map((wallet) => wallet.currency);
+  const unique = Array.from(new Set(['USD', ...codes].filter(Boolean)));
+  return unique.sort((a, b) => (a === 'USD' ? -1 : b === 'USD' ? 1 : a.localeCompare(b)));
+};
+
+const defaultFiatWalletCurrency = (wallets) => {
+  const list = normalizeFiatWallets(wallets);
+  return list.find((wallet) => wallet.currency === 'USD')?.currency || list[0]?.currency || 'USD';
+};
+
 const Modal = ({ title, onClose, children }) => (
   <div className="modal-backdrop">
     <div className="modal-surface">
@@ -218,12 +261,14 @@ export default function AccountsListPage() {
 
   const [showCredit, setShowCredit] = useState(false);
   const [creditAmount, setCreditAmount] = useState('');
+  const [creditCurrency, setCreditCurrency] = useState('');
   const [creditNote, setCreditNote] = useState('');
   const [creditAction, setCreditAction] = useState('MANUAL_ADJUSTMENT');
   const [creditError, setCreditError] = useState(null);
   const [creditLoading, setCreditLoading] = useState(false);
   const [showDebit, setShowDebit] = useState(false);
   const [debitAmount, setDebitAmount] = useState('');
+  const [debitCurrency, setDebitCurrency] = useState('');
   const [debitNote, setDebitNote] = useState('');
   const [debitAction, setDebitAction] = useState('MANUAL_ADJUSTMENT');
   const [debitError, setDebitError] = useState(null);
@@ -236,6 +281,7 @@ export default function AccountsListPage() {
   const [pricingSendCryptoMinimum, setPricingSendCryptoMinimum] = useState('');
   const [pricingTransactionsEligible, setPricingTransactionsEligible] = useState('');
   const [pricingBridgecardRegistrationMode, setPricingBridgecardRegistrationMode] = useState('');
+  const [pricingPaymentRequestSettlementMode, setPricingPaymentRequestSettlementMode] = useState('');
   const [pricingNote, setPricingNote] = useState('');
   const [pricingError, setPricingError] = useState(null);
   const [pricingSaving, setPricingSaving] = useState(false);
@@ -354,6 +400,7 @@ export default function AccountsListPage() {
         inviterPhoneNumber: item.inviterPhoneNumber ?? null,
         createdAt: item.createdAt,
         balance: item.balance,
+        fiatWallets: normalizeFiatWallets(item.fiatWallets),
         cryptoBalance: sumCryptoWalletBalances(item.cryptoWallets || []),
         owedLoansAmount: item.owedLoansAmount ?? null,
         owedLoans: pickOwedLoans(item),
@@ -495,6 +542,7 @@ export default function AccountsListPage() {
       { key: 'countryName', label: t('common.country') },
       { key: 'invitedThroughReferral', label: 'Referral', render: (row) => <ReferralBadge referred={Boolean(row.invitedThroughReferral)} /> },
       { key: 'balance', label: 'Balance' },
+      { key: 'fiatWallets', label: 'Fiat wallets', render: (row) => fiatWalletSummary(row.fiatWallets, row.balance) },
       { key: 'cryptoBalance', label: t('accounts.cryptoBalance'), render: (row) => formatAmount(row.cryptoBalance) },
       { key: 'owedLoans', label: t('accounts.amountOwed'), render: (row) => formatAmount(row.owedLoansAmount ?? row.owedLoans) },
       { key: 'createdAt', label: 'Created at', render: (row) => formatDateTime(row.createdAt) },
@@ -735,6 +783,11 @@ export default function AccountsListPage() {
       setCreditError('Amount must be at least 0.01');
       return;
     }
+    const currency = String(creditCurrency || '').trim().toUpperCase();
+    if (!currency) {
+      setCreditError('Select wallet currency');
+      return;
+    }
     if (!selected?.id) {
       setCreditError('No account selected');
       return;
@@ -744,6 +797,7 @@ export default function AccountsListPage() {
     try {
       const payload = {
         amount: amountNum,
+        currency,
         ...(creditAction ? { action: creditAction } : {}),
         ...(creditNote?.trim() ? { note: creditNote.trim() } : {})
       };
@@ -755,6 +809,7 @@ export default function AccountsListPage() {
       });
       setShowCredit(false);
       setCreditAmount('');
+      setCreditCurrency('');
       setCreditNote('');
       setCreditAction('MANUAL_ADJUSTMENT');
 
@@ -777,6 +832,11 @@ export default function AccountsListPage() {
       setDebitError('Amount must be at least 0.01');
       return;
     }
+    const currency = String(debitCurrency || '').trim().toUpperCase();
+    if (!currency) {
+      setDebitError('Select wallet currency');
+      return;
+    }
     if (!selected?.id) {
       setDebitError('No account selected');
       return;
@@ -788,6 +848,7 @@ export default function AccountsListPage() {
     try {
       const payload = {
         amount: amountNum,
+        currency,
         ...(debitAction ? { action: debitAction } : {}),
         ...(debitNote?.trim() ? { note: debitNote.trim() } : {})
       };
@@ -814,6 +875,7 @@ export default function AccountsListPage() {
       });
       setShowDebit(false);
       setDebitAmount('');
+      setDebitCurrency('');
       setDebitNote('');
       setDebitAction('MANUAL_ADJUSTMENT');
 
@@ -936,6 +998,7 @@ export default function AccountsListPage() {
           : ''
     );
     setPricingBridgecardRegistrationMode(source?.bridgecardCardholderRegistrationMode || '');
+    setPricingPaymentRequestSettlementMode(source?.paymentRequestWalletSettlementCurrencyMode || '');
     setPricingNote(source?.note ? String(source.note) : '');
   };
 
@@ -993,6 +1056,7 @@ export default function AccountsListPage() {
               : null,
         showDepositPrompt: source?.showDepositPrompt ?? null,
         depositPromptThresholdAmount: source?.depositPromptThresholdAmount ?? null,
+        paymentRequestWalletSettlementCurrencyMode: pricingPaymentRequestSettlementMode || null,
         collectionSourceRiskBypass: source?.collectionSourceRiskBypass ?? null,
         bridgecardCardholderRegistrationMode: pricingBridgecardRegistrationMode || null,
         note: pricingNote?.trim() ? pricingNote.trim() : null
@@ -1033,6 +1097,9 @@ export default function AccountsListPage() {
 
   const accountView = detailAccount || selected;
   const txView = detailTransactions || selected?.lastTransactions || [];
+  const fiatWallets = normalizeFiatWallets(accountView?.fiatWallets || selected?.fiatWallets);
+  const usdWallet = usdFiatWallet(fiatWallets);
+  const walletCurrencyOptions = fiatWalletCurrencyOptions(fiatWallets);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -1262,7 +1329,18 @@ export default function AccountsListPage() {
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-              <button type="button" onClick={() => setShowCredit(true)} className="btn-success">
+              <button
+                type="button"
+                onClick={() => {
+                  setCreditError(null);
+                  setCreditAmount('');
+                  setCreditCurrency(defaultFiatWalletCurrency(fiatWallets));
+                  setCreditNote('');
+                  setCreditAction('MANUAL_ADJUSTMENT');
+                  setShowCredit(true);
+                }}
+                className="btn-success"
+              >
                 {t('accounts.creditWallet')}
               </button>
               <button
@@ -1270,6 +1348,7 @@ export default function AccountsListPage() {
                 onClick={() => {
                   setDebitError(null);
                   setDebitAmount('');
+                  setDebitCurrency(defaultFiatWalletCurrency(fiatWallets));
                   setDebitNote('');
                   setDebitAction('MANUAL_ADJUSTMENT');
                   setShowDebit(true);
@@ -1361,6 +1440,7 @@ export default function AccountsListPage() {
                 { label: t('accounts.kycLevel'), value: accountView?.kycLevel ?? selected?.kycLevel },
                 { label: t('accounts.blacklisted'), value: renderBlacklistBadge(accountView?.blacklisted ?? selected?.blacklisted) },
                 { label: t('accounts.balance'), value: accountView?.balance ?? selected?.balance },
+                { label: 'USD fiat wallet', value: usdWallet ? formatWalletAmount(usdWallet.balance, 'USD') : formatWalletAmount(accountView?.balance ?? selected?.balance, 'USD') },
                 {
                   label: t('accounts.amountOwed'),
                   value: formatAmount(
@@ -1437,6 +1517,15 @@ export default function AccountsListPage() {
                       {
                         label: 'Bridgecard cardholder registration',
                         value: bridgecardRegistrationModeLabel(customPricing.bridgecardCardholderRegistrationMode)
+                      },
+                      {
+                        label: 'Payment request wallet settlement',
+                        value:
+                          customPricing.paymentRequestWalletSettlementCurrencyMode === 'REQUEST_CURRENCY'
+                            ? 'Request currency'
+                            : customPricing.paymentRequestWalletSettlementCurrencyMode === 'PAYER_CURRENCY'
+                              ? 'Payer currency'
+                              : 'Use global policy'
                       },
                       { label: 'Note', value: customPricing.note ?? '—' },
                       { label: 'Updated', value: customPricing.updatedAt ? formatDateTime(customPricing.updatedAt) : '—' }
@@ -1649,6 +1738,47 @@ export default function AccountsListPage() {
               </div>
             )}
 
+            {fiatWallets.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div style={{ fontWeight: 700 }}>Fiat wallets</div>
+                <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                  Full fiat wallet balances from `fiatWallets`. The legacy balance above remains the USD wallet balance for backward compatibility.
+                </div>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr>
+                        {['ID', 'Currency', 'Name', 'Balance', 'Enabled', 'Legacy backed', 'Actions'].map((label) => (
+                          <th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid #e5e7eb', color: '#6b7280' }}>
+                            {label}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {fiatWallets.map((wallet) => (
+                        <tr key={`${wallet.id || wallet.currency}-${wallet.currency}`} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '0.5rem' }}>{wallet.id ?? '—'}</td>
+                          <td style={{ padding: '0.5rem' }}><Badge>{wallet.currency}</Badge></td>
+                          <td style={{ padding: '0.5rem' }}>{wallet.displayName || '—'}</td>
+                          <td style={{ padding: '0.5rem', fontWeight: 800 }}>{formatWalletAmount(wallet.balance, wallet.currency)}</td>
+                          <td style={{ padding: '0.5rem' }}>{wallet.walletEnabled ? 'Yes' : 'No'}</td>
+                          <td style={{ padding: '0.5rem' }}>{wallet.legacyBalanceBacked ? 'Yes' : 'No'}</td>
+                          <td style={{ padding: '0.5rem' }}>
+                            {wallet.id ? (
+                              <Link href={`/dashboard/accounts/balance-activities?fiatWalletId=${encodeURIComponent(wallet.id)}`} className="btn-neutral">
+                                Ledger
+                              </Link>
+                            ) : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             {selected?.cryptoWallets?.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 <div style={{ fontWeight: 700 }}>{t('accounts.cryptoWallets')}</div>
@@ -1784,6 +1914,16 @@ export default function AccountsListPage() {
                 />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="creditCurrency">Wallet currency</label>
+                <select id="creditCurrency" value={creditCurrency} onChange={(e) => setCreditCurrency(e.target.value)}>
+                  <option value="">Select wallet currency</option>
+                  {walletCurrencyOptions.map((code) => (
+                    <option key={code} value={code}>{code}</option>
+                  ))}
+                </select>
+                <span style={{ color: 'var(--muted)', fontSize: '12px' }}>This selects the fiat wallet to credit.</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="creditNote">{t('common.note')} (optional)</label>
                 <input id="creditNote" value={creditNote} onChange={(e) => setCreditNote(e.target.value)} placeholder={t('accounts.optionalNoteReceipt')} />
               </div>
@@ -1826,6 +1966,16 @@ export default function AccountsListPage() {
                   onChange={(e) => setDebitAmount(e.target.value)}
                   placeholder="25.50"
                 />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="debitCurrency">Wallet currency</label>
+                <select id="debitCurrency" value={debitCurrency} onChange={(e) => setDebitCurrency(e.target.value)}>
+                  <option value="">Select wallet currency</option>
+                  {walletCurrencyOptions.map((code) => (
+                    <option key={code} value={code}>{code}</option>
+                  ))}
+                </select>
+                <span style={{ color: 'var(--muted)', fontSize: '12px' }}>This selects the fiat wallet to debit.</span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="debitNote">{t('common.note')} (optional)</label>
@@ -2042,6 +2192,21 @@ export default function AccountsListPage() {
                 </select>
                 <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
                   Choose how Bridgecard should register this specific user as a cardholder. Leave as Use global setting unless this user needs a different flow. Async registration allows Bridgecard manual review through callback. Synchronous registration attempts immediate verification and continues card ordering if successful.
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="pricingPaymentRequestSettlementMode">Payment request wallet settlement</label>
+                <select
+                  id="pricingPaymentRequestSettlementMode"
+                  value={pricingPaymentRequestSettlementMode}
+                  onChange={(e) => setPricingPaymentRequestSettlementMode(e.target.value)}
+                >
+                  <option value="">Use global policy</option>
+                  <option value="REQUEST_CURRENCY">Request currency</option>
+                  <option value="PAYER_CURRENCY">Payer currency</option>
+                </select>
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                  Account override for wallet-funded payment request settlement currency.
                 </div>
               </div>
             </div>

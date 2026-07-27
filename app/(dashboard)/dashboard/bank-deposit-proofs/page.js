@@ -263,7 +263,11 @@ export default function BankDepositProofsPage() {
     if (!draft.bankRef.trim()) return 'Bank ref is required.';
     const amount = Number(draft.amount);
     if (!Number.isFinite(amount) || amount <= 0) return 'Amount must be greater than zero.';
-    if (!draft.currency.trim()) return 'Currency is required.';
+    if (!draft.currency.trim()) {
+      return draft.creditTarget === 'WALLET'
+        ? 'Currency is required for wallet credit and selects the fiat wallet to credit.'
+        : 'Currency is required.';
+    }
     if (String(draft.feePercentage || '').trim() !== '') {
       const fee = Number(draft.feePercentage);
       if (!Number.isFinite(fee) || fee < 0 || fee > 100) return 'Fee percentage invalid (must be 0..100).';
@@ -391,6 +395,11 @@ export default function BankDepositProofsPage() {
         {draft.creditTarget === 'CRYPTO' && (
           <span style={{ color: 'var(--muted)', fontSize: '12px' }}>
             Crypto credit requires USD.
+          </span>
+        )}
+        {draft.creditTarget === 'WALLET' && (
+          <span style={{ color: 'var(--muted)', fontSize: '12px' }}>
+            For wallet credit, this selects the fiat wallet that receives the funds.
           </span>
         )}
       </div>

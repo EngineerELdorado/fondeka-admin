@@ -5,24 +5,21 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
-const emptyState = { accountBalanceId: '', transactionId: '', previousBalance: '', newBalance: '', delta: '', activityType: '' };
-const emptyFilters = { transactionReference: '', userEmail: '' };
-
-const toPayload = (state) => ({
-  accountBalanceId: Number(state.accountBalanceId) || 0,
-  transactionId: state.transactionId === '' ? null : Number(state.transactionId),
-  previousBalance: state.previousBalance === '' ? null : Number(state.previousBalance),
-  newBalance: state.newBalance === '' ? null : Number(state.newBalance),
-  delta: state.delta === '' ? null : Number(state.delta),
-  activityType: state.activityType
-});
+const emptyFilters = {
+  fiatWalletId: '',
+  accountId: '',
+  currency: '',
+  activityType: '',
+  transactionReference: '',
+  userEmail: ''
+};
 
 const Modal = ({ title, onClose, children }) => (
   <div className="modal-backdrop">
     <div className="modal-surface">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ fontWeight: 800 }}>{title}</div>
-        <button type="button" onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: '18px', cursor: 'pointer', color: 'var(--text)' }}>×</button>
+        <button type="button" onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: '18px', cursor: 'pointer', color: 'var(--text)' }}>x</button>
       </div>
       {children}
     </div>
@@ -32,51 +29,72 @@ const Modal = ({ title, onClose, children }) => (
 const DetailGrid = ({ rows }) => (
   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
     {rows.map((row) => (
-      <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px' }}>
+      <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: '1px solid var(--border)', borderRadius: '10px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
-        <div style={{ fontWeight: 700 }}>{row.value ?? '—'}</div>
+        <div style={{ fontWeight: 700 }}>{row.value ?? '-'}</div>
       </div>
     ))}
   </div>
 );
 
 const formatDateTime = (value) => {
-  if (!value) return '—';
+  if (!value) return '-';
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
-  });
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
 };
 
-const formatCurrency = (value) => {
-  if (value === null || value === undefined || value === '') return '—';
+const formatAmount = (value, currency) => {
+  if (value === null || value === undefined || value === '') return '-';
   const num = Number(value);
-  if (Number.isNaN(num)) return value;
-  return num.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const amount = Number.isFinite(num)
+    ? num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : String(value);
+  return [amount, currency].filter(Boolean).join(' ');
 };
 
-export default function AccountBalanceActivitiesPage() {
+const activityTone = (type, delta) => {
+  const normalized = String(type || '').toUpperCase();
+  const amount = Number(delta);
+  if (normalized.includes('DEPOSIT') || amount > 0) return { bg: '#ECFDF3', fg: '#15803D' };
+  if (normalized.includes('WITHDRAW') || normalized.includes('DEBIT') || amount < 0) return { bg: '#FEF2F2', fg: '#B91C1C' };
+  return { bg: '#F3F4F6', fg: '#4B5563' };
+};
+
+const ActivityBadge = ({ type, delta }) => {
+  const tone = activityTone(type, delta);
+  return (
+    <span style={{ display: 'inline-flex', borderRadius: '999px', padding: '0.18rem 0.5rem', background: tone.bg, color: tone.fg, fontSize: '12px', fontWeight: 800 }}>
+      {type || '-'}
+    </span>
+  );
+};
+
+export default function FiatWalletActivitiesPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
+  const [totalElements, setTotalElements] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [info, setInfo] = useState(null);
-  const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState(emptyFilters);
   const [appliedFilters, setAppliedFilters] = useState(emptyFilters);
-  const [showCreate, setShowCreate] = useState(false);
-  const [showEdit, setShowEdit] = useState(false);
-  const [showDetail, setShowDetail] = useState(false);
-  const [draft, setDraft] = useState(emptyState);
   const [selected, setSelected] = useState(null);
-  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [showDetail, setShowDetail] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const next = { ...emptyFilters };
+    Object.keys(next).forEach((key) => {
+      next[key] = params.get(key) || '';
+    });
+    if (Object.values(next).some(Boolean)) {
+      setFilters(next);
+      setAppliedFilters(next);
+    }
+  }, []);
 
   const fetchRows = async () => {
     setLoading(true);
@@ -85,13 +103,15 @@ export default function AccountBalanceActivitiesPage() {
       const params = new URLSearchParams();
       params.set('page', String(page));
       params.set('size', String(size));
-      if (appliedFilters.transactionReference) params.set('transactionReference', appliedFilters.transactionReference);
-      if (appliedFilters.userEmail) params.set('userEmail', appliedFilters.userEmail);
-      const res = await api.accountBalanceActivities.list(params);
-      const list = Array.isArray(res) ? res : res?.content || [];
-      setRows(list || []);
+      Object.entries(appliedFilters).forEach(([key, value]) => {
+        const trimmed = String(value || '').trim();
+        if (trimmed) params.set(key, key === 'currency' ? trimmed.toUpperCase() : trimmed);
+      });
+      const res = await api.fiatWalletActivities.list(params);
+      setRows(Array.isArray(res) ? res : res?.content || []);
+      setTotalElements(Array.isArray(res) ? null : res?.totalElements ?? null);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Failed to load fiat wallet activities');
     } finally {
       setLoading(false);
     }
@@ -100,99 +120,6 @@ export default function AccountBalanceActivitiesPage() {
   useEffect(() => {
     fetchRows();
   }, [page, size, appliedFilters]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const columns = useMemo(() => [
-    { key: 'id', label: 'ID' },
-    { key: 'userFullName', label: 'User' },
-    { key: 'activityType', label: 'Type' },
-    { key: 'delta', label: 'Delta', render: (row) => formatCurrency(row.delta) },
-    { key: 'previousBalance', label: 'Previous balance', render: (row) => formatCurrency(row.previousBalance) },
-    { key: 'newBalance', label: 'New balance', render: (row) => formatCurrency(row.newBalance) },
-    { key: 'transactionReference', label: 'Transaction ref' },
-    { key: 'createdAt', label: 'Created', render: (row) => formatDateTime(row.createdAt) },
-    {
-      key: 'actions',
-      label: 'Actions',
-      render: (row) => (
-        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-          <button type="button" onClick={() => openDetail(row)} className="btn-neutral">View</button>
-          <button type="button" onClick={() => openEdit(row)} className="btn-neutral">Edit</button>
-          <button type="button" onClick={() => setConfirmDelete(row)} className="btn-danger">Delete</button>
-        </div>
-      )
-    }
-  ], []);
-
-  const openCreate = () => {
-    setDraft(emptyState);
-    setShowCreate(true);
-    setInfo(null);
-    setError(null);
-  };
-
-  const openEdit = (row) => {
-    setSelected(row);
-    setDraft({
-      accountBalanceId: row.accountBalanceId ?? '',
-      transactionId: row.transactionId ?? '',
-      previousBalance: row.previousBalance ?? '',
-      newBalance: row.newBalance ?? '',
-      delta: row.delta ?? '',
-      activityType: row.activityType ?? ''
-    });
-    setShowEdit(true);
-    setInfo(null);
-    setError(null);
-  };
-
-  const openDetail = (row) => {
-    setSelected(row);
-    setShowDetail(true);
-    setInfo(null);
-    setError(null);
-  };
-
-  const handleCreate = async () => {
-    setError(null);
-    setInfo(null);
-    try {
-      await api.accountBalanceActivities.create(toPayload(draft));
-      setInfo('Created balance activity.');
-      setShowCreate(false);
-      fetchRows();
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  const handleUpdate = async () => {
-    if (!selected?.id) return;
-    setError(null);
-    setInfo(null);
-    try {
-      await api.accountBalanceActivities.update(selected.id, toPayload(draft));
-      setInfo(`Updated activity ${selected.id}.`);
-      setShowEdit(false);
-      fetchRows();
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!confirmDelete?.id) return;
-    const id = confirmDelete.id;
-    setError(null);
-    setInfo(null);
-    try {
-      await api.accountBalanceActivities.remove(id);
-      setInfo(`Deleted activity ${id}.`);
-      setConfirmDelete(null);
-      fetchRows();
-    } catch (err) {
-      setError(err.message);
-    }
-  };
 
   const applyFilters = () => {
     setAppliedFilters(filters);
@@ -205,160 +132,156 @@ export default function AccountBalanceActivitiesPage() {
     setPage(0);
   };
 
-  const renderForm = () => (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="accountBalanceId">Balance ID</label>
-        <input id="accountBalanceId" type="number" value={draft.accountBalanceId} onChange={(e) => setDraft((p) => ({ ...p, accountBalanceId: e.target.value }))} />
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="activityType">Activity type</label>
-        <input id="activityType" value={draft.activityType} onChange={(e) => setDraft((p) => ({ ...p, activityType: e.target.value }))} placeholder="DEPOSIT / WITHDRAWAL" />
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="delta">Delta</label>
-        <input id="delta" type="number" value={draft.delta} onChange={(e) => setDraft((p) => ({ ...p, delta: e.target.value }))} />
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="previousBalance">Previous balance</label>
-        <input id="previousBalance" type="number" value={draft.previousBalance} onChange={(e) => setDraft((p) => ({ ...p, previousBalance: e.target.value }))} />
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="newBalance">New balance</label>
-        <input id="newBalance" type="number" value={draft.newBalance} onChange={(e) => setDraft((p) => ({ ...p, newBalance: e.target.value }))} />
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="transactionId">Transaction ID</label>
-        <input id="transactionId" type="number" value={draft.transactionId} onChange={(e) => setDraft((p) => ({ ...p, transactionId: e.target.value }))} />
-      </div>
-    </div>
-  );
+  const openDetail = async (row) => {
+    setSelected(row);
+    setShowDetail(true);
+    setDetailLoading(true);
+    setError(null);
+    try {
+      const detail = await api.fiatWalletActivities.get(row.id);
+      setSelected(detail || row);
+    } catch (err) {
+      setError(err.message || 'Failed to load activity detail');
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const columns = useMemo(() => [
+    { key: 'id', label: 'ID' },
+    {
+      key: 'fiatWalletId',
+      label: 'Wallet',
+      render: (row) => (
+        <Link href={`/dashboard/fiat-wallets?accountId=${encodeURIComponent(row.accountId || '')}&currency=${encodeURIComponent(row.currency || '')}`} style={{ color: 'var(--accent)', fontWeight: 700 }}>
+          {row.fiatWalletId || '-'}
+        </Link>
+      )
+    },
+    {
+      key: 'accountReference',
+      label: 'Account',
+      render: (row) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
+          {row.accountId ? (
+            <Link href={`/dashboard/accounts/accounts/${row.accountId}`} style={{ color: 'var(--accent)', fontWeight: 700 }}>
+              {row.accountReference || `Account ${row.accountId}`}
+            </Link>
+          ) : row.accountReference || '-'}
+          <span style={{ color: 'var(--muted)', fontSize: '12px' }}>{row.email || row.username || '-'}</span>
+        </div>
+      )
+    },
+    { key: 'currency', label: 'Currency' },
+    { key: 'activityType', label: 'Type', render: (row) => <ActivityBadge type={row.activityType} delta={row.delta} /> },
+    { key: 'delta', label: 'Delta', render: (row) => formatAmount(row.delta, row.currency) },
+    { key: 'previousBalance', label: 'Previous', render: (row) => formatAmount(row.previousBalance, row.currency) },
+    { key: 'newBalance', label: 'New', render: (row) => formatAmount(row.newBalance, row.currency) },
+    {
+      key: 'transactionReference',
+      label: 'Transaction',
+      render: (row) => row.transactionId ? (
+        <Link href={`/dashboard/transactions?transactionId=${row.transactionId}`} style={{ color: 'var(--accent)', fontWeight: 700 }}>
+          {row.transactionReference || row.transactionId}
+        </Link>
+      ) : row.transactionReference || '-'
+    },
+    { key: 'createdAt', label: 'Created', render: (row) => formatDateTime(row.createdAt) },
+    {
+      key: 'actions',
+      label: 'Actions',
+      render: (row) => <button type="button" onClick={() => openDetail(row)} className="btn-neutral">View</button>
+    }
+  ], []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const updateFilter = (key, value) => setFilters((prev) => ({ ...prev, [key]: value }));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <div style={{ fontWeight: 800, fontSize: '20px' }}>Balance Activities</div>
-          <div style={{ color: 'var(--muted)' }}>Track balance changes (deposit/withdrawal).</div>
+          <div style={{ fontWeight: 800, fontSize: '20px' }}>Fiat Wallet Activities</div>
+          <div style={{ color: 'var(--muted)' }}>Read-only fiat wallet balance ledger. Use this instead of legacy account balance activities for new wallet movements.</div>
         </div>
-        <Link href="/dashboard/accounts" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
-          ← Accounts hub
-        </Link>
+        <Link href="/dashboard/accounts" className="btn-neutral">Accounts hub</Link>
       </div>
 
-      <div className="card" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-        <div>
+      <div className="card" style={{ display: 'flex', gap: '0.75rem', alignItems: 'end', flexWrap: 'wrap' }}>
+        <div style={{ width: '90px' }}>
           <label htmlFor="page">Page</label>
           <input id="page" type="number" min={0} value={page} onChange={(e) => setPage(Number(e.target.value))} />
         </div>
-        <div>
+        <div style={{ width: '90px' }}>
           <label htmlFor="size">Size</label>
           <input id="size" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
         </div>
-        <button type="button" onClick={openCreate} className="btn-success">
-          Add activity
-        </button>
-      </div>
-
-      <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-          <div style={{ fontWeight: 700 }}>Filters</div>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <button type="button" className="btn-neutral btn-sm" onClick={() => setShowFilters((prev) => !prev)}>
-              {showFilters ? 'Hide filters' : 'Show filters'}
-            </button>
-            <button type="button" onClick={fetchRows} disabled={loading} className="btn-neutral btn-sm">
-              {loading ? 'Loading…' : 'Refresh'}
-            </button>
-          </div>
+        <div style={{ minWidth: '130px' }}>
+          <label htmlFor="fiatWalletId">Wallet ID</label>
+          <input id="fiatWalletId" value={filters.fiatWalletId} onChange={(e) => updateFilter('fiatWalletId', e.target.value)} placeholder="10" />
         </div>
-        {showFilters && (
-          <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="filterTransactionRef">Transaction ref</label>
-                <input
-                  id="filterTransactionRef"
-                  value={filters.transactionReference}
-                  onChange={(e) => setFilters((p) => ({ ...p, transactionReference: e.target.value }))}
-                  placeholder="TX123"
-                />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="filterUserEmail">User email</label>
-                <input
-                  id="filterUserEmail"
-                  value={filters.userEmail}
-                  onChange={(e) => setFilters((p) => ({ ...p, userEmail: e.target.value }))}
-                  placeholder="user@domain.com"
-                />
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
-              <button type="button" onClick={applyFilters} disabled={loading} className="btn-primary">
-                {loading ? 'Applying…' : 'Apply filters'}
-              </button>
-              <button type="button" onClick={clearFilters} disabled={loading} className="btn-neutral">
-                Clear
-              </button>
-              <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Filters apply to transaction reference and user email.</span>
-            </div>
-          </>
-        )}
+        <div style={{ minWidth: '130px' }}>
+          <label htmlFor="accountId">Account ID</label>
+          <input id="accountId" value={filters.accountId} onChange={(e) => updateFilter('accountId', e.target.value)} placeholder="7" />
+        </div>
+        <div style={{ width: '110px' }}>
+          <label htmlFor="currency">Currency</label>
+          <input id="currency" value={filters.currency} onChange={(e) => updateFilter('currency', e.target.value)} placeholder="CDF" />
+        </div>
+        <div style={{ minWidth: '160px' }}>
+          <label htmlFor="activityType">Activity type</label>
+          <input id="activityType" value={filters.activityType} onChange={(e) => updateFilter('activityType', e.target.value)} placeholder="DEPOSIT" />
+        </div>
+        <div style={{ minWidth: '180px' }}>
+          <label htmlFor="transactionReference">Transaction ref</label>
+          <input id="transactionReference" value={filters.transactionReference} onChange={(e) => updateFilter('transactionReference', e.target.value)} placeholder="TX123" />
+        </div>
+        <div style={{ minWidth: '200px' }}>
+          <label htmlFor="userEmail">User email</label>
+          <input id="userEmail" type="email" value={filters.userEmail} onChange={(e) => updateFilter('userEmail', e.target.value)} placeholder="user@example.com" />
+        </div>
+        <button type="button" onClick={applyFilters} className="btn-primary">Apply</button>
+        <button type="button" onClick={clearFilters} className="btn-neutral">Clear</button>
+        <button type="button" onClick={fetchRows} disabled={loading} className="btn-neutral">{loading ? 'Loading...' : 'Refresh'}</button>
       </div>
 
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
-      {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
-
-      <DataTable columns={columns} rows={rows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No balance activities found" />
-
-      {showCreate && (
-        <Modal title="Add balance activity" onClose={() => setShowCreate(false)}>
-          {renderForm()}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-            <button type="button" onClick={() => setShowCreate(false)} className="btn-neutral">Cancel</button>
-            <button type="button" onClick={handleCreate} className="btn-success">Create</button>
-          </div>
-        </Modal>
-      )}
-
-      {showEdit && (
-        <Modal title={`Edit activity ${selected?.id}`} onClose={() => setShowEdit(false)}>
-          {renderForm()}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-            <button type="button" onClick={() => setShowEdit(false)} className="btn-neutral">Cancel</button>
-            <button type="button" onClick={handleUpdate} className="btn-primary">Save</button>
-          </div>
-        </Modal>
-      )}
+      <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+        {totalElements === null ? `${rows.length} visible activit${rows.length === 1 ? 'y' : 'ies'}` : `${totalElements} total activit${totalElements === 1 ? 'y' : 'ies'}`}
+      </div>
+      <DataTable columns={columns} rows={rows} emptyLabel={loading ? 'Loading fiat wallet activities...' : 'No fiat wallet activities found'} />
 
       {showDetail && (
-        <Modal title={`Details ${selected?.id}`} onClose={() => setShowDetail(false)}>
-          <DetailGrid
-            rows={[
-              { label: 'ID', value: selected?.id },
-              { label: 'Balance ID', value: selected?.accountBalanceId },
-              { label: 'Activity type', value: selected?.activityType },
-              { label: 'User', value: selected?.userFullName },
-              { label: 'Delta', value: formatCurrency(selected?.delta) },
-              { label: 'Previous balance', value: formatCurrency(selected?.previousBalance) },
-              { label: 'New balance', value: formatCurrency(selected?.newBalance) },
-              { label: 'Transaction ID', value: selected?.transactionId },
-              { label: 'Transaction ref', value: selected?.transactionReference },
-              { label: 'Created', value: formatDateTime(selected?.createdAt) }
-            ]}
-          />
-        </Modal>
-      )}
-
-      {confirmDelete && (
-        <Modal title="Confirm delete" onClose={() => setConfirmDelete(null)}>
-          <div style={{ color: 'var(--muted)' }}>
-            Delete activity <strong>{confirmDelete.id}</strong>? This cannot be undone.
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-            <button type="button" onClick={() => setConfirmDelete(null)} className="btn-neutral">Cancel</button>
-            <button type="button" onClick={handleDelete} className="btn-danger">Delete</button>
+        <Modal title={`Fiat wallet activity ${selected?.id ?? ''}`} onClose={() => setShowDetail(false)}>
+          {detailLoading ? (
+            <div style={{ color: 'var(--muted)' }}>Loading activity detail...</div>
+          ) : (
+            <DetailGrid
+              rows={[
+                { label: 'Activity ID', value: selected?.id },
+                { label: 'Fiat wallet ID', value: selected?.fiatWalletId },
+                { label: 'Account ID', value: selected?.accountId },
+                { label: 'Account reference', value: selected?.accountReference },
+                { label: 'User', value: selected?.userFullName || selected?.username },
+                { label: 'Email', value: selected?.email },
+                { label: 'Currency', value: selected?.currency },
+                { label: 'Activity type', value: selected?.activityType },
+                { label: 'Previous balance', value: formatAmount(selected?.previousBalance, selected?.currency) },
+                { label: 'Delta', value: formatAmount(selected?.delta, selected?.currency) },
+                { label: 'New balance', value: formatAmount(selected?.newBalance, selected?.currency) },
+                { label: 'Transaction ID', value: selected?.transactionId },
+                { label: 'Transaction ref', value: selected?.transactionReference },
+                { label: 'Created', value: formatDateTime(selected?.createdAt) }
+              ]}
+            />
+          )}
+          <div className="modal-actions">
+            {selected?.transactionId && (
+              <Link href={`/dashboard/transactions?transactionId=${selected.transactionId}`} className="btn-primary">Open transaction</Link>
+            )}
+            {selected?.accountId && (
+              <Link href={`/dashboard/accounts/accounts/${selected.accountId}`} className="btn-neutral">Open account</Link>
+            )}
+            <button type="button" onClick={() => setShowDetail(false)} className="btn-neutral">Close</button>
           </div>
         </Modal>
       )}

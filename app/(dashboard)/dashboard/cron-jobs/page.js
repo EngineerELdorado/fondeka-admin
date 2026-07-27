@@ -9,13 +9,15 @@ const cronDescriptions = {
   'reloadly_recharge_catalog.sync': 'Worker-side scheduler that enqueues Reloadly mobile recharge catalog refresh events. Pausing it leaves cached recharge data in place but it will become stale over time.',
   'zendit_recharge_catalog.sync': 'Worker-side scheduler that enqueues Zendit mobile recharge catalog refresh events. Use manual sync on the Recharge Catalog Sync page if you need an immediate refresh.',
   'reloadly_utilities_catalog.sync': 'Worker-side scheduler that enqueues Reloadly Utilities catalog refresh events. It controls cache freshness, not customer-facing bill product visibility.',
-  'zendit_utilities_catalog.sync': 'Worker-side scheduler that enqueues Zendit utility voucher catalog refresh events. Use Utility Bill Catalog Sync to enqueue an immediate refresh when needed.'
+  'zendit_utilities_catalog.sync': 'Worker-side scheduler that enqueues Zendit utility voucher catalog refresh events. Use Utility Bill Catalog Sync to enqueue an immediate refresh when needed.',
+  'wallet_currency.audit': 'Worker-side scheduler that logs open wallet currency audit violations without modifying transactions or blocking payment flows.'
 };
 
 const getCronGroup = (key) => {
   const value = String(key || '').trim();
   if (['reloadly_recharge_catalog.sync', 'zendit_recharge_catalog.sync'].includes(value)) return 'Mobile Recharge Catalog Sync';
   if (['reloadly_utilities_catalog.sync', 'zendit_utilities_catalog.sync'].includes(value)) return 'Utility Bill Catalog Sync';
+  if (value === 'wallet_currency.audit') return 'Wallet Currency Audit';
   return 'Other';
 };
 

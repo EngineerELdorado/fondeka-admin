@@ -230,6 +230,31 @@ const formatAmountWithCurrency = (value, currency) => {
   return formatted === '—' || !normalizedCurrency ? formatted : `${formatted} ${normalizedCurrency}`;
 };
 
+const normalizeFiatWallets = (wallets) =>
+  (Array.isArray(wallets) ? wallets : [])
+    .map((wallet) => ({
+      id: wallet?.fiatWalletId ?? wallet?.id ?? null,
+      currency: String(wallet?.currency || '').trim().toUpperCase(),
+      displayName: wallet?.displayName || wallet?.name || '',
+      balance: wallet?.balance,
+      walletEnabled: wallet?.walletEnabled !== false,
+      legacyBalanceBacked: wallet?.legacyBalanceBacked === true
+    }))
+    .filter((wallet) => wallet.currency);
+
+const getUsdFiatWallet = (wallets) => normalizeFiatWallets(wallets).find((wallet) => wallet.currency === 'USD') || null;
+
+const fiatWalletCurrencyOptions = (wallets) => {
+  const codes = normalizeFiatWallets(wallets).map((wallet) => wallet.currency);
+  const unique = Array.from(new Set(['USD', ...codes].filter(Boolean)));
+  return unique.sort((a, b) => (a === 'USD' ? -1 : b === 'USD' ? 1 : a.localeCompare(b)));
+};
+
+const defaultFiatWalletCurrency = (wallets) => {
+  const list = normalizeFiatWallets(wallets);
+  return list.find((wallet) => wallet.currency === 'USD')?.currency || list[0]?.currency || 'USD';
+};
+
 const formatAuthState = (value) => {
   if (value === null || value === undefined || value === '') return '—';
   return Boolean(value) ? 'ON' : 'OFF';
@@ -649,6 +674,7 @@ const [notificationDataModal, setNotificationDataModal] = useState(null);
   const [pricingShowDepositPromptOverride, setPricingShowDepositPromptOverride] = useState('GLOBAL');
   const [pricingDepositPromptThresholdOverride, setPricingDepositPromptThresholdOverride] = useState('');
   const [pricingBridgecardRegistrationMode, setPricingBridgecardRegistrationMode] = useState('');
+  const [pricingPaymentRequestSettlementMode, setPricingPaymentRequestSettlementMode] = useState('');
   const [pricingNote, setPricingNote] = useState('');
   const [pricingError, setPricingError] = useState(null);
   const [pricingSaving, setPricingSaving] = useState(false);
@@ -776,6 +802,7 @@ const [cardholderResult, setCardholderResult] = useState(null);
   }, [account?.country?.alpha2Code, account?.countryCode]);
 const [showCredit, setShowCredit] = useState(false);
 const [creditAmount, setCreditAmount] = useState('');
+const [creditCurrency, setCreditCurrency] = useState('');
 const [creditInternalFeeAmount, setCreditInternalFeeAmount] = useState('');
 const [creditGrossAmount, setCreditGrossAmount] = useState('');
 const [creditNote, setCreditNote] = useState('');
@@ -784,6 +811,7 @@ const [creditError, setCreditError] = useState(null);
 const [creditLoading, setCreditLoading] = useState(false);
 const [showDebit, setShowDebit] = useState(false);
 const [debitAmount, setDebitAmount] = useState('');
+const [debitCurrency, setDebitCurrency] = useState('');
 const [debitNote, setDebitNote] = useState('');
 const [debitAction, setDebitAction] = useState('MANUAL_ADJUSTMENT');
 const [debitError, setDebitError] = useState(null);
@@ -1383,6 +1411,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
 
   const openCredit = () => {
     setCreditAmount('');
+    setCreditCurrency(defaultFiatWalletCurrency(fiatWallets));
     setCreditInternalFeeAmount('');
     setCreditGrossAmount('');
     setCreditNote('');
@@ -1393,6 +1422,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
 
   const openDebit = () => {
     setDebitAmount('');
+    setDebitCurrency(defaultFiatWalletCurrency(fiatWallets));
     setDebitNote('');
     setDebitAction('MANUAL_ADJUSTMENT');
     setDebitError(null);
@@ -1782,6 +1812,11 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       setCreditError('Amount must be greater than 0');
       return;
     }
+    const currency = String(creditCurrency || '').trim().toUpperCase();
+    if (!currency) {
+      setCreditError('Select wallet currency');
+      return;
+    }
     const parseOptionalNumber = (raw) => {
       if (raw === '' || raw === null || raw === undefined) return null;
       const parsed = Number(raw);
@@ -1803,6 +1838,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     try {
       const payload = {
         amount: amountNum,
+        currency,
         ...(internalFeeNum !== null ? { internalFeeAmount: internalFeeNum } : {}),
         ...(grossAmountNum !== null ? { grossAmount: grossAmountNum } : {}),
         ...(creditAction ? { action: creditAction } : {}),
@@ -1816,6 +1852,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       });
       setShowCredit(false);
       setCreditAmount('');
+      setCreditCurrency('');
       setCreditInternalFeeAmount('');
       setCreditGrossAmount('');
       setCreditNote('');
@@ -1840,6 +1877,11 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       setDebitError('Amount must be at least 0.01');
       return;
     }
+    const currency = String(debitCurrency || '').trim().toUpperCase();
+    if (!currency) {
+      setDebitError('Select wallet currency');
+      return;
+    }
     const confirmed = window.confirm("This will debit the user's wallet. This action is irreversible.");
     if (!confirmed) return;
 
@@ -1848,6 +1890,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     try {
       const payload = {
         amount: amountNum,
+        currency,
         ...(debitAction ? { action: debitAction } : {}),
         ...(debitNote?.trim() ? { note: debitNote.trim() } : {})
       };
@@ -2074,6 +2117,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       source?.depositPromptThresholdAmount !== undefined && source?.depositPromptThresholdAmount !== null ? String(source.depositPromptThresholdAmount) : ''
     );
     setPricingBridgecardRegistrationMode(source?.bridgecardCardholderRegistrationMode || '');
+    setPricingPaymentRequestSettlementMode(source?.paymentRequestWalletSettlementCurrencyMode || '');
     setPricingNote(source?.note ? String(source.note) : '');
   };
 
@@ -2090,7 +2134,8 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     showDepositPrompt,
     depositPromptThresholdAmount,
     collectionSourceRiskBypass,
-    bridgecardCardholderRegistrationMode
+    bridgecardCardholderRegistrationMode,
+    paymentRequestWalletSettlementCurrencyMode
   } = {}) => ({
     baseLoanEligibilityPercent:
       baseLoanEligibilityPercent !== undefined ? baseLoanEligibilityPercent : (source?.baseLoanEligibilityPercent ?? null),
@@ -2116,6 +2161,10 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       bridgecardCardholderRegistrationMode !== undefined
         ? bridgecardCardholderRegistrationMode
         : (source?.bridgecardCardholderRegistrationMode ?? null),
+    paymentRequestWalletSettlementCurrencyMode:
+      paymentRequestWalletSettlementCurrencyMode !== undefined
+        ? paymentRequestWalletSettlementCurrencyMode
+        : (source?.paymentRequestWalletSettlementCurrencyMode ?? null),
     note:
       note !== undefined ? note : (source?.note ?? null)
   });
@@ -2188,6 +2237,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         showDepositPrompt,
         depositPromptThresholdAmount,
         bridgecardCardholderRegistrationMode: pricingBridgecardRegistrationMode || null,
+        paymentRequestWalletSettlementCurrencyMode: pricingPaymentRequestSettlementMode || null,
         note: pricingNote?.trim() ? pricingNote.trim() : null
       });
       await api.accounts.updateCustomPricing(resolvedAccountId, payload);
@@ -3106,6 +3156,9 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
   const authView = useMemo(() => resolveTransactionAuthValues(accountView), [accountView]);
   const mobileDeviceDetails = useMemo(() => resolveMobileDeviceDetails(accountView), [accountView]);
   const txView = transactions || [];
+  const fiatWallets = normalizeFiatWallets(accountView?.fiatWallets);
+  const usdWallet = getUsdFiatWallet(fiatWallets);
+  const walletCurrencyOptions = fiatWalletCurrencyOptions(fiatWallets);
   const cryptoWallets = accountView?.cryptoWallets || [];
   const owedBreakdown = useMemo(() => resolveOwedBreakdown(accountView), [accountView]);
   const depositPromptOverrideActive =
@@ -3261,6 +3314,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           { label: 'KYC status', value: accountView?.kycStatus },
           { label: 'Blacklist', value: <BlacklistBadge blacklisted={Boolean(accountView?.blacklisted)} /> },
           { label: 'Balance', value: accountView?.balance },
+          { label: 'USD fiat wallet', value: usdWallet ? formatAmountWithCurrency(usdWallet.balance, 'USD') : formatAmountWithCurrency(accountView?.balance, 'USD') },
           {
             label: 'Amount owed',
             value: (
@@ -4102,6 +4156,15 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                   {
                     label: 'Bridgecard cardholder registration',
                     value: bridgecardRegistrationModeLabel(customPricing.bridgecardCardholderRegistrationMode)
+                  },
+                  {
+                    label: 'Payment request wallet settlement',
+                    value:
+                      customPricing.paymentRequestWalletSettlementCurrencyMode === 'REQUEST_CURRENCY'
+                        ? 'Request currency'
+                        : customPricing.paymentRequestWalletSettlementCurrencyMode === 'PAYER_CURRENCY'
+                          ? 'Payer currency'
+                          : 'Use global policy'
                   },
                   {
                     label: 'Deposit prompt',
@@ -5262,6 +5325,47 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         )}
       </div>
 
+      {fiatWallets.length > 0 && (
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', ...fadeInStyle(!loading) }}>
+          <div style={{ fontWeight: 700 }}>Fiat wallets</div>
+          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+            Full fiat wallet balances from `fiatWallets`. The legacy balance above remains the USD wallet balance for backward compatibility.
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  {['ID', 'Currency', 'Name', 'Balance', 'Enabled', 'Legacy backed', 'Actions'].map((label) => (
+                    <th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid #e5e7eb', color: '#6b7280' }}>
+                      {label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {fiatWallets.map((wallet) => (
+                  <tr key={`${wallet.id || wallet.currency}-${wallet.currency}`} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <td style={{ padding: '0.5rem' }}>{wallet.id ?? '—'}</td>
+                    <td style={{ padding: '0.5rem' }}><Badge>{wallet.currency}</Badge></td>
+                    <td style={{ padding: '0.5rem' }}>{wallet.displayName || '—'}</td>
+                    <td style={{ padding: '0.5rem', fontWeight: 800 }}>{formatAmountWithCurrency(wallet.balance, wallet.currency)}</td>
+                    <td style={{ padding: '0.5rem' }}>{wallet.walletEnabled ? 'Yes' : 'No'}</td>
+                    <td style={{ padding: '0.5rem' }}>{wallet.legacyBalanceBacked ? 'Yes' : 'No'}</td>
+                    <td style={{ padding: '0.5rem' }}>
+                      {wallet.id ? (
+                        <Link href={`/dashboard/accounts/balance-activities?fiatWalletId=${encodeURIComponent(wallet.id)}`} className="btn-neutral">
+                          Ledger
+                        </Link>
+                      ) : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {cryptoWallets.length > 0 && (
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', ...fadeInStyle(!loading) }}>
           <div style={{ fontWeight: 700 }}>Crypto wallets</div>
@@ -5460,6 +5564,21 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                 </select>
                 <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
                   Choose how Bridgecard should register this specific user as a cardholder. Leave as Use global setting unless this user needs a different flow. Async registration allows Bridgecard manual review through callback. Synchronous registration attempts immediate verification and continues card ordering if successful.
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="pricingPaymentRequestSettlementMode">Payment request wallet settlement</label>
+                <select
+                  id="pricingPaymentRequestSettlementMode"
+                  value={pricingPaymentRequestSettlementMode}
+                  onChange={(e) => setPricingPaymentRequestSettlementMode(e.target.value)}
+                >
+                  <option value="">Use global policy</option>
+                  <option value="REQUEST_CURRENCY">Request currency</option>
+                  <option value="PAYER_CURRENCY">Payer currency</option>
+                </select>
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                  Account override for wallet-funded payment request settlement currency.
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -5759,6 +5878,16 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                 <div style={{ color: 'var(--muted)', fontSize: '12px' }}>amount = net credited to user wallet.</div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="creditCurrency">Wallet currency</label>
+                <select id="creditCurrency" value={creditCurrency} onChange={(e) => setCreditCurrency(e.target.value)}>
+                  <option value="">Select wallet currency</option>
+                  {walletCurrencyOptions.map((code) => (
+                    <option key={code} value={code}>{code}</option>
+                  ))}
+                </select>
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>This selects the fiat wallet to credit.</div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="creditNote">Note (optional)</label>
                 <input
                   id="creditNote"
@@ -5834,6 +5963,16 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                   onChange={(e) => setDebitAmount(e.target.value)}
                   placeholder="25.00"
                 />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="debitCurrency">Wallet currency</label>
+                <select id="debitCurrency" value={debitCurrency} onChange={(e) => setDebitCurrency(e.target.value)}>
+                  <option value="">Select wallet currency</option>
+                  {walletCurrencyOptions.map((code) => (
+                    <option key={code} value={code}>{code}</option>
+                  ))}
+                </select>
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>This selects the fiat wallet to debit.</div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="debitNote">Note (optional)</label>

@@ -9,6 +9,8 @@ import { useLocale } from '@/contexts/LocaleContext';
 const navItems = [
   { href: '/dashboard', labelKey: 'layout.nav.overview' },
   { href: '/dashboard/accounts/accounts', labelKey: 'layout.nav.accounts' },
+  { href: '/dashboard/fiat-wallets', labelKey: 'layout.nav.fiatWallets' },
+  { href: '/dashboard/wallet-currency-audit', labelKey: 'layout.nav.walletCurrencyAudit' },
   { href: '/dashboard/wallet-migrations/legacy-usd', labelKey: 'layout.nav.legacyUsdWalletMigration' },
   { href: '/dashboard/blacklist', labelKey: 'layout.nav.blacklist' },
   { href: '/dashboard/payments', labelKey: 'layout.nav.paymentMethods' },
