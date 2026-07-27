@@ -10,6 +10,7 @@ const giftCardKeys = ['SPOTIFY', 'APP_STORE', 'GOOGLE_PLAY', 'NETFLIX', 'APPLE',
 const emptyState = {
   billProductId: '',
   billProviderId: '',
+  providerCurrency: 'USD',
   rank: '',
   active: true,
   commissionPercentage: '',
@@ -52,6 +53,7 @@ const toNumberOrNull = (value) => {
 const toPayload = (state) => ({
   billProductId: Number(state.billProductId) || 0,
   billProviderId: Number(state.billProviderId) || 0,
+  providerCurrency: String(state.providerCurrency || 'USD').trim().toUpperCase(),
   rank: state.rank === '' ? null : Number(state.rank),
   commissionPercentage: state.commissionPercentage === '' ? null : Number(state.commissionPercentage),
   kwhPerUsd: state.kwhPerUsd === '' ? null : Number(state.kwhPerUsd),
@@ -180,6 +182,11 @@ export default function BillProductProvidersPage() {
     { key: 'billProductName', label: 'Product' },
     { key: 'billProviderName', label: 'Provider' },
     {
+      key: 'providerCurrency',
+      label: 'Provider currency',
+      render: (row) => row.providerCurrency || 'USD'
+    },
+    {
       key: 'zenditBrand',
       label: 'Zendit Group',
       render: (row) => {
@@ -262,6 +269,7 @@ export default function BillProductProvidersPage() {
     setDraft({
       billProductId: row.billProductId ?? '',
       billProviderId: row.billProviderId ?? '',
+      providerCurrency: row.providerCurrency || 'USD',
       rank: row.rank ?? '',
       commissionPercentage: row.commissionPercentage ?? '',
       kwhPerUsd: row.kwhPerUsd ?? '',
@@ -507,6 +515,7 @@ export default function BillProductProvidersPage() {
             await api.billProductBillProviders.create({
               billProductId: Number(product?.id),
               billProviderId: Number(provider.id),
+              providerCurrency: 'USD',
               rank: null,
               commissionPercentage: null,
               kwhPerUsd: null,
@@ -817,6 +826,17 @@ export default function BillProductProvidersPage() {
         </select>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="providerCurrency">Provider currency</label>
+        <input
+          id="providerCurrency"
+          value={draft.providerCurrency}
+          onChange={(e) => setDraft((prev) => ({ ...prev, providerCurrency: e.target.value.toUpperCase() }))}
+          placeholder="USD"
+          maxLength={3}
+        />
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Currency submitted to the bill provider. Old records default to USD.</div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="rank">Rank</label>
         <input id="rank" type="number" value={draft.rank} onChange={(e) => setDraft((prev) => ({ ...prev, rank: e.target.value }))} />
       </div>
@@ -934,6 +954,7 @@ export default function BillProductProvidersPage() {
                 { label: 'ID', value: selected?.id },
                 { label: 'Product', value: selected?.billProductName || selected?.billProductId },
                 { label: 'Provider', value: selected?.billProviderName || selected?.billProviderId },
+                { label: 'Provider currency', value: selected?.providerCurrency || 'USD' },
                 { label: 'Zendit brand', value: selected?.zenditBrand ?? '—' },
                 { label: 'Zendit country', value: selected?.zenditCountry ?? '—' },
                 { label: 'Zendit subtype', value: selected?.zenditSubType ?? '—' },

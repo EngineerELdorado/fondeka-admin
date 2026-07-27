@@ -290,6 +290,44 @@ const formatWebhookPayload = (payload) => {
   }
 };
 
+const formatProviderName = (value) => {
+  if (!value) return '—';
+  return String(value).toUpperCase() === 'NO_EXTERNAL_PROVIDER' ? 'No external provider' : String(value);
+};
+
+const providerEventTone = (event) => {
+  const type = normalizeEnumKey(event?.eventType);
+  const status = normalizeEnumKey(event?.status);
+  if (type === 'ERROR') return { bg: '#FEF2F2', fg: '#B91C1C', border: '#FECACA' };
+  if (type === 'REQUEST') return { bg: '#EFF6FF', fg: '#1D4ED8', border: '#BFDBFE' };
+  if (type === 'CALLBACK') return { bg: '#EEF2FF', fg: '#4338CA', border: '#C7D2FE' };
+  if (type === 'STATUS_LOOKUP') return { bg: '#F8FAFC', fg: '#475569', border: '#CBD5E1' };
+  if (type === 'RESPONSE') {
+    if (['COMPLETED', 'SUCCESS', 'SUCCESSFUL', 'DELIVERED', 'PAID'].includes(status)) return { bg: '#ECFDF3', fg: '#15803D', border: '#BBF7D0' };
+    return { bg: '#FFFBEB', fg: '#B45309', border: '#FDE68A' };
+  }
+  return { bg: '#F3F4F6', fg: '#374151', border: '#D1D5DB' };
+};
+
+const ProviderBadge = ({ children, tone }) => (
+  <span
+    style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      borderRadius: '999px',
+      border: `1px solid ${tone?.border || '#D1D5DB'}`,
+      background: tone?.bg || '#F3F4F6',
+      color: tone?.fg || '#374151',
+      padding: '0.16rem 0.5rem',
+      fontSize: '12px',
+      fontWeight: 800,
+      whiteSpace: 'nowrap'
+    }}
+  >
+    {children || '—'}
+  </span>
+);
+
 const RECENT_BILL_MSISDN_STORAGE_KEY = 'fondeka-admin:recent-bill-msisdn';
 const MAX_RECENT_MSISDN = 5;
 
@@ -569,6 +607,13 @@ export default function TransactionsPage() {
   const [statusChangeError, setStatusChangeError] = useState(null);
   const [statusChangeLoading, setStatusChangeLoading] = useState(false);
   const webhookEvents = Array.isArray(selected?.webhookEvents) ? selected.webhookEvents : [];
+  const providerTimelineEvents = useMemo(
+    () =>
+      [...(Array.isArray(selected?.providerEvents) ? selected.providerEvents : [])].sort(
+        (a, b) => (Number(a?.sequenceNumber) || 0) - (Number(b?.sequenceNumber) || 0)
+      ),
+    [selected?.providerEvents]
+  );
   const normalizedStatus = selected?.status?.toUpperCase?.() || '';
   const normalizedSelectedAction = normalizeEnumKey(selected?.action);
   const normalizedSelectedService = normalizeEnumKey(selected?.service);
@@ -2303,6 +2348,85 @@ export default function TransactionsPage() {
                 ...(showErrorMessage ? [{ label: 'Error message', value: selected?.errorMessage || '—' }] : [])
               ]}
             />
+
+            <div className="card" style={{ padding: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                  <div style={{ fontWeight: 800 }}>Provider timeline</div>
+                </div>
+                <ProviderBadge tone={{ bg: '#F8FAFC', fg: '#475569', border: '#CBD5E1' }}>
+                  {providerTimelineEvents.length} {providerTimelineEvents.length === 1 ? 'event' : 'events'}
+                </ProviderBadge>
+              </div>
+
+              {providerTimelineEvents.length === 0 ? (
+                <div style={{ marginTop: '0.75rem', color: 'var(--muted)' }}>No external provider.</div>
+              ) : (
+                <div style={{ marginTop: '0.85rem', display: 'grid', gap: '0.75rem' }}>
+                  {providerTimelineEvents.map((event, index) => {
+                    const eventTone = providerEventTone(event);
+                    const hasPayload = event?.payload !== null && event?.payload !== undefined;
+                    const hasError = event?.error !== null && event?.error !== undefined;
+                    const sequence = event?.sequenceNumber ?? index + 1;
+                    return (
+                      <div
+                        key={event?.id ?? `${sequence}-${event?.eventType || 'event'}`}
+                        style={{
+                          display: 'grid',
+                          gap: '0.55rem',
+                          padding: '0.75rem',
+                          border: '1px solid var(--border)',
+                          borderRadius: '8px',
+                          background: 'var(--surface)'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          <ProviderBadge tone={eventTone}>{event?.eventType || 'EVENT'}</ProviderBadge>
+                          {event?.status ? <ProviderBadge tone={eventTone}>{event.status}</ProviderBadge> : null}
+                          <span style={{ color: 'var(--muted)', fontSize: '12px' }}>#{sequence}</span>
+                          <span style={{ color: 'var(--muted)', fontSize: '12px' }}>{formatDateTime(event?.createdAt) || 'Unknown time'}</span>
+                        </div>
+                        <DetailGrid
+                          rows={[
+                            { label: 'Provider', value: formatProviderName(event?.providerName) },
+                            { label: 'Operation', value: event?.operation || '—' },
+                            {
+                              label: 'Reference',
+                              value: event?.providerReference
+                                ? <CopyableValue value={event.providerReference} label="Provider reference" onCopy={copyToClipboard} />
+                                : '—'
+                            }
+                          ]}
+                        />
+                        {hasPayload || hasError ? (
+                          <details>
+                            <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Payload / error JSON</summary>
+                            <div style={{ marginTop: '0.6rem', display: 'grid', gap: '0.6rem' }}>
+                              {hasPayload ? (
+                                <div>
+                                  <div style={{ color: 'var(--muted)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: '0.25rem' }}>Payload</div>
+                                  <pre style={{ margin: 0, whiteSpace: 'pre-wrap', overflow: 'auto', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.7rem' }}>
+                                    {formatWebhookPayload(event.payload)}
+                                  </pre>
+                                </div>
+                              ) : null}
+                              {hasError ? (
+                                <div>
+                                  <div style={{ color: '#b91c1c', fontSize: '12px', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: '0.25rem' }}>Error</div>
+                                  <pre style={{ margin: 0, whiteSpace: 'pre-wrap', overflow: 'auto', border: '1px solid #fecaca', borderRadius: '8px', padding: '0.7rem' }}>
+                                    {formatWebhookPayload(event.error)}
+                                  </pre>
+                                </div>
+                              ) : null}
+                            </div>
+                          </details>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
             {hasLoanEligibilitySnapshot && (
               <div className="card" style={{ padding: '1rem' }}>

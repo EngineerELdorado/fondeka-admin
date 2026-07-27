@@ -22,6 +22,7 @@ const emptyState = {
   capabilitiesMap: {},
   capabilitiesExtra: [],
   currency: '',
+  providerCurrency: 'USD',
   purchaseCost: '',
   price: '',
   monthlyMaintenanceCost: '',
@@ -130,6 +131,7 @@ const toPayload = (state) => {
     popularPlatforms: popularPlatforms.length ? popularPlatforms : null,
     capabilities: Object.keys(capabilities).length ? capabilities : null,
     currency: state.currency,
+    providerCurrency: String(state.providerCurrency || 'USD').trim().toUpperCase(),
     purchaseCost: state.purchaseCost === '' ? null : Number(state.purchaseCost),
     price: state.price === '' ? null : Number(state.price),
     monthlyMaintenanceCost: state.monthlyMaintenanceCost === '' ? null : Number(state.monthlyMaintenanceCost),
@@ -359,6 +361,11 @@ export default function CardProductProvidersPage() {
         render: (row) => fmtAmount(row, 'price')
       },
       {
+        key: 'providerCurrency',
+        label: 'Provider currency',
+        render: (row) => row.providerCurrency || 'USD'
+      },
+      {
         key: 'rank',
         label: 'Rank',
         render: (row) => (row.rank === null || row.rank === undefined ? '—' : row.rank)
@@ -415,6 +422,7 @@ export default function CardProductProvidersPage() {
       capabilitiesMap: normalizeCapabilityMap(row.capabilities, defaultCapabilityCodes),
       capabilitiesExtra: normalizeCapabilityExtras(row.capabilities, defaultCapabilityCodes),
       currency: row.currency ?? '',
+      providerCurrency: row.providerCurrency || 'USD',
       purchaseCost: row.purchaseCost ?? '',
       price: row.price ?? '',
       monthlyMaintenanceCost: row.monthlyMaintenanceCost ?? '',
@@ -1090,6 +1098,17 @@ export default function CardProductProvidersPage() {
         <input id="currency" value={draft.currency} onChange={(e) => setDraft((p) => ({ ...p, currency: e.target.value }))} placeholder="e.g. USD" />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="providerCurrency">Provider currency</label>
+        <input
+          id="providerCurrency"
+          value={draft.providerCurrency}
+          onChange={(e) => setDraft((p) => ({ ...p, providerCurrency: e.target.value.toUpperCase() }))}
+          placeholder="e.g. USD"
+          maxLength={3}
+        />
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Currency submitted to the card provider. Old records default to USD.</div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="price">Price</label>
         <input id="price" type="number" value={draft.price} onChange={(e) => setDraft((p) => ({ ...p, price: e.target.value }))} />
       </div>
@@ -1494,6 +1513,7 @@ export default function CardProductProvidersPage() {
               { label: 'Popular platforms', value: formatJson(selected?.popularPlatforms) },
               { label: 'Capabilities', value: formatJson(selected?.capabilities) },
               { label: 'Currency', value: selected?.currency || '—' },
+              { label: 'Provider currency', value: selected?.providerCurrency || 'USD' },
               { label: 'Price', value: selected?.price ?? '—' },
               { label: 'Purchase cost', value: selected?.purchaseCost ?? '—' },
               { label: 'Monthly maintenance cost', value: selected?.monthlyMaintenanceCost ?? '—' },

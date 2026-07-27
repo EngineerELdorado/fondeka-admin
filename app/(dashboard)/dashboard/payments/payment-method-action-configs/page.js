@@ -112,11 +112,19 @@ const emptyState = {
   excludeTypes: [],
   includeNames: [],
   excludeNames: [],
+  showCountrySelectorForCollection: '',
+  showCountrySelectorForPayout: '',
   active: true,
   rank: 0
 };
 
 const normalizeList = (list) => (Array.isArray(list) && list.length ? list : null);
+const nullableBoolean = (value) => {
+  if (value === '' || value === null || value === undefined) return null;
+  if (value === true || value === 'true') return true;
+  if (value === false || value === 'false') return false;
+  return null;
+};
 
 const toPayload = (state) => ({
   accountId: state.accountId === '' ? null : Number(state.accountId),
@@ -126,6 +134,8 @@ const toPayload = (state) => ({
   excludeTypes: normalizeList(state.excludeTypes),
   includeNames: normalizeList(state.includeNames),
   excludeNames: normalizeList(state.excludeNames),
+  showCountrySelectorForCollection: nullableBoolean(state.showCountrySelectorForCollection),
+  showCountrySelectorForPayout: nullableBoolean(state.showCountrySelectorForPayout),
   active: Boolean(state.active),
   rank: state.rank === '' ? 0 : Number(state.rank)
 });
@@ -138,6 +148,10 @@ const toDraftFromRow = (row) => ({
   excludeTypes: Array.isArray(row.excludeTypes) ? row.excludeTypes : [],
   includeNames: Array.isArray(row.includeNames) ? row.includeNames : [],
   excludeNames: Array.isArray(row.excludeNames) ? row.excludeNames : [],
+  showCountrySelectorForCollection:
+    row.showCountrySelectorForCollection === null || row.showCountrySelectorForCollection === undefined ? '' : String(Boolean(row.showCountrySelectorForCollection)),
+  showCountrySelectorForPayout:
+    row.showCountrySelectorForPayout === null || row.showCountrySelectorForPayout === undefined ? '' : String(Boolean(row.showCountrySelectorForPayout)),
   active: Boolean(row.active),
   rank: row.rank ?? 0
 });
@@ -156,6 +170,10 @@ const resolveScope = (row) => {
 const resolveOwnerLabel = (row) => (row.accountId ? `Account #${row.accountId}` : 'Global default');
 
 const formatList = (list) => (Array.isArray(list) && list.length ? list.join(', ') : '—');
+const formatTriState = (value, unsetLabel = 'Backend default') => {
+  if (value === null || value === undefined || value === '') return unsetLabel;
+  return value ? 'Force show' : 'Force hide';
+};
 
 const Modal = ({ title, onClose, children }) => (
   <div className="modal-backdrop">
@@ -321,6 +339,8 @@ export default function PaymentMethodActionConfigsPage() {
     { key: 'active', label: 'Active' },
     { key: 'includeTypes', label: 'Include Types', render: (row) => formatList(row.includeTypes) },
     { key: 'excludeTypes', label: 'Exclude Types', render: (row) => formatList(row.excludeTypes) },
+    { key: 'showCountrySelectorForCollection', label: 'Collection country selector', render: (row) => formatTriState(row.showCountrySelectorForCollection) },
+    { key: 'showCountrySelectorForPayout', label: 'Payout country selector', render: (row) => formatTriState(row.showCountrySelectorForPayout) },
     { key: 'includeNames', label: 'Include Names', render: (row) => formatList(row.includeNames) },
     { key: 'excludeNames', label: 'Exclude Names', render: (row) => formatList(row.excludeNames) },
     {
@@ -520,6 +540,34 @@ export default function PaymentMethodActionConfigsPage() {
         onChange={(values) => setDraft((p) => ({ ...p, excludeTypes: values }))}
         helperText="Excluded types are always removed."
       />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <label htmlFor="showCountrySelectorForCollection">Show country selector for collection</label>
+          <select
+            id="showCountrySelectorForCollection"
+            value={draft.showCountrySelectorForCollection}
+            onChange={(e) => setDraft((p) => ({ ...p, showCountrySelectorForCollection: e.target.value }))}
+          >
+            <option value="">Unset - backend default (hide)</option>
+            <option value="true">Force show</option>
+            <option value="false">Force hide</option>
+          </select>
+          <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Unset sends null and lets broader/default rules apply.</div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <label htmlFor="showCountrySelectorForPayout">Show country selector for payout</label>
+          <select
+            id="showCountrySelectorForPayout"
+            value={draft.showCountrySelectorForPayout}
+            onChange={(e) => setDraft((p) => ({ ...p, showCountrySelectorForPayout: e.target.value }))}
+          >
+            <option value="">Unset - backend default (show)</option>
+            <option value="true">Force show</option>
+            <option value="false">Force hide</option>
+          </select>
+          <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Unset sends null and lets broader/default rules apply.</div>
+        </div>
+      </div>
       {typeConflicts.length ? (
         <div style={{ color: 'var(--danger)', fontSize: '12px' }}>
           Include/exclude types conflict: {typeConflicts.join(', ')}
@@ -797,6 +845,8 @@ export default function PaymentMethodActionConfigsPage() {
                 { label: 'Country', value: selected?.countryCode || '—' },
                 { label: 'Include Types', value: formatList(selected?.includeTypes) },
                 { label: 'Exclude Types', value: formatList(selected?.excludeTypes) },
+                { label: 'Collection country selector', value: formatTriState(selected?.showCountrySelectorForCollection) },
+                { label: 'Payout country selector', value: formatTriState(selected?.showCountrySelectorForPayout) },
                 { label: 'Include Names', value: formatList(selected?.includeNames) },
                 { label: 'Exclude Names', value: formatList(selected?.excludeNames) },
                 { label: 'Rank', value: selected?.rank ?? '—' },

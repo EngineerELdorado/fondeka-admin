@@ -9,6 +9,7 @@ import { useLocale } from '@/contexts/LocaleContext';
 const navItems = [
   { href: '/dashboard', labelKey: 'layout.nav.overview' },
   { href: '/dashboard/accounts/accounts', labelKey: 'layout.nav.accounts' },
+  { href: '/dashboard/wallet-migrations/legacy-usd', labelKey: 'layout.nav.legacyUsdWalletMigration' },
   { href: '/dashboard/blacklist', labelKey: 'layout.nav.blacklist' },
   { href: '/dashboard/payments', labelKey: 'layout.nav.paymentMethods' },
   // Products cluster
@@ -39,6 +40,7 @@ const navItems = [
   { href: '/dashboard/transactions', labelKey: 'layout.nav.transactions' },
   { href: '/dashboard/bank-deposit-proofs', labelKey: 'layout.nav.bankDepositProofs' },
   { href: '/dashboard/fiat-exchange-rates', labelKey: 'layout.nav.fiatExchangeRates' },
+  { href: '/dashboard/provider-fx-policies', labelKey: 'layout.nav.providerFxPolicies' },
   { href: '/dashboard/estimated-processing-times', labelKey: 'layout.nav.estimatedProcessingTimes' },
   { href: '/dashboard/webhook-events', labelKey: 'layout.nav.webhookEvents' },
   { href: '/dashboard/outbox', labelKey: 'layout.nav.outbox' },
