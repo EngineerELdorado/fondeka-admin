@@ -309,6 +309,44 @@ const providerEventTone = (event) => {
   return { bg: '#F3F4F6', fg: '#374151', border: '#D1D5DB' };
 };
 
+const investigationEventTone = (item) => {
+  const type = normalizeEnumKey(item?.type);
+  const status = normalizeEnumKey(item?.status);
+  const hasError = item?.error || item?.lastError;
+  if (type === 'PROVIDER_ERROR' || hasError) return { bg: '#FEF2F2', fg: '#B91C1C', border: '#FECACA' };
+  if (type === 'WEBHOOK_RECEIVED' || type === 'WEBHOOK_PROCESSED') return { bg: '#EEF2FF', fg: '#4338CA', border: '#C7D2FE' };
+  if (type === 'PROVIDER_REQUEST') return { bg: '#EFF6FF', fg: '#1D4ED8', border: '#BFDBFE' };
+  if (type === 'PROVIDER_RESPONSE') {
+    if (['COMPLETED', 'SUCCESS', 'SUCCESSFUL', 'DELIVERED', 'PAID'].includes(status)) return { bg: '#ECFDF3', fg: '#15803D', border: '#BBF7D0' };
+    return { bg: '#FFFBEB', fg: '#B45309', border: '#FDE68A' };
+  }
+  if (type === 'NO_EXTERNAL_PROVIDER') return { bg: '#F8FAFC', fg: '#475569', border: '#CBD5E1' };
+  if (type === 'RECEIPT_CREATED' || type === 'RECEIPT_UPDATED') return { bg: '#F0FDFA', fg: '#0F766E', border: '#99F6E4' };
+  return { bg: '#F3F4F6', fg: '#374151', border: '#D1D5DB' };
+};
+
+const investigationPayloadSections = (item) => {
+  const type = normalizeEnumKey(item?.type);
+  if (item?.payload === null || item?.payload === undefined) return [];
+  if (type === 'PROVIDER_REQUEST') {
+    return [{ label: 'Submitted to provider', value: item.payload }];
+  }
+  if (type === 'PROVIDER_RESPONSE') {
+    return [{ label: 'Provider immediate response', value: item.payload }];
+  }
+  if (type === 'WEBHOOK_RECEIVED') {
+    const providerPayload =
+      item.payload && typeof item.payload === 'object' && item.payload.payload !== undefined
+        ? item.payload.payload
+        : item.payload;
+    return [{ label: 'Provider webhook payload', value: providerPayload }];
+  }
+  if (type === 'RECEIPT_CREATED' || type === 'RECEIPT_UPDATED') {
+    return [{ label: 'Final receipt state', value: item.payload }];
+  }
+  return [{ label: 'Payload', value: item.payload }];
+};
+
 const ProviderBadge = ({ children, tone }) => (
   <span
     style={{
@@ -537,6 +575,10 @@ export default function TransactionsPage() {
   const [showDetail, setShowDetail] = useState(false);
   const [selected, setSelected] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [showInvestigation, setShowInvestigation] = useState(false);
+  const [investigation, setInvestigation] = useState(null);
+  const [investigationLoading, setInvestigationLoading] = useState(false);
+  const [investigationError, setInvestigationError] = useState(null);
   const [accountSummary, setAccountSummary] = useState(null);
   const [accountLoading, setAccountLoading] = useState(false);
 
@@ -1221,6 +1263,28 @@ export default function TransactionsPage() {
     setShowStatusChange(false);
     setStatusChangeValue('');
     setStatusChangeError(null);
+    setShowInvestigation(false);
+    setInvestigation(null);
+    setInvestigationError(null);
+  };
+
+  const loadInvestigationTimeline = async (transaction = selected) => {
+    const transactionId = transaction?.transactionId || transaction?.id;
+    if (!transactionId) {
+      setInvestigationError('No transaction selected');
+      return;
+    }
+    setShowInvestigation(true);
+    setInvestigationLoading(true);
+    setInvestigationError(null);
+    try {
+      const res = await api.transactions.timeline(transactionId);
+      setInvestigation(res || null);
+    } catch (err) {
+      setInvestigationError(err?.message || 'Failed to load transaction investigation timeline.');
+    } finally {
+      setInvestigationLoading(false);
+    }
   };
 
   const showRefundTransaction = async ({ refundReference, refundTransactionId }) => {
@@ -3025,6 +3089,9 @@ export default function TransactionsPage() {
             )}
 
             <div className="modal-actions">
+              <button type="button" onClick={() => loadInvestigationTimeline(selected)} className="btn-neutral" disabled={investigationLoading}>
+                {investigationLoading ? 'Loading timeline…' : 'Investigation'}
+              </button>
               <button type="button" onClick={() => loadAccountSummary(selected)} className="btn-neutral" disabled={accountLoading}>
                 {accountLoading ? 'Refreshing…' : 'Refresh balance'}
               </button>
@@ -3048,6 +3115,258 @@ export default function TransactionsPage() {
                   Refund to wallet
                 </button>
               )}
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showInvestigation && (
+        <Modal
+          title={`Investigation ${investigation?.reference || selected?.reference || selected?.transactionId || selected?.id || ''}`}
+          onClose={() => (!investigationLoading ? setShowInvestigation(false) : null)}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {investigationLoading && <div style={{ color: 'var(--muted)' }}>Loading transaction investigation timeline…</div>}
+            {investigationError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{investigationError}</div>}
+
+            <DetailGrid
+              rows={[
+                { label: 'Transaction ID', value: investigation?.transactionId ?? selected?.transactionId ?? selected?.id },
+                { label: 'Reference', value: <CopyableValue value={investigation?.reference || selected?.reference} label="Timeline reference" onCopy={copyToClipboard} /> },
+                { label: 'External ref', value: <CopyableValue value={investigation?.externalReference || selected?.externalReference} label="Timeline external ref" onCopy={copyToClipboard} /> },
+                { label: 'Operator ref', value: <CopyableValue value={investigation?.operatorReference || selected?.operatorReference} label="Timeline operator ref" onCopy={copyToClipboard} /> },
+                { label: 'Status', value: investigation?.status || selected?.status },
+                { label: 'Service', value: formatEnumLabel(investigation?.service || selected?.service, serviceLabels) },
+                { label: 'Action', value: formatEnumLabel(investigation?.action || selected?.action, actionLabels) },
+                { label: 'Created', value: formatDateTime(investigation?.createdAt || selected?.createdAt) },
+                { label: 'Updated', value: formatDateTime(investigation?.updatedAt || selected?.updatedAt) },
+                { label: 'External provider', value: investigation?.hasExternalProvider === false ? 'No' : investigation?.hasExternalProvider === true ? 'Yes' : '—' },
+                { label: 'Provider events', value: investigation?.providerEventCount ?? (Array.isArray(investigation?.providerEvents) ? investigation.providerEvents.length : '—') },
+                { label: 'Webhook events', value: investigation?.webhookEventCount ?? (Array.isArray(investigation?.webhookEvents) ? investigation.webhookEvents.length : '—') }
+              ]}
+            />
+
+            <div className="card" style={{ padding: '1rem' }}>
+              {investigation?.providerEventCount > 0 && !(Array.isArray(investigation?.timeline) && investigation.timeline.some((event) => normalizeEnumKey(event?.type) === 'PROVIDER_REQUEST')) && (
+                <div style={{ marginBottom: '0.85rem', padding: '0.75rem', border: '1px solid #FDE68A', borderRadius: '8px', background: '#FFFBEB', color: '#92400E', fontWeight: 700 }}>
+                  Provider trace incomplete. Provider events exist, but this flow has not yet been instrumented for exact provider request/response capture.
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <div style={{ display: 'grid', gap: '0.15rem' }}>
+                  <div style={{ fontWeight: 800 }}>Timeline</div>
+                  <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                    Normalized transaction journey across transaction, receipt, provider events, and webhooks.
+                  </div>
+                </div>
+                <ProviderBadge tone={{ bg: '#F8FAFC', fg: '#475569', border: '#CBD5E1' }}>
+                  {Array.isArray(investigation?.timeline) ? investigation.timeline.length : 0} events
+                </ProviderBadge>
+              </div>
+
+              {!investigationLoading && (!Array.isArray(investigation?.timeline) || investigation.timeline.length === 0) ? (
+                <div style={{ marginTop: '0.75rem', color: 'var(--muted)' }}>No timeline events returned.</div>
+              ) : (
+                <div style={{ marginTop: '1rem', display: 'grid', gap: 0 }}>
+                  {[...(Array.isArray(investigation?.timeline) ? investigation.timeline : [])]
+                    .sort((a, b) => {
+                      const left = new Date(a?.occurredAt || 0).getTime();
+                      const right = new Date(b?.occurredAt || 0).getTime();
+                      return (Number.isFinite(left) ? left : 0) - (Number.isFinite(right) ? right : 0);
+                    })
+                    .map((item, index) => {
+                      const tone = investigationEventTone(item);
+                      const hasPayload = item?.payload !== null && item?.payload !== undefined;
+                      const payloadSections = investigationPayloadSections(item);
+                      const hasError = item?.error !== null && item?.error !== undefined;
+                      const hasLastError = item?.lastError !== null && item?.lastError !== undefined;
+                      const hasAnyError = hasError || hasLastError;
+                      const timelineItems = Array.isArray(investigation?.timeline) ? investigation.timeline : [];
+                      const isLast = index === timelineItems.length - 1;
+                      const isNoExternalProvider =
+                        normalizeEnumKey(item?.type) === 'NO_EXTERNAL_PROVIDER' ||
+                        normalizeEnumKey(item?.providerName) === 'NO_EXTERNAL_PROVIDER' ||
+                        normalizeEnumKey(item?.title) === 'NO_EXTERNAL_PROVIDER';
+                      if (isNoExternalProvider) {
+                        return (
+                          <div
+                            key={`${item?.sourceType || 'timeline'}-${item?.sourceId ?? index}-${item?.type || 'event'}`}
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: 'minmax(110px, 150px) 28px minmax(0, 1fr)',
+                              columnGap: '0.65rem',
+                              alignItems: 'start'
+                            }}
+                          >
+                            <div style={{ paddingTop: '0.12rem', color: 'var(--muted)', fontSize: '12px', lineHeight: 1.35 }}>
+                              <div style={{ fontWeight: 800, color: 'var(--text)' }}>{formatDateTime(item?.occurredAt)}</div>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: '100%' }}>
+                              <div
+                                style={{
+                                  width: 14,
+                                  height: 14,
+                                  borderRadius: '999px',
+                                  border: '3px solid #CBD5E1',
+                                  background: '#64748B',
+                                  boxShadow: '0 0 0 4px var(--surface)'
+                                }}
+                              />
+                              {!isLast && <div style={{ width: 2, flex: 1, minHeight: 42, background: '#CBD5E1', marginTop: 4 }} />}
+                            </div>
+                            <div style={{ padding: '0 0 1rem', minWidth: 0 }}>
+                              <div
+                                style={{
+                                  padding: '0.65rem 0.8rem',
+                                  border: '1px solid #CBD5E1',
+                                  borderRadius: '8px',
+                                  background: '#F8FAFC',
+                                  color: '#475569',
+                                  fontWeight: 800
+                                }}
+                              >
+                                No External Provider
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div
+                          key={`${item?.sourceType || 'timeline'}-${item?.sourceId ?? index}-${item?.type || 'event'}`}
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'minmax(110px, 150px) 28px minmax(0, 1fr)',
+                            columnGap: '0.65rem',
+                            alignItems: 'start'
+                          }}
+                        >
+                          <div style={{ paddingTop: '0.12rem', color: 'var(--muted)', fontSize: '12px', lineHeight: 1.35 }}>
+                            <div style={{ fontWeight: 800, color: 'var(--text)' }}>{formatDateTime(item?.occurredAt)}</div>
+                            <div>Event {index + 1}</div>
+                            {item?.sequenceNumber !== null && item?.sequenceNumber !== undefined ? <div>Provider #{item.sequenceNumber}</div> : null}
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: '100%' }}>
+                            <div
+                              style={{
+                                width: 14,
+                                height: 14,
+                                borderRadius: '999px',
+                                border: `3px solid ${tone.border}`,
+                                background: tone.fg,
+                                boxShadow: hasAnyError ? '0 0 0 4px #FEE2E2' : '0 0 0 4px var(--surface)'
+                              }}
+                            />
+                            {!isLast && <div style={{ width: 2, flex: 1, minHeight: 86, background: tone.border, marginTop: 4 }} />}
+                          </div>
+                          <div
+                            style={{
+                              display: 'grid',
+                              gap: '0.6rem',
+                              padding: '0 0 1rem',
+                              minWidth: 0
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: 'grid',
+                                gap: '0.55rem',
+                                padding: '0.8rem',
+                                border: `1px solid ${tone.border}`,
+                                borderRadius: '8px',
+                                background: hasAnyError ? '#FEF2F2' : 'var(--surface)',
+                                minWidth: 0
+                              }}
+                            >
+                              <div style={{ display: 'grid', gap: '0.2rem' }}>
+                                <div style={{ fontWeight: 900, fontSize: '15px', overflowWrap: 'anywhere' }}>
+                                  {item?.title || formatEnumLabel(item?.type)}
+                                </div>
+                                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                                  {item?.sourceType || 'Timeline event'}{item?.sourceId !== null && item?.sourceId !== undefined ? ` #${item.sourceId}` : ''}
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                                <ProviderBadge tone={tone}>{item?.type || 'EVENT'}</ProviderBadge>
+                                {item?.providerName ? <ProviderBadge tone={tone}>{formatProviderName(item.providerName)}</ProviderBadge> : null}
+                                {item?.operation ? <ProviderBadge tone={tone}>{item.operation}</ProviderBadge> : null}
+                                {item?.status ? <ProviderBadge tone={tone}>{item.status}</ProviderBadge> : null}
+                                {item?.sourceType ? <ProviderBadge tone={{ bg: '#F8FAFC', fg: '#475569', border: '#CBD5E1' }}>{item.sourceType}</ProviderBadge> : null}
+                              </div>
+                              {(item?.providerReference || item?.sourceId !== null && item?.sourceId !== undefined) && (
+                                <DetailGrid
+                                  rows={[
+                                    { label: 'Provider reference', value: <CopyableValue value={item?.providerReference} label="Provider reference" onCopy={copyToClipboard} /> },
+                                    { label: 'Source ID', value: item?.sourceId ?? '—' }
+                                  ]}
+                                />
+                              )}
+                              {hasPayload || hasError || hasLastError ? (
+                                <details>
+                                  <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Payload / error JSON</summary>
+                                  <div style={{ marginTop: '0.6rem', display: 'grid', gap: '0.6rem' }}>
+                                    {payloadSections.map((section) => (
+                                      <div key={section.label}>
+                                        <div style={{ color: 'var(--muted)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: '0.25rem' }}>{section.label}</div>
+                                        <pre style={{ margin: 0, whiteSpace: 'pre-wrap', overflow: 'auto', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.7rem' }}>
+                                          {formatWebhookPayload(section.value)}
+                                        </pre>
+                                      </div>
+                                    ))}
+                                    {hasError ? (
+                                      <div>
+                                        <div style={{ color: '#b91c1c', fontSize: '12px', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: '0.25rem' }}>Error</div>
+                                        <pre style={{ margin: 0, whiteSpace: 'pre-wrap', overflow: 'auto', border: '1px solid #fecaca', borderRadius: '8px', padding: '0.7rem' }}>
+                                          {formatWebhookPayload(item.error)}
+                                        </pre>
+                                      </div>
+                                    ) : null}
+                                    {hasLastError ? (
+                                      <div>
+                                        <div style={{ color: '#b91c1c', fontSize: '12px', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: '0.25rem' }}>Last error</div>
+                                        <pre style={{ margin: 0, whiteSpace: 'pre-wrap', overflow: 'auto', border: '1px solid #fecaca', borderRadius: '8px', padding: '0.7rem' }}>
+                                          {formatWebhookPayload(item.lastError)}
+                                        </pre>
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                </details>
+                              ) : null}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
+
+            <details className="card" style={{ padding: '1rem' }}>
+              <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Raw investigation data</summary>
+              <div style={{ marginTop: '0.75rem', display: 'grid', gap: '0.75rem' }}>
+                {[
+                  ['Transaction snapshot', investigation?.transaction],
+                  ['Receipt', investigation?.receipt],
+                  ['Provider events', investigation?.providerEvents],
+                  ['Webhook events', investigation?.webhookEvents]
+                ].map(([label, value]) => (
+                  <details key={label} style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '0.7rem' }}>
+                    <summary style={{ cursor: 'pointer', fontWeight: 700 }}>{label}</summary>
+                    <pre style={{ margin: '0.6rem 0 0', whiteSpace: 'pre-wrap', overflow: 'auto', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.7rem' }}>
+                      {formatWebhookPayload(value || {})}
+                    </pre>
+                  </details>
+                ))}
+              </div>
+            </details>
+
+            <div className="modal-actions">
+              <button type="button" className="btn-neutral" onClick={() => loadInvestigationTimeline(selected)} disabled={investigationLoading}>
+                {investigationLoading ? 'Reloading…' : 'Reload timeline'}
+              </button>
+              <button type="button" className="btn-neutral" onClick={() => setShowInvestigation(false)} disabled={investigationLoading}>
+                Close
+              </button>
             </div>
           </div>
         </Modal>
