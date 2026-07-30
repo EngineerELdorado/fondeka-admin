@@ -2464,7 +2464,7 @@ export default function TransactionsPage() {
                         />
                         {hasPayload || hasError ? (
                           <details>
-                            <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Payload / error JSON</summary>
+                            <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Payload</summary>
                             <div style={{ marginTop: '0.6rem', display: 'grid', gap: '0.6rem' }}>
                               {hasPayload ? (
                                 <div>
@@ -3303,7 +3303,7 @@ export default function TransactionsPage() {
                               )}
                               {hasPayload || hasError || hasLastError ? (
                                 <details>
-                                  <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Payload / error JSON</summary>
+                                  <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Payload</summary>
                                   <div style={{ marginTop: '0.6rem', display: 'grid', gap: '0.6rem' }}>
                                     {payloadSections.map((section) => (
                                       <div key={section.label}>

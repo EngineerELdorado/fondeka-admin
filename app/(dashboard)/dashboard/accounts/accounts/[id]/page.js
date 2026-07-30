@@ -586,6 +586,16 @@ const createEmptyProviderRoutingForm = () => ({
   active: true
 });
 const normalizeEnumValue = (value) => (typeof value === 'string' ? value.trim().toUpperCase() : '');
+const nullableBoolean = (value) => {
+  if (value === '' || value === null || value === undefined) return null;
+  if (value === true || value === 'true') return true;
+  if (value === false || value === 'false') return false;
+  return null;
+};
+const formatAllowLocalMobileMoney = (value) => {
+  if (value === null || value === undefined || value === '') return 'Default: enabled';
+  return value ? 'Enabled' : 'Disabled';
+};
 const formatFeeAmountRange = (minAmount, maxAmount) => {
   const hasMin = minAmount !== null && minAmount !== undefined && minAmount !== '';
   const hasMax = maxAmount !== null && maxAmount !== undefined && maxAmount !== '';
@@ -720,6 +730,7 @@ const [notificationDataModal, setNotificationDataModal] = useState(null);
   const [paymentMethodExcludeTypes, setPaymentMethodExcludeTypes] = useState([]);
   const [paymentMethodIncludeNames, setPaymentMethodIncludeNames] = useState([]);
   const [paymentMethodExcludeNames, setPaymentMethodExcludeNames] = useState([]);
+  const [paymentMethodAllowLocalMobileMoneyForUsdWallet, setPaymentMethodAllowLocalMobileMoneyForUsdWallet] = useState('');
   const [paymentMethodActive, setPaymentMethodActive] = useState(true);
   const [paymentMethodRank, setPaymentMethodRank] = useState(0);
   const [paymentMethodActionSaving, setPaymentMethodActionSaving] = useState(false);
@@ -2459,6 +2470,11 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     setPaymentMethodExcludeTypes(Array.isArray(rule?.excludeTypes) ? rule.excludeTypes : []);
     setPaymentMethodIncludeNames(Array.isArray(rule?.includeNames) ? rule.includeNames : []);
     setPaymentMethodExcludeNames(Array.isArray(rule?.excludeNames) ? rule.excludeNames : []);
+    setPaymentMethodAllowLocalMobileMoneyForUsdWallet(
+      rule?.allowLocalMobileMoneyForUsdWallet === null || rule?.allowLocalMobileMoneyForUsdWallet === undefined
+        ? ''
+        : String(Boolean(rule.allowLocalMobileMoneyForUsdWallet))
+    );
     setPaymentMethodActive(Boolean(rule?.active ?? true));
     setPaymentMethodRank(rule?.rank ?? 0);
     setShowPaymentMethodActionForm(true);
@@ -2472,6 +2488,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     setPaymentMethodExcludeTypes([]);
     setPaymentMethodIncludeNames([]);
     setPaymentMethodExcludeNames([]);
+    setPaymentMethodAllowLocalMobileMoneyForUsdWallet('');
     setPaymentMethodActive(true);
     setPaymentMethodRank(0);
   };
@@ -2572,6 +2589,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       excludeTypes: paymentMethodExcludeTypes.length ? paymentMethodExcludeTypes : null,
       includeNames: paymentMethodIncludeNames.length ? paymentMethodIncludeNames : null,
       excludeNames: paymentMethodExcludeNames.length ? paymentMethodExcludeNames : null,
+      allowLocalMobileMoneyForUsdWallet: nullableBoolean(paymentMethodAllowLocalMobileMoneyForUsdWallet),
       active: Boolean(paymentMethodActive),
       rank: paymentMethodRank === '' ? 0 : Number(paymentMethodRank)
     };
@@ -4564,10 +4582,10 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           )}
           {!paymentMethodActionConfigsLoading && paymentMethodActionConfigs.length > 0 && (
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '980px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '1120px' }}>
                 <thead>
                   <tr>
-                    {['Action', 'Country', 'Rank', 'Active', 'Include Types', 'Exclude Types', 'Include Names', 'Exclude Names', 'Updated', ''].map((h) => (
+                    {['Action', 'Country', 'Rank', 'Active', 'Local MM for USD wallet', 'Include Types', 'Exclude Types', 'Include Names', 'Exclude Names', 'Updated', ''].map((h) => (
                       <th key={h} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
                         {h}
                       </th>
@@ -4581,6 +4599,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                       <td style={{ padding: '0.45rem' }}>{rule.countryCode || '—'}</td>
                       <td style={{ padding: '0.45rem' }}>{rule.rank ?? 0}</td>
                       <td style={{ padding: '0.45rem' }}>{rule.active ? 'Yes' : 'No'}</td>
+                      <td style={{ padding: '0.45rem' }}>{formatAllowLocalMobileMoney(rule.allowLocalMobileMoneyForUsdWallet)}</td>
                       <td style={{ padding: '0.45rem' }}>{Array.isArray(rule.includeTypes) && rule.includeTypes.length ? rule.includeTypes.join(', ') : '—'}</td>
                       <td style={{ padding: '0.45rem' }}>{Array.isArray(rule.excludeTypes) && rule.excludeTypes.length ? rule.excludeTypes.join(', ') : '—'}</td>
                       <td style={{ padding: '0.45rem' }}>{Array.isArray(rule.includeNames) && rule.includeNames.length ? rule.includeNames.join(', ') : '—'}</td>
@@ -6529,6 +6548,22 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                 Include/exclude type conflicts: {paymentMethodTypeConflicts.join(', ')}
               </div>
             )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="paymentMethodRuleAllowLocalMobileMoneyForUsdWallet">Allow local mobile money for USD wallet</label>
+              <select
+                id="paymentMethodRuleAllowLocalMobileMoneyForUsdWallet"
+                value={paymentMethodAllowLocalMobileMoneyForUsdWallet}
+                onChange={(e) => setPaymentMethodAllowLocalMobileMoneyForUsdWallet(e.target.value)}
+              >
+                <option value="">Default - enabled</option>
+                <option value="true">Enabled</option>
+                <option value="false">Disabled</option>
+              </select>
+              <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+                Applies to USD wallet FUND_WALLET and WITHDRAW_FROM_WALLET mobile money lookups. Disabled hides local mobile money when USD rails exist.
+              </div>
+            </div>
 
             <MultiSelect
               label="Include Names"

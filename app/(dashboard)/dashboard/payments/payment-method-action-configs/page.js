@@ -114,6 +114,7 @@ const emptyState = {
   excludeNames: [],
   showCountrySelectorForCollection: '',
   showCountrySelectorForPayout: '',
+  allowLocalMobileMoneyForUsdWallet: '',
   active: true,
   rank: 0
 };
@@ -136,6 +137,7 @@ const toPayload = (state) => ({
   excludeNames: normalizeList(state.excludeNames),
   showCountrySelectorForCollection: nullableBoolean(state.showCountrySelectorForCollection),
   showCountrySelectorForPayout: nullableBoolean(state.showCountrySelectorForPayout),
+  allowLocalMobileMoneyForUsdWallet: nullableBoolean(state.allowLocalMobileMoneyForUsdWallet),
   active: Boolean(state.active),
   rank: state.rank === '' ? 0 : Number(state.rank)
 });
@@ -152,6 +154,8 @@ const toDraftFromRow = (row) => ({
     row.showCountrySelectorForCollection === null || row.showCountrySelectorForCollection === undefined ? '' : String(Boolean(row.showCountrySelectorForCollection)),
   showCountrySelectorForPayout:
     row.showCountrySelectorForPayout === null || row.showCountrySelectorForPayout === undefined ? '' : String(Boolean(row.showCountrySelectorForPayout)),
+  allowLocalMobileMoneyForUsdWallet:
+    row.allowLocalMobileMoneyForUsdWallet === null || row.allowLocalMobileMoneyForUsdWallet === undefined ? '' : String(Boolean(row.allowLocalMobileMoneyForUsdWallet)),
   active: Boolean(row.active),
   rank: row.rank ?? 0
 });
@@ -173,6 +177,10 @@ const formatList = (list) => (Array.isArray(list) && list.length ? list.join(', 
 const formatTriState = (value, unsetLabel = 'Backend default') => {
   if (value === null || value === undefined || value === '') return unsetLabel;
   return value ? 'Force show' : 'Force hide';
+};
+const formatAllowLocalMobileMoney = (value) => {
+  if (value === null || value === undefined || value === '') return 'Default: enabled';
+  return value ? 'Enabled' : 'Disabled';
 };
 
 const Modal = ({ title, onClose, children }) => (
@@ -341,6 +349,7 @@ export default function PaymentMethodActionConfigsPage() {
     { key: 'excludeTypes', label: 'Exclude Types', render: (row) => formatList(row.excludeTypes) },
     { key: 'showCountrySelectorForCollection', label: 'Collection country selector', render: (row) => formatTriState(row.showCountrySelectorForCollection) },
     { key: 'showCountrySelectorForPayout', label: 'Payout country selector', render: (row) => formatTriState(row.showCountrySelectorForPayout) },
+    { key: 'allowLocalMobileMoneyForUsdWallet', label: 'Local MM for USD wallet', render: (row) => formatAllowLocalMobileMoney(row.allowLocalMobileMoneyForUsdWallet) },
     { key: 'includeNames', label: 'Include Names', render: (row) => formatList(row.includeNames) },
     { key: 'excludeNames', label: 'Exclude Names', render: (row) => formatList(row.excludeNames) },
     {
@@ -566,6 +575,21 @@ export default function PaymentMethodActionConfigsPage() {
             <option value="false">Force hide</option>
           </select>
           <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Unset sends null and lets broader/default rules apply.</div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <label htmlFor="allowLocalMobileMoneyForUsdWallet">Allow local mobile money for USD wallet</label>
+          <select
+            id="allowLocalMobileMoneyForUsdWallet"
+            value={draft.allowLocalMobileMoneyForUsdWallet}
+            onChange={(e) => setDraft((p) => ({ ...p, allowLocalMobileMoneyForUsdWallet: e.target.value }))}
+          >
+            <option value="">Default - enabled</option>
+            <option value="true">Enabled</option>
+            <option value="false">Disabled</option>
+          </select>
+          <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+            Applies to USD wallet FUND_WALLET and WITHDRAW_FROM_WALLET mobile money lookups. Disabled hides local mobile money when USD rails exist.
+          </div>
         </div>
       </div>
       {typeConflicts.length ? (
@@ -847,6 +871,7 @@ export default function PaymentMethodActionConfigsPage() {
                 { label: 'Exclude Types', value: formatList(selected?.excludeTypes) },
                 { label: 'Collection country selector', value: formatTriState(selected?.showCountrySelectorForCollection) },
                 { label: 'Payout country selector', value: formatTriState(selected?.showCountrySelectorForPayout) },
+                { label: 'Local mobile money for USD wallet', value: formatAllowLocalMobileMoney(selected?.allowLocalMobileMoneyForUsdWallet) },
                 { label: 'Include Names', value: formatList(selected?.includeNames) },
                 { label: 'Exclude Names', value: formatList(selected?.excludeNames) },
                 { label: 'Rank', value: selected?.rank ?? '—' },
