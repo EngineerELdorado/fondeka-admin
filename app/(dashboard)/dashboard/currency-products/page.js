@@ -77,6 +77,30 @@ const emptyPreviewDraft = {
   groupSavingId: ''
 };
 
+const emptyFilters = {
+  id: '',
+  q: '',
+  currency: '',
+  displayName: '',
+  active: '',
+  walletEnabled: '',
+  legacyBalanceBacked: '',
+  baseCurrency: '',
+  rateProvider: '',
+  countryCode: '',
+  defaultCountryCode: '',
+  hasCountryMapping: '',
+  hasLogo: '',
+  minRate: '',
+  maxRate: '',
+  minCollectionMarginPercent: '',
+  maxCollectionMarginPercent: '',
+  minPayoutMarginPercent: '',
+  maxPayoutMarginPercent: '',
+  rateFetchedFrom: '',
+  rateFetchedTo: ''
+};
+
 const Modal = ({ title, onClose, children }) => (
   <div className="modal-backdrop">
     <div className="modal-surface" style={{ gap: '0.75rem' }}>
@@ -162,6 +186,11 @@ const nullableInteger = (value) => {
   return Number.isInteger(number) ? number : null;
 };
 
+const appendParam = (params, key, value) => {
+  const normalized = String(value ?? '').trim();
+  if (normalized) params.set(key, normalized);
+};
+
 const hasValue = (value) => value !== null && value !== undefined && value !== '';
 
 const formatAmount = (value) => {
@@ -232,6 +261,8 @@ export default function CurrencyProductsPage() {
   const [paymentProviderOptions, setPaymentProviderOptions] = useState([]);
   const [feeConfigOptions, setFeeConfigOptions] = useState([]);
   const [paymentMethodActionConfigOptions, setPaymentMethodActionConfigOptions] = useState([]);
+  const [filterDraft, setFilterDraft] = useState(emptyFilters);
+  const [filters, setFilters] = useState(emptyFilters);
 
   const previewCurrencyOptions = useMemo(
     () => uniqueSorted([
@@ -267,6 +298,11 @@ export default function CurrencyProductsPage() {
     [paymentProviderOptions]
   );
 
+  const activeFilterCount = useMemo(
+    () => Object.values(filters).filter((value) => String(value ?? '').trim()).length,
+    [filters]
+  );
+
   const fetchRows = async () => {
     setLoading(true);
     setError(null);
@@ -274,6 +310,7 @@ export default function CurrencyProductsPage() {
       const params = new URLSearchParams();
       params.set('page', String(page));
       params.set('size', String(size));
+      Object.entries(filters).forEach(([key, value]) => appendParam(params, key, value));
       const res = await api.currencyProducts.list(params);
       const list = Array.isArray(res) ? res : res?.content || [];
       setRows(list || []);
@@ -290,7 +327,7 @@ export default function CurrencyProductsPage() {
 
   useEffect(() => {
     fetchRows();
-  }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [page, size, filters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const loadPreviewOptions = async () => {
@@ -571,6 +608,21 @@ export default function CurrencyProductsPage() {
     }
   };
 
+  const updateFilter = (key, value) => {
+    setFilterDraft((previous) => ({ ...previous, [key]: value }));
+  };
+
+  const applyFilters = () => {
+    setFilters({ ...filterDraft });
+    setPage(0);
+  };
+
+  const resetFilters = () => {
+    setFilterDraft(emptyFilters);
+    setFilters(emptyFilters);
+    setPage(0);
+  };
+
   const canPrev = page > 0;
   const canNext = pageMeta.totalPages === null ? rows.length === size : page + 1 < pageMeta.totalPages;
 
@@ -643,6 +695,33 @@ export default function CurrencyProductsPage() {
       <input id={id} type="checkbox" checked={checked} onChange={onChange} />
       <span>{label}</span>
     </label>
+  );
+
+  const renderFilterInput = (id, label, options = {}) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+      <label htmlFor={id}>{label}</label>
+      <input
+        id={id}
+        type={options.type || 'text'}
+        min={options.min}
+        step={options.step}
+        list={options.list}
+        value={filterDraft[id]}
+        placeholder={options.placeholder}
+        onChange={(e) => updateFilter(id, options.uppercase ? e.target.value.toUpperCase() : e.target.value)}
+      />
+    </div>
+  );
+
+  const renderBooleanFilter = (id, label) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+      <label htmlFor={id}>{label}</label>
+      <select id={id} value={filterDraft[id]} onChange={(e) => updateFilter(id, e.target.value)}>
+        <option value="">Any</option>
+        <option value="true">Yes</option>
+        <option value="false">No</option>
+      </select>
+    </div>
   );
 
   const renderCountryMultiSelect = (id, label, value, onChange) => (
@@ -831,6 +910,9 @@ export default function CurrencyProductsPage() {
       <datalist id="currencyProductRateProviderOptions">
         {rateProviderOptions.map((provider) => <option key={provider} value={provider} />)}
       </datalist>
+      <datalist id="currencyProductCountryOptions">
+        {countryOptions.map((country) => <option key={country.cca2} value={country.cca2}>{country.name}</option>)}
+      </datalist>
 
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -858,16 +940,51 @@ export default function CurrencyProductsPage() {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="page">Page</label>
-            <input id="page" type="number" min={0} value={page} onChange={(e) => setPage(Math.max(0, Number(e.target.value) || 0))} />
+        <details style={{ display: 'grid', gap: '0.75rem' }}>
+          <summary style={{ cursor: 'pointer', fontWeight: 700 }}>
+            Filters{activeFilterCount ? ` (${activeFilterCount} active)` : ''}
+          </summary>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', marginTop: '0.75rem' }}>
+            {renderFilterInput('q', 'Search', { placeholder: 'cdf, dollar, franc' })}
+            {renderFilterInput('id', 'ID', { type: 'number', min: '1', step: '1', placeholder: '12' })}
+            {renderFilterInput('currency', 'Currency', { list: 'currencyProductCurrencyOptions', uppercase: true, placeholder: 'CDF' })}
+            {renderFilterInput('displayName', 'Display name', { placeholder: 'Congolese Franc' })}
+            {renderBooleanFilter('active', 'Active')}
+            {renderBooleanFilter('walletEnabled', 'Wallet enabled')}
+            {renderBooleanFilter('legacyBalanceBacked', 'Legacy backed')}
+            {renderFilterInput('baseCurrency', 'Base currency', { list: 'currencyProductCurrencyOptions', uppercase: true, placeholder: 'USD' })}
+            {renderFilterInput('rateProvider', 'Rate provider', { list: 'currencyProductRateProviderOptions', uppercase: true, placeholder: 'MANUAL' })}
+            {renderFilterInput('countryCode', 'Country', { list: 'currencyProductCountryOptions', uppercase: true, placeholder: 'CD' })}
+            {renderFilterInput('defaultCountryCode', 'Default country', { list: 'currencyProductCountryOptions', uppercase: true, placeholder: 'CD' })}
+            {renderBooleanFilter('hasCountryMapping', 'Has country mapping')}
+            {renderBooleanFilter('hasLogo', 'Has logo')}
+            {renderFilterInput('minRate', 'Min rate', { type: 'number', min: '0', step: '0.000001' })}
+            {renderFilterInput('maxRate', 'Max rate', { type: 'number', min: '0', step: '0.000001' })}
+            {renderFilterInput('minCollectionMarginPercent', 'Min collection margin %', { type: 'number', min: '0', step: '0.01' })}
+            {renderFilterInput('maxCollectionMarginPercent', 'Max collection margin %', { type: 'number', min: '0', step: '0.01' })}
+            {renderFilterInput('minPayoutMarginPercent', 'Min payout margin %', { type: 'number', min: '0', step: '0.01' })}
+            {renderFilterInput('maxPayoutMarginPercent', 'Max payout margin %', { type: 'number', min: '0', step: '0.01' })}
+            {renderFilterInput('rateFetchedFrom', 'Rate fetched from', { type: 'datetime-local' })}
+            {renderFilterInput('rateFetchedTo', 'Rate fetched to', { type: 'datetime-local' })}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="page">Page</label>
+              <input id="page" type="number" min={0} value={page} onChange={(e) => setPage(Math.max(0, Number(e.target.value) || 0))} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="size">Size</label>
+              <input id="size" type="number" min={1} max={200} value={size} onChange={(e) => { setSize(Math.max(1, Number(e.target.value) || 1)); setPage(0); }} />
+            </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="size">Size</label>
-            <input id="size" type="number" min={1} max={200} value={size} onChange={(e) => { setSize(Math.max(1, Number(e.target.value) || 1)); setPage(0); }} />
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.75rem' }}>
+            <button type="button" onClick={resetFilters} disabled={loading || actionLoading} className="btn-neutral btn-sm">
+              Reset filters
+            </button>
+            <button type="button" onClick={applyFilters} disabled={loading || actionLoading} className="btn-primary btn-sm">
+              Apply filters
+            </button>
           </div>
-        </div>
+        </details>
 
         {pageMeta.totalElements !== null && (
           <span style={{ color: 'var(--muted)', fontSize: '13px' }}>

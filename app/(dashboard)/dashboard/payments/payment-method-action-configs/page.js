@@ -115,6 +115,7 @@ const emptyState = {
   showCountrySelectorForCollection: '',
   showCountrySelectorForPayout: '',
   allowLocalMobileMoneyForUsdWallet: '',
+  allowAdditionalFiatWallets: '',
   active: true,
   rank: 0
 };
@@ -138,6 +139,7 @@ const toPayload = (state) => ({
   showCountrySelectorForCollection: nullableBoolean(state.showCountrySelectorForCollection),
   showCountrySelectorForPayout: nullableBoolean(state.showCountrySelectorForPayout),
   allowLocalMobileMoneyForUsdWallet: nullableBoolean(state.allowLocalMobileMoneyForUsdWallet),
+  allowAdditionalFiatWallets: nullableBoolean(state.allowAdditionalFiatWallets),
   active: Boolean(state.active),
   rank: state.rank === '' ? 0 : Number(state.rank)
 });
@@ -156,6 +158,8 @@ const toDraftFromRow = (row) => ({
     row.showCountrySelectorForPayout === null || row.showCountrySelectorForPayout === undefined ? '' : String(Boolean(row.showCountrySelectorForPayout)),
   allowLocalMobileMoneyForUsdWallet:
     row.allowLocalMobileMoneyForUsdWallet === null || row.allowLocalMobileMoneyForUsdWallet === undefined ? '' : String(Boolean(row.allowLocalMobileMoneyForUsdWallet)),
+  allowAdditionalFiatWallets:
+    row.allowAdditionalFiatWallets === null || row.allowAdditionalFiatWallets === undefined ? '' : String(Boolean(row.allowAdditionalFiatWallets)),
   active: Boolean(row.active),
   rank: row.rank ?? 0
 });
@@ -180,6 +184,10 @@ const formatTriState = (value, unsetLabel = 'Backend default') => {
 };
 const formatAllowLocalMobileMoney = (value) => {
   if (value === null || value === undefined || value === '') return 'Default: enabled';
+  return value ? 'Enabled' : 'Disabled';
+};
+const formatAdditionalFiatWallets = (value) => {
+  if (value === null || value === undefined || value === '') return 'Automatic';
   return value ? 'Enabled' : 'Disabled';
 };
 
@@ -350,6 +358,7 @@ export default function PaymentMethodActionConfigsPage() {
     { key: 'showCountrySelectorForCollection', label: 'Collection country selector', render: (row) => formatTriState(row.showCountrySelectorForCollection) },
     { key: 'showCountrySelectorForPayout', label: 'Payout country selector', render: (row) => formatTriState(row.showCountrySelectorForPayout) },
     { key: 'allowLocalMobileMoneyForUsdWallet', label: 'Local MM for USD wallet', render: (row) => formatAllowLocalMobileMoney(row.allowLocalMobileMoneyForUsdWallet) },
+    { key: 'allowAdditionalFiatWallets', label: 'Additional fiat wallets', render: (row) => formatAdditionalFiatWallets(row.allowAdditionalFiatWallets) },
     { key: 'includeNames', label: 'Include Names', render: (row) => formatList(row.includeNames) },
     { key: 'excludeNames', label: 'Exclude Names', render: (row) => formatList(row.excludeNames) },
     {
@@ -589,6 +598,21 @@ export default function PaymentMethodActionConfigsPage() {
           </select>
           <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
             Applies to USD wallet FUND_WALLET and WITHDRAW_FROM_WALLET mobile money lookups. Disabled hides local mobile money when USD rails exist.
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <label htmlFor="allowAdditionalFiatWallets">Allow additional fiat wallets</label>
+          <select
+            id="allowAdditionalFiatWallets"
+            value={draft.allowAdditionalFiatWallets}
+            onChange={(e) => setDraft((p) => ({ ...p, allowAdditionalFiatWallets: e.target.value }))}
+          >
+            <option value="">Automatic - backend behavior</option>
+            <option value="true">Enabled</option>
+            <option value="false">Disabled</option>
+          </select>
+          <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+            Enabled lets clients show expanded fiat wallet balance methods. Disabled restricts clients to the active/default wallet balance method.
           </div>
         </div>
       </div>
@@ -872,6 +896,7 @@ export default function PaymentMethodActionConfigsPage() {
                 { label: 'Collection country selector', value: formatTriState(selected?.showCountrySelectorForCollection) },
                 { label: 'Payout country selector', value: formatTriState(selected?.showCountrySelectorForPayout) },
                 { label: 'Local mobile money for USD wallet', value: formatAllowLocalMobileMoney(selected?.allowLocalMobileMoneyForUsdWallet) },
+                { label: 'Additional fiat wallets', value: formatAdditionalFiatWallets(selected?.allowAdditionalFiatWallets) },
                 { label: 'Include Names', value: formatList(selected?.includeNames) },
                 { label: 'Exclude Names', value: formatList(selected?.excludeNames) },
                 { label: 'Rank', value: selected?.rank ?? '—' },

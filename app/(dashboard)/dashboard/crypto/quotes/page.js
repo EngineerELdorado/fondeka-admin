@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 
@@ -25,8 +25,38 @@ const DetailGrid = ({ rows }) => (
   </div>
 );
 
-const FROM_CURRENCY_OPTIONS = ['USD', 'USDC', 'BNB', 'SOL', 'BTC', 'ETH', 'USDT', 'EURC'];
+const FALLBACK_FIAT_CURRENCY_OPTIONS = ['USD', 'CDF', 'KES', 'EUR', 'GBP'];
+const CRYPTO_FROM_CURRENCY_OPTIONS = ['USDC', 'BNB', 'SOL', 'BTC', 'ETH', 'USDT', 'EURC'];
 const TO_CURRENCY_OPTIONS = ['USDC', 'BNB', 'SOL', 'BTC', 'ETH', 'USDT', 'EURC'];
+
+const normalizeList = (response) => {
+  if (Array.isArray(response)) return response;
+  if (Array.isArray(response?.content)) return response.content;
+  if (Array.isArray(response?.items)) return response.items;
+  if (Array.isArray(response?.data)) return response.data;
+  return [];
+};
+
+const normalizeCurrency = (value) => String(value || '').trim().toUpperCase();
+
+const hasPositiveRate = (value) => {
+  const rate = Number(value);
+  return Number.isFinite(rate) && rate > 0;
+};
+
+const hasUsdFxRate = (item) => {
+  const currency = normalizeCurrency(item?.currency);
+  const baseCurrency = normalizeCurrency(item?.baseCurrency || 'USD');
+  return currency === 'USD' || (baseCurrency === 'USD' && hasPositiveRate(item?.rate));
+};
+
+const sortCurrencyOptions = (codes) => (
+  Array.from(new Set(codes.map(normalizeCurrency).filter(Boolean))).sort((left, right) => {
+    if (left === 'USD') return -1;
+    if (right === 'USD') return 1;
+    return left.localeCompare(right);
+  })
+);
 
 export default function CryptoQuotesPage() {
   const [fromPreset, setFromPreset] = useState('USD');
@@ -38,10 +68,41 @@ export default function CryptoQuotesPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [warning, setWarning] = useState(null);
+  const [currencyProducts, setCurrencyProducts] = useState([]);
+  const [currencyProductsError, setCurrencyProductsError] = useState(null);
+
+  const fiatCurrencyOptions = useMemo(() => {
+    const activeProductCurrencies = normalizeList(currencyProducts)
+      .filter((item) => item?.active !== false && hasUsdFxRate(item))
+      .map((item) => item?.currency);
+    return sortCurrencyOptions(activeProductCurrencies.length ? activeProductCurrencies : FALLBACK_FIAT_CURRENCY_OPTIONS);
+  }, [currencyProducts]);
+
+  const fromCurrencyOptions = useMemo(
+    () => sortCurrencyOptions([...fiatCurrencyOptions, ...CRYPTO_FROM_CURRENCY_OPTIONS]),
+    [fiatCurrencyOptions]
+  );
+
+  const fiatCurrencySummary = fiatCurrencyOptions.join(', ');
+
+  useEffect(() => {
+    const fetchCurrencyProducts = async () => {
+      setCurrencyProductsError(null);
+      try {
+        const res = await api.currencyProducts.list(new URLSearchParams({ page: '0', size: '500' }));
+        setCurrencyProducts(normalizeList(res));
+      } catch (err) {
+        setCurrencyProductsError(err.message || 'Failed to load currency products.');
+        setCurrencyProducts([]);
+      }
+    };
+
+    fetchCurrencyProducts();
+  }, []);
 
   const fetchQuote = async () => {
-    const from = (fromPreset === 'OTHER' ? fromCustom : fromPreset).trim();
-    const to = (toPreset === 'OTHER' ? toCustom : toPreset).trim();
+    const from = normalizeCurrency(fromPreset === 'OTHER' ? fromCustom : fromPreset);
+    const to = normalizeCurrency(toPreset === 'OTHER' ? toCustom : toPreset);
     const rawAmount = amount.trim();
 
     if (!from || !to || !rawAmount) {
@@ -71,7 +132,9 @@ export default function CryptoQuotesPage() {
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <div style={{ fontWeight: 800, fontSize: '20px' }}>Crypto Quotes</div>
-          <div style={{ color: 'var(--muted)' }}>Get a live quote to know the target amount before sending.</div>
+          <div style={{ color: 'var(--muted)' }}>
+            Crypto quotes support any active fiat currency with a configured FX rate. Test quotes from {fiatCurrencySummary || 'enabled fiat currencies'} to supported crypto assets such as USDT, USDC, BTC, and ETH.
+          </div>
         </div>
         <Link href="/dashboard/crypto" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
           ← Crypto hub
@@ -82,7 +145,7 @@ export default function CryptoQuotesPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="fromCurrency">From currency</label>
           <select id="fromCurrency" value={fromPreset} onChange={(e) => setFromPreset(e.target.value)}>
-            {FROM_CURRENCY_OPTIONS.map((code) => (
+            {fromCurrencyOptions.map((code) => (
               <option key={code} value={code}>{code}</option>
             ))}
             <option value="OTHER">Other…</option>
@@ -120,6 +183,11 @@ export default function CryptoQuotesPage() {
         <button type="button" onClick={fetchQuote} className="btn-primary" disabled={loading}>
           {loading ? 'Quoting…' : 'Get quote'}
         </button>
+        <div style={{ gridColumn: '1 / -1', color: 'var(--muted)', fontSize: '13px' }}>
+          Try quoting from other fiat currencies to crypto too, for example CDF -&gt; USDT, KES -&gt; USDT, or EUR -&gt; BTC, as long as the fiat currency is active and has a valid USD FX rate.
+          {fiatCurrencySummary ? ` Current fiat options: ${fiatCurrencySummary}.` : ''}
+          {currencyProductsError ? ` Currency product options could not be loaded: ${currencyProductsError}` : ''}
+        </div>
       </div>
 
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
