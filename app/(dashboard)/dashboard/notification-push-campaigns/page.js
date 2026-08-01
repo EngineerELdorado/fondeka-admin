@@ -724,8 +724,8 @@ export default function NotificationPushCampaignsPage() {
                   <span>Has completed transactions</span>
                   <select value={hasCompletedTransactions} onChange={(e) => setHasCompletedTransactions(e.target.value)}>
                     <option value="ANY">Any</option>
-                    <option value="TRUE">Yes</option>
-                    <option value="FALSE">No (zero completed)</option>
+                    <option value="YES">Yes</option>
+                    <option value="NO">No (zero completed)</option>
                   </select>
                 </label>
               </div>
