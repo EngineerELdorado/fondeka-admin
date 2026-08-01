@@ -723,6 +723,13 @@ export default function TransactionsPage() {
 
   const formatUsdAmount = useCallback((amount) => formatMoneyWithCurrency(amount, 'USD'), [formatMoneyWithCurrency]);
 
+  const formatSettlementMoneyWithCurrency = useCallback((amount, currency) => {
+    if (!hasValue(amount)) return '—';
+    const number = Number(amount);
+    const displayAmount = Number.isFinite(number) ? Math.abs(number) : amount;
+    return formatMoneyWithCurrency(displayAmount, currency);
+  }, [formatMoneyWithCurrency]);
+
   const formatLocalAndUsd = useCallback((row, localField, localCurrencyField = 'currency', usdField = `usd${localField.charAt(0).toUpperCase()}${localField.slice(1)}`) => {
     const local = formatMoneyWithCurrency(row?.[localField], row?.[localCurrencyField]);
     const usd = row?.[usdField];
@@ -738,6 +745,24 @@ export default function TransactionsPage() {
       </span>
     );
   }, [formatMoneyWithCurrency, formatUsdAmount]);
+
+  const formatSettlementLocalAndUsd = useCallback((row, localField, localCurrencyField = 'currency', usdField) => {
+    const usd = row?.[usdField];
+    const localValue = row?.[localField];
+    const localCurrency = normalizeCurrency(row?.[localCurrencyField]);
+    const local = formatSettlementMoneyWithCurrency(localValue, row?.[localCurrencyField]);
+    const usdNumber = Number(usd);
+    const localNumber = Number(localValue);
+    const hasUsableUsd = hasValue(usd) && !(usdNumber === 0 && localCurrency !== 'USD' && Number.isFinite(localNumber) && localNumber !== 0);
+    if (!hasValue(localValue) && hasUsableUsd) return formatSettlementMoneyWithCurrency(usd, 'USD');
+    if (!hasUsableUsd || localCurrency === 'USD') return local;
+    return (
+      <span>
+        <span>{local}</span>
+        <span style={{ color: 'var(--muted)' }}> ({formatSettlementMoneyWithCurrency(usd, 'USD')})</span>
+      </span>
+    );
+  }, [formatSettlementMoneyWithCurrency]);
 
   const hasLoanEligibilitySnapshot = Boolean(
     selected?.loanEligibilityRecorded ||
@@ -2347,9 +2372,9 @@ export default function TransactionsPage() {
                         ? formatUsdAmount((Number(selected?.internalFeeAmount) || 0) + (Number(selected?.commissionAmount) || 0))
                       : '—'
                 },
-                { label: 'Settlement amount', value: formatLocalAndUsd(selected, 'settlementAmount', 'currency', 'usdSettlementAmount') },
-                { label: 'Settlement fees', value: formatLocalAndUsd(selected, 'settlementAllFees', 'currency', 'usdSettlementAllFees') },
-                { label: 'Settlement net', value: formatLocalAndUsd(selected, 'settlementNet', 'currency', 'usdSettlementNet') },
+                { label: 'Settlement amount', value: formatSettlementLocalAndUsd(selected, 'settlementAmount', 'currency', 'usdSettlementAmount') },
+                { label: 'Settlement fees', value: formatSettlementLocalAndUsd(selected, 'settlementAllFees', 'currency', 'usdSettlementAllFees') },
+                { label: 'Settlement net', value: formatSettlementLocalAndUsd(selected, 'settlementNet', 'currency', 'usdSettlementNet') },
                 { label: 'Request amount', value: formatMoneyWithCurrency(selected?.requestAmount, selected?.requestCurrency) },
                 { label: 'Billing amount', value: formatMoneyWithCurrency(selected?.billingAmount, selected?.billingCurrency) },
                 { label: 'Billing FX rate', value: selected?.billingFxRate ?? '—' },

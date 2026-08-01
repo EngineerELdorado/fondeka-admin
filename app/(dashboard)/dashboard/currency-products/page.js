@@ -126,6 +126,15 @@ const DetailGrid = ({ rows }) => (
   </div>
 );
 
+const FilterChip = ({ label, onClear }) => (
+  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.6rem', background: 'var(--muted-bg, #f3f4f6)', borderRadius: '999px', fontSize: '13px', color: 'var(--text)' }}>
+    {label}
+    <button type="button" onClick={onClear} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--muted)' }} aria-label={`Clear ${label}`}>
+      x
+    </button>
+  </span>
+);
+
 const formatDateTime = (value) => {
   if (!value) return '-';
   const date = new Date(value);
@@ -263,6 +272,7 @@ export default function CurrencyProductsPage() {
   const [paymentMethodActionConfigOptions, setPaymentMethodActionConfigOptions] = useState([]);
   const [filterDraft, setFilterDraft] = useState(emptyFilters);
   const [filters, setFilters] = useState(emptyFilters);
+  const [showFilters, setShowFilters] = useState(false);
 
   const previewCurrencyOptions = useMemo(
     () => uniqueSorted([
@@ -302,6 +312,12 @@ export default function CurrencyProductsPage() {
     () => Object.values(filters).filter((value) => String(value ?? '').trim()).length,
     [filters]
   );
+
+  const activeFilterChips = useMemo(() => (
+    Object.entries(filters)
+      .filter(([, value]) => String(value ?? '').trim())
+      .map(([key, value]) => ({ key, label: `${key}: ${value}` }))
+  ), [filters]);
 
   const fetchRows = async () => {
     setLoading(true);
@@ -926,8 +942,11 @@ export default function CurrencyProductsPage() {
 
       <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <div style={{ fontWeight: 700 }}>Products</div>
+          <div style={{ fontWeight: 700 }}>Filters</div>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <button type="button" className="btn-neutral btn-sm" onClick={() => setShowFilters((prev) => !prev)}>
+              {showFilters ? 'Hide filters' : 'Show filters'}
+            </button>
             <button type="button" onClick={fetchRows} disabled={loading || actionLoading} className="btn-neutral btn-sm">
               {loading ? 'Refreshing...' : 'Refresh'}
             </button>
@@ -940,10 +959,28 @@ export default function CurrencyProductsPage() {
           </div>
         </div>
 
-        <details style={{ display: 'grid', gap: '0.75rem' }}>
-          <summary style={{ cursor: 'pointer', fontWeight: 700 }}>
-            Filters{activeFilterCount ? ` (${activeFilterCount} active)` : ''}
-          </summary>
+        {activeFilterChips.length > 0 && (
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+            {activeFilterChips.map((chip) => (
+              <FilterChip
+                key={chip.key}
+                label={chip.label}
+                onClear={() => {
+                  const next = { ...filters, [chip.key]: '' };
+                  setFilters(next);
+                  setFilterDraft(next);
+                  setPage(0);
+                }}
+              />
+            ))}
+          </div>
+        )}
+
+        {showFilters && (
+          <>
+            {activeFilterCount ? (
+              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{activeFilterCount} active filter{activeFilterCount === 1 ? '' : 's'}</div>
+            ) : null}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', marginTop: '0.75rem' }}>
             {renderFilterInput('q', 'Search', { placeholder: 'cdf, dollar, franc' })}
             {renderFilterInput('id', 'ID', { type: 'number', min: '1', step: '1', placeholder: '12' })}
@@ -984,7 +1021,8 @@ export default function CurrencyProductsPage() {
               Apply filters
             </button>
           </div>
-        </details>
+          </>
+        )}
 
         {pageMeta.totalElements !== null && (
           <span style={{ color: 'var(--muted)', fontSize: '13px' }}>
