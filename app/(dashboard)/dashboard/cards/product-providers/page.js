@@ -49,6 +49,7 @@ const emptyState = {
   validityType: '',
   notesEn: '',
   notesFr: '',
+  inStock: true,
   active: true
 };
 
@@ -158,6 +159,7 @@ const toPayload = (state) => {
     validityType: state.validityType || null,
     notesEn: state.notesEn?.trim() ? state.notesEn.trim() : null,
     notesFr: state.notesFr?.trim() ? state.notesFr.trim() : null,
+    inStock: Boolean(state.inStock),
     active: Boolean(state.active)
   };
 };
@@ -208,6 +210,26 @@ const formatCodeList = (codes) => {
 const formatJson = (value) => {
   if (!value) return '—';
   return JSON.stringify(value, null, 2);
+};
+
+const renderStockBadge = (row) => {
+  const inStock = row?.inStock !== false;
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: '0.25rem 0.5rem',
+        borderRadius: '999px',
+        background: inStock ? '#dcfce7' : '#fee2e2',
+        color: inStock ? '#166534' : '#991b1b',
+        fontSize: '12px',
+        fontWeight: 800
+      }}
+    >
+      {inStock ? 'In stock' : 'Out of stock'}
+    </span>
+  );
 };
 
 const renderLabelBadgeStyle = (row) => {
@@ -376,12 +398,20 @@ export default function CardProductProvidersPage() {
         render: (row) => (row.active === null || row.active === undefined ? '—' : String(row.active))
       },
       {
+        key: 'inStock',
+        label: 'Stock',
+        render: (row) => renderStockBadge(row)
+      },
+      {
         key: 'actions',
         label: 'Actions',
         render: (row) => (
           <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
             <button type="button" onClick={() => openDetail(row)} className="btn-neutral">View</button>
             <button type="button" onClick={() => openEdit(row)} className="btn-neutral">Edit</button>
+            <button type="button" onClick={() => toggleStock(row)} className={row.inStock === false ? 'btn-success' : 'btn-neutral'}>
+              {row.inStock === false ? 'Mark in stock' : 'Mark out of stock'}
+            </button>
             <button type="button" onClick={() => openMetadata(row)} className="btn-neutral">Metadata</button>
             <button type="button" onClick={() => openOverrides(row)} className="btn-neutral">Overrides</button>
             <button type="button" onClick={() => setConfirmDelete(row)} className="btn-danger">Delete</button>
@@ -449,6 +479,7 @@ export default function CardProductProvidersPage() {
       validityType: row.validityType ?? '',
       notesEn: row.notesEn ?? '',
       notesFr: row.notesFr ?? '',
+      inStock: row.inStock !== false,
       active: Boolean(row.active)
     };
   };
@@ -570,6 +601,22 @@ export default function CardProductProvidersPage() {
     setShowDetail(true);
     setInfo(null);
     setError(null);
+  };
+
+  const toggleStock = async (row) => {
+    if (!row?.id) return;
+    setError(null);
+    setInfo(null);
+    try {
+      await api.cardProductCardProviders.update(row.id, toPayload({
+        ...draftFromRow(row),
+        inStock: row.inStock === false
+      }));
+      setInfo(`${row.label || row.cardBrandName || `Mapping ${row.id}`} marked ${row.inStock === false ? 'in stock' : 'out of stock'}.`);
+      fetchRows();
+    } catch (err) {
+      setError(err.message || 'Failed to update stock status.');
+    }
   };
 
   const updatePlatform = (index, key, value) => {
@@ -1294,6 +1341,15 @@ export default function CardProductProvidersPage() {
         <label htmlFor="active">Active</label>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="inStock" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <input id="inStock" type="checkbox" checked={draft.inStock} onChange={(e) => setDraft((p) => ({ ...p, inStock: e.target.checked }))} />
+          <span>In stock</span>
+        </label>
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          Active controls configuration availability. Stock controls whether customers can order this product-provider right now.
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="notesEn">Notes (English, optional)</label>
         <textarea
           id="notesEn"
@@ -1359,7 +1415,8 @@ export default function CardProductProvidersPage() {
                 { label: 'Mapping ID', value: selected?.id },
                 { label: 'Product', value: selected?.cardBrandName || selected?.cardProductId || '—' },
                 { label: 'Provider', value: selected?.cardProviderName || selected?.cardProviderId || '—' },
-                { label: 'Global active', value: selected?.active === null || selected?.active === undefined ? '—' : String(selected.active) }
+                { label: 'Global active', value: selected?.active === null || selected?.active === undefined ? '—' : String(selected.active) },
+                { label: 'Stock', value: renderStockBadge(selected) }
               ]}
             />
 
@@ -1532,6 +1589,7 @@ export default function CardProductProvidersPage() {
               { label: 'Rank', value: selected?.rank ?? '—' },
               { label: 'Notes (EN)', value: selected?.notesEn || '—' },
               { label: 'Notes (FR)', value: selected?.notesFr || '—' },
+              { label: 'Stock', value: renderStockBadge(selected) },
               { label: 'Active', value: selected?.active === undefined || selected?.active === null ? '—' : String(selected?.active) }
             ]}
           />

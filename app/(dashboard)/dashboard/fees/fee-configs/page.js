@@ -6,6 +6,16 @@ import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
 const serviceOptions = ['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'PAYMENT_REQUEST', 'E_SIM', 'AIRTIME_AND_DATA', 'OTHER'];
+const paymentMethodTypeOptions = ['MOBILE_MONEY', 'CRYPTO', 'BALANCE', 'CREDIT', 'AIRTIME', 'BANK'];
+const scopeTypeOptions = [
+  { value: 'specific_route', label: 'Specific route' },
+  { value: 'provider_fallback', label: 'Provider fallback' },
+  { value: 'bill_provider_fallback', label: 'Bill provider fallback' },
+  { value: 'global_action_fallback', label: 'Global action fallback' },
+  { value: 'payment_method_type_action', label: 'Payment method type + action' },
+  { value: 'payment_method_type_fallback', label: 'Pure payment method type fallback' },
+  { value: 'global_default', label: 'Global default' }
+];
 const feeApplicationModeOptions = [
   { value: '', label: 'Use global default' },
   { value: 'EXCLUSIVE', label: 'Sender pays fees (EXCLUSIVE)' },
@@ -48,6 +58,7 @@ const actionOptions = [
 ].sort();
 
 const initialFilters = {
+  paymentMethodType: '',
   action: '',
   service: '',
   countryId: '',
@@ -62,6 +73,8 @@ const initialFilters = {
 };
 
 const emptyState = {
+  scopeType: 'specific_route',
+  paymentMethodType: '',
   paymentProviderId: '',
   billProviderId: '',
   paymentMethodPaymentProviderId: '',
@@ -74,6 +87,7 @@ const emptyState = {
   providerFeePercentage: '',
   providerFlatFee: '',
   providerMinFee: '',
+  providerMinFeeCurrency: 'USD',
   ourFeePercentage: '',
   ourFlatFee: '',
   minAmount: '',
@@ -93,6 +107,7 @@ const formatAmountRange = (minAmount, maxAmount) => {
 };
 
 const resolveAction = (state) => (state.action === '__custom' ? state.customAction : state.action);
+const isPaymentMethodTypeScope = (state) => state.scopeType === 'payment_method_type_action' || state.scopeType === 'payment_method_type_fallback';
 const normalizeOptionalIdForForm = (value) => {
   if (value === null || value === undefined || value === '') return '';
   const num = Number(value);
@@ -100,26 +115,41 @@ const normalizeOptionalIdForForm = (value) => {
   return String(num);
 };
 
-const toPayload = (state) => ({
-  paymentProviderId: state.paymentProviderId === '' ? null : Number(state.paymentProviderId),
-  billProviderId: state.billProviderId === '' ? null : Number(state.billProviderId),
-  paymentMethodPaymentProviderId: state.paymentMethodPaymentProviderId === '' ? null : Number(state.paymentMethodPaymentProviderId),
-  billProductBillProviderId: state.billProductBillProviderId === '' ? null : Number(state.billProductBillProviderId),
-  countryId: state.countryId === '' ? null : Number(state.countryId),
-  service: state.service || null,
-  action: resolveAction(state),
-  overrideSpecificFees: Boolean(state.overrideSpecificFees),
-  providerFeePercentage: state.providerFeePercentage === '' ? null : Number(state.providerFeePercentage),
-  providerFlatFee: state.providerFlatFee === '' ? null : Number(state.providerFlatFee),
-  providerMinFee: state.providerMinFee === '' ? null : Number(state.providerMinFee),
-  ourFeePercentage: state.ourFeePercentage === '' ? null : Number(state.ourFeePercentage),
-  ourFlatFee: state.ourFlatFee === '' ? null : Number(state.ourFlatFee),
-  minAmount: state.minAmount === '' ? null : Number(state.minAmount),
-  maxAmount: state.maxAmount === '' ? null : Number(state.maxAmount),
-  feeApplicationMode: state.feeApplicationMode || null,
-  fromCryptoProductId: state.fromCryptoProductId === '' ? null : Number(state.fromCryptoProductId),
-  toCryptoProductId: state.toCryptoProductId === '' ? null : Number(state.toCryptoProductId)
-});
+const toPayload = (state) => {
+  const paymentMethodTypeScope = isPaymentMethodTypeScope(state);
+  const fees = {
+    overrideSpecificFees: Boolean(state.overrideSpecificFees),
+    providerFeePercentage: state.providerFeePercentage === '' ? null : Number(state.providerFeePercentage),
+    providerFlatFee: state.providerFlatFee === '' ? null : Number(state.providerFlatFee),
+    providerMinFee: state.providerMinFee === '' ? null : Number(state.providerMinFee),
+    providerMinFeeCurrency: state.providerMinFeeCurrency ? String(state.providerMinFeeCurrency).trim().toUpperCase() : null,
+    ourFeePercentage: state.ourFeePercentage === '' ? null : Number(state.ourFeePercentage),
+    ourFlatFee: state.ourFlatFee === '' ? null : Number(state.ourFlatFee),
+    minAmount: state.minAmount === '' ? null : Number(state.minAmount),
+    maxAmount: state.maxAmount === '' ? null : Number(state.maxAmount),
+    feeApplicationMode: state.feeApplicationMode || null
+  };
+  if (paymentMethodTypeScope) {
+    return {
+      paymentMethodType: state.paymentMethodType || null,
+      ...(state.scopeType === 'payment_method_type_action' ? { action: resolveAction(state) } : {}),
+      ...fees
+    };
+  }
+  return {
+    paymentMethodType: null,
+    paymentProviderId: state.paymentProviderId === '' ? null : Number(state.paymentProviderId),
+    billProviderId: state.billProviderId === '' ? null : Number(state.billProviderId),
+    paymentMethodPaymentProviderId: state.paymentMethodPaymentProviderId === '' ? null : Number(state.paymentMethodPaymentProviderId),
+    billProductBillProviderId: state.billProductBillProviderId === '' ? null : Number(state.billProductBillProviderId),
+    countryId: state.countryId === '' ? null : Number(state.countryId),
+    service: state.service || null,
+    action: resolveAction(state),
+    fromCryptoProductId: state.fromCryptoProductId === '' ? null : Number(state.fromCryptoProductId),
+    toCryptoProductId: state.toCryptoProductId === '' ? null : Number(state.toCryptoProductId),
+    ...fees
+  };
+};
 
 const Modal = ({ title, onClose, children }) => (
   <div className="modal-backdrop">
@@ -178,6 +208,18 @@ const FilterChip = ({ label, onClear }) => (
   </span>
 );
 
+const resolveScopeType = (row) => {
+  if (row?.paymentMethodType && row?.action) return 'payment_method_type_action';
+  if (row?.paymentMethodType) return 'payment_method_type_fallback';
+  if (row?.paymentMethodPaymentProviderId || row?.billProductBillProviderId || row?.fromCryptoProductId || row?.toCryptoProductId) return 'specific_route';
+  if (row?.paymentProviderId) return 'provider_fallback';
+  if (row?.billProviderId) return 'bill_provider_fallback';
+  if (row?.action || row?.service || row?.countryId) return 'global_action_fallback';
+  return 'global_default';
+};
+
+const scopeTypeLabel = (value) => scopeTypeOptions.find((option) => option.value === value)?.label || 'Specific route';
+
 export default function FeeConfigsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
@@ -219,6 +261,9 @@ export default function FeeConfigsPage() {
     Object.entries(appliedFilters).forEach(([key, value]) => {
       if (value === '' || value === null || value === undefined) return;
       switch (key) {
+        case 'paymentMethodType':
+          add(`Payment method type: ${value}`, key);
+          break;
         case 'service':
           add(`Service: ${value}`, key);
           break;
@@ -275,7 +320,9 @@ export default function FeeConfigsPage() {
           'billProductId',
           'billProviderId',
           'paymentMethodId',
-          'paymentProviderId'
+          'paymentProviderId',
+          'fromCryptoProductId',
+          'toCryptoProductId'
         ];
         if (numericKeys.includes(key)) {
           const num = Number(value);
@@ -382,6 +429,10 @@ export default function FeeConfigsPage() {
       arr.sort((a, b) => compare(getPmpLabel(a), getPmpLabel(b)));
     } else if (arrangeBy === 'bpbp') {
       arr.sort((a, b) => compare(getBpbpLabel(a), getBpbpLabel(b)));
+    } else if (arrangeBy === 'scope') {
+      arr.sort((a, b) => compare(scopeTypeLabel(resolveScopeType(a)), scopeTypeLabel(resolveScopeType(b))));
+    } else if (arrangeBy === 'paymentMethodType') {
+      arr.sort((a, b) => compare(a.paymentMethodType || '', b.paymentMethodType || ''));
     }
     return arr;
   }, [arrangeBy, rows, getCountryLabel, getPmpLabel, getBpbpLabel]);
@@ -443,6 +494,16 @@ export default function FeeConfigsPage() {
     () => [
       { key: 'id', label: 'ID' },
       {
+        key: 'scopeType',
+        label: 'Scope',
+        render: (row) => scopeTypeLabel(resolveScopeType(row))
+      },
+      {
+        key: 'paymentMethodType',
+        label: 'Payment method type',
+        render: (row) => row.paymentMethodType || '—'
+      },
+      {
         key: 'service',
         label: 'Service',
         render: (row) => row.service || 'ALL'
@@ -502,6 +563,7 @@ export default function FeeConfigsPage() {
       { key: 'providerFeePercentage', label: 'Provider %' },
       { key: 'providerFlatFee', label: 'Provider flat' },
       { key: 'providerMinFee', label: 'Provider min fee' },
+      { key: 'providerMinFeeCurrency', label: 'Provider min currency', render: (row) => row.providerMinFeeCurrency || '—' },
       { key: 'ourFeePercentage', label: 'Our %' },
       { key: 'ourFlatFee', label: 'Our flat' },
       {
@@ -556,6 +618,8 @@ export default function FeeConfigsPage() {
     const actionChoice = actionOptions.includes(row.action) ? row.action : row.action ? '__custom' : '';
     setSelected(row);
     setDraft({
+      scopeType: resolveScopeType(row),
+      paymentMethodType: row.paymentMethodType ?? '',
       paymentProviderId: normalizeOptionalIdForForm(row.paymentProviderId),
       billProviderId: normalizeOptionalIdForForm(row.billProviderId),
       paymentMethodPaymentProviderId: normalizeOptionalIdForForm(row.paymentMethodPaymentProviderId),
@@ -568,6 +632,7 @@ export default function FeeConfigsPage() {
       providerFeePercentage: row.providerFeePercentage ?? '',
       providerFlatFee: row.providerFlatFee ?? '',
       providerMinFee: row.providerMinFee ?? '',
+      providerMinFeeCurrency: row.providerMinFeeCurrency || 'USD',
       ourFeePercentage: row.ourFeePercentage ?? '',
       ourFlatFee: row.ourFlatFee ?? '',
       minAmount: row.minAmount ?? '',
@@ -590,6 +655,14 @@ export default function FeeConfigsPage() {
 
   const validateDraft = (state, currentId = null) => {
     const resolved = resolveAction(state);
+    const paymentMethodTypeScope = isPaymentMethodTypeScope(state);
+    const normalizedPaymentMethodType = String(state.paymentMethodType || '').trim().toUpperCase();
+    if (paymentMethodTypeScope && !paymentMethodTypeOptions.includes(normalizedPaymentMethodType)) {
+      return 'Payment method type is required for payment method type fallback scope.';
+    }
+    if (state.scopeType === 'payment_method_type_action' && !String(resolved || '').trim()) {
+      return 'Action is required for payment method type + action scope.';
+    }
     if (state.paymentProviderId !== '' && Number(state.paymentProviderId) < 0) return 'Payment provider must be non-negative.';
     if (state.billProviderId !== '' && Number(state.billProviderId) < 0) return 'Bill provider must be non-negative.';
     if (state.paymentMethodPaymentProviderId !== '' && Number(state.paymentMethodPaymentProviderId) < 0) return 'PMPP ID must be non-negative.';
@@ -610,14 +683,14 @@ export default function FeeConfigsPage() {
     if (state.minAmount !== '' && state.maxAmount !== '' && Number(state.minAmount) > Number(state.maxAmount)) {
       return 'Minimum amount cannot be greater than maximum amount.';
     }
-    const normalizedAction = String(resolved || '').toUpperCase();
-    const normalizedService = String(state.service || '').toUpperCase();
-    const normalizedPaymentProvider = state.paymentProviderId === '' ? null : Number(state.paymentProviderId);
-    const normalizedBillProvider = state.billProviderId === '' ? null : Number(state.billProviderId);
-    const normalizedPmp = state.paymentMethodPaymentProviderId === '' ? null : Number(state.paymentMethodPaymentProviderId);
-    const normalizedBpbp = state.billProductBillProviderId === '' ? null : Number(state.billProductBillProviderId);
-    const normalizedFromCrypto = state.fromCryptoProductId === '' ? null : Number(state.fromCryptoProductId);
-    const normalizedToCrypto = state.toCryptoProductId === '' ? null : Number(state.toCryptoProductId);
+    const normalizedAction = state.scopeType === 'payment_method_type_fallback' ? '' : String(resolved || '').toUpperCase();
+    const normalizedService = paymentMethodTypeScope ? '' : String(state.service || '').toUpperCase();
+    const normalizedPaymentProvider = paymentMethodTypeScope || state.paymentProviderId === '' ? null : Number(state.paymentProviderId);
+    const normalizedBillProvider = paymentMethodTypeScope || state.billProviderId === '' ? null : Number(state.billProviderId);
+    const normalizedPmp = paymentMethodTypeScope || state.paymentMethodPaymentProviderId === '' ? null : Number(state.paymentMethodPaymentProviderId);
+    const normalizedBpbp = paymentMethodTypeScope || state.billProductBillProviderId === '' ? null : Number(state.billProductBillProviderId);
+    const normalizedFromCrypto = paymentMethodTypeScope || state.fromCryptoProductId === '' ? null : Number(state.fromCryptoProductId);
+    const normalizedToCrypto = paymentMethodTypeScope || state.toCryptoProductId === '' ? null : Number(state.toCryptoProductId);
     const normalizedMinAmount = state.minAmount === '' ? null : Number(state.minAmount);
     const normalizedMaxAmount = state.maxAmount === '' ? null : Number(state.maxAmount);
     if (normalizedPmp !== null && normalizedPaymentProvider !== null) {
@@ -650,6 +723,8 @@ export default function FeeConfigsPage() {
       if (currentId && Number(row?.id) === Number(currentId)) return false;
       const rowAction = String(row?.action || '').toUpperCase();
       if (rowAction !== normalizedAction) return false;
+      const rowPaymentMethodType = String(row?.paymentMethodType || '').toUpperCase();
+      if (rowPaymentMethodType !== (paymentMethodTypeScope ? normalizedPaymentMethodType : '')) return false;
       const rowPaymentProvider = row?.paymentProviderId === null || row?.paymentProviderId === undefined ? null : Number(row.paymentProviderId);
       const rowBillProvider = row?.billProviderId === null || row?.billProviderId === undefined ? null : Number(row.billProviderId);
       const rowBpbp = row?.billProductBillProviderId === null || row?.billProductBillProviderId === undefined ? null : Number(row.billProductBillProviderId);
@@ -733,8 +808,87 @@ export default function FeeConfigsPage() {
     }
   };
 
+  const updateScopeType = (scopeType) => {
+    setDraft((previous) => ({
+      ...previous,
+      scopeType,
+      ...(scopeType === 'payment_method_type_action' || scopeType === 'payment_method_type_fallback'
+        ? {
+            paymentProviderId: '',
+            billProviderId: '',
+            paymentMethodPaymentProviderId: '',
+            billProductBillProviderId: '',
+            countryId: '',
+            service: '',
+            ...(scopeType === 'payment_method_type_fallback' ? { action: '', customAction: '' } : {}),
+            fromCryptoProductId: '',
+            toCryptoProductId: ''
+          }
+        : {
+            paymentMethodType: ''
+          })
+    }));
+  };
+
   const renderForm = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="scopeType">Scope type</label>
+        <select id="scopeType" value={draft.scopeType} onChange={(e) => updateScopeType(e.target.value)}>
+          {scopeTypeOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      {isPaymentMethodTypeScope(draft) && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <label htmlFor="paymentMethodType">Payment method type</label>
+          <select id="paymentMethodType" value={draft.paymentMethodType} onChange={(e) => setDraft((p) => ({ ...p, paymentMethodType: e.target.value }))}>
+            <option value="">Select payment method type</option>
+            {paymentMethodTypeOptions.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+      {draft.scopeType === 'payment_method_type_action' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <label htmlFor="action">Action</label>
+          <select
+            id="action"
+            value={draft.action}
+            onChange={(e) =>
+              setDraft((p) => ({
+                ...p,
+                action: e.target.value,
+                customAction: e.target.value === '__custom' ? p.customAction : ''
+              }))
+            }
+          >
+            <option value="">Select action</option>
+            {actionOptions.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+            <option value="__custom">Other (custom)</option>
+          </select>
+          {draft.action === '__custom' && (
+            <input
+              style={{ marginTop: '0.25rem' }}
+              placeholder="Enter custom action"
+              value={draft.customAction}
+              onChange={(e) => setDraft((p) => ({ ...p, customAction: e.target.value }))}
+            />
+          )}
+        </div>
+      )}
+      {!isPaymentMethodTypeScope(draft) && (
+        <>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="paymentProviderId">Payment Provider</label>
         <select id="paymentProviderId" value={draft.paymentProviderId} onChange={(e) => setDraft((p) => ({ ...p, paymentProviderId: e.target.value }))}>
@@ -903,6 +1057,8 @@ export default function FeeConfigsPage() {
           </div>
         )}
       </div>
+        </>
+      )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="providerFeePercentage">Provider %</label>
         <input
@@ -936,6 +1092,15 @@ export default function FeeConfigsPage() {
         <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
           Provider fee floor. This is separate from Minimum amount below.
         </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="providerMinFeeCurrency">Provider minimum fee currency</label>
+        <input
+          id="providerMinFeeCurrency"
+          value={draft.providerMinFeeCurrency}
+          onChange={(e) => setDraft((p) => ({ ...p, providerMinFeeCurrency: e.target.value.toUpperCase() }))}
+          placeholder="USD"
+        />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="ourFeePercentage">Our %</label>
@@ -1036,6 +1201,8 @@ export default function FeeConfigsPage() {
             <option value="action">Action</option>
             <option value="service">Service</option>
             <option value="country">Country</option>
+            <option value="scope">Scope</option>
+            <option value="paymentMethodType">Payment method type</option>
             <option value="pmp">PMPP</option>
             <option value="bpbp">BPBP</option>
           </select>
@@ -1048,13 +1215,13 @@ export default function FeeConfigsPage() {
           <div>Configure fees using provider and product names in the UI. The system sends IDs underneath, but names are the source of truth for admin decisions.</div>
           <div>Fee application mode is now a cross-app pricing policy, not just a payout setting. It affects fee-bearing flows such as withdrawals, funding, purchases, bill payments, airtime, eSIM, crypto, and public payment requests.</div>
           <div>
-            Available scopes, from most specific to most general: <strong>Exact Route</strong> (Payment Method Route + Bill Product Route), <strong>Payment Route Only</strong>, <strong>Bill Route Only</strong>, <strong>Provider Pair</strong> (Payment Provider + Bill Provider), <strong>Bill Provider Default</strong>, <strong>Payment Provider Default</strong>, and <strong>Global Action Default</strong>.
+            Available scopes, from most specific to most general: <strong>Exact Route</strong> (Payment Method Route + Bill Product Route), <strong>Payment Route Only</strong>, <strong>Bill Route Only</strong>, <strong>Provider Pair</strong> (Payment Provider + Bill Provider), <strong>Bill Provider Default</strong>, <strong>Payment Provider Default</strong>, <strong>Payment Method Type + Action</strong>, <strong>Global Action Default</strong>, <strong>Pure Payment Method Type Fallback</strong>, and <strong>Global Default</strong>.
           </div>
           <div>
             Action resolution at each matching scope is: <strong>exact action</strong>, then <strong>OTHER</strong>, then <strong>blank action</strong>. Blank action is a valid default fee for that scope, not a bad request.
           </div>
           <div>
-            Precedence: account custom fees win first. After that, narrower system configs normally beat broader ones, while broader configs act as fallback defaults. If <strong>Override Specific Fees</strong> is on, a broader matching fee can intentionally beat ordinary narrower system configs.
+            Precedence: account custom fees win first, then exact provider/payment-method/product/action fees, then payment-method-type + action, existing global action fees, fallback action configs, pure payment-method-type fallback, OTHER, and global default. If <strong>Override Specific Fees</strong> is on, a broader matching fee can intentionally beat ordinary narrower system configs.
           </div>
           <div>
             Best mental model: <strong>master global fee mode = platform default</strong>, <strong>wallet policy action mode = default for one action</strong>, <strong>each fee row = more specific action override</strong>, <strong>account override = customer-specific exception for that action</strong>, and <strong>app request = explicit per-transaction choice</strong>.
@@ -1148,6 +1315,17 @@ export default function FeeConfigsPage() {
         {showFilters && (
           <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="filterPaymentMethodType">Payment method type</label>
+            <select id="filterPaymentMethodType" value={filters.paymentMethodType} onChange={(e) => setFilters((p) => ({ ...p, paymentMethodType: e.target.value }))}>
+              <option value="">All</option>
+              {paymentMethodTypeOptions.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="filterService">Service</label>
             <select id="filterService" value={filters.service} onChange={(e) => setFilters((p) => ({ ...p, service: e.target.value }))}>
@@ -1354,6 +1532,8 @@ export default function FeeConfigsPage() {
           <DetailGrid
             rows={[
               { label: 'ID', value: selected?.id },
+              { label: 'Scope type', value: scopeTypeLabel(resolveScopeType(selected || {})) },
+              { label: 'Payment method type', value: selected?.paymentMethodType || '—' },
               { label: 'Payment provider', value: getPaymentProviderLabel(selected || {}) },
               { label: 'Bill provider', value: getBillProviderLabel(selected || {}) },
               { label: 'Method/Provider', value: getPmpLabel(selected || {}) },
@@ -1367,6 +1547,7 @@ export default function FeeConfigsPage() {
               { label: 'Provider %', value: selected?.providerFeePercentage },
               { label: 'Provider flat', value: selected?.providerFlatFee },
               { label: 'Provider minimum fee', value: selected?.providerMinFee },
+              { label: 'Provider minimum fee currency', value: selected?.providerMinFeeCurrency || '—' },
               { label: 'Our %', value: selected?.ourFeePercentage },
               { label: 'Our flat', value: selected?.ourFlatFee },
               { label: 'Amount range', value: formatAmountRange(selected?.minAmount, selected?.maxAmount) },
