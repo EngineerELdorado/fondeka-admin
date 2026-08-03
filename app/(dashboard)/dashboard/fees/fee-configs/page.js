@@ -699,9 +699,6 @@ export default function FeeConfigsPage() {
     if (normalizedBpbp !== null && normalizedBillProvider !== null) {
       return 'Choose either Bill Provider or the exact Bill Product Route. Do not set both on the same fee config.';
     }
-    if (normalizedAction === 'BUY_GIFT_CARD' && (normalizedBpbp === null || Number.isNaN(normalizedBpbp))) {
-      return 'For BUY_GIFT_CARD, select Bill Product Bill Provider scope (BPBP) so each product can be priced separately.';
-    }
     if (normalizedAction === 'BUY_GIFT_CARD' && normalizedBpbp !== null && !giftCardMappingIds.has(Number(normalizedBpbp))) {
       return 'Selected BPBP does not appear to be a gift-card mapping. Use a mapping where bill product has giftCard=true.';
     }
@@ -1247,7 +1244,7 @@ export default function FeeConfigsPage() {
       <details className="card">
         <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Gift card pricing guidance</summary>
         <div style={{ color: 'var(--muted)', fontSize: '13px', marginTop: '0.75rem' }}>
-          Gift cards best practice: keep action as <strong>BUY_GIFT_CARD</strong>, scope by <strong>Bill Product Route</strong>, optionally add <strong>Payment Method Route</strong> for channel pricing, and avoid duplicate rows with the same layered scope. Use the same pattern for Netflix, Spotify, App Store, Google Play, Airbnb, and Uber. Legacy <strong>PAY_NETFLIX</strong> rows are not the new pricing path. Preview check: <code>/customer-api/fees?action=BUY_GIFT_CARD&amp;paymentMethodId=...&amp;billProductId=...&amp;amount=...</code>.
+          Gift cards best practice: keep action as <strong>BUY_GIFT_CARD</strong>. Use <strong>Bill Product Route</strong> for product-specific pricing, optionally add <strong>Payment Method Route</strong> for channel pricing, or create broader global/provider/payment-method-type fallbacks when the backend should fill gaps. Legacy <strong>PAY_NETFLIX</strong> rows are not the new pricing path. Preview check: <code>/customer-api/fees?action=BUY_GIFT_CARD&amp;paymentMethodId=...&amp;billProductId=...&amp;amount=...</code>.
         </div>
       </details>
 
@@ -1255,7 +1252,7 @@ export default function FeeConfigsPage() {
         <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Gift Card Pricing Readiness</summary>
         <div style={{ display: 'grid', gap: '0.6rem', marginTop: '0.75rem' }}>
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-            Global BUY_GIFT_CARD fallback is unsafe. Ensure each required gift card has an active Reloadly mapping and at least one BUY_GIFT_CARD fee row.
+            Product-specific BUY_GIFT_CARD rows are recommended for exact pricing, but broader fallbacks are allowed. Ensure each required gift card has an active Reloadly mapping and review whether it needs a specific BUY_GIFT_CARD fee row.
           </div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
