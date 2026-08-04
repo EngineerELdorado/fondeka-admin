@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
-const providerOptions = ['MAPLERAD'];
+const providerOptions = ['EXCHANGERATE_API', 'MAPLERAD'];
 const currencyOptions = ['USD', 'KES', 'GHS', 'XAF', 'CDF', 'EUR'];
 
 const emptyFilters = {
@@ -320,10 +320,11 @@ export default function FiatExchangeRatesPage() {
     try {
       const res = await api.fiatExchangeRates.syncMaplerad();
       const refreshed = Number.isFinite(res?.refreshed) ? res.refreshed : 0;
+      const skipped = Number.isFinite(res?.ratesSkipped) ? res.ratesSkipped : 0;
       if (refreshed === 0) {
-        setWarning('No rates were refreshed. Check provider credentials or existing provider support for the pairs.');
+        setWarning(`No rates were refreshed. ${skipped ? `${skipped} manual FX rate${skipped === 1 ? ' was' : 's were'} skipped. ` : ''}Maplerad FX refresh is retired and should normally stay disabled in Cron Jobs.`);
       } else {
-        setInfo(`Maplerad FX rates synced. Refreshed: ${refreshed}.`);
+        setInfo(`Maplerad FX rates synced. Refreshed: ${refreshed}${skipped ? `, skipped manual FX rates: ${skipped}` : ''}.`);
       }
       await fetchRows();
     } catch (err) {
@@ -425,6 +426,7 @@ export default function FiatExchangeRatesPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <div style={{ fontWeight: 800, fontSize: '20px' }}>Fiat FX Rates</div>
           <div style={{ color: 'var(--muted)' }}>Manage provider fiat exchange rates by currency pair.</div>
+          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Maplerad FX refresh is retired and paused by default. Keep it disabled in Cron Jobs unless an incident playbook explicitly requires it.</div>
         </div>
         <Link href="/dashboard" className="btn-neutral">
           {'<- Dashboard'}

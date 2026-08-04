@@ -7,7 +7,7 @@ import { DataTable } from '@/components/DataTable';
 import COUNTRIES from '@/data/countries';
 
 const currencyOptions = ['USD', 'CDF', 'EUR', 'KES', 'UGX', 'GHS', 'XAF'];
-const rateProviderOptions = ['MANUAL', 'MAPLERAD'];
+const rateProviderOptions = ['ADMIN', 'EXCHANGERATE_API', 'MANUAL', 'MAPLERAD'];
 const fallbackActionOptions = [
   'FUND_WALLET',
   'WITHDRAW_FROM_WALLET',
@@ -55,9 +55,10 @@ const emptyDraft = {
   legacyBalanceBacked: false,
   baseCurrency: 'USD',
   rate: '',
+  manualFxRate: false,
   collectionMarginPercent: '',
   payoutMarginPercent: '',
-  rateProvider: 'MANUAL',
+  rateProvider: 'EXCHANGERATE_API',
   rateFetchedAt: '',
   countryCodes: [],
   defaultCountryCodes: []
@@ -85,6 +86,7 @@ const emptyFilters = {
   active: '',
   walletEnabled: '',
   legacyBalanceBacked: '',
+  manualFxRate: '',
   baseCurrency: '',
   rateProvider: '',
   countryCode: '',
@@ -413,6 +415,7 @@ export default function CurrencyProductsPage() {
       legacyBalanceBacked: Boolean(draft.legacyBalanceBacked),
       baseCurrency: upperTrim(draft.baseCurrency),
       rate: Number(draft.rate),
+      manualFxRate: Boolean(draft.manualFxRate),
       collectionMarginPercent: nullableNumber(draft.collectionMarginPercent),
       payoutMarginPercent: nullableNumber(draft.payoutMarginPercent),
       rateProvider: upperTrim(draft.rateProvider),
@@ -454,9 +457,10 @@ export default function CurrencyProductsPage() {
       legacyBalanceBacked: row.legacyBalanceBacked ?? false,
       baseCurrency: row.baseCurrency ?? 'USD',
       rate: row.rate ?? '',
+      manualFxRate: Boolean(row.manualFxRate),
       collectionMarginPercent: row.collectionMarginPercent ?? '',
       payoutMarginPercent: row.payoutMarginPercent ?? '',
-      rateProvider: row.rateProvider ?? 'MANUAL',
+      rateProvider: row.rateProvider ?? (row.manualFxRate ? 'ADMIN' : 'EXCHANGERATE_API'),
       rateFetchedAt: toDateTimeLocal(row.rateFetchedAt),
       countryCodes: normalizeCountryCodes(row.countryCodes),
       defaultCountryCodes: normalizeCountryCodes(row.defaultCountryCodes)
@@ -680,6 +684,7 @@ export default function CurrencyProductsPage() {
     { key: 'defaultCountryCodes', label: 'Defaults', render: (row) => renderCountryTrigger(row, 'defaultCountryCodes', 'Default in countries') },
     { key: 'collectionMarginPercent', label: 'Collection margin', render: (row) => formatPercent(row.collectionMarginPercent) },
     { key: 'payoutMarginPercent', label: 'Payout margin', render: (row) => formatPercent(row.payoutMarginPercent) },
+    { key: 'manualFxRate', label: 'Manual FX', render: (row) => formatBool(row.manualFxRate) },
     { key: 'walletEnabled', label: 'Wallet', render: (row) => formatBool(row.walletEnabled) },
     { key: 'active', label: 'Active', render: (row) => formatBool(row.active) },
     { key: 'rateProvider', label: 'Provider', hideOnMobile: true },
@@ -774,6 +779,18 @@ export default function CurrencyProductsPage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="rate">Rate</label>
         <input id="rate" type="number" min="0" step="0.000001" value={draft.rate} onChange={(e) => setDraft((p) => ({ ...p, rate: e.target.value }))} />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', padding: '0.65rem', border: '1px solid var(--border)', borderRadius: '10px' }}>
+        {renderCheckbox('manualFxRate', 'Manually manage FX rate', draft.manualFxRate, (e) => setDraft((p) => ({
+          ...p,
+          manualFxRate: e.target.checked,
+          rateProvider: e.target.checked ? 'ADMIN' : (p.rateProvider === 'ADMIN' ? 'EXCHANGERATE_API' : p.rateProvider)
+        })))}
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          {draft.manualFxRate
+            ? 'Automatic FX updates will not change this currency rate.'
+            : 'The next automatic FX sync may update this rate.'}
+        </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="collectionMarginPercent">Collection margin %</label>
@@ -989,8 +1006,9 @@ export default function CurrencyProductsPage() {
             {renderBooleanFilter('active', 'Active')}
             {renderBooleanFilter('walletEnabled', 'Wallet enabled')}
             {renderBooleanFilter('legacyBalanceBacked', 'Legacy backed')}
+            {renderBooleanFilter('manualFxRate', 'Manual FX rate')}
             {renderFilterInput('baseCurrency', 'Base currency', { list: 'currencyProductCurrencyOptions', uppercase: true, placeholder: 'USD' })}
-            {renderFilterInput('rateProvider', 'Rate provider', { list: 'currencyProductRateProviderOptions', uppercase: true, placeholder: 'MANUAL' })}
+            {renderFilterInput('rateProvider', 'Rate provider', { list: 'currencyProductRateProviderOptions', uppercase: true, placeholder: 'ADMIN' })}
             {renderFilterInput('countryCode', 'Country', { list: 'currencyProductCountryOptions', uppercase: true, placeholder: 'CD' })}
             {renderFilterInput('defaultCountryCode', 'Default country', { list: 'currencyProductCountryOptions', uppercase: true, placeholder: 'CD' })}
             {renderBooleanFilter('hasCountryMapping', 'Has country mapping')}
@@ -1079,6 +1097,7 @@ export default function CurrencyProductsPage() {
               { label: 'Active', value: formatBool(selected?.active) },
               { label: 'Wallet enabled', value: formatBool(selected?.walletEnabled) },
               { label: 'Legacy balance backed', value: formatBool(selected?.legacyBalanceBacked) },
+              { label: 'Manual FX rate', value: formatBool(selected?.manualFxRate) },
               { label: 'Base currency', value: selected?.baseCurrency },
               { label: 'Country availability', value: formatCountryCodes(selected?.countryCodes) },
               { label: 'Default in countries', value: formatCountryCodes(selected?.defaultCountryCodes) },

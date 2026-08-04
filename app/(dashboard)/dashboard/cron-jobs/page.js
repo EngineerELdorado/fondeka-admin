@@ -12,7 +12,7 @@ const cronDescriptions = {
   'zendit_utilities_catalog.sync': 'Worker-side scheduler that enqueues Zendit utility voucher catalog refresh events. Use Utility Bill Catalog Sync to enqueue an immediate refresh when needed.',
   'wallet_currency.audit': 'Worker-side scheduler that logs open wallet currency audit violations without modifying transactions or blocking payment flows.',
   'exchangerate_api.fiat_refresh_rates': 'Scheduled automatic ExchangeRate-API fiat FX updates. Pausing also disables the startup ExchangeRate-API refresh because it checks this same flag.',
-  'maplerad.fiat_refresh_rates': 'Scheduled automatic Maplerad fiat FX updates. Pause this when provider FX refreshes should stop while existing configured rates remain in place.'
+  'maplerad.fiat_refresh_rates': 'Retired Maplerad fiat FX refresh scheduler. This should stay paused by default while existing configured rates remain in place.'
 };
 
 const getCronGroup = (key) => {
