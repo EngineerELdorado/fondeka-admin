@@ -69,6 +69,7 @@ const navItems = [
   { href: '/dashboard/provider-tokens', labelKey: 'layout.nav.providerTokens' },
   { href: '/dashboard/providers/maplerad/bank-codes', labelKey: 'layout.nav.mapleradBankCodes' },
   { href: '/dashboard/providers/maplerad/sandbox', labelKey: 'layout.nav.mapleradSandbox' },
+  { href: '/dashboard/currency-circuit-breaker', labelKey: 'layout.nav.currencyCircuitBreaker' },
   { href: '/dashboard/cron-jobs', labelKey: 'layout.nav.cronJobs' },
   { href: '/dashboard/redis-caches', labelKey: 'layout.nav.redisCaches' },
   { href: '/dashboard/admins', labelKey: 'layout.nav.admins' },

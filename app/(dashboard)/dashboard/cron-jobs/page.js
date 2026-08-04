@@ -10,13 +10,16 @@ const cronDescriptions = {
   'zendit_recharge_catalog.sync': 'Worker-side scheduler that enqueues Zendit mobile recharge catalog refresh events. Use manual sync on the Recharge Catalog Sync page if you need an immediate refresh.',
   'reloadly_utilities_catalog.sync': 'Worker-side scheduler that enqueues Reloadly Utilities catalog refresh events. It controls cache freshness, not customer-facing bill product visibility.',
   'zendit_utilities_catalog.sync': 'Worker-side scheduler that enqueues Zendit utility voucher catalog refresh events. Use Utility Bill Catalog Sync to enqueue an immediate refresh when needed.',
-  'wallet_currency.audit': 'Worker-side scheduler that logs open wallet currency audit violations without modifying transactions or blocking payment flows.'
+  'wallet_currency.audit': 'Worker-side scheduler that logs open wallet currency audit violations without modifying transactions or blocking payment flows.',
+  'exchangerate_api.fiat_refresh_rates': 'Scheduled automatic ExchangeRate-API fiat FX updates. Pausing also disables the startup ExchangeRate-API refresh because it checks this same flag.',
+  'maplerad.fiat_refresh_rates': 'Scheduled automatic Maplerad fiat FX updates. Pause this when provider FX refreshes should stop while existing configured rates remain in place.'
 };
 
 const getCronGroup = (key) => {
   const value = String(key || '').trim();
   if (['reloadly_recharge_catalog.sync', 'zendit_recharge_catalog.sync'].includes(value)) return 'Mobile Recharge Catalog Sync';
   if (['reloadly_utilities_catalog.sync', 'zendit_utilities_catalog.sync'].includes(value)) return 'Utility Bill Catalog Sync';
+  if (['exchangerate_api.fiat_refresh_rates', 'maplerad.fiat_refresh_rates'].includes(value)) return 'Fiat FX Rates';
   if (value === 'wallet_currency.audit') return 'Wallet Currency Audit';
   return 'Other';
 };
@@ -149,7 +152,7 @@ export default function CronJobsPage() {
           <div style={{ fontWeight: 800, fontSize: '20px' }}>Cron Jobs</div>
           <div style={{ color: 'var(--muted)' }}>Monitor and control scheduled background jobs.</div>
           <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-            Catalog sync jobs are maintenance schedulers. Pause or unpause them here, and use the dedicated sync pages when you need an immediate manual refresh.
+            Catalog sync, wallet audit, and fiat FX refresh jobs are maintenance schedulers. Pause or unpause them here, and use the dedicated sync pages when you need an immediate manual refresh.
           </div>
         </div>
         <button type="button" className="btn-neutral" onClick={fetchRows} disabled={loading}>
