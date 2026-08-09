@@ -33,6 +33,7 @@ const actionOptions = [
   'CARD_ONLINE_PAYMENT',
   'CARD_PAYMENT_REVERSAL',
   'BUY_CRYPTO',
+  'CONVERT_FIAT',
   'SELL_CRYPTO',
   'RECEIVE_CRYPTO',
   'SEND_CRYPTO',
@@ -746,6 +747,45 @@ export default function TransactionsPage() {
     );
   }, [formatMoneyWithCurrency, formatUsdAmount]);
 
+  const formatFxMargin = useCallback((row) => {
+    const local = formatMoneyWithCurrency(row?.fxMarginAmount, row?.fxMarginCurrency);
+    const localCurrency = normalizeCurrency(row?.fxMarginCurrency);
+    const usd = row?.usdFxMarginAmount;
+    if (localCurrency === 'USD' || !hasValue(usd)) return local;
+    return (
+      <span>
+        <span>{local}</span>
+        <span style={{ color: 'var(--muted)' }}> ({formatUsdAmount(usd)})</span>
+      </span>
+    );
+  }, [formatMoneyWithCurrency, formatUsdAmount]);
+
+  const formatPlatformRevenueLocal = useCallback((row) => {
+    const transactionCurrency = normalizeCurrency(row?.currency);
+    const fxMarginCurrency = normalizeCurrency(row?.fxMarginCurrency);
+    const hasInternalFee = hasValue(row?.internalFeeAmount);
+    const hasCommission = hasValue(row?.commissionAmount);
+    const hasFxMargin = hasValue(row?.fxMarginAmount);
+    if (!hasInternalFee && !hasCommission && !hasFxMargin) return '—';
+    if (hasFxMargin && fxMarginCurrency && fxMarginCurrency !== transactionCurrency) return '—';
+    return formatMoneyWithCurrency(
+      (Number(row?.internalFeeAmount) || 0) + (Number(row?.commissionAmount) || 0) + (Number(row?.fxMarginAmount) || 0),
+      transactionCurrency || fxMarginCurrency
+    );
+  }, [formatMoneyWithCurrency]);
+
+  const formatPlatformRevenueUsd = useCallback((row) => {
+    const hasUsdRevenueComponent = hasValue(row?.usdInternalFeeAmount) || hasValue(row?.usdCommissionAmount) || hasValue(row?.usdFxMarginAmount);
+    if (hasUsdRevenueComponent) {
+      return formatUsdAmount((Number(row?.usdInternalFeeAmount) || 0) + (Number(row?.usdCommissionAmount) || 0) + (Number(row?.usdFxMarginAmount) || 0));
+    }
+    if (normalizeCurrency(row?.currency) !== 'USD') return '—';
+    const hasLocalRevenueComponent = hasValue(row?.internalFeeAmount) || hasValue(row?.commissionAmount) || hasValue(row?.fxMarginAmount);
+    return hasLocalRevenueComponent
+      ? formatUsdAmount((Number(row?.internalFeeAmount) || 0) + (Number(row?.commissionAmount) || 0) + (Number(row?.fxMarginAmount) || 0))
+      : '—';
+  }, [formatUsdAmount]);
+
   const formatSettlementLocalAndUsd = useCallback((row, localField, localCurrencyField = 'currency', usdField) => {
     const usd = row?.[usdField];
     const localValue = row?.[localField];
@@ -1171,11 +1211,6 @@ export default function TransactionsPage() {
         render: (row) => formatLocalAndUsd(row, 'amount', 'currency', 'usdAmount')
       },
       {
-        key: 'referralCostAmount',
-        label: 'Referral cost',
-        render: (row) => formatMoneyWithCurrency(row.referralCostAmount, row.currency)
-      },
-      {
         key: 'paymentMethodName',
         label: 'Method',
         render: (row) => row.paymentMethodName || row.paymentMethodId || '—'
@@ -1240,7 +1275,7 @@ export default function TransactionsPage() {
         )
       }
     ],
-    [formatLocalAndUsd, formatMoneyWithCurrency, openTransactionOwnerAccount]
+    [formatLocalAndUsd, openTransactionOwnerAccount]
   );
 
   const openDetail = (row) => {
@@ -2356,22 +2391,14 @@ export default function TransactionsPage() {
                 { label: 'Other fees', value: formatMoneyWithCurrency(selected?.otherFeesAmount, selected?.currency) },
                 { label: 'All fees', value: formatLocalAndUsd(selected, 'allFees', 'currency', 'usdAllFees') },
                 { label: 'Commission amount', value: formatLocalAndUsd(selected, 'commissionAmount', 'currency', 'usdCommissionAmount') },
-                {
-                  label: 'Platform revenue (local)',
-                  value:
-                    hasValue(selected?.internalFeeAmount) || hasValue(selected?.commissionAmount)
-                      ? formatMoneyWithCurrency((Number(selected?.internalFeeAmount) || 0) + (Number(selected?.commissionAmount) || 0), selected?.currency)
-                      : '—'
-                },
-                {
-                  label: 'Platform revenue (USD)',
-                  value:
-                    hasValue(selected?.usdInternalFeeAmount) || hasValue(selected?.usdCommissionAmount)
-                      ? formatUsdAmount((Number(selected?.usdInternalFeeAmount) || 0) + (Number(selected?.usdCommissionAmount) || 0))
-                      : normalizeCurrency(selected?.currency) === 'USD' && (hasValue(selected?.internalFeeAmount) || hasValue(selected?.commissionAmount))
-                        ? formatUsdAmount((Number(selected?.internalFeeAmount) || 0) + (Number(selected?.commissionAmount) || 0))
-                      : '—'
-                },
+                { label: 'FX margin', value: formatFxMargin(selected) },
+                { label: 'FX raw rate', value: selected?.fxRawRate ?? '—' },
+                { label: 'FX effective rate', value: selected?.fxEffectiveRate ?? '—' },
+                { label: 'FX margin percent', value: hasValue(selected?.fxMarginPercent) ? `${formatMoneyAmount(selected.fxMarginPercent)}%` : '—' },
+                { label: 'FX margin flow', value: formatEnumLabel(selected?.fxMarginFlow) },
+                { label: 'FX margin provider', value: formatEnumLabel(selected?.fxMarginProvider) },
+                { label: 'Platform revenue (local)', value: formatPlatformRevenueLocal(selected) },
+                { label: 'Platform revenue (USD)', value: formatPlatformRevenueUsd(selected) },
                 { label: 'Settlement amount', value: formatSettlementLocalAndUsd(selected, 'settlementAmount', 'currency', 'usdSettlementAmount') },
                 { label: 'Settlement fees', value: formatSettlementLocalAndUsd(selected, 'settlementAllFees', 'currency', 'usdSettlementAllFees') },
                 { label: 'Settlement net', value: formatSettlementLocalAndUsd(selected, 'settlementNet', 'currency', 'usdSettlementNet') },

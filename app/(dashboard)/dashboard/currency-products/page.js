@@ -27,6 +27,7 @@ const fallbackActionOptions = [
   'WITHDRAW_FROM_CARD',
   'BUY_CARD',
   'BUY_CRYPTO',
+  'CONVERT_FIAT',
   'SELL_CRYPTO',
   'SEND_CRYPTO',
   'RECEIVE_CRYPTO',

@@ -153,6 +153,18 @@ const formatTransactionLocalAndUsd = (row, localField, usdField) => {
     </span>
   );
 };
+const formatFxMargin = (row) => {
+  const local = formatMoneyWithCurrency(row?.fxMarginAmount, row?.fxMarginCurrency);
+  const localCurrency = String(row?.fxMarginCurrency || '').trim().toUpperCase();
+  const usdValue = row?.usdFxMarginAmount;
+  if (local === '—' || localCurrency === 'USD' || usdValue === null || usdValue === undefined || usdValue === '') return local;
+  return (
+    <span>
+      <span>{local}</span>
+      <span style={{ color: 'var(--muted)' }}> ({formatMoneyWithCurrency(usdValue, 'USD')})</span>
+    </span>
+  );
+};
 const hasAnyValue = (...values) => values.some((value) => value !== null && value !== undefined && value !== '');
 const pickLatestAdminMessage = (txn) => {
   if (!txn) return null;
@@ -1037,6 +1049,12 @@ export default function PersonalSavingsPage() {
                 { label: 'Other fees', value: formatMoneyWithCurrency(activityTransactionDetail?.otherFeesAmount, activityTransactionDetail?.currency) },
                 { label: 'All fees', value: formatTransactionLocalAndUsd(activityTransactionDetail, 'allFees', 'usdAllFees') },
                 { label: 'Commission amount', value: formatTransactionLocalAndUsd(activityTransactionDetail, 'commissionAmount', 'usdCommissionAmount') },
+                { label: 'FX margin', value: formatFxMargin(activityTransactionDetail) },
+                { label: 'FX raw rate', value: activityTransactionDetail?.fxRawRate ?? '—' },
+                { label: 'FX effective rate', value: activityTransactionDetail?.fxEffectiveRate ?? '—' },
+                { label: 'FX margin percent', value: hasAnyValue(activityTransactionDetail?.fxMarginPercent) ? `${formatMoneyAmount(activityTransactionDetail.fxMarginPercent)}%` : '—' },
+                { label: 'FX margin flow', value: formatDisplayName(activityTransactionDetail?.fxMarginFlow) },
+                { label: 'FX margin provider', value: formatDisplayName(activityTransactionDetail?.fxMarginProvider) },
                 {
                   label: 'Referral cost',
                   value:

@@ -16,6 +16,7 @@ const actionOptions = [
   'FUND_CARD',
   'WITHDRAW_FROM_CARD',
   'BUY_CRYPTO',
+  'CONVERT_FIAT',
   'SELL_CRYPTO',
   'FUND_WALLET',
   'WITHDRAW_FROM_WALLET'

@@ -239,6 +239,7 @@ export default function AccountsListPage() {
     'PAY_WATER_BILL',
     'PAY_REQUEST',
     'REPAY_LOAN',
+    'CONVERT_FIAT',
     'SELL_CRYPTO',
     'SEND_AIRTIME',
     'SEND_DATA_BUNDLES',

@@ -25,6 +25,7 @@ const feeApplicationModeOptions = [
 const actionOptions = [
   'BUY_CARD',
   'BUY_CRYPTO',
+  'CONVERT_FIAT',
   'BUY_GIFT_CARD',
   'E_SIM_PURCHASE',
   'E_SIM_TOPUP',

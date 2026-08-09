@@ -19,7 +19,8 @@ const actionOptions = [
   'BUY_CARD',
   'CARD_ONLINE_PAYMENT',
   'CARD_PAYMENT_REVERSAL',
-  'CARD_MAINTENANCE'
+  'CARD_MAINTENANCE',
+  'CONVERT_FIAT'
 ].sort();
 
 const emptyState = {
