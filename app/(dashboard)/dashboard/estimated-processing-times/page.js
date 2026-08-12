@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
@@ -71,6 +71,7 @@ const cryptoNetworkNameOptions = ['BTC', 'ERC20', 'BEP20', 'TRC20', 'POLYGON', '
 
 const initialFilters = {
   action: '',
+  billProductId: '',
   paymentMethodType: '',
   paymentProviderName: '',
   cryptoNetworkName: '',
@@ -79,6 +80,7 @@ const initialFilters = {
 
 const emptyState = {
   action: '',
+  billProductId: '',
   paymentMethodType: '',
   paymentProviderName: '',
   cryptoNetworkName: '',
@@ -90,18 +92,35 @@ const emptyState = {
   notesFr: ''
 };
 
-const toPayload = (state) => ({
-  action: state.action || null,
-  paymentMethodType: state.paymentMethodType || null,
-  paymentProviderName: state.paymentProviderName || null,
-  cryptoNetworkName: state.cryptoNetworkName || null,
-  minSeconds: state.minSeconds === '' ? null : Number(state.minSeconds),
-  maxSeconds: state.maxSeconds === '' ? null : Number(state.maxSeconds),
-  active: Boolean(state.active),
-  rank: state.rank === '' ? 0 : Number(state.rank),
-  notesEn: state.notesEn === '' ? null : state.notesEn,
-  notesFr: state.notesFr === '' ? null : state.notesFr
-});
+const toPayload = (state) => {
+  const payload = {
+    action: state.action || null,
+    paymentMethodType: state.paymentMethodType || null,
+    paymentProviderName: state.paymentProviderName || null,
+    cryptoNetworkName: state.cryptoNetworkName || null,
+    minSeconds: state.minSeconds === '' ? null : Number(state.minSeconds),
+    maxSeconds: state.maxSeconds === '' ? null : Number(state.maxSeconds),
+    active: Boolean(state.active),
+    rank: state.rank === '' ? 0 : Number(state.rank),
+    notesEn: state.notesEn === '' ? null : state.notesEn,
+    notesFr: state.notesFr === '' ? null : state.notesFr
+  };
+  if (state.billProductId !== '' && state.billProductId !== null && state.billProductId !== undefined) {
+    payload.billProductId = Number(state.billProductId);
+  }
+  return payload;
+};
+
+const getBillProductName = (product) =>
+  product?.displayName || product?.name || product?.title || product?.code || product?.providerProductName || null;
+
+const formatBillProductLabel = (product) => {
+  const id = product?.id ?? product?.billProductId;
+  const name = getBillProductName(product);
+  if (name) return name;
+  if (id !== null && id !== undefined) return 'Unknown bill product';
+  return 'Generic estimate';
+};
 
 const Modal = ({ title, onClose, children }) => (
   <div className="modal-backdrop">
@@ -176,10 +195,31 @@ export default function EstimatedProcessingTimesPage() {
   const [filters, setFilters] = useState(initialFilters);
   const [appliedFilters, setAppliedFilters] = useState(initialFilters);
   const [showFilters, setShowFilters] = useState(false);
+  const [billProducts, setBillProducts] = useState([]);
 
   const sortedPaymentMethodTypeOptions = useMemo(() => [...paymentMethodTypeOptions].sort(), []);
   const sortedPaymentProviderNameOptions = useMemo(() => [...paymentProviderNameOptions].sort(), []);
   const sortedCryptoNetworkNameOptions = useMemo(() => [...cryptoNetworkNameOptions].sort(), []);
+  const sortedBillProducts = useMemo(
+    () =>
+      [...billProducts].sort((a, b) =>
+        formatBillProductLabel(a).localeCompare(formatBillProductLabel(b))
+      ),
+    [billProducts]
+  );
+
+  const getBillProductLabel = useCallback((row) => {
+    const id = row?.billProductId;
+    if (id === null || id === undefined || id === '') return 'Generic estimate';
+    const inlineProduct = {
+      id,
+      displayName: row?.billProductDisplayName || row?.billProductName,
+      name: row?.billProductName,
+      code: row?.billProductCode
+    };
+    const loadedProduct = billProducts.find((product) => String(product?.id) === String(id));
+    return formatBillProductLabel(loadedProduct || inlineProduct);
+  }, [billProducts]);
 
   const activeFilterChips = useMemo(() => {
     const chips = [];
@@ -189,6 +229,9 @@ export default function EstimatedProcessingTimesPage() {
       switch (key) {
         case 'action':
           add(`Action: ${value}`, key);
+          break;
+        case 'billProductId':
+          add(`Bill product: ${getBillProductLabel({ billProductId: value })}`, key);
           break;
         case 'paymentMethodType':
           add(`Method type: ${value}`, key);
@@ -207,7 +250,7 @@ export default function EstimatedProcessingTimesPage() {
       }
     });
     return chips;
-  }, [appliedFilters]);
+  }, [appliedFilters, getBillProductLabel]);
 
   const fetchRows = async () => {
     setLoading(true);
@@ -234,9 +277,31 @@ export default function EstimatedProcessingTimesPage() {
     fetchRows();
   }, [page, size, appliedFilters]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    const fetchBillProducts = async () => {
+      try {
+        const res = await api.billProducts.list(new URLSearchParams({ page: '0', size: '500' }));
+        setBillProducts(Array.isArray(res) ? res : res?.content || []);
+      } catch {
+        setBillProducts([]);
+      }
+    };
+    fetchBillProducts();
+  }, []);
+
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
     { key: 'action', label: 'Action' },
+    {
+      key: 'scope',
+      label: 'Scope',
+      render: (row) => (row.billProductId ? 'Product-specific' : 'Generic')
+    },
+    {
+      key: 'billProductId',
+      label: 'Bill product',
+      render: (row) => getBillProductLabel(row)
+    },
     { key: 'paymentMethodType', label: 'Method type' },
     { key: 'paymentProviderName', label: 'Provider', hideOnMobile: true },
     { key: 'cryptoNetworkName', label: 'Network', hideOnMobile: true },
@@ -256,7 +321,7 @@ export default function EstimatedProcessingTimesPage() {
         </div>
       )
     }
-  ], []);
+  ], [getBillProductLabel]);
 
   const openCreate = () => {
     setDraft(emptyState);
@@ -269,6 +334,7 @@ export default function EstimatedProcessingTimesPage() {
     setSelected(row);
     setDraft({
       action: row.action ?? '',
+      billProductId: row.billProductId ?? '',
       paymentMethodType: row.paymentMethodType ?? '',
       paymentProviderName: row.paymentProviderName ?? '',
       cryptoNetworkName: row.cryptoNetworkName ?? '',
@@ -298,6 +364,7 @@ export default function EstimatedProcessingTimesPage() {
     if (Number.isNaN(minValue) || Number.isNaN(maxValue)) return 'Min and max seconds must be numbers.';
     if (minValue < 0 || maxValue < 0) return 'Min and max seconds must be 0 or greater.';
     if (maxValue < minValue) return 'Max seconds must be greater than or equal to min seconds.';
+    if (draft.billProductId !== '' && Number.isNaN(Number(draft.billProductId))) return 'Bill product must be a valid product.';
     return null;
   };
 
@@ -386,6 +453,22 @@ export default function EstimatedProcessingTimesPage() {
             <option key={type} value={type}>{type}</option>
           ))}
         </select>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="billProductId">Bill product</label>
+        <select
+          id="billProductId"
+          value={draft.billProductId}
+          onChange={(e) => setDraft((prev) => ({ ...prev, billProductId: e.target.value }))}
+        >
+          <option value="">Generic estimate</option>
+          {sortedBillProducts.map((product) => (
+            <option key={product.id} value={product.id}>{formatBillProductLabel(product)}</option>
+          ))}
+        </select>
+        <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+          Select a product only when this estimate applies to one exact bill product. Product-specific configs win over generic action/provider/method configs.
+        </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="paymentProviderName">Payment provider</label>
@@ -535,6 +618,19 @@ export default function EstimatedProcessingTimesPage() {
         </select>
       </div>
           <div>
+            <label htmlFor="filter-bill-product">Bill product</label>
+            <select
+              id="filter-bill-product"
+              value={filters.billProductId}
+              onChange={(e) => setFilters((prev) => ({ ...prev, billProductId: e.target.value }))}
+            >
+              <option value="">All</option>
+              {sortedBillProducts.map((product) => (
+                <option key={product.id} value={product.id}>{formatBillProductLabel(product)}</option>
+              ))}
+            </select>
+          </div>
+          <div>
             <label htmlFor="filter-provider">Provider</label>
             <select
               id="filter-provider"
@@ -635,6 +731,8 @@ export default function EstimatedProcessingTimesPage() {
             rows={[
               { label: 'ID', value: selected?.id },
               { label: 'Action', value: selected?.action },
+              { label: 'Scope', value: selected?.billProductId ? 'Product-specific' : 'Generic' },
+              { label: 'Bill product', value: getBillProductLabel(selected) },
               { label: 'Payment method type', value: selected?.paymentMethodType || 'Any' },
               { label: 'Payment provider', value: selected?.paymentProviderName || 'Any' },
               { label: 'Crypto network', value: selected?.cryptoNetworkName || 'Any' },
