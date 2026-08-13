@@ -41,7 +41,6 @@ const navItems = [
   { href: '/dashboard/trusted-devices', labelKey: 'layout.nav.trustedDevices' },
   { href: '/dashboard/transactions', labelKey: 'layout.nav.transactions' },
   { href: '/dashboard/bank-deposit-proofs', labelKey: 'layout.nav.bankDepositProofs' },
-  { href: '/dashboard/fiat-exchange-rates', labelKey: 'layout.nav.fiatExchangeRates' },
   { href: '/dashboard/provider-fx-policies', labelKey: 'layout.nav.providerFxPolicies' },
   { href: '/dashboard/estimated-processing-times', labelKey: 'layout.nav.estimatedProcessingTimes' },
   { href: '/dashboard/webhook-events', labelKey: 'layout.nav.webhookEvents' },

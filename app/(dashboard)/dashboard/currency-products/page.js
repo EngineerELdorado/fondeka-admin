@@ -869,10 +869,21 @@ export default function CurrencyProductsPage() {
     if (!previewResult) return null;
     const fee = previewResult.feePreview;
     const providerErrors = Array.isArray(previewResult.providerErrors) ? previewResult.providerErrors : [];
+    const hasActionContext =
+      previewResult.previewMode === 'ACTION_FEE_AND_EXECUTION_PREVIEW' ||
+      Boolean(previewResult.action) ||
+      Boolean(fee) ||
+      hasValue(previewResult.feeAdjustedSourceAmount) ||
+      hasValue(previewResult.feeAdjustedConvertedAmount) ||
+      hasValue(previewResult.executionSourceAmount) ||
+      hasValue(previewResult.executionTargetAmount) ||
+      hasValue(previewResult.executionRate) ||
+      hasValue(previewResult.executionMarginAmount);
     return (
       <div style={{ display: 'grid', gap: '0.75rem' }}>
         <DetailGrid
           rows={[
+            { label: 'Preview mode', value: previewResult.previewMode || '-' },
             { label: 'Source amount', value: formatMoney(previewResult.sourceAmount, previewResult.sourceCurrency) },
             { label: 'Target currency', value: previewResult.targetCurrency || '-' },
             { label: 'Provider', value: previewResult.provider || '-' },
@@ -894,18 +905,24 @@ export default function CurrencyProductsPage() {
             { label: 'Payout converted', value: formatMoney(previewResult.payoutConvertedAmount, previewResult.targetCurrency) }
           ]}
         />
-        <DetailGrid
-          rows={[
-            { label: 'Action', value: previewResult.action || '-' },
-            { label: 'Action flow', value: previewResult.actionMarginFlow || '-' },
-            { label: 'Action margin', value: formatPercent(previewResult.actionMarginPercent) },
-            { label: 'Action margin amount', value: formatMoney(previewResult.actionMarginAmount, previewResult.targetCurrency) },
-            { label: 'Action rate', value: formatRate(previewResult.actionRate) },
-            { label: 'Action converted', value: formatMoney(previewResult.actionConvertedAmount, previewResult.targetCurrency) },
-            { label: 'Fee-adjusted source', value: formatMoney(previewResult.feeAdjustedSourceAmount, previewResult.feeAdjustedSourceCurrency) },
-            { label: 'Fee-adjusted converted', value: formatMoney(previewResult.feeAdjustedConvertedAmount, previewResult.targetCurrency) }
-          ]}
-        />
+        {hasActionContext ? (
+          <DetailGrid
+            rows={[
+              { label: 'Action', value: previewResult.action || '-' },
+              { label: 'Fee-adjusted source', value: formatMoney(previewResult.feeAdjustedSourceAmount, previewResult.feeAdjustedSourceCurrency || previewResult.sourceCurrency) },
+              { label: 'Fee-adjusted converted', value: formatMoney(previewResult.feeAdjustedConvertedAmount, previewResult.targetCurrency) },
+              { label: 'Execution source', value: formatMoney(previewResult.executionSourceAmount, previewResult.sourceCurrency) },
+              { label: 'Execution target', value: formatMoney(previewResult.executionTargetAmount, previewResult.targetCurrency) },
+              { label: 'Execution rate', value: formatRate(previewResult.executionRate) },
+              { label: 'Execution margin', value: formatMoney(previewResult.executionMarginAmount, previewResult.targetCurrency) },
+              { label: 'Execution margin flow', value: previewResult.executionMarginFlow || '-' }
+            ]}
+          />
+        ) : (
+          <div className="card" style={{ color: 'var(--muted)', fontSize: '13px' }}>
+            Generic rate preview. Add an action to include fee lookup and estimated execution conversion context.
+          </div>
+        )}
         {fee ? (
           <DetailGrid
             rows={[
@@ -1128,7 +1145,7 @@ export default function CurrencyProductsPage() {
               {renderPreviewSelect('targetCurrency', 'Target currency', previewCurrencyOptions, { emptyLabel: 'Select target currency' })}
             </div>
             <details>
-              <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Optional context</summary>
+              <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Optional action context</summary>
               <div style={{ marginTop: '0.75rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.75rem' }}>
                 {renderPreviewSelect('action', 'Action', previewActionOptions, { emptyLabel: 'No action' })}
                 {renderPreviewSelect('paymentMethodId', 'Payment method', paymentMethodOptions, {
