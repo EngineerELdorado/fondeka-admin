@@ -53,8 +53,8 @@ const emptyDraft = {
   logoUrl: '',
   active: true,
   walletEnabled: true,
-  ibanEnabled: false,
-  ibanApplicationEnabled: false,
+  bankAccountEnabled: false,
+  bankAccountApplicationEnabled: false,
   legacyBalanceBacked: false,
   baseCurrency: 'USD',
   rate: '',
@@ -88,8 +88,8 @@ const emptyFilters = {
   displayName: '',
   active: '',
   walletEnabled: '',
-  ibanEnabled: '',
-  ibanApplicationEnabled: '',
+  bankAccountEnabled: '',
+  bankAccountApplicationEnabled: '',
   legacyBalanceBacked: '',
   manualFxRate: '',
   baseCurrency: '',
@@ -106,6 +106,13 @@ const emptyFilters = {
   maxPayoutMarginPercent: '',
   rateFetchedFrom: '',
   rateFetchedTo: ''
+};
+
+const emptyDefaultBankAccountDraft = {
+  internationalAccountNumber: '',
+  accountNumber: '',
+  swiftBic: '',
+  routingNumber: ''
 };
 
 const Modal = ({ title, onClose, children }) => (
@@ -242,6 +249,10 @@ const toList = (res) => (Array.isArray(res) ? res : res?.content || []);
 
 const uniqueSorted = (values) => [...new Set(values.map(upperTrim).filter(Boolean))].sort();
 
+const getBankAccountEnabled = (row) => Boolean(row?.bankAccountEnabled);
+
+const getBankAccountApplicationEnabled = (row) => Boolean(row?.bankAccountApplicationEnabled);
+
 const optionLabel = (item, fallbackPrefix) => {
   const name = item?.displayName || item?.name || item?.code || item?.currency || item?.reference;
   const suffix = item?.active === false ? ' (inactive)' : '';
@@ -264,6 +275,9 @@ export default function CurrencyProductsPage() {
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [countryPopup, setCountryPopup] = useState(null);
+  const [defaultBankAccountTarget, setDefaultBankAccountTarget] = useState(null);
+  const [defaultBankAccountDraft, setDefaultBankAccountDraft] = useState(emptyDefaultBankAccountDraft);
+  const [showDefaultBankAccount, setShowDefaultBankAccount] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [previewDraft, setPreviewDraft] = useState(emptyPreviewDraft);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -417,8 +431,8 @@ export default function CurrencyProductsPage() {
       logoUrl: draft.logoUrl.trim() || null,
       active: Boolean(draft.active),
       walletEnabled: Boolean(draft.walletEnabled),
-      ibanEnabled: Boolean(draft.ibanEnabled),
-      ibanApplicationEnabled: Boolean(draft.ibanApplicationEnabled),
+      bankAccountEnabled: Boolean(draft.bankAccountEnabled),
+      bankAccountApplicationEnabled: Boolean(draft.bankAccountApplicationEnabled),
       legacyBalanceBacked: Boolean(draft.legacyBalanceBacked),
       baseCurrency: upperTrim(draft.baseCurrency),
       rate: Number(draft.rate),
@@ -461,8 +475,8 @@ export default function CurrencyProductsPage() {
       logoUrl: row.logoUrl ?? '',
       active: row.active ?? true,
       walletEnabled: row.walletEnabled ?? true,
-      ibanEnabled: row.ibanEnabled ?? false,
-      ibanApplicationEnabled: row.ibanApplicationEnabled ?? false,
+      bankAccountEnabled: getBankAccountEnabled(row),
+      bankAccountApplicationEnabled: getBankAccountApplicationEnabled(row),
       legacyBalanceBacked: row.legacyBalanceBacked ?? false,
       baseCurrency: row.baseCurrency ?? 'USD',
       rate: row.rate ?? '',
@@ -565,8 +579,8 @@ export default function CurrencyProductsPage() {
         currency: row.currency,
         displayName: row.displayName,
         active: false,
-        ibanEnabled: Boolean(row.ibanEnabled),
-        ibanApplicationEnabled: Boolean(row.ibanApplicationEnabled),
+        bankAccountEnabled: getBankAccountEnabled(row),
+        bankAccountApplicationEnabled: getBankAccountApplicationEnabled(row),
         countryCodes: normalizeCountryCodes(row.countryCodes),
         defaultCountryCodes: normalizeCountryCodes(row.defaultCountryCodes)
       });
@@ -574,6 +588,71 @@ export default function CurrencyProductsPage() {
       fetchRows();
     } catch (err) {
       setError(err.message || `Failed to deactivate currency product ${row.id}.`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const openDefaultBankAccount = async (row) => {
+    if (!row?.id) return;
+    setDefaultBankAccountTarget(row);
+    setDefaultBankAccountDraft(emptyDefaultBankAccountDraft);
+    setShowDefaultBankAccount(true);
+    setActionLoading(true);
+    setError(null);
+    setInfo(null);
+    try {
+      const data = await api.currencyProducts.getDefaultBankAccount(row.id);
+      setDefaultBankAccountDraft({
+        internationalAccountNumber: data?.internationalAccountNumber ?? '',
+        accountNumber: data?.accountNumber ?? '',
+        swiftBic: data?.swiftBic ?? '',
+        routingNumber: data?.routingNumber ?? ''
+      });
+    } catch (err) {
+      if (err.status !== 404) {
+        setError(err.message || `Failed to load default bank account for ${row.currency || row.id}.`);
+      }
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const buildDefaultBankAccountPayload = () => ({
+    internationalAccountNumber: defaultBankAccountDraft.internationalAccountNumber.trim() || null,
+    accountNumber: defaultBankAccountDraft.accountNumber.trim() || null,
+    swiftBic: defaultBankAccountDraft.swiftBic.trim() || null,
+    routingNumber: defaultBankAccountDraft.routingNumber.trim() || null
+  });
+
+  const handleSaveDefaultBankAccount = async () => {
+    if (!defaultBankAccountTarget?.id) return;
+    setActionLoading(true);
+    setError(null);
+    setInfo(null);
+    try {
+      await api.currencyProducts.updateDefaultBankAccount(defaultBankAccountTarget.id, buildDefaultBankAccountPayload());
+      setInfo(`Saved default bank account for ${defaultBankAccountTarget.currency || defaultBankAccountTarget.id}.`);
+      setShowDefaultBankAccount(false);
+    } catch (err) {
+      setError(err.message || `Failed to save default bank account for ${defaultBankAccountTarget.currency || defaultBankAccountTarget.id}.`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteDefaultBankAccount = async () => {
+    if (!defaultBankAccountTarget?.id) return;
+    setActionLoading(true);
+    setError(null);
+    setInfo(null);
+    try {
+      await api.currencyProducts.removeDefaultBankAccount(defaultBankAccountTarget.id);
+      setInfo(`Deleted default bank account for ${defaultBankAccountTarget.currency || defaultBankAccountTarget.id}.`);
+      setShowDefaultBankAccount(false);
+      setDefaultBankAccountDraft(emptyDefaultBankAccountDraft);
+    } catch (err) {
+      setError(err.message || `Failed to delete default bank account for ${defaultBankAccountTarget.currency || defaultBankAccountTarget.id}.`);
     } finally {
       setActionLoading(false);
     }
@@ -697,13 +776,13 @@ export default function CurrencyProductsPage() {
     { key: 'payoutMarginPercent', label: 'Payout margin', render: (row) => formatPercent(row.payoutMarginPercent) },
     { key: 'manualFxRate', label: 'Manual FX', render: (row) => formatBool(row.manualFxRate) },
     { key: 'walletEnabled', label: 'Wallet', render: (row) => formatBool(row.walletEnabled) },
-    { key: 'ibanStatus', label: 'IBAN status', render: (row) => {
-      if (row.ibanEnabled) return 'IBAN-ready';
-      if (row.ibanApplicationEnabled) return 'Application open';
+    { key: 'bankAccountStatus', label: 'Bank account status', render: (row) => {
+      if (getBankAccountEnabled(row)) return 'Bank account-ready';
+      if (getBankAccountApplicationEnabled(row)) return 'Application open';
       return 'Coming soon';
     } },
-    { key: 'ibanEnabled', label: 'IBAN available', render: (row) => formatBool(row.ibanEnabled) },
-    { key: 'ibanApplicationEnabled', label: 'IBAN application enabled', render: (row) => formatBool(row.ibanApplicationEnabled) },
+    { key: 'bankAccountEnabled', label: 'Bank account available', render: (row) => formatBool(getBankAccountEnabled(row)) },
+    { key: 'bankAccountApplicationEnabled', label: 'Bank account application enabled', render: (row) => formatBool(getBankAccountApplicationEnabled(row)) },
     { key: 'active', label: 'Active', render: (row) => formatBool(row.active) },
     { key: 'rateProvider', label: 'Provider', hideOnMobile: true },
     { key: 'rateFetchedAt', label: 'Rate fetched', hideOnMobile: true, render: (row) => formatDateTime(row.rateFetchedAt) },
@@ -715,6 +794,7 @@ export default function CurrencyProductsPage() {
           <button type="button" onClick={() => openPreview(row)} className="btn-neutral" disabled={actionLoading || previewLoading}>Simulate Exchange</button>
           <button type="button" onClick={() => openDetail(row)} className="btn-neutral" disabled={actionLoading}>View</button>
           <button type="button" onClick={() => openEdit(row)} className="btn-neutral" disabled={actionLoading}>Edit</button>
+          <button type="button" onClick={() => openDefaultBankAccount(row)} className="btn-neutral" disabled={actionLoading}>Default bank account</button>
           {row.active ? <button type="button" onClick={() => handleDeactivate(row)} className="btn-neutral" disabled={actionLoading}>Deactivate</button> : null}
           <button type="button" onClick={() => setConfirmDelete(row)} className="btn-danger" disabled={actionLoading}>Delete</button>
         </div>
@@ -838,10 +918,10 @@ export default function CurrencyProductsPage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
         {renderCheckbox('active', 'Active', draft.active, (e) => setDraft((p) => ({ ...p, active: e.target.checked })))}
         {renderCheckbox('walletEnabled', 'Wallet enabled', draft.walletEnabled, (e) => setDraft((p) => ({ ...p, walletEnabled: e.target.checked })))}
-        {renderCheckbox('ibanEnabled', 'IBAN available', draft.ibanEnabled, (e) => setDraft((p) => ({ ...p, ibanEnabled: e.target.checked })))}
-        {renderCheckbox('ibanApplicationEnabled', 'IBAN application enabled', draft.ibanApplicationEnabled, (e) => setDraft((p) => ({ ...p, ibanApplicationEnabled: e.target.checked })))}
+        {renderCheckbox('bankAccountEnabled', 'Bank account available', draft.bankAccountEnabled, (e) => setDraft((p) => ({ ...p, bankAccountEnabled: e.target.checked })))}
+        {renderCheckbox('bankAccountApplicationEnabled', 'Bank account application enabled', draft.bankAccountApplicationEnabled, (e) => setDraft((p) => ({ ...p, bankAccountApplicationEnabled: e.target.checked })))}
         <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-          IBAN available returns bank-transfer details. IBAN application enabled only opens the enhanced verification/application flow.
+          Bank account available returns bank-transfer details. Bank account application enabled only opens the enhanced verification/application flow.
         </div>
         {renderCheckbox('legacyBalanceBacked', 'Legacy balance backed', draft.legacyBalanceBacked, (e) => setDraft((p) => ({ ...p, legacyBalanceBacked: e.target.checked })))}
       </div>
@@ -1045,8 +1125,8 @@ export default function CurrencyProductsPage() {
             {renderFilterInput('displayName', 'Display name', { placeholder: 'Congolese Franc' })}
             {renderBooleanFilter('active', 'Active')}
             {renderBooleanFilter('walletEnabled', 'Wallet enabled')}
-            {renderBooleanFilter('ibanEnabled', 'IBAN available')}
-            {renderBooleanFilter('ibanApplicationEnabled', 'IBAN application enabled')}
+            {renderBooleanFilter('bankAccountEnabled', 'Bank account available')}
+            {renderBooleanFilter('bankAccountApplicationEnabled', 'Bank account application enabled')}
             {renderBooleanFilter('legacyBalanceBacked', 'Legacy backed')}
             {renderBooleanFilter('manualFxRate', 'Manual FX rate')}
             {renderFilterInput('baseCurrency', 'Base currency', { list: 'currencyProductCurrencyOptions', uppercase: true, placeholder: 'USD' })}
@@ -1139,15 +1219,15 @@ export default function CurrencyProductsPage() {
               { label: 'Active', value: formatBool(selected?.active) },
               { label: 'Wallet enabled', value: formatBool(selected?.walletEnabled) },
               {
-                label: 'IBAN status',
-                value: selected?.ibanEnabled
-                  ? 'IBAN-ready'
-                  : selected?.ibanApplicationEnabled
+                label: 'Bank account status',
+                value: getBankAccountEnabled(selected)
+                  ? 'Bank account-ready'
+                  : getBankAccountApplicationEnabled(selected)
                     ? 'Application open'
                     : 'Coming soon'
               },
-              { label: 'IBAN available', value: formatBool(selected?.ibanEnabled) },
-              { label: 'IBAN application enabled', value: formatBool(selected?.ibanApplicationEnabled) },
+              { label: 'Bank account available', value: formatBool(getBankAccountEnabled(selected)) },
+              { label: 'Bank account application enabled', value: formatBool(getBankAccountApplicationEnabled(selected)) },
               { label: 'Legacy balance backed', value: formatBool(selected?.legacyBalanceBacked) },
               { label: 'Manual FX rate', value: formatBool(selected?.manualFxRate) },
               { label: 'Base currency', value: selected?.baseCurrency },
@@ -1162,6 +1242,43 @@ export default function CurrencyProductsPage() {
               { label: 'Updated at', value: formatDateTime(selected?.updatedAt) }
             ]}
           />
+        </Modal>
+      )}
+
+      {showDefaultBankAccount && (
+        <Modal title={`Default bank account - ${defaultBankAccountTarget?.currency || defaultBankAccountTarget?.id || ''}`} onClose={() => (!actionLoading ? setShowDefaultBankAccount(false) : null)}>
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Default receiving details for this currency product. These fields are saved through the currency product bank-account default endpoint.
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+              {[
+                ['internationalAccountNumber', 'International account number'],
+                ['accountNumber', 'Account number'],
+                ['swiftBic', 'SWIFT/BIC'],
+                ['routingNumber', 'Routing number']
+              ].map(([key, label]) => (
+                <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor={`defaultBankAccount-${key}`}>{label}</label>
+                  <input
+                    id={`defaultBankAccount-${key}`}
+                    value={defaultBankAccountDraft[key]}
+                    onChange={(e) => setDefaultBankAccountDraft((p) => ({ ...p, [key]: e.target.value }))}
+                    disabled={actionLoading}
+                  />
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button type="button" onClick={() => setShowDefaultBankAccount(false)} className="btn-neutral" disabled={actionLoading}>Cancel</button>
+              <button type="button" onClick={handleDeleteDefaultBankAccount} className="btn-danger" disabled={actionLoading}>
+                {actionLoading ? 'Deleting...' : 'Delete default'}
+              </button>
+              <button type="button" onClick={handleSaveDefaultBankAccount} className="btn-primary" disabled={actionLoading}>
+                {actionLoading ? 'Saving...' : 'Save default'}
+              </button>
+            </div>
+          </div>
         </Modal>
       )}
 

@@ -105,6 +105,7 @@ const SUPPORTED_KEYS = [
   'payment_methods',
   'support',
   'storage',
+  'iban',
   'gift_cards'
 ];
 
@@ -124,6 +125,24 @@ const QUEUED_PROVIDER_WORK_MODE_OPTIONS = [
   { value: 'HOLD_ALL_PROVIDER_WORK', label: 'Hold all provider work' },
   { value: 'ALLOW_CARD_HOLDER_VERIFICATION', label: 'Allow cardholder verification' }
 ];
+const IBAN_OVERRIDE_TYPES = [
+  {
+    prefix: 'iban.enabled',
+    label: 'IBAN available',
+    help: 'Allows this account to receive usable IBAN / bank transfer details for the selected currency.'
+  },
+  {
+    prefix: 'iban.application.enabled',
+    label: 'IBAN application enabled',
+    help: 'Allows this account to start enhanced verification for the selected currency.'
+  },
+  {
+    prefix: 'iban.default_account.enabled',
+    label: 'Default Fondeka bank account',
+    help: 'Allows or blocks returning the default Fondeka bank account for the selected currency.'
+  }
+];
+const IBAN_CURRENCY_OPTIONS = ['USD', 'EUR', 'GBP', 'CDF'];
 
 const formatKeyPart = (value) =>
   String(value || '')
@@ -338,6 +357,15 @@ export default function FeatureFlagsPage() {
   const [overrides, setOverrides] = useState([]);
   const [spreadActionDraft, setSpreadActionDraft] = useState('');
   const [spreadActionEnabled, setSpreadActionEnabled] = useState(true);
+  const [ibanOverrideAccountId, setIbanOverrideAccountId] = useState('');
+  const [ibanOverrideCurrency, setIbanOverrideCurrency] = useState('USD');
+  const [ibanOverridePrefix, setIbanOverridePrefix] = useState('iban.application.enabled');
+  const [ibanOverrideEnabled, setIbanOverrideEnabled] = useState(true);
+  const [ibanOverrideSaving, setIbanOverrideSaving] = useState(false);
+
+  const ibanOverrideCurrencyCode = ibanOverrideCurrency.trim().toUpperCase();
+  const ibanOverrideKey = ibanOverrideCurrencyCode ? `${ibanOverridePrefix}.${ibanOverrideCurrencyCode}` : '';
+  const selectedIbanOverrideType = IBAN_OVERRIDE_TYPES.find((option) => option.prefix === ibanOverridePrefix) || IBAN_OVERRIDE_TYPES[0];
 
   const cryptoCollectionGateFlag = useMemo(
     () => flags.find((flag) => String(flag.key) === CRYPTO_COLLECTION_GATE_KEY),
@@ -774,6 +802,44 @@ export default function FeatureFlagsPage() {
       setError(err?.message || 'Failed to save crypto spread action flag.');
     } finally {
       setSavingKey('');
+    }
+  };
+
+  const handleSaveIbanOverride = async () => {
+    const accountId = ibanOverrideAccountId.trim();
+    const currencyCode = ibanOverrideCurrencyCode;
+    const key = ibanOverrideKey;
+    if (!accountId || !currencyCode || !key || ibanOverrideSaving) return;
+    setIbanOverrideSaving(true);
+    setError(null);
+    setInfo(null);
+    try {
+      await api.featureFlags.upsertOverride(key, accountId, { enabled: ibanOverrideEnabled });
+      setIbanOverrideAccountId('');
+      setInfo(`${selectedIbanOverrideType.label} override saved for account ${accountId} in ${currencyCode}: ${ibanOverrideEnabled ? 'enabled' : 'disabled'}.`);
+    } catch (err) {
+      setError(err?.message || 'Failed to save IBAN override.');
+    } finally {
+      setIbanOverrideSaving(false);
+    }
+  };
+
+  const handleDeleteIbanOverride = async () => {
+    const accountId = ibanOverrideAccountId.trim();
+    const currencyCode = ibanOverrideCurrencyCode;
+    const key = ibanOverrideKey;
+    if (!accountId || !currencyCode || !key || ibanOverrideSaving) return;
+    setIbanOverrideSaving(true);
+    setError(null);
+    setInfo(null);
+    try {
+      await api.featureFlags.removeOverride(key, accountId);
+      setIbanOverrideAccountId('');
+      setInfo(`${selectedIbanOverrideType.label} override removed for account ${accountId} in ${currencyCode}. Currency/default behavior applies again.`);
+    } catch (err) {
+      setError(err?.message || 'Failed to remove IBAN override.');
+    } finally {
+      setIbanOverrideSaving(false);
     }
   };
 
@@ -1283,6 +1349,101 @@ export default function FeatureFlagsPage() {
         </div>
         <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
           Supported keys: {SUPPORTED_KEYS.join(', ')}
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title="IBAN account overrides"
+        subtitle="Account-level overrides win over the currency product defaults. Delete an override to return to the global currency behavior."
+        borderColor="#0ea5e9"
+      >
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.65rem', alignItems: 'end' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="ibanOverrideAccountId">Account ID</label>
+            <input
+              id="ibanOverrideAccountId"
+              placeholder="12345"
+              value={ibanOverrideAccountId}
+              onChange={(e) => setIbanOverrideAccountId(e.target.value)}
+              disabled={ibanOverrideSaving}
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="ibanOverrideCurrency">Currency</label>
+            <input
+              id="ibanOverrideCurrency"
+              list="ibanOverrideCurrencyOptions"
+              placeholder="USD"
+              value={ibanOverrideCurrency}
+              onChange={(e) => setIbanOverrideCurrency(e.target.value.toUpperCase())}
+              disabled={ibanOverrideSaving}
+              maxLength={8}
+            />
+            <datalist id="ibanOverrideCurrencyOptions">
+              {IBAN_CURRENCY_OPTIONS.map((currency) => (
+                <option key={currency} value={currency} />
+              ))}
+            </datalist>
+          </div>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+            <input type="checkbox" checked={ibanOverrideEnabled} onChange={(e) => setIbanOverrideEnabled(e.target.checked)} disabled={ibanOverrideSaving} />
+            {ibanOverrideEnabled ? 'Enabled' : 'Disabled'}
+          </label>
+        </div>
+        <div style={{ display: 'grid', gap: '0.5rem' }}>
+          {IBAN_OVERRIDE_TYPES.map((option) => (
+            <label key={option.prefix} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.5rem', alignItems: 'start' }}>
+              <input
+                type="radio"
+                name="ibanOverridePrefix"
+                checked={ibanOverridePrefix === option.prefix}
+                onChange={() => setIbanOverridePrefix(option.prefix)}
+                disabled={ibanOverrideSaving}
+                style={{ marginTop: '0.2rem' }}
+              />
+              <span style={{ display: 'grid', gap: '0.15rem' }}>
+                <span style={{ fontWeight: 700 }}>{option.label}</span>
+                <span style={{ color: 'var(--muted)', fontSize: '12px' }}>{option.help}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          Key preview: <code>{ibanOverrideKey || `${ibanOverridePrefix}.{CURRENCY}`}</code>
+        </div>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={handleSaveIbanOverride}
+            disabled={!ibanOverrideAccountId.trim() || !ibanOverrideCurrencyCode || ibanOverrideSaving}
+            style={{
+              border: `1px solid var(--border)`,
+              background: 'var(--surface)',
+              padding: '0.65rem 0.85rem',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              color: 'var(--text)',
+              fontWeight: 600
+            }}
+          >
+            Save IBAN override
+          </button>
+          <button
+            type="button"
+            onClick={handleDeleteIbanOverride}
+            disabled={!ibanOverrideAccountId.trim() || !ibanOverrideCurrencyCode || ibanOverrideSaving}
+            style={{
+              border: '1px solid rgba(220, 38, 38, 0.28)',
+              background: 'rgba(220, 38, 38, 0.08)',
+              color: '#991b1b',
+              padding: '0.65rem 0.85rem',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              fontWeight: 700
+            }}
+          >
+            Delete override
+          </button>
         </div>
       </CollapsibleSection>
 

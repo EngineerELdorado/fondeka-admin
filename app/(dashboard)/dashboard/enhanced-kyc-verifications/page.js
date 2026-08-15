@@ -6,7 +6,7 @@ import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
 const statusOptions = ['PENDING', 'APPROVED', 'REJECTED'];
-const reviewStatusOptions = ['APPROVED', 'REJECTED'];
+const reviewStatusOptions = ['PENDING', 'APPROVED', 'REJECTED'];
 
 const emptyFilters = {
   status: 'PENDING'
@@ -18,8 +18,10 @@ const emptyReviewDraft = {
 };
 
 const emptyCreateDraft = {
+  targetType: 'accountId',
   accountId: '',
-  purpose: 'IBAN',
+  email: '',
+  purpose: 'IBAN_ACCESS',
   countryCode: '',
   documentType: 'PASSPORT',
   proofOfAddressUrl: '',
@@ -106,12 +108,12 @@ const DetailGrid = ({ rows }) => (
   </div>
 );
 
-const DocumentLink = ({ label, value }) => {
+const DocumentLink = ({ label, value, onOpen }) => {
   if (!value) return null;
   return (
-    <a href={String(value)} target="_blank" rel="noreferrer" className="btn-neutral btn-sm">
+    <button type="button" className="btn-neutral btn-sm" onClick={() => onOpen({ label, url: String(value) })}>
       {label}
-    </a>
+    </button>
   );
 };
 
@@ -134,6 +136,8 @@ export default function EnhancedKycVerificationsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [createDraft, setCreateDraft] = useState(emptyCreateDraft);
   const [createFiles, setCreateFiles] = useState(emptyCreateFiles);
+  const [previewDocument, setPreviewDocument] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const fetchRows = async () => {
     setLoading(true);
@@ -168,7 +172,7 @@ export default function EnhancedKycVerificationsPage() {
     setError(null);
     try {
       const detail = await api.enhancedKycVerifications.get(id);
-      setSelected(detail || row);
+      setSelected({ ...row, ...(detail || {}) });
       setShowDetail(true);
     } catch (err) {
       setError(err.message || `Failed to load enhanced KYC verification ${id}.`);
@@ -188,7 +192,7 @@ export default function EnhancedKycVerificationsPage() {
     if (!reviewTarget?.id) return;
     const status = String(reviewDraft.status || '').trim().toUpperCase();
     if (!reviewStatusOptions.includes(status)) {
-      setError('Review status must be APPROVED or REJECTED.');
+      setError('Review status must be PENDING, APPROVED, or REJECTED.');
       return;
     }
     setActionLoading(true);
@@ -205,6 +209,31 @@ export default function EnhancedKycVerificationsPage() {
       await fetchRows();
     } catch (err) {
       setError(err.message || `Failed to review enhanced KYC verification ${reviewTarget.id}.`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const openDelete = (row) => {
+    if (!row?.id || String(row.status || '').toUpperCase() !== 'PENDING') return;
+    setDeleteTarget(row);
+    setError(null);
+    setInfo(null);
+  };
+
+  const submitDelete = async () => {
+    if (!deleteTarget?.id || actionLoading) return;
+    setActionLoading(true);
+    setError(null);
+    setInfo(null);
+    try {
+      await api.enhancedKycVerifications.remove(deleteTarget.id);
+      setInfo(`Enhanced KYC verification ${deleteTarget.id} deleted.`);
+      setDeleteTarget(null);
+      setShowDetail(false);
+      await fetchRows();
+    } catch (err) {
+      setError(err.message || `Failed to delete enhanced KYC verification ${deleteTarget.id}.`);
     } finally {
       setActionLoading(false);
     }
@@ -241,8 +270,14 @@ export default function EnhancedKycVerificationsPage() {
 
   const submitCreate = async () => {
     const accountId = String(createDraft.accountId || '').trim();
-    if (!accountId) {
+    const email = String(createDraft.email || '').trim();
+    const targetType = createDraft.targetType === 'email' ? 'email' : 'accountId';
+    if (targetType === 'accountId' && !accountId) {
       setError('Account ID is required.');
+      return;
+    }
+    if (targetType === 'email' && !email) {
+      setError('Email is required.');
       return;
     }
     if (!createDraft.purpose.trim()) {
@@ -269,7 +304,10 @@ export default function EnhancedKycVerificationsPage() {
     setError(null);
     setInfo(null);
     try {
-      const created = await api.enhancedKycVerifications.createForAccount(accountId, buildCreatePayload(), createFiles);
+      const created =
+        targetType === 'email'
+          ? await api.enhancedKycVerifications.createForEmail(email, buildCreatePayload(), createFiles)
+          : await api.enhancedKycVerifications.createForAccount(accountId, buildCreatePayload(), createFiles);
       setInfo(`Created enhanced KYC verification ${created?.id || ''}`.trim() + '.');
       setShowCreate(false);
       await fetchRows();
@@ -294,23 +332,27 @@ export default function EnhancedKycVerificationsPage() {
     {
       key: 'actions',
       label: 'Actions',
-      render: (row) => (
-        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-          <button type="button" className="btn-neutral" onClick={() => openDetail(row)} disabled={actionLoading}>View</button>
-          {String(row.status || '').toUpperCase() === 'PENDING' ? (
-            <>
-              <button type="button" className="btn-success" onClick={() => openReview(row, 'APPROVED')} disabled={actionLoading}>Approve</button>
-              <button type="button" className="btn-danger" onClick={() => openReview(row, 'REJECTED')} disabled={actionLoading}>Reject</button>
-            </>
-          ) : null}
-        </div>
-      )
+      render: (row) => {
+        const isPending = String(row.status || '').toUpperCase() === 'PENDING';
+        return (
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+            <button type="button" className="btn-neutral" onClick={() => openDetail(row)} disabled={actionLoading}>View</button>
+            <button type="button" className="btn-neutral" onClick={() => openReview(row, 'PENDING')} disabled={actionLoading}>Set pending</button>
+            <button type="button" className="btn-success" onClick={() => openReview(row, 'APPROVED')} disabled={actionLoading}>Approve</button>
+            <button type="button" className="btn-danger" onClick={() => openReview(row, 'REJECTED')} disabled={actionLoading}>Reject</button>
+            {isPending ? <button type="button" className="btn-danger" onClick={() => openDelete(row)} disabled={actionLoading}>Delete</button> : null}
+          </div>
+        );
+      }
     }
   ], [actionLoading]);
 
+  const proofOfAddress = field(selected, ['proofOfAddressUrl', 'proofOfAddress', 'addressProofUrl'], '');
+  const sourceOfFunds = field(selected, ['sourceOfFundsUrl', 'sourceOfFunds', 'fundsProofUrl'], '');
   const docFront = field(selected, ['docFront', 'documentFront', 'idDocumentFrontUrl', 'idFrontUrl'], '');
   const docBack = field(selected, ['docBack', 'documentBack', 'idDocumentBackUrl', 'idBackUrl'], '');
   const selfie = field(selected, ['selfie', 'userSelfie', 'selfieUrl'], '');
+  const selectedUserLabel = field(selected, ['userFullName', 'fullName', 'username', 'email', 'userEmail', 'accountReference', 'accountId'], '');
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -402,22 +444,24 @@ export default function EnhancedKycVerificationsPage() {
             <div className="card" style={{ display: 'grid', gap: '0.5rem' }}>
               <div style={{ fontWeight: 800 }}>Submitted documents</div>
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <DocumentLink label="ID front" value={docFront} />
-                <DocumentLink label="ID back" value={docBack} />
-                <DocumentLink label="Selfie" value={selfie} />
-                {!docFront && !docBack && !selfie ? <span style={{ color: 'var(--muted)' }}>No document links in this response.</span> : null}
+                <DocumentLink label="Proof of address" value={proofOfAddress} onOpen={setPreviewDocument} />
+                <DocumentLink label="Source of funds" value={sourceOfFunds} onOpen={setPreviewDocument} />
+                <DocumentLink label="ID front" value={docFront} onOpen={setPreviewDocument} />
+                <DocumentLink label="ID back" value={docBack} onOpen={setPreviewDocument} />
+                <DocumentLink label="Selfie" value={selfie} onOpen={setPreviewDocument} />
+                {!proofOfAddress && !sourceOfFunds && !docFront && !docBack && !selfie ? <span style={{ color: 'var(--muted)' }}>No document links in this response.</span> : null}
               </div>
             </div>
             <details className="card" style={{ padding: '0.75rem' }}>
               <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Raw response</summary>
               <pre style={{ margin: '0.75rem 0 0', whiteSpace: 'pre-wrap', overflow: 'auto' }}>{formatJson(selected)}</pre>
             </details>
-            {String(selected?.status || '').toUpperCase() === 'PENDING' ? (
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <button type="button" className="btn-success" onClick={() => openReview(selected, 'APPROVED')}>Approve</button>
-                <button type="button" className="btn-danger" onClick={() => openReview(selected, 'REJECTED')}>Reject</button>
-              </div>
-            ) : null}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
+              {String(selected?.status || '').toUpperCase() === 'PENDING' ? <button type="button" className="btn-danger" onClick={() => openDelete(selected)}>Delete</button> : null}
+              <button type="button" className="btn-neutral" onClick={() => openReview(selected, 'PENDING')}>Set pending</button>
+              <button type="button" className="btn-success" onClick={() => openReview(selected, 'APPROVED')}>Approve</button>
+              <button type="button" className="btn-danger" onClick={() => openReview(selected, 'REJECTED')}>Reject</button>
+            </div>
           </div>
         </Modal>
       )}
@@ -429,8 +473,36 @@ export default function EnhancedKycVerificationsPage() {
               Submit enhanced IBAN verification on behalf of a customer. Use files for multipart upload, or provide existing uploaded URLs for JSON-only submission.
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="targetType">Create by</label>
+                <select id="targetType" value={createDraft.targetType} onChange={(e) => setCreateDraft((p) => ({ ...p, targetType: e.target.value }))}>
+                  <option value="accountId">Account ID</option>
+                  <option value="email">Email</option>
+                </select>
+              </div>
+              {createDraft.targetType === 'email' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="createEmail">Email</label>
+                  <input
+                    id="createEmail"
+                    type="email"
+                    value={createDraft.email}
+                    onChange={(e) => setCreateDraft((p) => ({ ...p, email: e.target.value }))}
+                    placeholder="user@example.com"
+                  />
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="accountId">Account ID</label>
+                  <input
+                    id="accountId"
+                    type="number"
+                    value={createDraft.accountId}
+                    onChange={(e) => setCreateDraft((p) => ({ ...p, accountId: e.target.value }))}
+                  />
+                </div>
+              )}
               {[
-                ['accountId', 'Account ID', 'number'],
                 ['purpose', 'Purpose', 'text'],
                 ['countryCode', 'Country code', 'text'],
                 ['documentType', 'Document type', 'text']
@@ -517,7 +589,10 @@ export default function EnhancedKycVerificationsPage() {
       )}
 
       {reviewTarget && (
-        <Modal title={`${reviewDraft.status === 'APPROVED' ? 'Approve' : 'Reject'} enhanced KYC ${reviewTarget.id}`} onClose={() => (!actionLoading ? setReviewTarget(null) : null)}>
+        <Modal
+          title={`${reviewDraft.status === 'APPROVED' ? 'Approve' : reviewDraft.status === 'REJECTED' ? 'Reject' : 'Set pending'} enhanced KYC ${reviewTarget.id}`}
+          onClose={() => (!actionLoading ? setReviewTarget(null) : null)}
+        >
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
               This reviews the enhanced IBAN verification submission. It is separate from the normal KYC queue.
@@ -534,8 +609,56 @@ export default function EnhancedKycVerificationsPage() {
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
               <button type="button" className="btn-neutral" onClick={() => setReviewTarget(null)} disabled={actionLoading}>Cancel</button>
-              <button type="button" className={reviewDraft.status === 'APPROVED' ? 'btn-success' : 'btn-danger'} onClick={submitReview} disabled={actionLoading}>
+              <button
+                type="button"
+                className={reviewDraft.status === 'APPROVED' ? 'btn-success' : reviewDraft.status === 'REJECTED' ? 'btn-danger' : 'btn-neutral'}
+                onClick={submitReview}
+                disabled={actionLoading}
+              >
                 {actionLoading ? 'Submitting...' : 'Submit review'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {previewDocument && (
+        <Modal title={`${previewDocument.label}${selectedUserLabel ? ` - ${selectedUserLabel}` : ''}`} onClose={() => setPreviewDocument(null)}>
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <div style={{ border: '1px solid var(--border)', borderRadius: '10px', overflow: 'hidden', background: '#fff' }}>
+              <iframe
+                src={previewDocument.url}
+                title={previewDocument.label}
+                style={{ width: '100%', height: '75vh', border: 'none', display: 'block' }}
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <a href={previewDocument.url} target="_blank" rel="noreferrer" className="btn-neutral">
+                Open externally
+              </a>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {deleteTarget && (
+        <Modal title={`Delete enhanced KYC ${deleteTarget.id}`} onClose={() => (!actionLoading ? setDeleteTarget(null) : null)}>
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Only pending enhanced KYC submissions can be deleted. This clears the pending submission so the user can submit a fresh one.
+            </div>
+            <DetailGrid
+              rows={[
+                { label: 'Status', value: <StatusBadge value={deleteTarget.status} /> },
+                { label: 'Account', value: field(deleteTarget, ['accountReference', 'accountRef', 'accountId']) },
+                { label: 'User', value: field(deleteTarget, ['userFullName', 'fullName', 'username', 'email', 'userEmail']) },
+                { label: 'Submitted', value: formatDateTime(field(deleteTarget, ['submittedAt', 'createdAt'], '')) }
+              ]}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button type="button" className="btn-neutral" onClick={() => setDeleteTarget(null)} disabled={actionLoading}>Cancel</button>
+              <button type="button" className="btn-danger" onClick={submitDelete} disabled={actionLoading}>
+                {actionLoading ? 'Deleting...' : 'Delete pending submission'}
               </button>
             </div>
           </div>
