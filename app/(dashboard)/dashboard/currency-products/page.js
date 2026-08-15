@@ -26,6 +26,7 @@ const fallbackActionOptions = [
   'FUND_CARD',
   'WITHDRAW_FROM_CARD',
   'BUY_CARD',
+  'ORDER_BANK_ACCOUNT',
   'BUY_CRYPTO',
   'CONVERT_FIAT',
   'SELL_CRYPTO',
@@ -55,6 +56,8 @@ const emptyDraft = {
   walletEnabled: true,
   bankAccountEnabled: false,
   bankAccountApplicationEnabled: false,
+  bankAccountOrderPriceAmount: '0',
+  bankAccountOrderPriceCurrency: '',
   legacyBalanceBacked: false,
   baseCurrency: 'USD',
   rate: '',
@@ -408,6 +411,7 @@ export default function CurrencyProductsPage() {
     const rate = Number(draft.rate);
     const collectionMarginPercent = nullableNumber(draft.collectionMarginPercent);
     const payoutMarginPercent = nullableNumber(draft.payoutMarginPercent);
+    const bankAccountOrderPriceAmount = nullableNumber(draft.bankAccountOrderPriceAmount);
     const countryCodes = normalizeCountryCodes(draft.countryCodes);
     const defaultCountryCodes = normalizeCountryCodes(draft.defaultCountryCodes);
     if (!currency) return 'Currency is required.';
@@ -416,6 +420,7 @@ export default function CurrencyProductsPage() {
     if (!Number.isFinite(rate) || rate <= 0) return 'Rate must be a positive number.';
     if (draft.collectionMarginPercent !== '' && (collectionMarginPercent === null || collectionMarginPercent < 0)) return 'Collection margin must be zero or a positive number.';
     if (draft.payoutMarginPercent !== '' && (payoutMarginPercent === null || payoutMarginPercent < 0)) return 'Payout margin must be zero or a positive number.';
+    if (draft.bankAccountOrderPriceAmount !== '' && (bankAccountOrderPriceAmount === null || bankAccountOrderPriceAmount < 0)) return 'Bank account order price must be zero or a positive number.';
     if (!upperTrim(draft.rateProvider)) return 'Rate provider is required.';
     if (draft.rateFetchedAt && !toIsoOrNull(draft.rateFetchedAt)) return 'Rate fetched at must be a valid date and time.';
     if (defaultCountryCodes.some((code) => !countryCodes.includes(code))) return 'Default countries must also be included in country availability.';
@@ -433,6 +438,8 @@ export default function CurrencyProductsPage() {
       walletEnabled: Boolean(draft.walletEnabled),
       bankAccountEnabled: Boolean(draft.bankAccountEnabled),
       bankAccountApplicationEnabled: Boolean(draft.bankAccountApplicationEnabled),
+      bankAccountOrderPriceAmount: nullableNumber(draft.bankAccountOrderPriceAmount) ?? 0,
+      bankAccountOrderPriceCurrency: upperTrim(draft.bankAccountOrderPriceCurrency) || upperTrim(draft.currency),
       legacyBalanceBacked: Boolean(draft.legacyBalanceBacked),
       baseCurrency: upperTrim(draft.baseCurrency),
       rate: Number(draft.rate),
@@ -477,6 +484,8 @@ export default function CurrencyProductsPage() {
       walletEnabled: row.walletEnabled ?? true,
       bankAccountEnabled: getBankAccountEnabled(row),
       bankAccountApplicationEnabled: getBankAccountApplicationEnabled(row),
+      bankAccountOrderPriceAmount: row.bankAccountOrderPriceAmount ?? '0',
+      bankAccountOrderPriceCurrency: row.bankAccountOrderPriceCurrency ?? row.currency ?? '',
       legacyBalanceBacked: row.legacyBalanceBacked ?? false,
       baseCurrency: row.baseCurrency ?? 'USD',
       rate: row.rate ?? '',
@@ -581,6 +590,8 @@ export default function CurrencyProductsPage() {
         active: false,
         bankAccountEnabled: getBankAccountEnabled(row),
         bankAccountApplicationEnabled: getBankAccountApplicationEnabled(row),
+        bankAccountOrderPriceAmount: row.bankAccountOrderPriceAmount ?? 0,
+        bankAccountOrderPriceCurrency: upperTrim(row.bankAccountOrderPriceCurrency) || upperTrim(row.currency),
         countryCodes: normalizeCountryCodes(row.countryCodes),
         defaultCountryCodes: normalizeCountryCodes(row.defaultCountryCodes)
       });
@@ -781,6 +792,7 @@ export default function CurrencyProductsPage() {
       if (getBankAccountApplicationEnabled(row)) return 'Application open';
       return 'Coming soon';
     } },
+    { key: 'bankAccountOrderPrice', label: 'Order price', render: (row) => formatMoney(row.bankAccountOrderPriceAmount ?? 0, row.bankAccountOrderPriceCurrency || row.currency) },
     { key: 'bankAccountEnabled', label: 'Bank account available', render: (row) => formatBool(getBankAccountEnabled(row)) },
     { key: 'bankAccountApplicationEnabled', label: 'Bank account application enabled', render: (row) => formatBool(getBankAccountApplicationEnabled(row)) },
     { key: 'active', label: 'Active', render: (row) => formatBool(row.active) },
@@ -899,6 +911,19 @@ export default function CurrencyProductsPage() {
         <input id="payoutMarginPercent" type="number" min="0" step="0.01" value={draft.payoutMarginPercent} onChange={(e) => setDraft((p) => ({ ...p, payoutMarginPercent: e.target.value }))} placeholder="0" />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="bankAccountOrderPriceAmount">Bank account order price</label>
+        <input
+          id="bankAccountOrderPriceAmount"
+          type="number"
+          min="0"
+          step="0.01"
+          value={draft.bankAccountOrderPriceAmount}
+          onChange={(e) => setDraft((p) => ({ ...p, bankAccountOrderPriceAmount: e.target.value }))}
+          placeholder="0"
+        />
+      </div>
+      {renderCurrencyInput('bankAccountOrderPriceCurrency', 'Order price currency', draft.bankAccountOrderPriceCurrency, (e) => setDraft((p) => ({ ...p, bankAccountOrderPriceCurrency: e.target.value.toUpperCase() })))}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="rateProvider">Rate provider</label>
         <input id="rateProvider" list="currencyProductRateProviderOptions" value={draft.rateProvider} onChange={(e) => setDraft((p) => ({ ...p, rateProvider: e.target.value.toUpperCase() }))} />
       </div>
@@ -922,6 +947,9 @@ export default function CurrencyProductsPage() {
         {renderCheckbox('bankAccountApplicationEnabled', 'Bank account application enabled', draft.bankAccountApplicationEnabled, (e) => setDraft((p) => ({ ...p, bankAccountApplicationEnabled: e.target.checked })))}
         <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
           Bank account available returns bank-transfer details. Bank account application enabled only opens the enhanced verification/application flow.
+        </div>
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          Order price is used only for ORDER_BANK_ACCOUNT. Leave currency empty to use the product currency.
         </div>
         {renderCheckbox('legacyBalanceBacked', 'Legacy balance backed', draft.legacyBalanceBacked, (e) => setDraft((p) => ({ ...p, legacyBalanceBacked: e.target.checked })))}
       </div>
@@ -1228,6 +1256,7 @@ export default function CurrencyProductsPage() {
               },
               { label: 'Bank account available', value: formatBool(getBankAccountEnabled(selected)) },
               { label: 'Bank account application enabled', value: formatBool(getBankAccountApplicationEnabled(selected)) },
+              { label: 'Bank account order price', value: formatMoney(selected?.bankAccountOrderPriceAmount ?? 0, selected?.bankAccountOrderPriceCurrency || selected?.currency) },
               { label: 'Legacy balance backed', value: formatBool(selected?.legacyBalanceBacked) },
               { label: 'Manual FX rate', value: formatBool(selected?.manualFxRate) },
               { label: 'Base currency', value: selected?.baseCurrency },
