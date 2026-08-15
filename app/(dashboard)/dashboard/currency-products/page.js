@@ -56,6 +56,7 @@ const emptyDraft = {
   walletEnabled: true,
   bankAccountEnabled: false,
   bankAccountApplicationEnabled: false,
+  bankAccountAutoCreateEnabled: false,
   bankAccountOrderPriceAmount: '0',
   bankAccountOrderPriceCurrency: '',
   legacyBalanceBacked: false,
@@ -93,6 +94,7 @@ const emptyFilters = {
   walletEnabled: '',
   bankAccountEnabled: '',
   bankAccountApplicationEnabled: '',
+  bankAccountAutoCreateEnabled: '',
   legacyBalanceBacked: '',
   manualFxRate: '',
   baseCurrency: '',
@@ -116,6 +118,13 @@ const emptyDefaultBankAccountDraft = {
   accountNumber: '',
   swiftBic: '',
   routingNumber: ''
+};
+
+const emptyCreateBankAccountDraft = {
+  targetType: 'accountId',
+  accountId: '',
+  email: '',
+  currency: ''
 };
 
 const Modal = ({ title, onClose, children }) => (
@@ -281,6 +290,9 @@ export default function CurrencyProductsPage() {
   const [defaultBankAccountTarget, setDefaultBankAccountTarget] = useState(null);
   const [defaultBankAccountDraft, setDefaultBankAccountDraft] = useState(emptyDefaultBankAccountDraft);
   const [showDefaultBankAccount, setShowDefaultBankAccount] = useState(false);
+  const [createBankAccountTarget, setCreateBankAccountTarget] = useState(null);
+  const [createBankAccountDraft, setCreateBankAccountDraft] = useState(emptyCreateBankAccountDraft);
+  const [createBankAccountResult, setCreateBankAccountResult] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
   const [previewDraft, setPreviewDraft] = useState(emptyPreviewDraft);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -438,6 +450,7 @@ export default function CurrencyProductsPage() {
       walletEnabled: Boolean(draft.walletEnabled),
       bankAccountEnabled: Boolean(draft.bankAccountEnabled),
       bankAccountApplicationEnabled: Boolean(draft.bankAccountApplicationEnabled),
+      bankAccountAutoCreateEnabled: Boolean(draft.bankAccountAutoCreateEnabled),
       bankAccountOrderPriceAmount: nullableNumber(draft.bankAccountOrderPriceAmount) ?? 0,
       bankAccountOrderPriceCurrency: upperTrim(draft.bankAccountOrderPriceCurrency) || upperTrim(draft.currency),
       legacyBalanceBacked: Boolean(draft.legacyBalanceBacked),
@@ -484,6 +497,7 @@ export default function CurrencyProductsPage() {
       walletEnabled: row.walletEnabled ?? true,
       bankAccountEnabled: getBankAccountEnabled(row),
       bankAccountApplicationEnabled: getBankAccountApplicationEnabled(row),
+      bankAccountAutoCreateEnabled: Boolean(row.bankAccountAutoCreateEnabled),
       bankAccountOrderPriceAmount: row.bankAccountOrderPriceAmount ?? '0',
       bankAccountOrderPriceCurrency: row.bankAccountOrderPriceCurrency ?? row.currency ?? '',
       legacyBalanceBacked: row.legacyBalanceBacked ?? false,
@@ -590,6 +604,7 @@ export default function CurrencyProductsPage() {
         active: false,
         bankAccountEnabled: getBankAccountEnabled(row),
         bankAccountApplicationEnabled: getBankAccountApplicationEnabled(row),
+        bankAccountAutoCreateEnabled: Boolean(row.bankAccountAutoCreateEnabled),
         bankAccountOrderPriceAmount: row.bankAccountOrderPriceAmount ?? 0,
         bankAccountOrderPriceCurrency: upperTrim(row.bankAccountOrderPriceCurrency) || upperTrim(row.currency),
         countryCodes: normalizeCountryCodes(row.countryCodes),
@@ -664,6 +679,68 @@ export default function CurrencyProductsPage() {
       setDefaultBankAccountDraft(emptyDefaultBankAccountDraft);
     } catch (err) {
       setError(err.message || `Failed to delete default bank account for ${defaultBankAccountTarget.currency || defaultBankAccountTarget.id}.`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const openCreateBankAccount = (row) => {
+    if (!getBankAccountEnabled(row)) return;
+    setCreateBankAccountTarget(row);
+    setCreateBankAccountDraft({
+      ...emptyCreateBankAccountDraft,
+      currency: upperTrim(row.currency)
+    });
+    setCreateBankAccountResult(null);
+    setError(null);
+    setInfo(null);
+  };
+
+  const buildCreateBankAccountPayload = () => {
+    const targetType = createBankAccountDraft.targetType === 'email' ? 'email' : 'accountId';
+    const payload = {
+      currency: upperTrim(createBankAccountDraft.currency)
+    };
+    if (targetType === 'email') {
+      payload.email = createBankAccountDraft.email.trim();
+    } else {
+      payload.accountId = Number(createBankAccountDraft.accountId);
+    }
+    return payload;
+  };
+
+  const handleCreateBankAccount = async () => {
+    const targetType = createBankAccountDraft.targetType === 'email' ? 'email' : 'accountId';
+    const accountId = String(createBankAccountDraft.accountId || '').trim();
+    const email = createBankAccountDraft.email.trim();
+    const currency = upperTrim(createBankAccountDraft.currency);
+    if (!currency) {
+      setError('Currency is required.');
+      return;
+    }
+    if (targetType === 'email' && !email) {
+      setError('Email is required.');
+      return;
+    }
+    if (targetType === 'accountId' && (!accountId || !Number.isInteger(Number(accountId)))) {
+      setError('Account ID must be a whole number.');
+      return;
+    }
+    setActionLoading(true);
+    setError(null);
+    setInfo(null);
+    setCreateBankAccountResult(null);
+    try {
+      const result = await api.bankAccounts.create(buildCreateBankAccountPayload());
+      setCreateBankAccountResult(result || null);
+      const status = String(result?.status || result?.eligibilityStatus || '').toUpperCase();
+      if (status === 'PROCESSING') {
+        setInfo('Bank account request created and is being processed.');
+      } else {
+        setInfo('Bank account returned.');
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to create bank account.');
     } finally {
       setActionLoading(false);
     }
@@ -795,6 +872,7 @@ export default function CurrencyProductsPage() {
     { key: 'bankAccountOrderPrice', label: 'Order price', render: (row) => formatMoney(row.bankAccountOrderPriceAmount ?? 0, row.bankAccountOrderPriceCurrency || row.currency) },
     { key: 'bankAccountEnabled', label: 'Bank account available', render: (row) => formatBool(getBankAccountEnabled(row)) },
     { key: 'bankAccountApplicationEnabled', label: 'Bank account application enabled', render: (row) => formatBool(getBankAccountApplicationEnabled(row)) },
+    { key: 'bankAccountAutoCreateEnabled', label: 'Auto-create', render: (row) => formatBool(row.bankAccountAutoCreateEnabled) },
     { key: 'active', label: 'Active', render: (row) => formatBool(row.active) },
     { key: 'rateProvider', label: 'Provider', hideOnMobile: true },
     { key: 'rateFetchedAt', label: 'Rate fetched', hideOnMobile: true, render: (row) => formatDateTime(row.rateFetchedAt) },
@@ -807,6 +885,7 @@ export default function CurrencyProductsPage() {
           <button type="button" onClick={() => openDetail(row)} className="btn-neutral" disabled={actionLoading}>View</button>
           <button type="button" onClick={() => openEdit(row)} className="btn-neutral" disabled={actionLoading}>Edit</button>
           <button type="button" onClick={() => openDefaultBankAccount(row)} className="btn-neutral" disabled={actionLoading}>Default bank account</button>
+          {getBankAccountEnabled(row) ? <button type="button" onClick={() => openCreateBankAccount(row)} className="btn-success" disabled={actionLoading}>Create bank account</button> : null}
           {row.active ? <button type="button" onClick={() => handleDeactivate(row)} className="btn-neutral" disabled={actionLoading}>Deactivate</button> : null}
           <button type="button" onClick={() => setConfirmDelete(row)} className="btn-danger" disabled={actionLoading}>Delete</button>
         </div>
@@ -945,8 +1024,12 @@ export default function CurrencyProductsPage() {
         {renderCheckbox('walletEnabled', 'Wallet enabled', draft.walletEnabled, (e) => setDraft((p) => ({ ...p, walletEnabled: e.target.checked })))}
         {renderCheckbox('bankAccountEnabled', 'Bank account available', draft.bankAccountEnabled, (e) => setDraft((p) => ({ ...p, bankAccountEnabled: e.target.checked })))}
         {renderCheckbox('bankAccountApplicationEnabled', 'Bank account application enabled', draft.bankAccountApplicationEnabled, (e) => setDraft((p) => ({ ...p, bankAccountApplicationEnabled: e.target.checked })))}
+        {renderCheckbox('bankAccountAutoCreateEnabled', 'Auto-create bank account when eligible', draft.bankAccountAutoCreateEnabled, (e) => setDraft((p) => ({ ...p, bankAccountAutoCreateEnabled: e.target.checked })))}
         <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
           Bank account available returns bank-transfer details. Bank account application enabled only opens the enhanced verification/application flow.
+        </div>
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          When enabled, eligible users with approved enhanced verification will automatically get a bank account request when they view bank account details for this currency. Use only for currencies/providers where account creation is free or does not need explicit payment.
         </div>
         <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
           Order price is used only for ORDER_BANK_ACCOUNT. Leave currency empty to use the product currency.
@@ -1155,6 +1238,7 @@ export default function CurrencyProductsPage() {
             {renderBooleanFilter('walletEnabled', 'Wallet enabled')}
             {renderBooleanFilter('bankAccountEnabled', 'Bank account available')}
             {renderBooleanFilter('bankAccountApplicationEnabled', 'Bank account application enabled')}
+            {renderBooleanFilter('bankAccountAutoCreateEnabled', 'Auto-create bank account')}
             {renderBooleanFilter('legacyBalanceBacked', 'Legacy backed')}
             {renderBooleanFilter('manualFxRate', 'Manual FX rate')}
             {renderFilterInput('baseCurrency', 'Base currency', { list: 'currencyProductCurrencyOptions', uppercase: true, placeholder: 'USD' })}
@@ -1256,6 +1340,7 @@ export default function CurrencyProductsPage() {
               },
               { label: 'Bank account available', value: formatBool(getBankAccountEnabled(selected)) },
               { label: 'Bank account application enabled', value: formatBool(getBankAccountApplicationEnabled(selected)) },
+              { label: 'Auto-create bank account when eligible', value: formatBool(selected?.bankAccountAutoCreateEnabled) },
               { label: 'Bank account order price', value: formatMoney(selected?.bankAccountOrderPriceAmount ?? 0, selected?.bankAccountOrderPriceCurrency || selected?.currency) },
               { label: 'Legacy balance backed', value: formatBool(selected?.legacyBalanceBacked) },
               { label: 'Manual FX rate', value: formatBool(selected?.manualFxRate) },
@@ -1305,6 +1390,78 @@ export default function CurrencyProductsPage() {
               </button>
               <button type="button" onClick={handleSaveDefaultBankAccount} className="btn-primary" disabled={actionLoading}>
                 {actionLoading ? 'Saving...' : 'Save default'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {createBankAccountTarget && (
+        <Modal title={`Create bank account - ${createBankAccountTarget.currency || createBankAccountDraft.currency}`} onClose={() => (!actionLoading ? setCreateBankAccountTarget(null) : null)}>
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Creates a customer fiat wallet if needed and starts a user-owned bank account request without charging customer payment. Use for customers with approved normal KYC and approved enhanced bank account verification.
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="createBankAccountTargetType">Customer</label>
+                <select
+                  id="createBankAccountTargetType"
+                  value={createBankAccountDraft.targetType}
+                  onChange={(e) => setCreateBankAccountDraft((p) => ({ ...p, targetType: e.target.value }))}
+                  disabled={actionLoading}
+                >
+                  <option value="accountId">Account ID</option>
+                  <option value="email">Email</option>
+                </select>
+              </div>
+              {createBankAccountDraft.targetType === 'email' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="createBankAccountEmail">Email</label>
+                  <input
+                    id="createBankAccountEmail"
+                    type="email"
+                    value={createBankAccountDraft.email}
+                    onChange={(e) => setCreateBankAccountDraft((p) => ({ ...p, email: e.target.value }))}
+                    disabled={actionLoading}
+                    placeholder="customer@example.com"
+                  />
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="createBankAccountAccountId">Account ID</label>
+                  <input
+                    id="createBankAccountAccountId"
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={createBankAccountDraft.accountId}
+                    onChange={(e) => setCreateBankAccountDraft((p) => ({ ...p, accountId: e.target.value }))}
+                    disabled={actionLoading}
+                    placeholder="7"
+                  />
+                </div>
+              )}
+              {renderCurrencyInput('createBankAccountCurrency', 'Currency', createBankAccountDraft.currency, (e) => setCreateBankAccountDraft((p) => ({ ...p, currency: e.target.value.toUpperCase() })))}
+            </div>
+            {createBankAccountResult ? (
+              <DetailGrid
+                rows={[
+                  { label: 'Fiat wallet ID', value: createBankAccountResult.fiatWalletId },
+                  { label: 'Currency', value: createBankAccountResult.currency },
+                  { label: 'Status', value: createBankAccountResult.status },
+                  { label: 'Eligibility status', value: createBankAccountResult.eligibilityStatus },
+                  { label: 'Provider', value: createBankAccountResult.providerName },
+                  { label: 'Provider reference', value: createBankAccountResult.providerReference },
+                  { label: 'User owned', value: formatBool(createBankAccountResult.userOwned) },
+                  { label: 'Default account', value: formatBool(createBankAccountResult.defaultAccount) }
+                ]}
+              />
+            ) : null}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button type="button" onClick={() => setCreateBankAccountTarget(null)} className="btn-neutral" disabled={actionLoading}>Close</button>
+              <button type="button" onClick={handleCreateBankAccount} className="btn-success" disabled={actionLoading}>
+                {actionLoading ? 'Creating...' : 'Create bank account'}
               </button>
             </div>
           </div>
