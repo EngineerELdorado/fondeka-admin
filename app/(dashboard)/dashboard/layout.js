@@ -47,6 +47,7 @@ const navItems = [
   { href: '/dashboard/outbox', labelKey: 'layout.nav.outbox' },
   { href: '/dashboard/liquibase/changelogs', labelKey: 'layout.nav.liquibaseChangelogs' },
   { href: '/dashboard/kycs', labelKey: 'layout.nav.kycs' },
+  { href: '/dashboard/enhanced-kyc-verifications', labelKey: 'layout.nav.enhancedKycVerifications' },
   { href: '/dashboard/kyc-caps', labelKey: 'layout.nav.kycCaps' },
   { href: '/dashboard/kyc-default-levels', labelKey: 'layout.nav.kycDefaults' },
   { href: '/dashboard/feature-flags', labelKey: 'layout.nav.featureFlags' },

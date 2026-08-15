@@ -53,6 +53,8 @@ const emptyDraft = {
   logoUrl: '',
   active: true,
   walletEnabled: true,
+  ibanEnabled: false,
+  ibanApplicationEnabled: false,
   legacyBalanceBacked: false,
   baseCurrency: 'USD',
   rate: '',
@@ -86,6 +88,8 @@ const emptyFilters = {
   displayName: '',
   active: '',
   walletEnabled: '',
+  ibanEnabled: '',
+  ibanApplicationEnabled: '',
   legacyBalanceBacked: '',
   manualFxRate: '',
   baseCurrency: '',
@@ -413,6 +417,8 @@ export default function CurrencyProductsPage() {
       logoUrl: draft.logoUrl.trim() || null,
       active: Boolean(draft.active),
       walletEnabled: Boolean(draft.walletEnabled),
+      ibanEnabled: Boolean(draft.ibanEnabled),
+      ibanApplicationEnabled: Boolean(draft.ibanApplicationEnabled),
       legacyBalanceBacked: Boolean(draft.legacyBalanceBacked),
       baseCurrency: upperTrim(draft.baseCurrency),
       rate: Number(draft.rate),
@@ -455,6 +461,8 @@ export default function CurrencyProductsPage() {
       logoUrl: row.logoUrl ?? '',
       active: row.active ?? true,
       walletEnabled: row.walletEnabled ?? true,
+      ibanEnabled: row.ibanEnabled ?? false,
+      ibanApplicationEnabled: row.ibanApplicationEnabled ?? false,
       legacyBalanceBacked: row.legacyBalanceBacked ?? false,
       baseCurrency: row.baseCurrency ?? 'USD',
       rate: row.rate ?? '',
@@ -557,6 +565,8 @@ export default function CurrencyProductsPage() {
         currency: row.currency,
         displayName: row.displayName,
         active: false,
+        ibanEnabled: Boolean(row.ibanEnabled),
+        ibanApplicationEnabled: Boolean(row.ibanApplicationEnabled),
         countryCodes: normalizeCountryCodes(row.countryCodes),
         defaultCountryCodes: normalizeCountryCodes(row.defaultCountryCodes)
       });
@@ -687,6 +697,13 @@ export default function CurrencyProductsPage() {
     { key: 'payoutMarginPercent', label: 'Payout margin', render: (row) => formatPercent(row.payoutMarginPercent) },
     { key: 'manualFxRate', label: 'Manual FX', render: (row) => formatBool(row.manualFxRate) },
     { key: 'walletEnabled', label: 'Wallet', render: (row) => formatBool(row.walletEnabled) },
+    { key: 'ibanStatus', label: 'IBAN status', render: (row) => {
+      if (row.ibanEnabled) return 'IBAN-ready';
+      if (row.ibanApplicationEnabled) return 'Application open';
+      return 'Coming soon';
+    } },
+    { key: 'ibanEnabled', label: 'IBAN available', render: (row) => formatBool(row.ibanEnabled) },
+    { key: 'ibanApplicationEnabled', label: 'IBAN application enabled', render: (row) => formatBool(row.ibanApplicationEnabled) },
     { key: 'active', label: 'Active', render: (row) => formatBool(row.active) },
     { key: 'rateProvider', label: 'Provider', hideOnMobile: true },
     { key: 'rateFetchedAt', label: 'Rate fetched', hideOnMobile: true, render: (row) => formatDateTime(row.rateFetchedAt) },
@@ -821,6 +838,11 @@ export default function CurrencyProductsPage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
         {renderCheckbox('active', 'Active', draft.active, (e) => setDraft((p) => ({ ...p, active: e.target.checked })))}
         {renderCheckbox('walletEnabled', 'Wallet enabled', draft.walletEnabled, (e) => setDraft((p) => ({ ...p, walletEnabled: e.target.checked })))}
+        {renderCheckbox('ibanEnabled', 'IBAN available', draft.ibanEnabled, (e) => setDraft((p) => ({ ...p, ibanEnabled: e.target.checked })))}
+        {renderCheckbox('ibanApplicationEnabled', 'IBAN application enabled', draft.ibanApplicationEnabled, (e) => setDraft((p) => ({ ...p, ibanApplicationEnabled: e.target.checked })))}
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          IBAN available returns bank-transfer details. IBAN application enabled only opens the enhanced verification/application flow.
+        </div>
         {renderCheckbox('legacyBalanceBacked', 'Legacy balance backed', draft.legacyBalanceBacked, (e) => setDraft((p) => ({ ...p, legacyBalanceBacked: e.target.checked })))}
       </div>
     </div>
@@ -1023,6 +1045,8 @@ export default function CurrencyProductsPage() {
             {renderFilterInput('displayName', 'Display name', { placeholder: 'Congolese Franc' })}
             {renderBooleanFilter('active', 'Active')}
             {renderBooleanFilter('walletEnabled', 'Wallet enabled')}
+            {renderBooleanFilter('ibanEnabled', 'IBAN available')}
+            {renderBooleanFilter('ibanApplicationEnabled', 'IBAN application enabled')}
             {renderBooleanFilter('legacyBalanceBacked', 'Legacy backed')}
             {renderBooleanFilter('manualFxRate', 'Manual FX rate')}
             {renderFilterInput('baseCurrency', 'Base currency', { list: 'currencyProductCurrencyOptions', uppercase: true, placeholder: 'USD' })}
@@ -1114,6 +1138,16 @@ export default function CurrencyProductsPage() {
               { label: 'Logo URL', value: selected?.logoUrl },
               { label: 'Active', value: formatBool(selected?.active) },
               { label: 'Wallet enabled', value: formatBool(selected?.walletEnabled) },
+              {
+                label: 'IBAN status',
+                value: selected?.ibanEnabled
+                  ? 'IBAN-ready'
+                  : selected?.ibanApplicationEnabled
+                    ? 'Application open'
+                    : 'Coming soon'
+              },
+              { label: 'IBAN available', value: formatBool(selected?.ibanEnabled) },
+              { label: 'IBAN application enabled', value: formatBool(selected?.ibanApplicationEnabled) },
               { label: 'Legacy balance backed', value: formatBool(selected?.legacyBalanceBacked) },
               { label: 'Manual FX rate', value: formatBool(selected?.manualFxRate) },
               { label: 'Base currency', value: selected?.baseCurrency },
