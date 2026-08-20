@@ -39,10 +39,28 @@ const emptyZenditSearch = {
   subType: ''
 };
 
+const emptyCegawebCatalogRefresh = {
+  subscriberNumber: '',
+  subscriptionNumber: '',
+  duration: '30J',
+  distributor: '',
+  user: '',
+  updateLabels: true,
+  updatePrices: true,
+  replaceOfferOptionLinks: true
+};
+
+const cegawebCatalogRefreshDefaults = [
+  { matcher: 'CONGO', subscriberNumber: '29178461', subscriptionNumber: '1' },
+  { matcher: 'RWANDA', subscriberNumber: '35385357', subscriptionNumber: '1' }
+];
+
 const normalizeProviderLabel = (provider) => String(provider?.name || provider?.displayName || '').toUpperCase();
 const isReloadlyUtilitiesProviderLabel = (label) => label.includes('RELOADLY') && label.includes('UTIL');
 const isReloadlyGiftCardProviderLabel = (label) => label.includes('RELOADLY') && !label.includes('UTIL');
 const isZenditProviderLabel = (label) => label.includes('ZENDIT');
+const isCegawebProviderLabel = (label) => label.includes('CGAWEB') || label.includes('CEGAWEB');
+const isCanalProductLabel = (label) => label.includes('CANAL');
 
 const toNumberOrNull = (value) => {
   if (value === '' || value === null || value === undefined) return null;
@@ -96,6 +114,58 @@ const formatFixedAmounts = (biller) => {
     .join(', ');
 };
 
+const firstArray = (source, keys) => {
+  if (!source || typeof source !== 'object') return [];
+  for (const key of keys) {
+    if (Array.isArray(source[key])) return source[key];
+  }
+  return [];
+};
+
+const formatNullable = (value) => {
+  if (value === null || value === undefined || value === '') return '—';
+  return String(value);
+};
+
+const formatWarning = (warning) => {
+  if (warning === null || warning === undefined || warning === '') return '—';
+  if (typeof warning === 'string') return warning;
+  return warning.message || warning.detail || warning.code || JSON.stringify(warning);
+};
+
+const statusStyle = (status) => {
+  const value = String(status || '').toUpperCase();
+  if (value === 'NEW') return { background: '#ecfdf3', color: '#166534', border: '#bbf7d0' };
+  if (value === 'UPDATED') return { background: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' };
+  if (value === 'MISSING_IN_PROVIDER' || value === 'REMOVED') return { background: '#fff7ed', color: '#9a3412', border: '#fed7aa' };
+  return { background: '#f8fafc', color: '#475569', border: '#e2e8f0' };
+};
+
+const isCegawebCatalogCandidate = (row) => {
+  const providerLabel = normalizeProviderLabel({ name: row?.billProviderName, displayName: row?.billProviderDisplayName });
+  const productLabel = String(`${row?.billProductName || ''} ${row?.billProductCode || ''}`).toUpperCase();
+  return isCegawebProviderLabel(providerLabel) || Boolean(row?.cegawebProfileKey) || isCanalProductLabel(productLabel);
+};
+
+const buildCegawebCatalogRefreshDraft = (row) => {
+  const searchable = String([
+    row?.billProductName,
+    row?.billProductCode,
+    row?.billProductDisplayName,
+    row?.cegawebProfileKey
+  ].filter(Boolean).join(' ')).toUpperCase();
+  const match = cegawebCatalogRefreshDefaults.find((item) => searchable.includes(item.matcher));
+  return {
+    ...emptyCegawebCatalogRefresh,
+    ...(match
+      ? {
+          subscriberNumber: match.subscriberNumber,
+          subscriptionNumber: match.subscriptionNumber
+        }
+      : {})
+  };
+};
+
 export default function BillProductProvidersPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
@@ -122,6 +192,14 @@ export default function BillProductProvidersPage() {
   const [zenditGroupedBillers, setZenditGroupedBillers] = useState([]);
   const [zenditGroupedBillersLoading, setZenditGroupedBillersLoading] = useState(false);
   const [selectedZenditBiller, setSelectedZenditBiller] = useState(null);
+  const [showCegawebCatalogRefresh, setShowCegawebCatalogRefresh] = useState(false);
+  const [cegawebCatalogDraft, setCegawebCatalogDraft] = useState(emptyCegawebCatalogRefresh);
+  const [cegawebCatalogPreview, setCegawebCatalogPreview] = useState(null);
+  const [cegawebCatalogPreviewRequest, setCegawebCatalogPreviewRequest] = useState(null);
+  const [cegawebCatalogLoading, setCegawebCatalogLoading] = useState(false);
+  const [cegawebCatalogApplying, setCegawebCatalogApplying] = useState(false);
+  const [cegawebCatalogError, setCegawebCatalogError] = useState(null);
+  const [cegawebCatalogWarningsAcknowledged, setCegawebCatalogWarningsAcknowledged] = useState(false);
 
   const fetchRows = async () => {
     setLoading(true);
@@ -221,6 +299,9 @@ export default function BillProductProvidersPage() {
       render: (row) => (
         <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
           <button type="button" onClick={() => openDetail(row)} className="btn-neutral">View</button>
+          {isCegawebCatalogCandidate(row) && (
+            <button type="button" onClick={() => openCegawebCatalogRefresh(row)} className="btn-neutral">Refresh CGAWEB catalog</button>
+          )}
           <button type="button" onClick={() => openEdit(row)} className="btn-neutral">Edit</button>
           <button type="button" onClick={() => setConfirmDelete(row)} className="btn-danger">Delete</button>
         </div>
@@ -327,6 +408,90 @@ export default function BillProductProvidersPage() {
     setShowDetail(true);
     setInfo(null);
     setError(null);
+  };
+
+  const openCegawebCatalogRefresh = (row) => {
+    setSelected(row);
+    setCegawebCatalogDraft(buildCegawebCatalogRefreshDraft(row));
+    setCegawebCatalogPreview(null);
+    setCegawebCatalogPreviewRequest(null);
+    setCegawebCatalogError(null);
+    setCegawebCatalogWarningsAcknowledged(false);
+    setInfo(null);
+    setError(null);
+    setShowCegawebCatalogRefresh(true);
+  };
+
+  const closeCegawebCatalogRefresh = () => {
+    setShowCegawebCatalogRefresh(false);
+    setCegawebCatalogDraft(emptyCegawebCatalogRefresh);
+    setCegawebCatalogPreview(null);
+    setCegawebCatalogPreviewRequest(null);
+    setCegawebCatalogError(null);
+    setCegawebCatalogWarningsAcknowledged(false);
+    setCegawebCatalogLoading(false);
+    setCegawebCatalogApplying(false);
+  };
+
+  const buildCegawebCatalogPayload = () => {
+    const subscriberNumber = Number(cegawebCatalogDraft.subscriberNumber);
+    const subscriptionNumber = Number(cegawebCatalogDraft.subscriptionNumber);
+    if (!Number.isFinite(subscriberNumber) || subscriberNumber <= 0) {
+      throw new Error('Enter a valid subscriber number.');
+    }
+    if (!Number.isFinite(subscriptionNumber) || subscriptionNumber <= 0) {
+      throw new Error('Enter a valid subscription number.');
+    }
+    const payload = {
+      subscriberNumber,
+      subscriptionNumber,
+      updateLabels: Boolean(cegawebCatalogDraft.updateLabels),
+      updatePrices: Boolean(cegawebCatalogDraft.updatePrices),
+      replaceOfferOptionLinks: Boolean(cegawebCatalogDraft.replaceOfferOptionLinks)
+    };
+    const duration = String(cegawebCatalogDraft.duration || '').trim();
+    const distributor = String(cegawebCatalogDraft.distributor || '').trim();
+    const user = String(cegawebCatalogDraft.user || '').trim();
+    if (duration) payload.duration = duration;
+    if (distributor) payload.distributor = distributor;
+    if (user) payload.user = user;
+    return payload;
+  };
+
+  const handleCegawebCatalogPreview = async () => {
+    if (!selected?.id) return;
+    setCegawebCatalogError(null);
+    setCegawebCatalogPreview(null);
+    setCegawebCatalogPreviewRequest(null);
+    setCegawebCatalogWarningsAcknowledged(false);
+    setCegawebCatalogLoading(true);
+    try {
+      const payload = buildCegawebCatalogPayload();
+      const res = await api.billProductBillProviders.previewCegawebCatalog(selected.id, payload);
+      setCegawebCatalogPreview(res);
+      setCegawebCatalogPreviewRequest(payload);
+      setCegawebCatalogWarningsAcknowledged(false);
+    } catch (err) {
+      setCegawebCatalogError(err.message || 'Failed to preview CGAWEB catalog changes.');
+    } finally {
+      setCegawebCatalogLoading(false);
+    }
+  };
+
+  const handleCegawebCatalogSync = async () => {
+    if (!selected?.id || !cegawebCatalogPreviewRequest) return;
+    setCegawebCatalogError(null);
+    setCegawebCatalogApplying(true);
+    try {
+      const res = await api.billProductBillProviders.syncCegawebCatalog(selected.id, cegawebCatalogPreviewRequest);
+      setCegawebCatalogPreview(res);
+      setInfo(`Applied CGAWEB catalog update for mapping ${selected.id}.`);
+      await fetchRows();
+    } catch (err) {
+      setCegawebCatalogError(err.message || 'Failed to apply CGAWEB catalog update.');
+    } finally {
+      setCegawebCatalogApplying(false);
+    }
   };
 
   const validateDraft = () => {
@@ -857,6 +1022,131 @@ export default function BillProductProvidersPage() {
     </div>
   );
 
+  const renderDiffStatus = (status) => {
+    const style = statusStyle(status);
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', padding: '0.2rem 0.5rem', borderRadius: '999px', fontSize: '12px', fontWeight: 800, background: style.background, color: style.color, border: `1px solid ${style.border}`, whiteSpace: 'nowrap' }}>
+        {status || 'UNCHANGED'}
+      </span>
+    );
+  };
+
+  const renderCatalogDiffTable = (title, items, columns) => (
+    <div style={{ display: 'grid', gap: '0.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ fontWeight: 800 }}>{title}</div>
+        <span style={{ color: 'var(--muted)', fontSize: '12px', fontWeight: 700 }}>{items.length} row(s)</span>
+      </div>
+      <div className="table-scroll" style={{ border: '1px solid var(--border)', borderRadius: '10px', padding: 0 }}>
+        <table className="data-table" style={{ minWidth: '920px', width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr>
+              {columns.map((col) => (
+                <th key={col.key} style={{ textAlign: 'left', padding: '0.65rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)', fontSize: '12px' }}>{col.label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {items.length === 0 && (
+              <tr>
+                <td colSpan={columns.length} style={{ padding: '0.9rem', color: 'var(--muted)', textAlign: 'center' }}>No differences returned.</td>
+              </tr>
+            )}
+            {items.map((item, index) => (
+              <tr key={`${title}-${item?.externalReference || item?.offerExternalReference || item?.optionExternalReference || index}`} style={{ borderBottom: '1px solid var(--border)' }}>
+                {columns.map((col) => (
+                  <td key={col.key} style={{ padding: '0.65rem', verticalAlign: 'top', fontSize: '13px' }}>
+                    {col.render ? col.render(item) : formatNullable(item?.[col.key])}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  const renderCegawebCatalogPreview = () => {
+    if (!cegawebCatalogPreview) return null;
+    const offers = firstArray(cegawebCatalogPreview, ['offers', 'offerDiffs', 'offerChanges', 'offerResults']);
+    const options = firstArray(cegawebCatalogPreview, ['options', 'optionDiffs', 'optionChanges', 'optionResults']);
+    const links = firstArray(cegawebCatalogPreview, ['offerOptionRelationships', 'offerOptionLinks', 'offerOptions', 'links', 'offerOptionDiffs']);
+    const warnings = firstArray(cegawebCatalogPreview, ['warnings']);
+    const hasWarnings = warnings.length > 0;
+    const canSync = Boolean(cegawebCatalogPreviewRequest) && !cegawebCatalogLoading && !cegawebCatalogApplying && (!hasWarnings || cegawebCatalogWarningsAcknowledged);
+    const amountColumns = [
+      { key: 'status', label: 'Status', render: (item) => renderDiffStatus(item?.status) },
+      { key: 'externalReference', label: 'External ref' },
+      { key: 'currentLabel', label: 'Current label' },
+      { key: 'providerLabel', label: 'Provider label' },
+      { key: 'currentPrice', label: 'Current price' },
+      { key: 'providerPrice', label: 'Provider price' },
+      { key: 'currentCurrency', label: 'Current currency' },
+      { key: 'providerCurrency', label: 'Provider currency' },
+      { key: 'computedOurPriceInUsd', label: 'Our price USD' }
+    ];
+    const linkColumns = [
+      { key: 'status', label: 'Status', render: (item) => renderDiffStatus(item?.status) },
+      { key: 'offerExternalReference', label: 'Offer ref', render: (item) => formatNullable(item?.offerExternalReference ?? item?.offerReference ?? item?.offerCode ?? item?.offerExternalRef) },
+      { key: 'optionExternalReference', label: 'Option ref', render: (item) => formatNullable(item?.optionExternalReference ?? item?.optionReference ?? item?.optionCode ?? item?.optionExternalRef) },
+      { key: 'offerLabel', label: 'Offer label', render: (item) => formatNullable(item?.offerLabel ?? item?.providerOfferLabel ?? item?.currentOfferLabel) },
+      { key: 'optionLabel', label: 'Option label', render: (item) => formatNullable(item?.optionLabel ?? item?.providerOptionLabel ?? item?.currentOptionLabel) }
+    ];
+
+    return (
+      <div style={{ display: 'grid', gap: '0.85rem' }}>
+        <DetailGrid
+          rows={[
+            { label: 'Dry run', value: cegawebCatalogPreview.dryRun === false ? 'No' : 'Yes' },
+            { label: 'Fetched at', value: cegawebCatalogPreview.fetchedAt || '—' },
+            { label: 'Bill product code', value: cegawebCatalogPreview.billProductCode || '—' },
+            { label: 'Provider', value: cegawebCatalogPreview.billProviderName || '—' },
+            { label: 'Profile key', value: cegawebCatalogPreview.profileKey || selected?.cegawebProfileKey || '—' },
+            { label: 'Warnings', value: warnings.length }
+          ]}
+        />
+
+        {hasWarnings && (
+          <div style={{ border: '1px solid #fed7aa', background: '#fff7ed', color: '#9a3412', borderRadius: '10px', padding: '0.75rem', display: 'grid', gap: '0.5rem' }}>
+            <div style={{ fontWeight: 800 }}>Warnings</div>
+            <ul style={{ margin: 0, paddingLeft: '1.1rem' }}>
+              {warnings.map((warning, index) => (
+                <li key={`warning-${index}`}>{formatWarning(warning)}</li>
+              ))}
+            </ul>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#9a3412', margin: 0 }}>
+              <input
+                type="checkbox"
+                checked={cegawebCatalogWarningsAcknowledged}
+                onChange={(e) => setCegawebCatalogWarningsAcknowledged(e.target.checked)}
+                style={{ width: 'auto' }}
+              />
+              I reviewed these warnings
+            </label>
+          </div>
+        )}
+
+        {renderCatalogDiffTable('Offers', offers, amountColumns)}
+        {renderCatalogDiffTable('Options', options, amountColumns)}
+        {renderCatalogDiffTable('Offer-option relationships', links, linkColumns)}
+
+        <div style={{ border: '1px solid #fed7aa', background: '#fff7ed', color: '#9a3412', borderRadius: '10px', padding: '0.75rem', fontSize: '13px' }}>
+          MISSING_IN_PROVIDER offers are not deleted automatically. Review them manually because deleting an offer can affect historical reporting.
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button type="button" onClick={handleCegawebCatalogPreview} className="btn-neutral" disabled={cegawebCatalogLoading || cegawebCatalogApplying}>
+            {cegawebCatalogLoading ? 'Previewing…' : 'Preview again'}
+          </button>
+          <button type="button" onClick={handleCegawebCatalogSync} className="btn-success" disabled={!canSync}>
+            {cegawebCatalogApplying ? 'Applying…' : 'Apply catalog update'}
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
@@ -971,6 +1261,111 @@ export default function BillProductProvidersPage() {
                 { label: 'Updated at', value: selected?.updatedAt }
               ]}
             />
+          </div>
+        </div>
+      )}
+
+      {showCegawebCatalogRefresh && (
+        <div className="modal-backdrop">
+          <div className="modal-surface" style={{ gap: '0.85rem', width: 'min(1180px, 96vw)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}>
+              <div style={{ display: 'grid', gap: '0.2rem' }}>
+                <div style={{ fontWeight: 800 }}>Refresh catalog from CGAWEB</div>
+                <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                  {selected?.billProductName || selected?.billProductId} → {selected?.billProviderName || selected?.billProviderId} · Mapping #{selected?.id}
+                </div>
+              </div>
+              <button type="button" onClick={closeCegawebCatalogRefresh} style={{ border: 'none', background: 'transparent', fontSize: '18px', cursor: 'pointer', color: 'var(--text)' }}>×</button>
+            </div>
+
+            <div style={{ border: '1px solid #bfdbfe', background: '#eff6ff', color: '#1d4ed8', borderRadius: '10px', padding: '0.75rem', fontSize: '13px', fontWeight: 700 }}>
+              Run Preview first. Apply uses the exact same request body from the latest successful preview.
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="cegawebCatalogSubscriberNumber">Subscriber number</label>
+                <input
+                  id="cegawebCatalogSubscriberNumber"
+                  type="number"
+                  min="1"
+                  value={cegawebCatalogDraft.subscriberNumber}
+                  onChange={(e) => setCegawebCatalogDraft((prev) => ({ ...prev, subscriberNumber: e.target.value }))}
+                  placeholder="35385357"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="cegawebCatalogSubscriptionNumber">Subscription number</label>
+                <input
+                  id="cegawebCatalogSubscriptionNumber"
+                  type="number"
+                  min="1"
+                  value={cegawebCatalogDraft.subscriptionNumber}
+                  onChange={(e) => setCegawebCatalogDraft((prev) => ({ ...prev, subscriptionNumber: e.target.value }))}
+                  placeholder="1"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="cegawebCatalogDuration">Duration</label>
+                <input
+                  id="cegawebCatalogDuration"
+                  value={cegawebCatalogDraft.duration}
+                  onChange={(e) => setCegawebCatalogDraft((prev) => ({ ...prev, duration: e.target.value }))}
+                  placeholder="30J"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="cegawebCatalogDistributor">Distributor override</label>
+                <input
+                  id="cegawebCatalogDistributor"
+                  value={cegawebCatalogDraft.distributor}
+                  onChange={(e) => setCegawebCatalogDraft((prev) => ({ ...prev, distributor: e.target.value }))}
+                  placeholder="Configured default"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="cegawebCatalogUser">User override</label>
+                <input
+                  id="cegawebCatalogUser"
+                  value={cegawebCatalogDraft.user}
+                  onChange={(e) => setCegawebCatalogDraft((prev) => ({ ...prev, user: e.target.value }))}
+                  placeholder="Configured default"
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.85rem', flexWrap: 'wrap' }}>
+              {[
+                ['updateLabels', 'Update labels'],
+                ['updatePrices', 'Update prices'],
+                ['replaceOfferOptionLinks', 'Replace offer-option links']
+              ].map(([key, label]) => (
+                <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text)', margin: 0 }}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(cegawebCatalogDraft[key])}
+                    onChange={(e) => setCegawebCatalogDraft((prev) => ({ ...prev, [key]: e.target.checked }))}
+                    style={{ width: 'auto' }}
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+
+            {cegawebCatalogError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{cegawebCatalogError}</div>}
+
+            {!cegawebCatalogPreview && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                <button type="button" onClick={closeCegawebCatalogRefresh} className="btn-neutral" disabled={cegawebCatalogLoading || cegawebCatalogApplying}>
+                  Cancel
+                </button>
+                <button type="button" onClick={handleCegawebCatalogPreview} className="btn-primary" disabled={cegawebCatalogLoading || cegawebCatalogApplying}>
+                  {cegawebCatalogLoading ? 'Previewing…' : 'Preview catalog changes'}
+                </button>
+              </div>
+            )}
+
+            {renderCegawebCatalogPreview()}
           </div>
         </div>
       )}
