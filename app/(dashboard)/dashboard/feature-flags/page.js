@@ -12,7 +12,15 @@ const LABELS = {
   'crypto.external.collection.allow_public_endpoints': 'Allow public crypto payment links',
   'kyc.allow_gallery_upload': 'Allow KYC gallery upload',
   avecLoanRequestReasonEnabled: 'AVEC loan request reason',
-  'customer_service.enabled': 'Customer service FAB'
+  'customer_service.enabled': 'Customer service FAB',
+  'service.loans.enabled': 'Loans',
+  'savings.enabled': 'Savings',
+  'service.crypto.enabled': 'Crypto',
+  'service.cards.enabled': 'Cards',
+  'service.bill_payments.enabled': 'Bill payments',
+  'service.bank_accounts.enabled': 'Bank accounts',
+  'account.phone_verification.required': 'Phone number verification',
+  'account.enhanced_kyc_verification.required': 'Enhanced verification'
 };
 
 const WARNINGS = {
@@ -42,7 +50,32 @@ const APP_OPEN_AUTH_ANDROID_KEY = 'app_open_auth_enforcement.android';
 const APP_OPEN_AUTH_IOS_KEY = 'app_open_auth_enforcement.ios';
 const CUSTOMER_SERVICE_ENABLED_KEY = 'customer_service.enabled';
 const SAVINGS_ENABLED_KEY = 'savings.enabled';
+const PHONE_VERIFICATION_REQUIRED_KEY = 'account.phone_verification.required';
+const ENHANCED_KYC_VERIFICATION_REQUIRED_KEY = 'account.enhanced_kyc_verification.required';
 const AVEC_LOAN_REQUEST_REASON_KEY = 'avecLoanRequestReasonEnabled';
+const CUSTOMER_APP_SERVICE_FLAGS = [
+  { key: 'service.loans.enabled', label: 'Loans' },
+  { key: SAVINGS_ENABLED_KEY, label: 'Savings' },
+  { key: 'service.crypto.enabled', label: 'Crypto' },
+  { key: 'service.cards.enabled', label: 'Cards' },
+  { key: 'service.bill_payments.enabled', label: 'Bill payments' },
+  { key: 'service.bank_accounts.enabled', label: 'Bank accounts' }
+];
+const CUSTOMER_APP_SERVICE_KEYS = new Set(CUSTOMER_APP_SERVICE_FLAGS.map((item) => item.key));
+const ACCOUNT_VERIFICATION_REQUIREMENT_FLAGS = [
+  {
+    key: PHONE_VERIFICATION_REQUIRED_KEY,
+    label: 'Phone number verification',
+    description: 'Force the customer to verify their phone number before continuing.'
+  },
+  {
+    key: ENHANCED_KYC_VERIFICATION_REQUIRED_KEY,
+    label: 'Enhanced verification',
+    description: 'Force the customer to complete enhanced verification before continuing.',
+    disabledMessageEn: 'Please complete enhanced verification to continue using your account.',
+    disabledMessageFr: 'Veuillez compléter la vérification renforcée pour continuer à utiliser votre compte.'
+  }
+];
 const HIDDEN_FEATURE_FLAG_KEYS = new Set([
   'requesting_loan.enabled',
   'personal_saving.interest_payout.open.enabled',
@@ -174,6 +207,7 @@ const getDisabledMessagePlaceholder = (key) =>
     : 'Optional. Shown to users when this feature is disabled.';
 
 const getDisabledMessageHelp = (key) => (key === SAVINGS_ENABLED_KEY ? SAVINGS_DISABLED_MESSAGE_HELP : GENERIC_DISABLED_MESSAGE_HELP);
+const supportsCountryOverrides = (key) => key === SAVINGS_ENABLED_KEY || CUSTOMER_APP_SERVICE_KEYS.has(String(key || ''));
 const normalizeDisabledBehavior = (value) => (value === 'ACCEPT_AND_QUEUE' ? 'ACCEPT_AND_QUEUE' : 'BLOCK_REQUEST');
 const formatDisabledBehavior = (value) => {
   const normalized = normalizeDisabledBehavior(value);
@@ -367,6 +401,38 @@ export default function FeatureFlagsPage() {
   const ibanOverrideKey = ibanOverrideCurrencyCode ? `${ibanOverridePrefix}.${ibanOverrideCurrencyCode}` : '';
   const selectedIbanOverrideType = IBAN_OVERRIDE_TYPES.find((option) => option.prefix === ibanOverridePrefix) || IBAN_OVERRIDE_TYPES[0];
 
+  const customerAppServiceRows = useMemo(
+    () =>
+      CUSTOMER_APP_SERVICE_FLAGS.map((service) => {
+        const flag = flags.find((item) => String(item.key) === service.key);
+        return {
+          ...service,
+          flag: flag || { key: service.key, enabled: true, disabledBehavior: 'BLOCK_REQUEST', queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK', isDefault: true }
+        };
+      }),
+    [flags]
+  );
+
+  const accountVerificationRequirementRows = useMemo(
+    () =>
+      ACCOUNT_VERIFICATION_REQUIREMENT_FLAGS.map((requirement) => {
+        const flag = flags.find((item) => String(item.key) === requirement.key);
+        return {
+          ...requirement,
+          flag: flag || {
+            key: requirement.key,
+            enabled: false,
+            disabledBehavior: 'BLOCK_REQUEST',
+            queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK',
+            disabledMessageEn: requirement.disabledMessageEn || '',
+            disabledMessageFr: requirement.disabledMessageFr || '',
+            isDefault: true
+          }
+        };
+      }),
+    [flags]
+  );
+
   const cryptoCollectionGateFlag = useMemo(
     () => flags.find((flag) => String(flag.key) === CRYPTO_COLLECTION_GATE_KEY),
     [flags]
@@ -455,6 +521,7 @@ export default function FeatureFlagsPage() {
           String(flag.key) !== APP_OPEN_AUTH_GLOBAL_KEY &&
           String(flag.key) !== APP_OPEN_AUTH_ANDROID_KEY &&
           String(flag.key) !== APP_OPEN_AUTH_IOS_KEY &&
+          !CUSTOMER_APP_SERVICE_KEYS.has(String(flag.key)) &&
           !isSavingsRelatedKey(flag.key) &&
           !isCryptoSpreadActionKey(flag.key)
       ),
@@ -466,6 +533,7 @@ export default function FeatureFlagsPage() {
       flags
         .filter((flag) => !isHiddenFeatureFlag(flag.key))
         .filter((flag) => !isActionLimitKey(flag.key))
+        .filter((flag) => !CUSTOMER_APP_SERVICE_KEYS.has(String(flag.key)))
         .filter((flag) => isSavingsRelatedKey(flag.key))
         .sort((a, b) => String(a.key || '').localeCompare(String(b.key || ''))),
     [flags]
@@ -593,6 +661,10 @@ export default function FeatureFlagsPage() {
       const hasTransactionAuthIosFlag = list.some((flag) => String(flag?.key) === TRANSACTION_AUTH_IOS_KEY);
       const hasCustomerServiceEnabledFlag = list.some((flag) => String(flag?.key) === CUSTOMER_SERVICE_ENABLED_KEY);
       const defaults = [];
+      CUSTOMER_APP_SERVICE_FLAGS.forEach((service) => {
+        const exists = list.some((flag) => String(flag?.key) === service.key);
+        if (!exists) defaults.push({ key: service.key, enabled: true, disabledBehavior: 'BLOCK_REQUEST', queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK', isDefault: true });
+      });
       if (!hasCryptoCollectionGate) defaults.push({ key: CRYPTO_COLLECTION_GATE_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK', isDefault: true });
       if (!hasPublicEndpointsFlag) defaults.push({ key: CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK', isDefault: true });
       if (!hasNotificationPermissionWelcomeFlag) defaults.push({ key: NOTIFICATION_PERMISSION_WELCOME_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK', isDefault: true });
@@ -605,6 +677,20 @@ export default function FeatureFlagsPage() {
       if (!hasTransactionAuthAndroidFlag) defaults.push({ key: TRANSACTION_AUTH_ANDROID_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK', isDefault: true });
       if (!hasTransactionAuthIosFlag) defaults.push({ key: TRANSACTION_AUTH_IOS_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK', isDefault: true });
       if (!hasCustomerServiceEnabledFlag) defaults.push({ key: CUSTOMER_SERVICE_ENABLED_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK', isDefault: true });
+      ACCOUNT_VERIFICATION_REQUIREMENT_FLAGS.forEach((requirement) => {
+        const exists = list.some((flag) => String(flag?.key) === requirement.key);
+        if (!exists) {
+          defaults.push({
+            key: requirement.key,
+            enabled: false,
+            disabledBehavior: 'BLOCK_REQUEST',
+            queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK',
+            disabledMessageEn: requirement.disabledMessageEn || '',
+            disabledMessageFr: requirement.disabledMessageFr || '',
+            isDefault: true
+          });
+        }
+      });
       setFlags([...defaults, ...list]);
     } catch (err) {
       setError(err.message);
@@ -1349,6 +1435,87 @@ export default function FeatureFlagsPage() {
         </div>
         <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
           Supported keys: {SUPPORTED_KEYS.join(', ')}
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title="Customer App Services"
+        subtitle="Services are available by default unless disabled globally, by country, or by account."
+        borderColor="#16a34a"
+      >
+        <div style={{ display: 'grid', gap: '0.7rem' }}>
+          {customerAppServiceRows.map(({ key, label, flag }) => (
+            <div key={key} style={{ display: 'grid', gap: '0.5rem', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontWeight: 800 }}>{label}</div>
+                  <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{key}</div>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button type="button" className="btn-neutral btn-sm" onClick={() => openEditDialog(flag)} disabled={savingKey === key}>
+                    Messages
+                  </button>
+                  <button type="button" className="btn-neutral btn-sm" onClick={() => openOverridesDialog(key)} disabled={savingKey === key}>
+                    Overrides
+                  </button>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                    <input type="checkbox" checked={Boolean(flag.enabled)} onChange={() => handleToggle(key)} disabled={loading || savingKey === key} />
+                    {flag.enabled ? 'Enabled globally' : 'Disabled globally'}
+                  </label>
+                  <button type="button" className="btn-neutral btn-sm" onClick={() => setDeleteConfirm({ key })} disabled={savingKey === key}>
+                    Reset
+                  </button>
+                </div>
+              </div>
+              {!flag.enabled ? (
+                <div style={{ display: 'grid', gap: '0.25rem', color: 'var(--muted)', fontSize: '13px' }}>
+                  <div>EN: {flag.disabledMessageEn || 'Default unavailable message'}</div>
+                  <div>FR: {flag.disabledMessageFr || 'Default unavailable message'}</div>
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title="Account verification requirements"
+        subtitle="Force verification checks globally, by country, or for one account."
+        borderColor="#7c3aed"
+      >
+        <div style={{ display: 'grid', gap: '0.7rem' }}>
+          {accountVerificationRequirementRows.map(({ key, label, description, flag }) => (
+            <div key={key} style={{ display: 'grid', gap: '0.5rem', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontWeight: 800 }}>{label}</div>
+                  <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{description}</div>
+                  <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{key}</div>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button type="button" className="btn-neutral btn-sm" onClick={() => openEditDialog(flag)} disabled={savingKey === key}>
+                    Messages
+                  </button>
+                  <button type="button" className="btn-neutral btn-sm" onClick={() => openOverridesDialog(key)} disabled={savingKey === key}>
+                    Overrides
+                  </button>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                    <input type="checkbox" checked={Boolean(flag.enabled)} onChange={() => handleToggle(key)} disabled={loading || savingKey === key} />
+                    {flag.enabled ? 'Required globally' : 'Not required globally'}
+                  </label>
+                  <button type="button" className="btn-neutral btn-sm" onClick={() => setDeleteConfirm({ key })} disabled={savingKey === key}>
+                    Reset
+                  </button>
+                </div>
+              </div>
+              {flag.enabled ? (
+                <div style={{ display: 'grid', gap: '0.25rem', color: 'var(--muted)', fontSize: '13px' }}>
+                  <div>EN: {flag.disabledMessageEn || 'Default required message'}</div>
+                  <div>FR: {flag.disabledMessageFr || 'Default required message'}</div>
+                </div>
+              ) : null}
+            </div>
+          ))}
         </div>
       </CollapsibleSection>
 
@@ -2371,14 +2538,14 @@ export default function FeatureFlagsPage() {
                 <div>{t('featureFlags.overrideEnabledTrueHelp')}</div>
               </div>
             )}
-            {overrideDialog.key === SAVINGS_ENABLED_KEY && (
+            {supportsCountryOverrides(overrideDialog.key) && (
               <div style={{ display: 'grid', gap: '0.25rem', color: 'var(--muted)', fontSize: '13px' }}>
                 <div>{t('featureFlags.countryOverridesHelp')}</div>
                 <div>{t('featureFlags.accountOverridesStillWin')}</div>
               </div>
             )}
 
-            {overrideDialog.key === SAVINGS_ENABLED_KEY && (
+            {supportsCountryOverrides(overrideDialog.key) && (
               <div className="card" style={{ display: 'grid', gap: '0.65rem' }}>
                 <div style={{ fontWeight: 700 }}>{t('featureFlags.overrideByCountry')}</div>
                 <div style={{ display: 'grid', gap: '0.5rem' }}>

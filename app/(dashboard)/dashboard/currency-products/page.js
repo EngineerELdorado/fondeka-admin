@@ -59,6 +59,8 @@ const emptyDraft = {
   bankAccountAutoCreateEnabled: false,
   bankAccountOrderPriceAmount: '0',
   bankAccountOrderPriceCurrency: '',
+  bankAccountOrderCostAmount: '0',
+  bankAccountOrderCostCurrency: '',
   legacyBalanceBacked: false,
   baseCurrency: 'USD',
   rate: '',
@@ -125,6 +127,21 @@ const emptyCreateBankAccountDraft = {
   accountId: '',
   email: '',
   currency: ''
+};
+
+const emptyBankAccountOrderDraft = {
+  note: '',
+  externalReference: '',
+  providerReference: '',
+  holderName: '',
+  bankName: '',
+  internationalAccountNumber: '',
+  accountNumber: '',
+  swiftBic: '',
+  routingNumber: '',
+  bankAddress: '',
+  instructionsEn: '',
+  instructionsFr: ''
 };
 
 const Modal = ({ title, onClose, children }) => (
@@ -265,6 +282,20 @@ const getBankAccountEnabled = (row) => Boolean(row?.bankAccountEnabled);
 
 const getBankAccountApplicationEnabled = (row) => Boolean(row?.bankAccountApplicationEnabled);
 
+const getBankAccountOrderCurrency = (draft) => upperTrim(draft.bankAccountOrderPriceCurrency) || upperTrim(draft.currency);
+
+const getBankAccountCostCurrency = (draft) => upperTrim(draft.bankAccountOrderCostCurrency) || upperTrim(draft.currency);
+
+const formatEstimatedCommission = (draft) => {
+  const priceAmount = nullableNumber(draft.bankAccountOrderPriceAmount) ?? 0;
+  const costAmount = nullableNumber(draft.bankAccountOrderCostAmount) ?? 0;
+  const priceCurrency = getBankAccountOrderCurrency(draft);
+  const costCurrency = getBankAccountCostCurrency(draft);
+  if (!priceCurrency || !costCurrency) return '-';
+  if (priceCurrency !== costCurrency) return 'Select matching currencies to estimate here.';
+  return formatMoney(priceAmount - costAmount, priceCurrency);
+};
+
 const optionLabel = (item, fallbackPrefix) => {
   const name = item?.displayName || item?.name || item?.code || item?.currency || item?.reference;
   const suffix = item?.active === false ? ' (inactive)' : '';
@@ -293,6 +324,8 @@ export default function CurrencyProductsPage() {
   const [createBankAccountTarget, setCreateBankAccountTarget] = useState(null);
   const [createBankAccountDraft, setCreateBankAccountDraft] = useState(emptyCreateBankAccountDraft);
   const [createBankAccountResult, setCreateBankAccountResult] = useState(null);
+  const [completeBankAccountOrderDraft, setCompleteBankAccountOrderDraft] = useState(emptyBankAccountOrderDraft);
+  const [cancelBankAccountOrderNote, setCancelBankAccountOrderNote] = useState('');
   const [showPreview, setShowPreview] = useState(false);
   const [previewDraft, setPreviewDraft] = useState(emptyPreviewDraft);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -424,6 +457,7 @@ export default function CurrencyProductsPage() {
     const collectionMarginPercent = nullableNumber(draft.collectionMarginPercent);
     const payoutMarginPercent = nullableNumber(draft.payoutMarginPercent);
     const bankAccountOrderPriceAmount = nullableNumber(draft.bankAccountOrderPriceAmount);
+    const bankAccountOrderCostAmount = nullableNumber(draft.bankAccountOrderCostAmount);
     const countryCodes = normalizeCountryCodes(draft.countryCodes);
     const defaultCountryCodes = normalizeCountryCodes(draft.defaultCountryCodes);
     if (!currency) return 'Currency is required.';
@@ -433,6 +467,7 @@ export default function CurrencyProductsPage() {
     if (draft.collectionMarginPercent !== '' && (collectionMarginPercent === null || collectionMarginPercent < 0)) return 'Collection margin must be zero or a positive number.';
     if (draft.payoutMarginPercent !== '' && (payoutMarginPercent === null || payoutMarginPercent < 0)) return 'Payout margin must be zero or a positive number.';
     if (draft.bankAccountOrderPriceAmount !== '' && (bankAccountOrderPriceAmount === null || bankAccountOrderPriceAmount < 0)) return 'Bank account order price must be zero or a positive number.';
+    if (draft.bankAccountOrderCostAmount !== '' && (bankAccountOrderCostAmount === null || bankAccountOrderCostAmount < 0)) return 'Bank account order cost must be zero or a positive number.';
     if (!upperTrim(draft.rateProvider)) return 'Rate provider is required.';
     if (draft.rateFetchedAt && !toIsoOrNull(draft.rateFetchedAt)) return 'Rate fetched at must be a valid date and time.';
     if (defaultCountryCodes.some((code) => !countryCodes.includes(code))) return 'Default countries must also be included in country availability.';
@@ -452,7 +487,9 @@ export default function CurrencyProductsPage() {
       bankAccountApplicationEnabled: Boolean(draft.bankAccountApplicationEnabled),
       bankAccountAutoCreateEnabled: Boolean(draft.bankAccountAutoCreateEnabled),
       bankAccountOrderPriceAmount: nullableNumber(draft.bankAccountOrderPriceAmount) ?? 0,
-      bankAccountOrderPriceCurrency: upperTrim(draft.bankAccountOrderPriceCurrency) || upperTrim(draft.currency),
+      bankAccountOrderPriceCurrency: getBankAccountOrderCurrency(draft),
+      bankAccountOrderCostAmount: nullableNumber(draft.bankAccountOrderCostAmount) ?? 0,
+      bankAccountOrderCostCurrency: getBankAccountCostCurrency(draft),
       legacyBalanceBacked: Boolean(draft.legacyBalanceBacked),
       baseCurrency: upperTrim(draft.baseCurrency),
       rate: Number(draft.rate),
@@ -500,6 +537,8 @@ export default function CurrencyProductsPage() {
       bankAccountAutoCreateEnabled: Boolean(row.bankAccountAutoCreateEnabled),
       bankAccountOrderPriceAmount: row.bankAccountOrderPriceAmount ?? '0',
       bankAccountOrderPriceCurrency: row.bankAccountOrderPriceCurrency ?? row.currency ?? '',
+      bankAccountOrderCostAmount: row.bankAccountOrderCostAmount ?? '0',
+      bankAccountOrderCostCurrency: row.bankAccountOrderCostCurrency ?? row.currency ?? '',
       legacyBalanceBacked: row.legacyBalanceBacked ?? false,
       baseCurrency: row.baseCurrency ?? 'USD',
       rate: row.rate ?? '',
@@ -607,6 +646,8 @@ export default function CurrencyProductsPage() {
         bankAccountAutoCreateEnabled: Boolean(row.bankAccountAutoCreateEnabled),
         bankAccountOrderPriceAmount: row.bankAccountOrderPriceAmount ?? 0,
         bankAccountOrderPriceCurrency: upperTrim(row.bankAccountOrderPriceCurrency) || upperTrim(row.currency),
+        bankAccountOrderCostAmount: row.bankAccountOrderCostAmount ?? 0,
+        bankAccountOrderCostCurrency: upperTrim(row.bankAccountOrderCostCurrency) || upperTrim(row.currency),
         countryCodes: normalizeCountryCodes(row.countryCodes),
         defaultCountryCodes: normalizeCountryCodes(row.defaultCountryCodes)
       });
@@ -692,6 +733,8 @@ export default function CurrencyProductsPage() {
       currency: upperTrim(row.currency)
     });
     setCreateBankAccountResult(null);
+    setCompleteBankAccountOrderDraft(emptyBankAccountOrderDraft);
+    setCancelBankAccountOrderNote('');
     setError(null);
     setInfo(null);
   };
@@ -741,6 +784,56 @@ export default function CurrencyProductsPage() {
       }
     } catch (err) {
       setError(err.message || 'Failed to create bank account.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const compactPayload = (payload) => {
+    const next = {};
+    Object.entries(payload).forEach(([key, value]) => {
+      const normalized = String(value ?? '').trim();
+      if (normalized) next[key] = normalized;
+    });
+    return next;
+  };
+
+  const handleCompleteBankAccountOrder = async () => {
+    const transactionId = createBankAccountResult?.orderTransactionId;
+    if (!transactionId) {
+      setError('Order transaction ID is required.');
+      return;
+    }
+    setActionLoading(true);
+    setError(null);
+    setInfo(null);
+    try {
+      const result = await api.bankAccounts.completeOrder(transactionId, compactPayload(completeBankAccountOrderDraft));
+      setCreateBankAccountResult(result || { ...createBankAccountResult, status: 'ACTIVE', orderTransactionStatus: 'COMPLETED' });
+      setInfo('Bank account order completed.');
+    } catch (err) {
+      setError(err.message || `Failed to complete bank account order ${transactionId}.`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCancelBankAccountOrder = async () => {
+    const transactionId = createBankAccountResult?.orderTransactionId;
+    if (!transactionId) {
+      setError('Order transaction ID is required.');
+      return;
+    }
+    setActionLoading(true);
+    setError(null);
+    setInfo(null);
+    try {
+      const payload = compactPayload({ note: cancelBankAccountOrderNote });
+      const result = await api.bankAccounts.cancelOrder(transactionId, payload);
+      setCreateBankAccountResult(result || { ...createBankAccountResult, orderTransactionStatus: 'CANCELED' });
+      setInfo('Bank account order canceled.');
+    } catch (err) {
+      setError(err.message || `Failed to cancel bank account order ${transactionId}.`);
     } finally {
       setActionLoading(false);
     }
@@ -864,12 +957,6 @@ export default function CurrencyProductsPage() {
     { key: 'payoutMarginPercent', label: 'Payout margin', render: (row) => formatPercent(row.payoutMarginPercent) },
     { key: 'manualFxRate', label: 'Manual FX', render: (row) => formatBool(row.manualFxRate) },
     { key: 'walletEnabled', label: 'Wallet', render: (row) => formatBool(row.walletEnabled) },
-    { key: 'bankAccountStatus', label: 'Bank account status', render: (row) => {
-      if (getBankAccountEnabled(row)) return 'Bank account-ready';
-      if (getBankAccountApplicationEnabled(row)) return 'Application open';
-      return 'Coming soon';
-    } },
-    { key: 'bankAccountOrderPrice', label: 'Order price', render: (row) => formatMoney(row.bankAccountOrderPriceAmount ?? 0, row.bankAccountOrderPriceCurrency || row.currency) },
     { key: 'bankAccountEnabled', label: 'Bank account available', render: (row) => formatBool(getBankAccountEnabled(row)) },
     { key: 'bankAccountApplicationEnabled', label: 'Bank account application enabled', render: (row) => formatBool(getBankAccountApplicationEnabled(row)) },
     { key: 'bankAccountAutoCreateEnabled', label: 'Auto-create', render: (row) => formatBool(row.bankAccountAutoCreateEnabled) },
@@ -990,7 +1077,7 @@ export default function CurrencyProductsPage() {
         <input id="payoutMarginPercent" type="number" min="0" step="0.01" value={draft.payoutMarginPercent} onChange={(e) => setDraft((p) => ({ ...p, payoutMarginPercent: e.target.value }))} placeholder="0" />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="bankAccountOrderPriceAmount">Bank account order price</label>
+        <label htmlFor="bankAccountOrderPriceAmount">Customer order price</label>
         <input
           id="bankAccountOrderPriceAmount"
           type="number"
@@ -1002,6 +1089,19 @@ export default function CurrencyProductsPage() {
         />
       </div>
       {renderCurrencyInput('bankAccountOrderPriceCurrency', 'Order price currency', draft.bankAccountOrderPriceCurrency, (e) => setDraft((p) => ({ ...p, bankAccountOrderPriceCurrency: e.target.value.toUpperCase() })))}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="bankAccountOrderCostAmount">Internal provider cost</label>
+        <input
+          id="bankAccountOrderCostAmount"
+          type="number"
+          min="0"
+          step="0.01"
+          value={draft.bankAccountOrderCostAmount}
+          onChange={(e) => setDraft((p) => ({ ...p, bankAccountOrderCostAmount: e.target.value }))}
+          placeholder="0"
+        />
+      </div>
+      {renderCurrencyInput('bankAccountOrderCostCurrency', 'Cost currency', draft.bankAccountOrderCostCurrency, (e) => setDraft((p) => ({ ...p, bankAccountOrderCostCurrency: e.target.value.toUpperCase() })))}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="rateProvider">Rate provider</label>
         <input id="rateProvider" list="currencyProductRateProviderOptions" value={draft.rateProvider} onChange={(e) => setDraft((p) => ({ ...p, rateProvider: e.target.value.toUpperCase() }))} />
@@ -1033,6 +1133,9 @@ export default function CurrencyProductsPage() {
         </div>
         <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
           Order price is used only for ORDER_BANK_ACCOUNT. Leave currency empty to use the product currency.
+        </div>
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          Estimated commission = customer price - provider cost: <strong>{formatEstimatedCommission(draft)}</strong>. This is only an estimate in the currency product currency. The final transaction commission is computed by backend in the actual payment currency at order time.
         </div>
         {renderCheckbox('legacyBalanceBacked', 'Legacy balance backed', draft.legacyBalanceBacked, (e) => setDraft((p) => ({ ...p, legacyBalanceBacked: e.target.checked })))}
       </div>
@@ -1342,6 +1445,7 @@ export default function CurrencyProductsPage() {
               { label: 'Bank account application enabled', value: formatBool(getBankAccountApplicationEnabled(selected)) },
               { label: 'Auto-create bank account when eligible', value: formatBool(selected?.bankAccountAutoCreateEnabled) },
               { label: 'Bank account order price', value: formatMoney(selected?.bankAccountOrderPriceAmount ?? 0, selected?.bankAccountOrderPriceCurrency || selected?.currency) },
+              { label: 'Bank account order cost', value: formatMoney(selected?.bankAccountOrderCostAmount ?? 0, selected?.bankAccountOrderCostCurrency || selected?.currency) },
               { label: 'Legacy balance backed', value: formatBool(selected?.legacyBalanceBacked) },
               { label: 'Manual FX rate', value: formatBool(selected?.manualFxRate) },
               { label: 'Base currency', value: selected?.baseCurrency },
@@ -1451,12 +1555,72 @@ export default function CurrencyProductsPage() {
                   { label: 'Currency', value: createBankAccountResult.currency },
                   { label: 'Status', value: createBankAccountResult.status },
                   { label: 'Eligibility status', value: createBankAccountResult.eligibilityStatus },
+                  { label: 'Order transaction ID', value: createBankAccountResult.orderTransactionId },
+                  { label: 'Order transaction status', value: createBankAccountResult.orderTransactionStatus },
+                  { label: 'Payment amount', value: formatMoney(createBankAccountResult.paymentAmount, createBankAccountResult.paymentCurrency) },
+                  { label: 'Payment fees', value: formatMoney(createBankAccountResult.fees, createBankAccountResult.paymentCurrency) },
+                  { label: 'Total to pay', value: formatMoney(createBankAccountResult.totalToPay, createBankAccountResult.paymentCurrency) },
                   { label: 'Provider', value: createBankAccountResult.providerName },
                   { label: 'Provider reference', value: createBankAccountResult.providerReference },
                   { label: 'User owned', value: formatBool(createBankAccountResult.userOwned) },
                   { label: 'Default account', value: formatBool(createBankAccountResult.defaultAccount) }
                 ]}
               />
+            ) : null}
+            {createBankAccountResult?.orderTransactionId ? (
+              <details className="card" style={{ padding: '0.75rem' }}>
+                <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Manage linked order</summary>
+                <div style={{ display: 'grid', gap: '0.75rem', marginTop: '0.75rem' }}>
+                  <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                    Complete marks the bank account active and completes transaction {createBankAccountResult.orderTransactionId}. Cancel stops the linked order transaction.
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+                    {[
+                      ['note', 'Note'],
+                      ['externalReference', 'External reference'],
+                      ['providerReference', 'Provider reference'],
+                      ['holderName', 'Holder name'],
+                      ['bankName', 'Bank name'],
+                      ['internationalAccountNumber', 'International account number'],
+                      ['accountNumber', 'Account number'],
+                      ['swiftBic', 'SWIFT/BIC'],
+                      ['routingNumber', 'Routing number'],
+                      ['bankAddress', 'Bank address'],
+                      ['instructionsEn', 'Instructions EN'],
+                      ['instructionsFr', 'Instructions FR']
+                    ].map(([key, label]) => (
+                      <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        <label htmlFor={`completeBankAccountOrder-${key}`}>{label}</label>
+                        <input
+                          id={`completeBankAccountOrder-${key}`}
+                          value={completeBankAccountOrderDraft[key]}
+                          onChange={(e) => setCompleteBankAccountOrderDraft((p) => ({ ...p, [key]: e.target.value }))}
+                          disabled={actionLoading}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <label htmlFor="cancelBankAccountOrderNote">Cancel note</label>
+                    <textarea
+                      id="cancelBankAccountOrderNote"
+                      rows={3}
+                      value={cancelBankAccountOrderNote}
+                      onChange={(e) => setCancelBankAccountOrderNote(e.target.value)}
+                      disabled={actionLoading}
+                      placeholder="Provider rejected the request"
+                    />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <button type="button" className="btn-danger" onClick={handleCancelBankAccountOrder} disabled={actionLoading}>
+                      {actionLoading ? 'Canceling...' : 'Cancel order'}
+                    </button>
+                    <button type="button" className="btn-success" onClick={handleCompleteBankAccountOrder} disabled={actionLoading}>
+                      {actionLoading ? 'Completing...' : 'Complete order'}
+                    </button>
+                  </div>
+                </div>
+              </details>
             ) : null}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
               <button type="button" onClick={() => setCreateBankAccountTarget(null)} className="btn-neutral" disabled={actionLoading}>Close</button>

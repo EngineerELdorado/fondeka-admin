@@ -40,6 +40,7 @@ const navItems = [
   // Other menus
   { href: '/dashboard/trusted-devices', labelKey: 'layout.nav.trustedDevices' },
   { href: '/dashboard/transactions', labelKey: 'layout.nav.transactions' },
+  { href: '/dashboard/bank-account-orders', labelKey: 'layout.nav.bankAccountOrders' },
   { href: '/dashboard/bank-deposit-proofs', labelKey: 'layout.nav.bankDepositProofs' },
   { href: '/dashboard/provider-fx-policies', labelKey: 'layout.nav.providerFxPolicies' },
   { href: '/dashboard/estimated-processing-times', labelKey: 'layout.nav.estimatedProcessingTimes' },
@@ -47,7 +48,9 @@ const navItems = [
   { href: '/dashboard/outbox', labelKey: 'layout.nav.outbox' },
   { href: '/dashboard/liquibase/changelogs', labelKey: 'layout.nav.liquibaseChangelogs' },
   { href: '/dashboard/kycs', labelKey: 'layout.nav.kycs' },
+  { href: '/dashboard/kyc-document-types', labelKey: 'layout.nav.kycDocumentTypes' },
   { href: '/dashboard/enhanced-kyc-verifications', labelKey: 'layout.nav.enhancedKycVerifications' },
+  { href: '/dashboard/enhanced-kyc-requirements', labelKey: 'layout.nav.enhancedKycRequirements' },
   { href: '/dashboard/kyc-caps', labelKey: 'layout.nav.kycCaps' },
   { href: '/dashboard/kyc-default-levels', labelKey: 'layout.nav.kycDefaults' },
   { href: '/dashboard/feature-flags', labelKey: 'layout.nav.featureFlags' },

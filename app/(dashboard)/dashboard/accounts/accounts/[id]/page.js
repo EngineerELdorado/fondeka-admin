@@ -8,6 +8,34 @@ import { useToast } from '@/contexts/ToastContext';
 import COUNTRIES from '@/data/countries';
 
 const notificationAnnouncementSeverityOptions = ['INFO', 'WARNING', 'CRITICAL'];
+const enhancedKycRequirementCodeOptions = [
+  'PROOF_OF_ADDRESS',
+  'SOURCE_OF_FUNDS',
+  'ID_DOCUMENT_FRONT',
+  'ID_DOCUMENT_BACK',
+  'SELFIE',
+  'POLICE_RECORD',
+  'BUSINESS_PERMIT',
+  'TAX_CERTIFICATE',
+  'BANK_STATEMENT',
+  'PAYSLIP'
+];
+const emptyEnhancedKycRequirementDraft = {
+  code: 'POLICE_RECORD',
+  titleEn: 'Police record',
+  titleFr: 'Casier judiciaire',
+  descriptionEn: 'Upload a recent police record or certificate of good conduct.',
+  descriptionFr: 'Ajoutez un casier judiciaire recent ou certificat de bonne conduite.',
+  required: true,
+  groupCode: '',
+  groupTitleEn: '',
+  groupTitleFr: '',
+  minRequiredInGroup: '',
+  supportedFormats: 'jpg, jpeg, png, pdf',
+  supportedContentTypes: 'image/jpeg, image/png, application/pdf',
+  allowedSources: 'GALLERY, FILES, CAMERA',
+  rank: '10'
+};
 const emptyNotificationAnnouncement = {
   enabled: false,
   link: '',
@@ -99,6 +127,51 @@ const accountEmailValue = (account) => {
     account?.username
   ];
   return String(candidates.find((value) => typeof value === 'string' && value.includes('@')) || '').trim();
+};
+
+const PHONE_VERIFICATION_REQUIRED_FEATURE_FLAG_KEY = 'account.phone_verification.required';
+const ENHANCED_KYC_VERIFICATION_REQUIRED_FEATURE_FLAG_KEY = 'account.enhanced_kyc_verification.required';
+
+const featureFlagOverrideAccountId = (entry) => entry?.accountId ?? entry?.account_id ?? entry?.account?.id ?? null;
+const featureFlagOverrideEmail = (entry) => String(entry?.email ?? entry?.accountEmail ?? entry?.userEmail ?? entry?.account?.email ?? '').trim().toLowerCase();
+const featureFlagOverrideTarget = (entry, accountIdValue, emailValue) => {
+  const accountIdMatch = String(featureFlagOverrideAccountId(entry) ?? '') === String(accountIdValue ?? '');
+  const normalizedEmail = String(emailValue || '').trim().toLowerCase();
+  const entryEmail = featureFlagOverrideEmail(entry);
+  if (accountIdMatch) return 'ACCOUNT';
+  if (normalizedEmail && entryEmail === normalizedEmail) return 'EMAIL';
+  return null;
+};
+const splitCsvList = (value) =>
+  String(value || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+const buildEnhancedKycRequirementPayload = (draft, accountIdValue) => {
+  const groupCode = String(draft.groupCode || '').trim().toUpperCase();
+  const minRequiredInGroup = String(draft.minRequiredInGroup || '').trim();
+  return {
+    purpose: 'ACCOUNT_FORCE',
+    accountId: Number(accountIdValue),
+    countryCode: null,
+    email: null,
+    code: String(draft.code || '').trim().toUpperCase(),
+    titleEn: String(draft.titleEn || '').trim(),
+    titleFr: String(draft.titleFr || '').trim(),
+    descriptionEn: String(draft.descriptionEn || '').trim(),
+    descriptionFr: String(draft.descriptionFr || '').trim(),
+    required: Boolean(draft.required),
+    groupCode: groupCode || null,
+    groupTitleEn: String(draft.groupTitleEn || '').trim() || null,
+    groupTitleFr: String(draft.groupTitleFr || '').trim() || null,
+    minRequiredInGroup: minRequiredInGroup ? Number(minRequiredInGroup) : null,
+    supportedFormats: splitCsvList(draft.supportedFormats).map((item) => item.toLowerCase()),
+    supportedContentTypes: splitCsvList(draft.supportedContentTypes),
+    allowedSources: splitCsvList(draft.allowedSources).map((item) => item.toUpperCase()),
+    active: true,
+    rank: Number(draft.rank || 0)
+  };
 };
 
 const MultiSelect = ({ label, options, values, onChange, helperText }) => (
@@ -646,6 +719,20 @@ const [trustedDeviceSaving, setTrustedDeviceSaving] = useState(false);
   const [phoneSaving, setPhoneSaving] = useState(false);
   const [phoneError, setPhoneError] = useState(null);
   const [phoneInfo, setPhoneInfo] = useState(null);
+  const [phoneVerificationOverride, setPhoneVerificationOverride] = useState(null);
+  const [phoneVerificationLoading, setPhoneVerificationLoading] = useState(false);
+  const [phoneVerificationSaving, setPhoneVerificationSaving] = useState(false);
+  const [phoneVerificationError, setPhoneVerificationError] = useState(null);
+  const [phoneVerificationInfo, setPhoneVerificationInfo] = useState(null);
+  const [enhancedKycVerificationOverride, setEnhancedKycVerificationOverride] = useState(null);
+  const [enhancedKycVerificationLoading, setEnhancedKycVerificationLoading] = useState(false);
+  const [enhancedKycVerificationSaving, setEnhancedKycVerificationSaving] = useState(false);
+  const [enhancedKycVerificationError, setEnhancedKycVerificationError] = useState(null);
+  const [enhancedKycVerificationInfo, setEnhancedKycVerificationInfo] = useState(null);
+  const [showEnhancedKycRequirementForm, setShowEnhancedKycRequirementForm] = useState(false);
+  const [enhancedKycRequirementDraft, setEnhancedKycRequirementDraft] = useState(emptyEnhancedKycRequirementDraft);
+  const [enhancedKycRequirementSaving, setEnhancedKycRequirementSaving] = useState(false);
+  const [enhancedKycRequirementError, setEnhancedKycRequirementError] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [notifications, setNotifications] = useState([]);
 const [notificationsLoading, setNotificationsLoading] = useState(false);
@@ -953,6 +1040,8 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       await loadLoanRates(targetId);
       await loadCryptoRates(targetId);
       await loadCryptoLimits(targetId);
+      await loadPhoneVerificationOverride(targetId, acc);
+      await loadEnhancedKycVerificationOverride(targetId, acc);
     } catch (err) {
       setError(err.message || 'Failed to load account');
       pushToast({ tone: 'error', message: err.message || 'Failed to load account' });
@@ -1157,6 +1246,66 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     } catch {
       setDepositPromptFlagReference(null);
       setDepositPromptFlagAccountOverride(null);
+    }
+  };
+
+  const loadPhoneVerificationOverride = async (accountIdValue = resolvedAccountId, sourceAccount = account) => {
+    if (accountIdValue === null || accountIdValue === undefined) {
+      setPhoneVerificationOverride(null);
+      return;
+    }
+    setPhoneVerificationLoading(true);
+    setPhoneVerificationError(null);
+    try {
+      const res = await api.featureFlags.listOverrides(PHONE_VERIFICATION_REQUIRED_FEATURE_FLAG_KEY);
+      const overrides = Array.isArray(res) ? res : res?.content || res?.overrides || [];
+      const emailValue = accountEmailValue(sourceAccount);
+      const matching = overrides.find((entry) => featureFlagOverrideTarget(entry, accountIdValue, emailValue));
+      const targetType = matching ? featureFlagOverrideTarget(matching, accountIdValue, emailValue) : null;
+      setPhoneVerificationOverride(
+        matching
+          ? {
+              ...matching,
+              enabled: Boolean(matching.enabled),
+              targetType
+            }
+          : null
+      );
+    } catch (err) {
+      setPhoneVerificationOverride(null);
+      setPhoneVerificationError(err.message || 'Failed to load phone verification requirement');
+    } finally {
+      setPhoneVerificationLoading(false);
+    }
+  };
+
+  const loadEnhancedKycVerificationOverride = async (accountIdValue = resolvedAccountId, sourceAccount = account) => {
+    if (accountIdValue === null || accountIdValue === undefined) {
+      setEnhancedKycVerificationOverride(null);
+      return;
+    }
+    setEnhancedKycVerificationLoading(true);
+    setEnhancedKycVerificationError(null);
+    try {
+      const res = await api.featureFlags.listOverrides(ENHANCED_KYC_VERIFICATION_REQUIRED_FEATURE_FLAG_KEY);
+      const overrides = Array.isArray(res) ? res : res?.content || res?.overrides || [];
+      const emailValue = accountEmailValue(sourceAccount);
+      const matching = overrides.find((entry) => featureFlagOverrideTarget(entry, accountIdValue, emailValue));
+      const targetType = matching ? featureFlagOverrideTarget(matching, accountIdValue, emailValue) : null;
+      setEnhancedKycVerificationOverride(
+        matching
+          ? {
+              ...matching,
+              enabled: Boolean(matching.enabled),
+              targetType
+            }
+          : null
+      );
+    } catch (err) {
+      setEnhancedKycVerificationOverride(null);
+      setEnhancedKycVerificationError(err.message || 'Failed to load enhanced verification requirement');
+    } finally {
+      setEnhancedKycVerificationLoading(false);
     }
   };
 
@@ -1812,6 +1961,171 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       pushToast({ tone: 'error', message });
     } finally {
       setPhoneSaving(false);
+    }
+  };
+
+  const requirePhoneVerificationForAccount = async () => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) {
+      pushToast({ tone: 'error', message: 'No account loaded' });
+      return;
+    }
+    setPhoneVerificationSaving(true);
+    setPhoneVerificationError(null);
+    setPhoneVerificationInfo(null);
+    try {
+      await api.featureFlags.upsertOverride(PHONE_VERIFICATION_REQUIRED_FEATURE_FLAG_KEY, resolvedAccountId, { enabled: true });
+      setPhoneVerificationInfo('Phone verification requirement enabled.');
+      pushToast({ tone: 'success', message: 'Phone verification requirement enabled.' });
+      await loadPhoneVerificationOverride(resolvedAccountId, account);
+    } catch (err) {
+      const message = err.message || 'Failed to require phone verification';
+      setPhoneVerificationError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setPhoneVerificationSaving(false);
+    }
+  };
+
+  const removePhoneVerificationRequirement = async () => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) {
+      pushToast({ tone: 'error', message: 'No account loaded' });
+      return;
+    }
+    const targetType = phoneVerificationOverride?.targetType;
+    const emailValue = accountEmailValue(account);
+    setPhoneVerificationSaving(true);
+    setPhoneVerificationError(null);
+    setPhoneVerificationInfo(null);
+    try {
+      if (targetType === 'EMAIL' && emailValue) {
+        await api.featureFlags.removeOverrideByEmail(PHONE_VERIFICATION_REQUIRED_FEATURE_FLAG_KEY, emailValue);
+      } else {
+        await api.featureFlags.removeOverride(PHONE_VERIFICATION_REQUIRED_FEATURE_FLAG_KEY, resolvedAccountId);
+      }
+      setPhoneVerificationOverride(null);
+      setPhoneVerificationInfo('Phone verification requirement removed.');
+      pushToast({ tone: 'success', message: 'Phone verification requirement removed.' });
+    } catch (err) {
+      const message = err.message || 'Failed to remove phone verification requirement';
+      setPhoneVerificationError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setPhoneVerificationSaving(false);
+    }
+  };
+
+  const requireEnhancedKycVerificationForAccount = async () => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) {
+      pushToast({ tone: 'error', message: 'No account loaded' });
+      return;
+    }
+    setEnhancedKycVerificationSaving(true);
+    setEnhancedKycVerificationError(null);
+    setEnhancedKycVerificationInfo(null);
+    try {
+      await api.featureFlags.upsertOverride(ENHANCED_KYC_VERIFICATION_REQUIRED_FEATURE_FLAG_KEY, resolvedAccountId, { enabled: true });
+      setEnhancedKycVerificationOverride({
+        accountId: resolvedAccountId,
+        enabled: true,
+        targetType: 'ACCOUNT'
+      });
+      setEnhancedKycVerificationInfo('Enhanced verification requirement enabled.');
+      pushToast({ tone: 'success', message: 'Enhanced verification requirement enabled.' });
+    } catch (err) {
+      const message = err.message || 'Failed to require enhanced verification';
+      setEnhancedKycVerificationError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setEnhancedKycVerificationSaving(false);
+    }
+  };
+
+  const removeEnhancedKycVerificationRequirement = async () => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) {
+      pushToast({ tone: 'error', message: 'No account loaded' });
+      return;
+    }
+    const targetType = enhancedKycVerificationOverride?.targetType;
+    const emailValue = accountEmailValue(account);
+    setEnhancedKycVerificationSaving(true);
+    setEnhancedKycVerificationError(null);
+    setEnhancedKycVerificationInfo(null);
+    try {
+      if (targetType === 'EMAIL' && emailValue) {
+        await api.featureFlags.removeOverrideByEmail(ENHANCED_KYC_VERIFICATION_REQUIRED_FEATURE_FLAG_KEY, emailValue);
+      } else {
+        await api.featureFlags.removeOverride(ENHANCED_KYC_VERIFICATION_REQUIRED_FEATURE_FLAG_KEY, resolvedAccountId);
+      }
+      setEnhancedKycVerificationOverride(null);
+      setEnhancedKycVerificationInfo('Enhanced verification requirement removed.');
+      pushToast({ tone: 'success', message: 'Enhanced verification requirement removed.' });
+    } catch (err) {
+      const message = err.message || 'Failed to remove enhanced verification requirement';
+      setEnhancedKycVerificationError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setEnhancedKycVerificationSaving(false);
+    }
+  };
+
+  const openEnhancedKycRequirementForm = () => {
+    setEnhancedKycRequirementDraft(emptyEnhancedKycRequirementDraft);
+    setEnhancedKycRequirementError(null);
+    setShowEnhancedKycRequirementForm(true);
+  };
+
+  const updateEnhancedKycRequirementDraft = (field, value) => {
+    setEnhancedKycRequirementDraft((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const requestEnhancedKycDocumentForAccount = async () => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) {
+      setEnhancedKycRequirementError('No account loaded.');
+      return;
+    }
+    const payload = buildEnhancedKycRequirementPayload(enhancedKycRequirementDraft, resolvedAccountId);
+    if (!payload.code) {
+      setEnhancedKycRequirementError('Document code is required.');
+      return;
+    }
+    if (!payload.titleEn || !payload.titleFr) {
+      setEnhancedKycRequirementError('English and French titles are required.');
+      return;
+    }
+    if (!Number.isFinite(payload.rank)) {
+      setEnhancedKycRequirementError('Rank must be a number.');
+      return;
+    }
+    if (payload.minRequiredInGroup !== null && (!Number.isInteger(payload.minRequiredInGroup) || payload.minRequiredInGroup <= 0)) {
+      setEnhancedKycRequirementError('Min required in group must be a positive integer.');
+      return;
+    }
+    if (payload.minRequiredInGroup !== null && !payload.groupCode) {
+      setEnhancedKycRequirementError('Group code is required when min required in group is set.');
+      return;
+    }
+
+    setEnhancedKycRequirementSaving(true);
+    setEnhancedKycRequirementError(null);
+    setEnhancedKycVerificationError(null);
+    setEnhancedKycVerificationInfo(null);
+    try {
+      await api.enhancedKycDocumentRequirements.create(payload);
+      await api.featureFlags.upsertOverride(ENHANCED_KYC_VERIFICATION_REQUIRED_FEATURE_FLAG_KEY, resolvedAccountId, { enabled: true });
+      setEnhancedKycVerificationOverride({
+        accountId: resolvedAccountId,
+        enabled: true,
+        targetType: 'ACCOUNT'
+      });
+      setEnhancedKycVerificationInfo(`Requested ${payload.code} and enabled enhanced verification.`);
+      pushToast({ tone: 'success', message: `Requested ${payload.code} from account.` });
+      setShowEnhancedKycRequirementForm(false);
+    } catch (err) {
+      const message = err.message || 'Failed to request enhanced KYC document.';
+      setEnhancedKycRequirementError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setEnhancedKycRequirementSaving(false);
     }
   };
 
@@ -3555,6 +3869,110 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           >
             {phoneSaving ? 'Saving…' : 'Update phone'}
           </button>
+        </div>
+
+        <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+              <div style={{ fontWeight: 800 }}>Phone verification requirement</div>
+              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                {phoneVerificationLoading
+                  ? 'Checking requirement…'
+                  : phoneVerificationOverride?.enabled
+                    ? `Required for this account${phoneVerificationOverride.targetType === 'EMAIL' ? ' by email override' : ''}.`
+                    : 'Not required by account override.'}
+              </div>
+            </div>
+            <button
+              type="button"
+              className="btn-neutral btn-sm"
+              onClick={() => loadPhoneVerificationOverride(resolvedAccountId, accountView)}
+              disabled={phoneVerificationLoading || resolvedAccountId === null || resolvedAccountId === undefined}
+            >
+              {phoneVerificationLoading ? 'Refreshing…' : 'Refresh'}
+            </button>
+          </div>
+
+          {(phoneVerificationError || phoneVerificationInfo) && (
+            <div style={{ marginTop: '0.5rem', color: phoneVerificationError ? '#b91c1c' : '#15803d', fontWeight: 700 }}>
+              {phoneVerificationError || phoneVerificationInfo}
+            </div>
+          )}
+
+          <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn-primary btn-sm"
+              onClick={requirePhoneVerificationForAccount}
+              disabled={phoneVerificationSaving || phoneVerificationLoading || resolvedAccountId === null || resolvedAccountId === undefined || phoneVerificationOverride?.enabled}
+            >
+              {phoneVerificationSaving ? 'Saving…' : 'Require phone verification'}
+            </button>
+            <button
+              type="button"
+              className="btn-danger btn-sm"
+              onClick={removePhoneVerificationRequirement}
+              disabled={phoneVerificationSaving || phoneVerificationLoading || resolvedAccountId === null || resolvedAccountId === undefined || !phoneVerificationOverride?.enabled}
+            >
+              {phoneVerificationSaving ? 'Saving…' : 'Remove phone verification requirement'}
+            </button>
+          </div>
+        </div>
+
+        <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+              <div style={{ fontWeight: 800 }}>Enhanced verification requirement</div>
+              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                {enhancedKycVerificationLoading
+                  ? 'Checking requirement…'
+                  : enhancedKycVerificationOverride?.enabled
+                    ? `Required for this account${enhancedKycVerificationOverride.targetType === 'EMAIL' ? ' by email override' : ''}.`
+                    : 'Not required by account override.'}
+              </div>
+            </div>
+            <button
+              type="button"
+              className="btn-neutral btn-sm"
+              onClick={() => loadEnhancedKycVerificationOverride(resolvedAccountId, accountView)}
+              disabled={enhancedKycVerificationLoading || resolvedAccountId === null || resolvedAccountId === undefined}
+            >
+              {enhancedKycVerificationLoading ? 'Refreshing…' : 'Refresh'}
+            </button>
+          </div>
+
+          {(enhancedKycVerificationError || enhancedKycVerificationInfo) && (
+            <div style={{ marginTop: '0.5rem', color: enhancedKycVerificationError ? '#b91c1c' : '#15803d', fontWeight: 700 }}>
+              {enhancedKycVerificationError || enhancedKycVerificationInfo}
+            </div>
+          )}
+
+          <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn-neutral btn-sm"
+              onClick={openEnhancedKycRequirementForm}
+              disabled={enhancedKycRequirementSaving || resolvedAccountId === null || resolvedAccountId === undefined}
+            >
+              Request document
+            </button>
+            <button
+              type="button"
+              className="btn-primary btn-sm"
+              onClick={requireEnhancedKycVerificationForAccount}
+              disabled={enhancedKycVerificationSaving || resolvedAccountId === null || resolvedAccountId === undefined || enhancedKycVerificationOverride?.enabled}
+            >
+              {enhancedKycVerificationSaving ? 'Saving…' : 'Require enhanced verification'}
+            </button>
+            <button
+              type="button"
+              className="btn-danger btn-sm"
+              onClick={removeEnhancedKycVerificationRequirement}
+              disabled={enhancedKycVerificationSaving || enhancedKycVerificationLoading || resolvedAccountId === null || resolvedAccountId === undefined || !enhancedKycVerificationOverride?.enabled}
+            >
+              {enhancedKycVerificationSaving ? 'Saving…' : 'Remove enhanced verification requirement'}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -6056,6 +6474,118 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               </button>
               <button type="button" className="btn-danger" onClick={submitBlacklist} disabled={blacklistLoading}>
                 {blacklistLoading ? 'Blacklisting…' : 'Confirm blacklist'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showEnhancedKycRequirementForm && (
+        <Modal title="Request enhanced KYC document" onClose={() => (!enhancedKycRequirementSaving ? setShowEnhancedKycRequirementForm(false) : null)}>
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Creates an account-specific ACCOUNT_FORCE requirement for account <strong>#{resolvedAccountId ?? '—'}</strong> and enables enhanced verification for this customer.
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+              <label style={{ display: 'grid', gap: '0.25rem' }}>
+                <span>Document code</span>
+                <select
+                  value={enhancedKycRequirementCodeOptions.includes(enhancedKycRequirementDraft.code) ? enhancedKycRequirementDraft.code : '__CUSTOM__'}
+                  onChange={(e) => updateEnhancedKycRequirementDraft('code', e.target.value === '__CUSTOM__' ? '' : e.target.value)}
+                  disabled={enhancedKycRequirementSaving}
+                >
+                  {enhancedKycRequirementCodeOptions.map((code) => <option key={code} value={code}>{code}</option>)}
+                  <option value="__CUSTOM__">Custom code</option>
+                </select>
+                {!enhancedKycRequirementCodeOptions.includes(enhancedKycRequirementDraft.code) ? (
+                  <input
+                    value={enhancedKycRequirementDraft.code}
+                    onChange={(e) => updateEnhancedKycRequirementDraft('code', e.target.value)}
+                    placeholder="CUSTOM_DOCUMENT_CODE"
+                    disabled={enhancedKycRequirementSaving}
+                  />
+                ) : null}
+              </label>
+              <label style={{ display: 'grid', gap: '0.25rem' }}>
+                <span>Rank</span>
+                <input
+                  type="number"
+                  value={enhancedKycRequirementDraft.rank}
+                  onChange={(e) => updateEnhancedKycRequirementDraft('rank', e.target.value)}
+                  disabled={enhancedKycRequirementSaving}
+                />
+              </label>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+              <label style={{ display: 'grid', gap: '0.25rem' }}>
+                <span>Title EN</span>
+                <input value={enhancedKycRequirementDraft.titleEn} onChange={(e) => updateEnhancedKycRequirementDraft('titleEn', e.target.value)} disabled={enhancedKycRequirementSaving} />
+              </label>
+              <label style={{ display: 'grid', gap: '0.25rem' }}>
+                <span>Title FR</span>
+                <input value={enhancedKycRequirementDraft.titleFr} onChange={(e) => updateEnhancedKycRequirementDraft('titleFr', e.target.value)} disabled={enhancedKycRequirementSaving} />
+              </label>
+            </div>
+
+            <label style={{ display: 'grid', gap: '0.25rem' }}>
+              <span>Description EN</span>
+              <textarea rows={3} value={enhancedKycRequirementDraft.descriptionEn} onChange={(e) => updateEnhancedKycRequirementDraft('descriptionEn', e.target.value)} disabled={enhancedKycRequirementSaving} />
+            </label>
+            <label style={{ display: 'grid', gap: '0.25rem' }}>
+              <span>Description FR</span>
+              <textarea rows={3} value={enhancedKycRequirementDraft.descriptionFr} onChange={(e) => updateEnhancedKycRequirementDraft('descriptionFr', e.target.value)} disabled={enhancedKycRequirementSaving} />
+            </label>
+
+            <details className="card" style={{ padding: '0.75rem' }}>
+              <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Alternative group and upload options</summary>
+              <div style={{ marginTop: '0.75rem', display: 'grid', gap: '0.75rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+                  <label style={{ display: 'grid', gap: '0.25rem' }}>
+                    <span>Group code</span>
+                    <input value={enhancedKycRequirementDraft.groupCode} onChange={(e) => updateEnhancedKycRequirementDraft('groupCode', e.target.value)} placeholder="SOURCE_OF_FUNDS_EXTRA" disabled={enhancedKycRequirementSaving} />
+                  </label>
+                  <label style={{ display: 'grid', gap: '0.25rem' }}>
+                    <span>Group title EN</span>
+                    <input value={enhancedKycRequirementDraft.groupTitleEn} onChange={(e) => updateEnhancedKycRequirementDraft('groupTitleEn', e.target.value)} disabled={enhancedKycRequirementSaving} />
+                  </label>
+                  <label style={{ display: 'grid', gap: '0.25rem' }}>
+                    <span>Group title FR</span>
+                    <input value={enhancedKycRequirementDraft.groupTitleFr} onChange={(e) => updateEnhancedKycRequirementDraft('groupTitleFr', e.target.value)} disabled={enhancedKycRequirementSaving} />
+                  </label>
+                  <label style={{ display: 'grid', gap: '0.25rem' }}>
+                    <span>Min required in group</span>
+                    <input type="number" min="1" value={enhancedKycRequirementDraft.minRequiredInGroup} onChange={(e) => updateEnhancedKycRequirementDraft('minRequiredInGroup', e.target.value)} disabled={enhancedKycRequirementSaving} />
+                  </label>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+                  <label style={{ display: 'grid', gap: '0.25rem' }}>
+                    <span>Supported formats</span>
+                    <input value={enhancedKycRequirementDraft.supportedFormats} onChange={(e) => updateEnhancedKycRequirementDraft('supportedFormats', e.target.value)} disabled={enhancedKycRequirementSaving} />
+                  </label>
+                  <label style={{ display: 'grid', gap: '0.25rem' }}>
+                    <span>Content types</span>
+                    <input value={enhancedKycRequirementDraft.supportedContentTypes} onChange={(e) => updateEnhancedKycRequirementDraft('supportedContentTypes', e.target.value)} disabled={enhancedKycRequirementSaving} />
+                  </label>
+                  <label style={{ display: 'grid', gap: '0.25rem' }}>
+                    <span>Allowed sources</span>
+                    <input value={enhancedKycRequirementDraft.allowedSources} onChange={(e) => updateEnhancedKycRequirementDraft('allowedSources', e.target.value)} disabled={enhancedKycRequirementSaving} />
+                  </label>
+                </div>
+              </div>
+            </details>
+
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', fontWeight: 700 }}>
+              <input type="checkbox" checked={enhancedKycRequirementDraft.required} onChange={(e) => updateEnhancedKycRequirementDraft('required', e.target.checked)} disabled={enhancedKycRequirementSaving} />
+              Required
+            </label>
+            {enhancedKycRequirementError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{enhancedKycRequirementError}</div>}
+            <div className="modal-actions">
+              <button type="button" className="btn-neutral" onClick={() => setShowEnhancedKycRequirementForm(false)} disabled={enhancedKycRequirementSaving}>
+                Cancel
+              </button>
+              <button type="button" className="btn-primary" onClick={requestEnhancedKycDocumentForAccount} disabled={enhancedKycRequirementSaving}>
+                {enhancedKycRequirementSaving ? 'Requesting…' : 'Request document'}
               </button>
             </div>
           </div>

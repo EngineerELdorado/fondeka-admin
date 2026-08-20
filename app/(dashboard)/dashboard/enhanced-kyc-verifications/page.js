@@ -83,9 +83,9 @@ const StatusBadge = ({ value }) => {
   );
 };
 
-const Modal = ({ title, onClose, children }) => (
+const Modal = ({ title, onClose, children, surfaceStyle = null }) => (
   <div className="modal-backdrop">
-    <div className="modal-surface">
+    <div className="modal-surface" style={surfaceStyle || undefined}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
         <div style={{ fontWeight: 800 }}>{title}</div>
         <button type="button" onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: '18px', cursor: 'pointer', color: 'var(--text)' }}>
@@ -108,13 +108,27 @@ const DetailGrid = ({ rows }) => (
   </div>
 );
 
-const DocumentLink = ({ label, value, onOpen }) => {
+const DocumentLink = ({ label, value, contentType, onOpen }) => {
   if (!value) return null;
   return (
-    <button type="button" className="btn-neutral btn-sm" onClick={() => onOpen({ label, url: String(value) })}>
+    <button type="button" className="btn-neutral btn-sm" onClick={() => onOpen({ label, url: String(value), contentType })}>
       {label}
     </button>
   );
+};
+
+const isImageDocument = (url, contentType = '') => {
+  if (String(contentType || '').toLowerCase().startsWith('image/')) return true;
+  const clean = String(url || '').split('?')[0].toLowerCase();
+  return /\.(jpg|jpeg|png|gif|webp|bmp|heic|heif)$/.test(clean);
+};
+
+const formatDocumentLabel = (document) => {
+  const title = String(document?.title || '').trim();
+  const type = String(document?.type || document?.code || '').trim();
+  const fileName = String(document?.fileName || '').trim();
+  const base = title || type || fileName || 'Document';
+  return document?.required === false ? `${base} (optional)` : base;
 };
 
 export default function EnhancedKycVerificationsPage() {
@@ -353,6 +367,26 @@ export default function EnhancedKycVerificationsPage() {
   const docBack = field(selected, ['docBack', 'documentBack', 'idDocumentBackUrl', 'idBackUrl'], '');
   const selfie = field(selected, ['selfie', 'userSelfie', 'selfieUrl'], '');
   const selectedUserLabel = field(selected, ['userFullName', 'fullName', 'username', 'email', 'userEmail', 'accountReference', 'accountId'], '');
+  const submittedDocuments = useMemo(() => {
+    const dynamicDocuments = Array.isArray(selected?.documents)
+      ? selected.documents
+          .filter((document) => document?.url)
+          .map((document, index) => ({
+            key: document.key || document.type || document.code || document.url || index,
+            label: formatDocumentLabel(document),
+            url: document.url,
+            contentType: document.contentType
+          }))
+      : [];
+    if (dynamicDocuments.length) return dynamicDocuments;
+    return [
+      { key: 'proofOfAddress', label: 'Proof of address', url: proofOfAddress },
+      { key: 'sourceOfFunds', label: 'Source of funds', url: sourceOfFunds },
+      { key: 'docFront', label: 'ID front', url: docFront },
+      { key: 'docBack', label: 'ID back', url: docBack },
+      { key: 'selfie', label: 'Selfie', url: selfie }
+    ].filter((document) => document.url);
+  }, [selected?.documents, proofOfAddress, sourceOfFunds, docFront, docBack, selfie]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -444,12 +478,16 @@ export default function EnhancedKycVerificationsPage() {
             <div className="card" style={{ display: 'grid', gap: '0.5rem' }}>
               <div style={{ fontWeight: 800 }}>Submitted documents</div>
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <DocumentLink label="Proof of address" value={proofOfAddress} onOpen={setPreviewDocument} />
-                <DocumentLink label="Source of funds" value={sourceOfFunds} onOpen={setPreviewDocument} />
-                <DocumentLink label="ID front" value={docFront} onOpen={setPreviewDocument} />
-                <DocumentLink label="ID back" value={docBack} onOpen={setPreviewDocument} />
-                <DocumentLink label="Selfie" value={selfie} onOpen={setPreviewDocument} />
-                {!proofOfAddress && !sourceOfFunds && !docFront && !docBack && !selfie ? <span style={{ color: 'var(--muted)' }}>No document links in this response.</span> : null}
+                {submittedDocuments.map((document) => (
+                  <DocumentLink
+                    key={document.key}
+                    label={document.label}
+                    value={document.url}
+                    contentType={document.contentType}
+                    onOpen={setPreviewDocument}
+                  />
+                ))}
+                {submittedDocuments.length === 0 ? <span style={{ color: 'var(--muted)' }}>No document links in this response.</span> : null}
               </div>
             </div>
             <details className="card" style={{ padding: '0.75rem' }}>
@@ -623,14 +661,46 @@ export default function EnhancedKycVerificationsPage() {
       )}
 
       {previewDocument && (
-        <Modal title={`${previewDocument.label}${selectedUserLabel ? ` - ${selectedUserLabel}` : ''}`} onClose={() => setPreviewDocument(null)}>
+        <Modal
+          title={`${previewDocument.label}${selectedUserLabel ? ` - ${selectedUserLabel}` : ''}`}
+          onClose={() => setPreviewDocument(null)}
+          surfaceStyle={{ width: 'min(1100px, 96vw)', maxHeight: '92vh', overflow: 'hidden' }}
+        >
           <div style={{ display: 'grid', gap: '0.75rem' }}>
-            <div style={{ border: '1px solid var(--border)', borderRadius: '10px', overflow: 'hidden', background: '#fff' }}>
-              <iframe
-                src={previewDocument.url}
-                title={previewDocument.label}
-                style={{ width: '100%', height: '75vh', border: 'none', display: 'block' }}
-              />
+            <div
+              style={{
+                border: '1px solid var(--border)',
+                borderRadius: '10px',
+                overflow: 'auto',
+                background: '#fff',
+                maxHeight: 'calc(92vh - 150px)',
+                minHeight: '260px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              {isImageDocument(previewDocument.url, previewDocument.contentType) ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={previewDocument.url}
+                  alt={previewDocument.label}
+                  style={{
+                    display: 'block',
+                    maxWidth: '100%',
+                    maxHeight: 'calc(92vh - 152px)',
+                    width: 'auto',
+                    height: 'auto',
+                    objectFit: 'contain'
+                  }}
+                />
+              ) : (
+                <iframe
+                  src={previewDocument.url}
+                  title={previewDocument.label}
+                  style={{ width: '100%', height: 'calc(92vh - 152px)', minHeight: '420px', border: 'none', display: 'block' }}
+                />
+              )}
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <a href={previewDocument.url} target="_blank" rel="noreferrer" className="btn-neutral">
