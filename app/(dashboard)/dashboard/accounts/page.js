@@ -4,6 +4,7 @@ import Link from 'next/link';
 
 const sections = [
   { href: '/dashboard/accounts/accounts', title: 'Accounts', blurb: 'Search and review accounts, run AML check.' },
+  { href: '/dashboard/accounts/custom-fees', title: 'Accounts with Custom Fees', blurb: 'Find accounts that have per-account fee overrides and remove stale configs.' },
   { href: '/dashboard/fiat-wallets', title: 'Fiat Wallets', blurb: 'Search fiat wallet balances across accounts and currencies.' },
   { href: '/dashboard/accounts/balances', title: 'Account Balances', blurb: 'Manage balances per account.' },
   { href: '/dashboard/accounts/balance-activities', title: 'Fiat Wallet Activities', blurb: 'Read-only balance ledger for fiat wallets.' },

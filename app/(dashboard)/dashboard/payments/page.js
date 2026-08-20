@@ -7,6 +7,7 @@ const sections = [
   { href: '/dashboard/payments/payment-method-status-overrides', title: 'Method Status Overrides', blurb: 'Override payment method active state by account or email.' },
   { href: '/dashboard/payments/payment-providers', title: 'Payment Providers', blurb: 'Manage payment providers and ranking.' },
   { href: '/dashboard/payments/method-providers', title: 'Method ↔ Provider', blurb: 'Map payment methods to providers with rank, active state, routing context, and provider codes.' },
+  { href: '/dashboard/payments/provider-coverage', title: 'Provider Coverage Map', blurb: 'See which providers share or uniquely cover each payment method.' },
   { href: '/dashboard/payments/method-crypto-networks', title: 'Method ↔ Crypto Network', blurb: 'Map payment methods to crypto networks.' },
   { href: '/dashboard/payments/payment-method-action-configs', title: 'Method Action Configs', blurb: 'Rules that include/exclude payment methods per action/country.' },
   { href: '/dashboard/provider-fx-policies', title: 'Provider FX Policies', blurb: 'Control provider-specific FX conversion for bill and card provider submissions.' },

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
@@ -12,8 +12,27 @@ const emptyState = {
   displayName: '',
   price: '',
   currency: '',
-  ourPriceInUsd: ''
+  ourPriceInUsd: '',
+  active: true
 };
+
+const isActive = (row) => row?.active !== false;
+
+const ActiveBadge = ({ active }) => (
+  <span style={{
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '0.2rem 0.55rem',
+    borderRadius: '999px',
+    border: `1px solid ${active ? '#BBF7D0' : '#E5E7EB'}`,
+    background: active ? '#ECFDF3' : '#F3F4F6',
+    color: active ? '#166534' : '#6B7280',
+    fontSize: '12px',
+    fontWeight: 800
+  }}>
+    {active ? 'Active' : 'Inactive'}
+  </span>
+);
 
 const DetailGrid = ({ rows }) => (
   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
@@ -47,7 +66,8 @@ const toPayload = (state) => ({
   displayName: state.displayName,
   price: state.price === '' ? null : Number(state.price),
   currency: state.currency,
-  ourPriceInUsd: state.ourPriceInUsd === '' ? null : Number(state.ourPriceInUsd)
+  ourPriceInUsd: state.ourPriceInUsd === '' ? null : Number(state.ourPriceInUsd),
+  active: Boolean(state.active)
 });
 
 const Modal = ({ title, onClose, children }) => (
@@ -76,6 +96,7 @@ export default function BillOptionsPage() {
   const [draft, setDraft] = useState(emptyState);
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [activeFilter, setActiveFilter] = useState('all');
 
   const fetchRows = async () => {
     setLoading(true);
@@ -84,6 +105,7 @@ export default function BillOptionsPage() {
       const params = new URLSearchParams();
       params.set('page', String(page));
       params.set('size', String(size));
+      if (activeFilter !== 'all') params.set('active', activeFilter);
       const res = await api.billProductBillProviderOptions.list(params);
       const list = Array.isArray(res) ? res : res?.content || [];
       setRows(list || []);
@@ -96,7 +118,7 @@ export default function BillOptionsPage() {
 
   useEffect(() => {
     fetchRows();
-  }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [page, size, activeFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const loadMappings = async () => {
@@ -111,8 +133,18 @@ export default function BillOptionsPage() {
     loadMappings();
   }, []);
 
-  const columns = useMemo(() => [
+  const columns = [
     { key: 'id', label: 'ID' },
+    {
+      key: 'active',
+      label: 'Active',
+      render: (row) => (
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', fontWeight: 700 }}>
+          <input type="checkbox" checked={isActive(row)} onChange={() => toggleActive(row)} />
+          <ActiveBadge active={isActive(row)} />
+        </label>
+      )
+    },
     { key: 'name', label: 'Name' },
     { key: 'displayName', label: 'Display' },
     { key: 'codes', label: 'Codes', render: (row) => formatCodes(row) },
@@ -129,7 +161,7 @@ export default function BillOptionsPage() {
         </div>
       )
     }
-  ], []);
+  ];
 
   const openCreate = () => {
     setDraft(emptyState);
@@ -147,7 +179,8 @@ export default function BillOptionsPage() {
       displayName: row.displayName ?? '',
       price: row.price ?? '',
       currency: row.currency ?? '',
-      ourPriceInUsd: row.ourPriceInUsd ?? ''
+      ourPriceInUsd: row.ourPriceInUsd ?? '',
+      active: isActive(row)
     });
     setShowEdit(true);
     setInfo(null);
@@ -160,6 +193,21 @@ export default function BillOptionsPage() {
     setInfo(null);
     setError(null);
   };
+
+  async function toggleActive(row) {
+    if (!row?.id) return;
+    const nextActive = !isActive(row);
+    setError(null);
+    setInfo(null);
+    try {
+      await api.billProductBillProviderOptions.update(row.id, { ...toPayload(row), active: nextActive });
+      setInfo(`${nextActive ? 'Activated' : 'Deactivated'} option ${row.id}.`);
+      setSelected((prev) => (Number(prev?.id) === Number(row.id) ? { ...prev, active: nextActive } : prev));
+      fetchRows();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
 
   const handleCreate = async () => {
     setError(null);
@@ -244,6 +292,10 @@ export default function BillOptionsPage() {
         <label htmlFor="ourPriceInUsd">Our price (USD)</label>
         <input id="ourPriceInUsd" type="number" value={draft.ourPriceInUsd} onChange={(e) => setDraft((p) => ({ ...p, ourPriceInUsd: e.target.value }))} />
       </div>
+      <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+        <input type="checkbox" checked={Boolean(draft.active)} onChange={(e) => setDraft((p) => ({ ...p, active: e.target.checked }))} />
+        Active
+      </label>
     </div>
   );
 
@@ -268,6 +320,14 @@ export default function BillOptionsPage() {
           <label htmlFor="size">Size</label>
           <input id="size" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
         </div>
+        <div>
+          <label htmlFor="activeFilter">Active</label>
+          <select id="activeFilter" value={activeFilter} onChange={(e) => { setActiveFilter(e.target.value); setPage(0); }}>
+            <option value="all">All</option>
+            <option value="true">Active</option>
+            <option value="false">Inactive</option>
+          </select>
+        </div>
         <button type="button" onClick={fetchRows} disabled={loading} className="btn-primary">
           {loading ? 'Loading…' : 'Refresh'}
         </button>
@@ -279,7 +339,7 @@ export default function BillOptionsPage() {
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
-      <DataTable columns={columns} rows={rows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No options found" />
+      <DataTable columns={columns} rows={rows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No options found" rowStyle={(row) => (isActive(row) ? {} : { opacity: 0.62, background: '#F9FAFB' })} />
 
       {showCreate && (
         <Modal title="Add option" onClose={() => setShowCreate(false)}>
@@ -314,6 +374,15 @@ export default function BillOptionsPage() {
           <DetailGrid
             rows={[
               { label: 'ID', value: selected?.id },
+              {
+                label: 'Active',
+                value: (
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
+                    <input type="checkbox" checked={isActive(selected)} onChange={() => toggleActive(selected)} />
+                    <ActiveBadge active={isActive(selected)} />
+                  </label>
+                )
+              },
               { label: 'Name', value: selected?.name },
               { label: 'Display', value: selected?.displayName },
               { label: 'Prod/Prov ID', value: selected?.billProductBillProviderId },

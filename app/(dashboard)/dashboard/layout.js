@@ -9,11 +9,13 @@ import { useLocale } from '@/contexts/LocaleContext';
 const navItems = [
   { href: '/dashboard', labelKey: 'layout.nav.overview' },
   { href: '/dashboard/accounts/accounts', labelKey: 'layout.nav.accounts' },
+  { href: '/dashboard/accounts/custom-fees', labelKey: 'layout.nav.accountsCustomFees' },
   { href: '/dashboard/fiat-wallets', labelKey: 'layout.nav.fiatWallets' },
   { href: '/dashboard/wallet-currency-audit', labelKey: 'layout.nav.walletCurrencyAudit' },
   { href: '/dashboard/wallet-migrations/legacy-usd', labelKey: 'layout.nav.legacyUsdWalletMigration' },
   { href: '/dashboard/blacklist', labelKey: 'layout.nav.blacklist' },
   { href: '/dashboard/payments', labelKey: 'layout.nav.paymentMethods' },
+  { href: '/dashboard/payments/provider-coverage', labelKey: 'layout.nav.paymentProviderCoverage' },
   // Products cluster
   { href: '/dashboard/loans', labelKey: 'layout.nav.loansProducts' },
   { href: '/dashboard/savings', labelKey: 'layout.nav.savingsProducts' },
