@@ -11,8 +11,8 @@ const scopeTypeOptions = [
   { value: 'specific_route', label: 'Specific route' },
   { value: 'provider_fallback', label: 'Provider fallback' },
   { value: 'bill_provider_fallback', label: 'Bill provider fallback' },
-  { value: 'global_action_fallback', label: 'Global action fallback' },
-  { value: 'payment_method_type_action', label: 'Payment method type + action' },
+  { value: 'global_action_fallback', label: 'Global action/context fallback' },
+  { value: 'payment_method_type_action', label: 'Payment method type + action/context' },
   { value: 'payment_method_type_fallback', label: 'Pure payment method type fallback' },
   { value: 'global_default', label: 'Global default' }
 ];
@@ -21,6 +21,7 @@ const feeApplicationModeOptions = [
   { value: 'EXCLUSIVE', label: 'Sender pays fees (EXCLUSIVE)' },
   { value: 'INCLUSIVE', label: 'Recipient pays fees (INCLUSIVE)' }
 ];
+const feeContextOptions = ['COLLECTION', 'PAYOUT'];
 
 const actionOptions = [
   'BUY_CARD',
@@ -62,6 +63,7 @@ const actionOptions = [
 const initialFilters = {
   paymentMethodType: '',
   action: '',
+  feeContext: '',
   service: '',
   countryId: '',
   paymentMethodPaymentProviderId: '',
@@ -85,6 +87,7 @@ const emptyState = {
   service: '',
   action: '',
   customAction: '',
+  feeContext: '',
   overrideSpecificFees: false,
   providerFeePercentage: '',
   providerFlatFee: '',
@@ -109,13 +112,32 @@ const emptyPawapaySyncDraft = {
   feesJson: JSON.stringify([
     {
       paymentMethodName: 'MPESA_KENYA',
-      action: 'FUND_WALLET',
-      minAmount: 1001,
-      maxAmount: 1500.99,
+      action: null,
+      feeContext: 'COLLECTION',
+      minAmount: 101,
+      maxAmount: 500.99,
       amountRangeCurrency: 'KES',
       providerFeePercentage: 1,
-      providerFlatFee: 15,
-      providerFlatFeeCurrency: 'KES'
+      providerFlatFee: 5,
+      providerFlatFeeCurrency: 'KES',
+      ourFeePercentage: 2,
+      ourFlatFee: 0
+    },
+    {
+      paymentMethodName: 'TIGO_PESA_TANZANIA',
+      action: null,
+      feeContext: 'COLLECTION',
+      minAmount: 1000,
+      maxAmount: 2999.99,
+      amountRangeCurrency: 'TZS',
+      providerFeeConfigEnabled: false,
+      customerPaidProviderFeeAmount: 400,
+      customerPaidProviderFeeCurrency: 'TZS',
+      customerPaidProviderFeePercentage: 0,
+      customerPaidProviderFeeChargedBy: 'MOBILE_OPERATOR',
+      customerPaidProviderFeeIncludedInTotal: false,
+      customerPaidProviderFeeMessageEn: 'Your mobile money provider may charge an additional %s %s. This is charged by the provider and is not collected by Fondeka.',
+      customerPaidProviderFeeMessageFr: "Votre opérateur mobile money peut facturer %s %s supplémentaires. Ces frais sont facturés par l'opérateur et ne sont pas collectés par Fondeka."
     }
   ], null, 2)
 };
@@ -131,6 +153,19 @@ const formatAmountRange = (minAmount, maxAmount) => {
 
 const resolveAction = (state) => (state.action === '__custom' ? state.customAction : state.action);
 const isPaymentMethodTypeScope = (state) => state.scopeType === 'payment_method_type_action' || state.scopeType === 'payment_method_type_fallback';
+const normalizeFeeContext = (value) => {
+  const normalized = String(value || '').trim().toUpperCase();
+  return feeContextOptions.includes(normalized) ? normalized : '';
+};
+const normalizePawapayFeeRows = (fees) => fees.map((fee) => {
+  const actionValue = String(fee?.action || '').trim().toUpperCase();
+  const context = normalizeFeeContext(fee?.feeContext || actionValue);
+  return {
+    ...fee,
+    action: context ? null : (fee?.action ?? null),
+    feeContext: context || null
+  };
+});
 const normalizeOptionalIdForForm = (value) => {
   if (value === null || value === undefined || value === '') return '';
   const num = Number(value);
@@ -157,7 +192,8 @@ const toPayload = (state) => {
   if (paymentMethodTypeScope) {
     return {
       paymentMethodType: state.paymentMethodType || null,
-      ...(state.scopeType === 'payment_method_type_action' ? { action: resolveAction(state) } : {}),
+      ...(state.scopeType === 'payment_method_type_action' ? { action: resolveAction(state) || null } : {}),
+      feeContext: state.feeContext || null,
       ...fees
     };
   }
@@ -169,7 +205,8 @@ const toPayload = (state) => {
     billProductBillProviderId: state.billProductBillProviderId === '' ? null : Number(state.billProductBillProviderId),
     countryId: state.countryId === '' ? null : Number(state.countryId),
     service: state.service || null,
-    action: resolveAction(state),
+    action: resolveAction(state) || null,
+    feeContext: state.feeContext || null,
     fromCryptoProductId: state.fromCryptoProductId === '' ? null : Number(state.fromCryptoProductId),
     toCryptoProductId: state.toCryptoProductId === '' ? null : Number(state.toCryptoProductId),
     ...fees
@@ -239,7 +276,7 @@ const resolveScopeType = (row) => {
   if (row?.paymentMethodPaymentProviderId || row?.billProductBillProviderId || row?.fromCryptoProductId || row?.toCryptoProductId) return 'specific_route';
   if (row?.paymentProviderId) return 'provider_fallback';
   if (row?.billProviderId) return 'bill_provider_fallback';
-  if (row?.action || row?.service || row?.countryId) return 'global_action_fallback';
+  if (row?.action || row?.feeContext || row?.service || row?.countryId) return 'global_action_fallback';
   return 'global_default';
 };
 
@@ -298,6 +335,9 @@ export default function FeeConfigsPage() {
           break;
         case 'action':
           add(`Action: ${value}`, key);
+          break;
+        case 'feeContext':
+          add(`Context: ${value}`, key);
           break;
         case 'countryId':
           add(`Country ID: ${value}`, key);
@@ -449,7 +489,7 @@ export default function FeeConfigsPage() {
       return String(aVal).localeCompare(String(bVal));
     };
     if (arrangeBy === 'action') {
-      arr.sort((a, b) => compare(a.action, b.action));
+      arr.sort((a, b) => compare(a.action || a.feeContext, b.action || b.feeContext));
     } else if (arrangeBy === 'service') {
       arr.sort((a, b) => compare(a.service || 'ALL', b.service || 'ALL'));
     } else if (arrangeBy === 'country') {
@@ -538,6 +578,7 @@ export default function FeeConfigsPage() {
         render: (row) => row.service || 'ALL'
       },
       { key: 'action', label: 'Action' },
+      { key: 'feeContext', label: 'Fee context', render: (row) => row.feeContext || '—' },
       {
         key: 'country',
         label: 'Country',
@@ -658,6 +699,7 @@ export default function FeeConfigsPage() {
       service: row.service ?? '',
       action: actionChoice,
       customAction: actionChoice === '__custom' ? row.action || '' : '',
+      feeContext: row.feeContext || '',
       overrideSpecificFees: Boolean(row.overrideSpecificFees),
       providerFeePercentage: row.providerFeePercentage ?? '',
       providerFlatFee: row.providerFlatFee ?? '',
@@ -692,8 +734,14 @@ export default function FeeConfigsPage() {
     if (paymentMethodTypeScope && !paymentMethodTypeOptions.includes(normalizedPaymentMethodType)) {
       return 'Payment method type is required for payment method type fallback scope.';
     }
-    if (state.scopeType === 'payment_method_type_action' && !String(resolved || '').trim()) {
-      return 'Action is required for payment method type + action scope.';
+    if (state.scopeType === 'payment_method_type_action' && !String(resolved || '').trim() && !String(state.feeContext || '').trim()) {
+      return 'Action or fee context is required for payment method type + action/context scope.';
+    }
+    if (String(resolved || '').trim() && String(state.feeContext || '').trim()) {
+      return 'Choose either action or fee context, not both.';
+    }
+    if (state.feeContext && !feeContextOptions.includes(String(state.feeContext).toUpperCase())) {
+      return 'Fee context must be COLLECTION or PAYOUT.';
     }
     if (state.paymentProviderId !== '' && Number(state.paymentProviderId) < 0) return 'Payment provider must be non-negative.';
     if (state.billProviderId !== '' && Number(state.billProviderId) < 0) return 'Bill provider must be non-negative.';
@@ -722,6 +770,7 @@ export default function FeeConfigsPage() {
       return 'Amount range currency is required when amount range is set.';
     }
     const normalizedAction = state.scopeType === 'payment_method_type_fallback' ? '' : String(resolved || '').toUpperCase();
+    const normalizedFeeContext = String(state.feeContext || '').toUpperCase();
     const normalizedService = paymentMethodTypeScope ? '' : String(state.service || '').toUpperCase();
     const normalizedPaymentProvider = paymentMethodTypeScope || state.paymentProviderId === '' ? null : Number(state.paymentProviderId);
     const normalizedBillProvider = paymentMethodTypeScope || state.billProviderId === '' ? null : Number(state.billProviderId);
@@ -758,6 +807,8 @@ export default function FeeConfigsPage() {
       if (currentId && Number(row?.id) === Number(currentId)) return false;
       const rowAction = String(row?.action || '').toUpperCase();
       if (rowAction !== normalizedAction) return false;
+      const rowFeeContext = String(row?.feeContext || '').toUpperCase();
+      if (rowFeeContext !== normalizedFeeContext) return false;
       const rowPaymentMethodType = String(row?.paymentMethodType || '').toUpperCase();
       if (rowPaymentMethodType !== (paymentMethodTypeScope ? normalizedPaymentMethodType : '')) return false;
       const rowPaymentProvider = row?.paymentProviderId === null || row?.paymentProviderId === undefined ? null : Number(row.paymentProviderId);
@@ -883,10 +934,13 @@ export default function FeeConfigsPage() {
         defaultOurFlatFee,
         feeApplicationMode: pawapaySyncDraft.feeApplicationMode || 'EXCLUSIVE',
         replaceExistingRows: Boolean(pawapaySyncDraft.replaceExistingRows),
-        fees
+        fees: normalizePawapayFeeRows(fees)
       });
       setPawapaySyncResult(result || {});
-      setInfo(`PawaPay sync complete. Created ${result?.created ?? 0}, updated ${result?.updated ?? 0}, removed ${result?.removed ?? 0}.`);
+      setInfo(
+        `PawaPay sync complete. Fee configs: created ${result?.created ?? 0}, updated ${result?.updated ?? 0}, removed ${result?.removed ?? 0}. ` +
+        `Customer-paid charges: created ${result?.customerPaidCreated ?? 0}, updated ${result?.customerPaidUpdated ?? 0}, removed ${result?.customerPaidRemoved ?? 0}.`
+      );
       fetchRows();
     } catch (err) {
       setError(err.message || 'PawaPay sync failed.');
@@ -952,7 +1006,8 @@ export default function FeeConfigsPage() {
               setDraft((p) => ({
                 ...p,
                 action: e.target.value,
-                customAction: e.target.value === '__custom' ? p.customAction : ''
+                customAction: e.target.value === '__custom' ? p.customAction : '',
+                feeContext: e.target.value ? '' : p.feeContext
               }))
             }
           >
@@ -972,6 +1027,24 @@ export default function FeeConfigsPage() {
               onChange={(e) => setDraft((p) => ({ ...p, customAction: e.target.value }))}
             />
           )}
+        </div>
+      )}
+      {isPaymentMethodTypeScope(draft) && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <label htmlFor="feeContextTypeScope">Fee context</label>
+          <select
+            id="feeContextTypeScope"
+            value={draft.feeContext}
+            onChange={(e) => setDraft((p) => ({ ...p, feeContext: e.target.value, ...(e.target.value ? { action: '', customAction: '' } : {}) }))}
+          >
+            <option value="">No context</option>
+            {feeContextOptions.map((context) => (
+              <option key={context} value={context}>{context}</option>
+            ))}
+          </select>
+          <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+            Use COLLECTION/PAYOUT for flow fallback fees. Do not store COLLECTION or PAYOUT as actions.
+          </div>
         </div>
       )}
       {!isPaymentMethodTypeScope(draft) && (
@@ -1027,6 +1100,7 @@ export default function FeeConfigsPage() {
               ...p,
               action: e.target.value,
               customAction: e.target.value === '__custom' ? p.customAction : '',
+              feeContext: e.target.value ? '' : p.feeContext,
               ...(e.target.value === 'SWAP_CRYPTO' ? { service: 'CRYPTO' } : {})
             }))
           }
@@ -1048,7 +1122,23 @@ export default function FeeConfigsPage() {
           />
         )}
         <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
-          Leave action blank to create the default fee for this scope. If both exist, action-specific fees beat `OTHER`, and `OTHER` beats the blank-action default.
+          Use action for exact transaction-action fees. Leave it blank when using fee context.
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="feeContext">Fee context</label>
+        <select
+          id="feeContext"
+          value={draft.feeContext}
+          onChange={(e) => setDraft((p) => ({ ...p, feeContext: e.target.value, ...(e.target.value ? { action: '', customAction: '' } : {}) }))}
+        >
+          <option value="">No context</option>
+          {feeContextOptions.map((context) => (
+            <option key={context} value={context}>{context}</option>
+          ))}
+        </select>
+        <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+          Use COLLECTION/PAYOUT for flow fallback fees such as PawaPay. Do not store COLLECTION or PAYOUT as actions.
         </div>
       </div>
       {String(resolvedDraftAction || '').toUpperCase() === 'SWAP_CRYPTO' && (
@@ -1314,7 +1404,7 @@ export default function FeeConfigsPage() {
         <div>
           <label htmlFor="arrangeBy">Arrange by</label>
           <select id="arrangeBy" value={arrangeBy} onChange={(e) => setArrangeBy(e.target.value)}>
-            <option value="action">Action</option>
+            <option value="action">Action/context</option>
             <option value="service">Service</option>
             <option value="country">Country</option>
             <option value="scope">Scope</option>
@@ -1334,10 +1424,10 @@ export default function FeeConfigsPage() {
             Available scopes, from most specific to most general: <strong>Exact Route</strong> (Payment Method Route + Bill Product Route), <strong>Payment Route Only</strong>, <strong>Bill Route Only</strong>, <strong>Provider Pair</strong> (Payment Provider + Bill Provider), <strong>Bill Provider Default</strong>, <strong>Payment Provider Default</strong>, <strong>Payment Method Type + Action</strong>, <strong>Global Action Default</strong>, <strong>Pure Payment Method Type Fallback</strong>, and <strong>Global Default</strong>.
           </div>
           <div>
-            Action resolution at each matching scope is: <strong>exact action</strong>, then <strong>OTHER</strong>, then <strong>blank action</strong>. Blank action is a valid default fee for that scope, not a bad request.
+            Fee resolution at each matching scope is: <strong>exact action</strong>, then <strong>fee context</strong> (COLLECTION or PAYOUT), then older blank/default rows where applicable.
           </div>
           <div>
-            Precedence: account custom fees win first, then exact provider/payment-method/product/action fees, then payment-method-type + action, existing global action fees, fallback action configs, pure payment-method-type fallback, OTHER, and global default. If <strong>Override Specific Fees</strong> is on, a broader matching fee can intentionally beat ordinary narrower system configs.
+            Precedence: account custom fees win first, then exact provider/payment-method/product/action fees, then context fallback fees, then payment-method-type action/context fees, existing global action fees, fallback configs, pure payment-method-type fallback, OTHER, and global default. If <strong>Override Specific Fees</strong> is on, a broader matching fee can intentionally beat ordinary narrower system configs.
           </div>
           <div>
             Best mental model: <strong>master global fee mode = platform default</strong>, <strong>wallet policy action mode = default for one action</strong>, <strong>each fee row = more specific action override</strong>, <strong>account override = customer-specific exception for that action</strong>, and <strong>app request = explicit per-transaction choice</strong>.
@@ -1352,7 +1442,7 @@ export default function FeeConfigsPage() {
             Operational impact: changing fee mode can change the effective credited or serviced amount for users who enter the same amount, especially on collection flows like bill payments, airtime, wallet funding, and payment requests.
           </div>
           <div>
-            Recommended workflow: create blank-action provider defaults first, then add action-specific or exact-route exceptions only where needed. Avoid multiple active fee configs at the same exact scope for the same action state.
+            Recommended workflow: create fee-context provider defaults first for collection/payout provider costs, then add action-specific or exact-route exceptions only where needed. Avoid multiple active fee configs at the same exact scope for the same action/context state.
           </div>
           <div>
             Example: set <strong>Bill Provider = ZENDIT</strong> with blank action for a default Zendit fee, then add <strong>Bill Product Route = SONABEL</strong> with <strong>PAY_ELECTRICITY_BILL</strong> for a targeted exception. The specific action fee wins automatically unless a broader config is marked <strong>Override Specific Fees</strong>.
@@ -1460,6 +1550,17 @@ export default function FeeConfigsPage() {
               {actionOptions.map((opt) => (
                 <option key={opt} value={opt}>
                   {opt}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="filterFeeContext">Fee context</label>
+            <select id="filterFeeContext" value={filters.feeContext} onChange={(e) => setFilters((p) => ({ ...p, feeContext: e.target.value }))}>
+              <option value="">All</option>
+              {feeContextOptions.map((context) => (
+                <option key={context} value={context}>
+                  {context}
                 </option>
               ))}
             </select>
@@ -1657,6 +1758,7 @@ export default function FeeConfigsPage() {
               { label: 'Country', value: getCountryLabel(selected || {}) },
               { label: 'Service', value: selected?.service || 'ALL' },
               { label: 'Action', value: selected?.action },
+              { label: 'Fee context', value: selected?.feeContext || '—' },
               { label: 'From crypto', value: selected?.fromCryptoProductId ? getCryptoProductLabel(selected?.fromCryptoProductId) : 'Fallback/global rule' },
               { label: 'To crypto', value: selected?.toCryptoProductId ? getCryptoProductLabel(selected?.toCryptoProductId) : 'Fallback/global rule' },
               { label: 'Override specific fees', value: selected?.overrideSpecificFees ? 'Yes' : 'No' },
@@ -1691,7 +1793,13 @@ export default function FeeConfigsPage() {
         <Modal title="Sync PawaPay fees" onClose={() => (!pawapaySyncLoading ? setShowPawapaySync(false) : null)}>
           <div style={{ display: 'grid', gap: '0.9rem' }}>
             <div style={{ padding: '0.75rem', border: '1px solid #FDE68A', borderRadius: '10px', background: '#FFFBEB', color: '#92400E', fontSize: '13px', fontWeight: 700 }}>
-              PawaPay/MMO fees must be entered as provider/external fees. Keep Fondeka internal fee at 2% unless business explicitly changes it. For Kenya M-Pesa tiers, use KES for amountRangeCurrency and providerFlatFeeCurrency.
+              PawaPay/MMO fees must be entered as provider/external fees and should use feeContext COLLECTION or PAYOUT, not transaction actions. Keep Fondeka internal fee at 2% unless business explicitly changes it. For Kenya M-Pesa tiers, use KES for amountRangeCurrency and providerFlatFeeCurrency.
+            </div>
+            <div style={{ padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '10px', background: 'var(--panel, transparent)', color: 'var(--muted)', fontSize: '13px' }}>
+              <div style={{ fontWeight: 800, color: 'var(--text)', marginBottom: '0.25rem' }}>Customer-paid provider charges</div>
+              <div>
+                Charged directly by customer&apos;s mobile-money provider. Not collected by Fondeka. For disclosure-only rows, set providerFeeConfigEnabled to false so the backend does not create a normal fee config.
+              </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -1746,7 +1854,7 @@ export default function FeeConfigsPage() {
                 style={{ fontFamily: 'monospace', minHeight: '280px' }}
               />
               <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-                Paste an array of rows with paymentMethodName, action, minAmount/maxAmount, amountRangeCurrency, providerFeePercentage, providerFlatFee, and providerFlatFeeCurrency.
+                Paste an array of normal fee rows or customer-paid provider charge rows. Customer-paid rows can include providerFeeConfigEnabled, customerPaidProviderFeeAmount/Currency/Percentage, chargedBy, includedInTotal, EN/FR messages, source, and sourceDate. If pasted rows use action COLLECTION or PAYOUT, the dashboard converts that to feeContext before sending.
               </div>
             </div>
             {pawapaySyncResult ? (
@@ -1755,6 +1863,9 @@ export default function FeeConfigsPage() {
                   { label: 'Created', value: pawapaySyncResult.created ?? 0 },
                   { label: 'Updated', value: pawapaySyncResult.updated ?? 0 },
                   { label: 'Removed', value: pawapaySyncResult.removed ?? 0 },
+                  { label: 'Customer-paid created', value: pawapaySyncResult.customerPaidCreated ?? 0 },
+                  { label: 'Customer-paid updated', value: pawapaySyncResult.customerPaidUpdated ?? 0 },
+                  { label: 'Customer-paid removed', value: pawapaySyncResult.customerPaidRemoved ?? 0 },
                   { label: 'Returned configs', value: Array.isArray(pawapaySyncResult.feeConfigs) ? pawapaySyncResult.feeConfigs.length : 0 }
                 ]}
               />

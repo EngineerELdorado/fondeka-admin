@@ -1184,6 +1184,13 @@ export default function CurrencyProductsPage() {
   const renderPreviewResult = () => {
     if (!previewResult) return null;
     const fee = previewResult.feePreview;
+    const customerPaidProviderFeeSource = fee || previewResult;
+    const hasCustomerPaidProviderFee =
+      hasValue(customerPaidProviderFeeSource.customerPaidProviderFeeAmount) ||
+      hasValue(customerPaidProviderFeeSource.customerPaidProviderFeePercentage) ||
+      hasValue(customerPaidProviderFeeSource.customerPaidProviderFeeCurrency) ||
+      hasValue(customerPaidProviderFeeSource.customerPaidProviderFeeChargedBy) ||
+      hasValue(customerPaidProviderFeeSource.customerPaidProviderFeeMessage);
     const providerErrors = Array.isArray(previewResult.providerErrors) ? previewResult.providerErrors : [];
     const hasActionContext =
       previewResult.previewMode === 'ACTION_FEE_AND_EXECUTION_PREVIEW' ||
@@ -1258,6 +1265,39 @@ export default function CurrencyProductsPage() {
               { label: 'Fees percentage', value: formatPercent(fee.feesPercentage) }
             ]}
           />
+        ) : null}
+        {hasCustomerPaidProviderFee ? (
+          <div className="card" style={{ display: 'grid', gap: '0.6rem' }}>
+            <div>
+              <div style={{ fontWeight: 800 }}>Customer-paid provider charge</div>
+              <div style={{ color: 'var(--muted)', fontSize: '12px', marginTop: '0.2rem' }}>
+                Charged directly by customer&apos;s mobile-money provider. Not collected by Fondeka.
+              </div>
+            </div>
+            <DetailGrid
+              rows={[
+                {
+                  label: 'Flat fee',
+                  value: formatMoney(
+                    customerPaidProviderFeeSource.customerPaidProviderFeeAmount,
+                    customerPaidProviderFeeSource.customerPaidProviderFeeCurrency || fee?.requestedCurrency || previewResult.sourceCurrency
+                  )
+                },
+                { label: 'Percentage fee', value: formatPercent(customerPaidProviderFeeSource.customerPaidProviderFeePercentage) },
+                { label: 'Charged by', value: customerPaidProviderFeeSource.customerPaidProviderFeeChargedBy || '-' },
+                {
+                  label: 'Included in total',
+                  value: hasValue(customerPaidProviderFeeSource.customerPaidProviderFeeIncludedInTotal)
+                    ? formatBool(
+                      customerPaidProviderFeeSource.customerPaidProviderFeeIncludedInTotal === true ||
+                      String(customerPaidProviderFeeSource.customerPaidProviderFeeIncludedInTotal).toLowerCase() === 'true'
+                    )
+                    : 'No'
+                },
+                { label: 'Message', value: customerPaidProviderFeeSource.customerPaidProviderFeeMessage || '-' }
+              ]}
+            />
+          </div>
         ) : null}
         <details className="card" style={{ padding: '0.75rem' }}>
           <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Metadata</summary>
