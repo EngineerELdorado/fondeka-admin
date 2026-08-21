@@ -88,15 +88,36 @@ const emptyState = {
   overrideSpecificFees: false,
   providerFeePercentage: '',
   providerFlatFee: '',
+  providerFlatFeeCurrency: '',
   providerMinFee: '',
   providerMinFeeCurrency: 'USD',
   ourFeePercentage: '',
   ourFlatFee: '',
   minAmount: '',
   maxAmount: '',
+  amountRangeCurrency: '',
   feeApplicationMode: '',
   fromCryptoProductId: '',
   toCryptoProductId: ''
+};
+
+const emptyPawapaySyncDraft = {
+  defaultOurFeePercentage: '2',
+  defaultOurFlatFee: '0',
+  feeApplicationMode: 'EXCLUSIVE',
+  replaceExistingRows: true,
+  feesJson: JSON.stringify([
+    {
+      paymentMethodName: 'MPESA_KENYA',
+      action: 'FUND_WALLET',
+      minAmount: 1001,
+      maxAmount: 1500.99,
+      amountRangeCurrency: 'KES',
+      providerFeePercentage: 1,
+      providerFlatFee: 15,
+      providerFlatFeeCurrency: 'KES'
+    }
+  ], null, 2)
 };
 
 const formatAmountRange = (minAmount, maxAmount) => {
@@ -123,12 +144,14 @@ const toPayload = (state) => {
     overrideSpecificFees: Boolean(state.overrideSpecificFees),
     providerFeePercentage: state.providerFeePercentage === '' ? null : Number(state.providerFeePercentage),
     providerFlatFee: state.providerFlatFee === '' ? null : Number(state.providerFlatFee),
+    providerFlatFeeCurrency: state.providerFlatFeeCurrency ? String(state.providerFlatFeeCurrency).trim().toUpperCase() : null,
     providerMinFee: state.providerMinFee === '' ? null : Number(state.providerMinFee),
     providerMinFeeCurrency: state.providerMinFeeCurrency ? String(state.providerMinFeeCurrency).trim().toUpperCase() : null,
     ourFeePercentage: state.ourFeePercentage === '' ? null : Number(state.ourFeePercentage),
     ourFlatFee: state.ourFlatFee === '' ? null : Number(state.ourFlatFee),
     minAmount: state.minAmount === '' ? null : Number(state.minAmount),
     maxAmount: state.maxAmount === '' ? null : Number(state.maxAmount),
+    amountRangeCurrency: state.amountRangeCurrency ? String(state.amountRangeCurrency).trim().toUpperCase() : null,
     feeApplicationMode: state.feeApplicationMode || null
   };
   if (paymentMethodTypeScope) {
@@ -241,7 +264,11 @@ export default function FeeConfigsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
+  const [showPawapaySync, setShowPawapaySync] = useState(false);
   const [draft, setDraft] = useState(emptyState);
+  const [pawapaySyncDraft, setPawapaySyncDraft] = useState(emptyPawapaySyncDraft);
+  const [pawapaySyncResult, setPawapaySyncResult] = useState(null);
+  const [pawapaySyncLoading, setPawapaySyncLoading] = useState(false);
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [filters, setFilters] = useState(initialFilters);
@@ -564,6 +591,7 @@ export default function FeeConfigsPage() {
       },
       { key: 'providerFeePercentage', label: 'Provider %' },
       { key: 'providerFlatFee', label: 'Provider flat' },
+      { key: 'providerFlatFeeCurrency', label: 'Provider flat currency', render: (row) => row.providerFlatFeeCurrency || '—' },
       { key: 'providerMinFee', label: 'Provider min fee' },
       { key: 'providerMinFeeCurrency', label: 'Provider min currency', render: (row) => row.providerMinFeeCurrency || '—' },
       { key: 'ourFeePercentage', label: 'Our %' },
@@ -571,7 +599,7 @@ export default function FeeConfigsPage() {
       {
         key: 'amountRange',
         label: 'Amount range',
-        render: (row) => formatAmountRange(row?.minAmount, row?.maxAmount)
+        render: (row) => `${formatAmountRange(row?.minAmount, row?.maxAmount)}${row?.amountRangeCurrency ? ` ${row.amountRangeCurrency}` : ''}`
       },
       {
         key: 'feeApplicationMode',
@@ -633,12 +661,14 @@ export default function FeeConfigsPage() {
       overrideSpecificFees: Boolean(row.overrideSpecificFees),
       providerFeePercentage: row.providerFeePercentage ?? '',
       providerFlatFee: row.providerFlatFee ?? '',
+      providerFlatFeeCurrency: row.providerFlatFeeCurrency || '',
       providerMinFee: row.providerMinFee ?? '',
       providerMinFeeCurrency: row.providerMinFeeCurrency || 'USD',
       ourFeePercentage: row.ourFeePercentage ?? '',
       ourFlatFee: row.ourFlatFee ?? '',
       minAmount: row.minAmount ?? '',
       maxAmount: row.maxAmount ?? '',
+      amountRangeCurrency: row.amountRangeCurrency || '',
       feeApplicationMode: row.feeApplicationMode || '',
       fromCryptoProductId: normalizeOptionalIdForForm(row.fromCryptoProductId),
       toCryptoProductId: normalizeOptionalIdForForm(row.toCryptoProductId)
@@ -684,6 +714,12 @@ export default function FeeConfigsPage() {
     if (invalid) return 'Fee values cannot be negative.';
     if (state.minAmount !== '' && state.maxAmount !== '' && Number(state.minAmount) > Number(state.maxAmount)) {
       return 'Minimum amount cannot be greater than maximum amount.';
+    }
+    if (state.providerFlatFee !== '' && !String(state.providerFlatFeeCurrency || '').trim()) {
+      return 'Provider flat fee currency is required when provider flat fee is set.';
+    }
+    if ((state.minAmount !== '' || state.maxAmount !== '') && !String(state.amountRangeCurrency || '').trim()) {
+      return 'Amount range currency is required when amount range is set.';
     }
     const normalizedAction = state.scopeType === 'payment_method_type_fallback' ? '' : String(resolved || '').toUpperCase();
     const normalizedService = paymentMethodTypeScope ? '' : String(state.service || '').toUpperCase();
@@ -732,6 +768,7 @@ export default function FeeConfigsPage() {
       const rowToCrypto = row?.toCryptoProductId === null || row?.toCryptoProductId === undefined ? null : Number(row.toCryptoProductId);
       const rowMinAmount = row?.minAmount === null || row?.minAmount === undefined || row?.minAmount === '' ? null : Number(row.minAmount);
       const rowMaxAmount = row?.maxAmount === null || row?.maxAmount === undefined || row?.maxAmount === '' ? null : Number(row.maxAmount);
+      const rowAmountRangeCurrency = String(row?.amountRangeCurrency || '').toUpperCase();
       return rowPaymentProvider === normalizedPaymentProvider
         && rowBillProvider === normalizedBillProvider
         && rowBpbp === normalizedBpbp
@@ -739,7 +776,8 @@ export default function FeeConfigsPage() {
         && rowFromCrypto === normalizedFromCrypto
         && rowToCrypto === normalizedToCrypto
         && rowMinAmount === normalizedMinAmount
-        && rowMaxAmount === normalizedMaxAmount;
+        && rowMaxAmount === normalizedMaxAmount
+        && rowAmountRangeCurrency === String(state.amountRangeCurrency || '').toUpperCase();
     });
     if (duplicate) {
       return `Duplicate scope detected with fee config #${duplicate.id}. Keep one row per layered scope for the same action or actionless default.`;
@@ -762,9 +800,11 @@ export default function FeeConfigsPage() {
         ...p,
         providerFeePercentage: '',
         providerFlatFee: '',
+        providerFlatFeeCurrency: '',
         providerMinFee: '',
         ourFeePercentage: '',
         ourFlatFee: '',
+        amountRangeCurrency: '',
         feeApplicationMode: ''
       }));
       fetchRows();
@@ -804,6 +844,54 @@ export default function FeeConfigsPage() {
       fetchRows();
     } catch (err) {
       setError(err.message);
+    }
+  };
+
+  const handlePawapaySync = async () => {
+    setError(null);
+    setInfo(null);
+    setPawapaySyncResult(null);
+    let fees;
+    try {
+      fees = JSON.parse(pawapaySyncDraft.feesJson || '[]');
+    } catch (err) {
+      setError(`PawaPay fees JSON is invalid: ${err.message}`);
+      return;
+    }
+    if (!Array.isArray(fees)) {
+      setError('PawaPay fees JSON must be an array.');
+      return;
+    }
+    if (fees.length === 0) {
+      setError('Add at least one PawaPay fee row.');
+      return;
+    }
+    const defaultOurFeePercentage = Number(pawapaySyncDraft.defaultOurFeePercentage);
+    const defaultOurFlatFee = Number(pawapaySyncDraft.defaultOurFlatFee);
+    if (!Number.isFinite(defaultOurFeePercentage) || defaultOurFeePercentage < 0) {
+      setError('Default Fondeka fee percentage must be zero or positive.');
+      return;
+    }
+    if (!Number.isFinite(defaultOurFlatFee) || defaultOurFlatFee < 0) {
+      setError('Default Fondeka flat fee must be zero or positive.');
+      return;
+    }
+    setPawapaySyncLoading(true);
+    try {
+      const result = await api.feeConfigs.syncPawapay({
+        defaultOurFeePercentage,
+        defaultOurFlatFee,
+        feeApplicationMode: pawapaySyncDraft.feeApplicationMode || 'EXCLUSIVE',
+        replaceExistingRows: Boolean(pawapaySyncDraft.replaceExistingRows),
+        fees
+      });
+      setPawapaySyncResult(result || {});
+      setInfo(`PawaPay sync complete. Created ${result?.created ?? 0}, updated ${result?.updated ?? 0}, removed ${result?.removed ?? 0}.`);
+      fetchRows();
+    } catch (err) {
+      setError(err.message || 'PawaPay sync failed.');
+    } finally {
+      setPawapaySyncLoading(false);
     }
   };
 
@@ -1079,6 +1167,18 @@ export default function FeeConfigsPage() {
         />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="providerFlatFeeCurrency">Provider flat fee currency</label>
+        <input
+          id="providerFlatFeeCurrency"
+          value={draft.providerFlatFeeCurrency}
+          onChange={(e) => setDraft((p) => ({ ...p, providerFlatFeeCurrency: e.target.value.toUpperCase() }))}
+          placeholder="KES"
+        />
+        <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+          Currency for provider/external flat fees. For Kenya M-Pesa tiers, use KES.
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="providerMinFee">Provider minimum fee</label>
         <input
           id="providerMinFee"
@@ -1116,6 +1216,10 @@ export default function FeeConfigsPage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="maxAmount">Transaction maximum amount</label>
         <input id="maxAmount" type="number" min={0} step="0.01" value={draft.maxAmount} onChange={(e) => setDraft((p) => ({ ...p, maxAmount: e.target.value }))} />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="amountRangeCurrency">Amount range currency</label>
+        <input id="amountRangeCurrency" value={draft.amountRangeCurrency} onChange={(e) => setDraft((p) => ({ ...p, amountRangeCurrency: e.target.value.toUpperCase() }))} placeholder="KES" />
       </div>
       <div style={{ gridColumn: '1 / -1', fontSize: '12px', color: 'var(--muted)' }}>
         Transaction amount range only. Leave both empty to make this the default fee for the scope. Set only minimum for transaction amounts at or above that value. Set only maximum for transaction amounts at or below that value. Set both to apply only within that range.
@@ -1193,6 +1297,19 @@ export default function FeeConfigsPage() {
         </div>
         <button type="button" onClick={openCreate} className="btn-success">
           Add fee config
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setPawapaySyncDraft(emptyPawapaySyncDraft);
+            setPawapaySyncResult(null);
+            setShowPawapaySync(true);
+            setError(null);
+            setInfo(null);
+          }}
+          className="btn-neutral"
+        >
+          Sync PawaPay fees
         </button>
         <div>
           <label htmlFor="arrangeBy">Arrange by</label>
@@ -1545,11 +1662,13 @@ export default function FeeConfigsPage() {
               { label: 'Override specific fees', value: selected?.overrideSpecificFees ? 'Yes' : 'No' },
               { label: 'Provider %', value: selected?.providerFeePercentage },
               { label: 'Provider flat', value: selected?.providerFlatFee },
+              { label: 'Provider flat fee currency', value: selected?.providerFlatFeeCurrency || '—' },
               { label: 'Provider minimum fee', value: selected?.providerMinFee },
               { label: 'Provider minimum fee currency', value: selected?.providerMinFeeCurrency || '—' },
               { label: 'Our %', value: selected?.ourFeePercentage },
               { label: 'Our flat', value: selected?.ourFlatFee },
-              { label: 'Amount range', value: formatAmountRange(selected?.minAmount, selected?.maxAmount) },
+              { label: 'Amount range', value: `${formatAmountRange(selected?.minAmount, selected?.maxAmount)}${selected?.amountRangeCurrency ? ` ${selected.amountRangeCurrency}` : ''}` },
+              { label: 'Amount range currency', value: selected?.amountRangeCurrency || '—' },
               { label: 'Transaction minimum amount', value: selected?.minAmount ?? '—' },
               { label: 'Transaction maximum amount', value: selected?.maxAmount ?? '—' },
               {
@@ -1565,6 +1684,90 @@ export default function FeeConfigsPage() {
               { label: 'Updated', value: selected?.updatedAt }
             ]}
           />
+        </Modal>
+      )}
+
+      {showPawapaySync && (
+        <Modal title="Sync PawaPay fees" onClose={() => (!pawapaySyncLoading ? setShowPawapaySync(false) : null)}>
+          <div style={{ display: 'grid', gap: '0.9rem' }}>
+            <div style={{ padding: '0.75rem', border: '1px solid #FDE68A', borderRadius: '10px', background: '#FFFBEB', color: '#92400E', fontSize: '13px', fontWeight: 700 }}>
+              PawaPay/MMO fees must be entered as provider/external fees. Keep Fondeka internal fee at 2% unless business explicitly changes it. For Kenya M-Pesa tiers, use KES for amountRangeCurrency and providerFlatFeeCurrency.
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="pawapayDefaultOurFeePercentage">Default Fondeka fee %</label>
+                <input
+                  id="pawapayDefaultOurFeePercentage"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={pawapaySyncDraft.defaultOurFeePercentage}
+                  onChange={(e) => setPawapaySyncDraft((p) => ({ ...p, defaultOurFeePercentage: e.target.value }))}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="pawapayDefaultOurFlatFee">Default Fondeka flat fee</label>
+                <input
+                  id="pawapayDefaultOurFlatFee"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={pawapaySyncDraft.defaultOurFlatFee}
+                  onChange={(e) => setPawapaySyncDraft((p) => ({ ...p, defaultOurFlatFee: e.target.value }))}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="pawapayFeeApplicationMode">Fee application mode</label>
+                <select
+                  id="pawapayFeeApplicationMode"
+                  value={pawapaySyncDraft.feeApplicationMode}
+                  onChange={(e) => setPawapaySyncDraft((p) => ({ ...p, feeApplicationMode: e.target.value }))}
+                >
+                  <option value="EXCLUSIVE">EXCLUSIVE</option>
+                  <option value="INCLUSIVE">INCLUSIVE</option>
+                </select>
+              </div>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(pawapaySyncDraft.replaceExistingRows)}
+                  onChange={(e) => setPawapaySyncDraft((p) => ({ ...p, replaceExistingRows: e.target.checked }))}
+                />
+                Replace existing rows
+              </label>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="pawapayFeesJson">PawaPay fee rows JSON</label>
+              <textarea
+                id="pawapayFeesJson"
+                value={pawapaySyncDraft.feesJson}
+                onChange={(e) => setPawapaySyncDraft((p) => ({ ...p, feesJson: e.target.value }))}
+                rows={16}
+                style={{ fontFamily: 'monospace', minHeight: '280px' }}
+              />
+              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                Paste an array of rows with paymentMethodName, action, minAmount/maxAmount, amountRangeCurrency, providerFeePercentage, providerFlatFee, and providerFlatFeeCurrency.
+              </div>
+            </div>
+            {pawapaySyncResult ? (
+              <DetailGrid
+                rows={[
+                  { label: 'Created', value: pawapaySyncResult.created ?? 0 },
+                  { label: 'Updated', value: pawapaySyncResult.updated ?? 0 },
+                  { label: 'Removed', value: pawapaySyncResult.removed ?? 0 },
+                  { label: 'Returned configs', value: Array.isArray(pawapaySyncResult.feeConfigs) ? pawapaySyncResult.feeConfigs.length : 0 }
+                ]}
+              />
+            ) : null}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button type="button" onClick={() => setShowPawapaySync(false)} className="btn-neutral" disabled={pawapaySyncLoading}>
+                Close
+              </button>
+              <button type="button" onClick={handlePawapaySync} className="btn-primary" disabled={pawapaySyncLoading}>
+                {pawapaySyncLoading ? 'Syncing...' : 'Sync PawaPay fees'}
+              </button>
+            </div>
+          </div>
         </Modal>
       )}
 

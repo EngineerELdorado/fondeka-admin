@@ -9,13 +9,13 @@ import { useLocale } from '@/contexts/LocaleContext';
 const navItems = [
   { href: '/dashboard', labelKey: 'layout.nav.overview' },
   { href: '/dashboard/accounts/accounts', labelKey: 'layout.nav.accounts' },
-  { href: '/dashboard/accounts/custom-fees', labelKey: 'layout.nav.accountsCustomFees' },
-  { href: '/dashboard/fiat-wallets', labelKey: 'layout.nav.fiatWallets' },
-  { href: '/dashboard/wallet-currency-audit', labelKey: 'layout.nav.walletCurrencyAudit' },
+  { href: '/dashboard/accounts/custom-fees', labelKey: 'layout.nav.accountsCustomFees', label: 'Accounts with Custom Fees' },
+  { href: '/dashboard/fiat-wallets', labelKey: 'layout.nav.fiatWallets', label: 'Fiat Wallets' },
+  { href: '/dashboard/wallet-currency-audit', labelKey: 'layout.nav.walletCurrencyAudit', label: 'Wallet Currency Audit' },
   { href: '/dashboard/wallet-migrations/legacy-usd', labelKey: 'layout.nav.legacyUsdWalletMigration' },
   { href: '/dashboard/blacklist', labelKey: 'layout.nav.blacklist' },
   { href: '/dashboard/payments', labelKey: 'layout.nav.paymentMethods' },
-  { href: '/dashboard/payments/provider-coverage', labelKey: 'layout.nav.paymentProviderCoverage' },
+  { href: '/dashboard/payments/provider-coverage', labelKey: 'layout.nav.paymentProviderCoverage', label: 'Provider Coverage Map' },
   // Products cluster
   { href: '/dashboard/loans', labelKey: 'layout.nav.loansProducts' },
   { href: '/dashboard/savings', labelKey: 'layout.nav.savingsProducts' },
@@ -154,6 +154,11 @@ export default function DashboardLayout({ children }) {
     return pathname === href || pathname.startsWith(`${href}/`);
   };
 
+  const navLabel = (item) => {
+    const translated = t(item.labelKey);
+    return translated === item.labelKey && item.label ? item.label : translated;
+  };
+
   if (!initialized) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', color: 'var(--text)' }}>
@@ -200,7 +205,7 @@ export default function DashboardLayout({ children }) {
                 fontWeight: isActive(item.href) ? 700 : 500
               }}
             >
-              {t(item.labelKey)}
+              {navLabel(item)}
             </Link>
           ))}
         </nav>

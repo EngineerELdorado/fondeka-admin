@@ -760,31 +760,27 @@ export default function TransactionsPage() {
     );
   }, [formatMoneyWithCurrency, formatUsdAmount]);
 
-  const formatPlatformRevenueLocal = useCallback((row) => {
-    const transactionCurrency = normalizeCurrency(row?.currency);
-    const fxMarginCurrency = normalizeCurrency(row?.fxMarginCurrency);
-    const hasInternalFee = hasValue(row?.internalFeeAmount);
-    const hasCommission = hasValue(row?.commissionAmount);
-    const hasFxMargin = hasValue(row?.fxMarginAmount);
-    if (!hasInternalFee && !hasCommission && !hasFxMargin) return '—';
-    if (hasFxMargin && fxMarginCurrency && fxMarginCurrency !== transactionCurrency) return '—';
-    return formatMoneyWithCurrency(
-      (Number(row?.internalFeeAmount) || 0) + (Number(row?.commissionAmount) || 0) + (Number(row?.fxMarginAmount) || 0),
-      transactionCurrency || fxMarginCurrency
-    );
-  }, [formatMoneyWithCurrency]);
+  const getRevenueBreakdownUsd = useCallback((row) => {
+    const feeRevenueUsd = Number(row?.usdAllFees ?? 0) || 0;
+    const commissionRevenueUsd = Number(row?.usdCommissionAmount ?? 0) || 0;
+    const fxRevenueUsd = Number(row?.usdFxMarginAmount ?? 0) || 0;
+    return {
+      feeRevenueUsd,
+      commissionRevenueUsd,
+      fxRevenueUsd,
+      totalRevenueUsd: feeRevenueUsd + commissionRevenueUsd + fxRevenueUsd
+    };
+  }, []);
 
-  const formatPlatformRevenueUsd = useCallback((row) => {
-    const hasUsdRevenueComponent = hasValue(row?.usdInternalFeeAmount) || hasValue(row?.usdCommissionAmount) || hasValue(row?.usdFxMarginAmount);
-    if (hasUsdRevenueComponent) {
-      return formatUsdAmount((Number(row?.usdInternalFeeAmount) || 0) + (Number(row?.usdCommissionAmount) || 0) + (Number(row?.usdFxMarginAmount) || 0));
-    }
-    if (normalizeCurrency(row?.currency) !== 'USD') return '—';
-    const hasLocalRevenueComponent = hasValue(row?.internalFeeAmount) || hasValue(row?.commissionAmount) || hasValue(row?.fxMarginAmount);
-    return hasLocalRevenueComponent
-      ? formatUsdAmount((Number(row?.internalFeeAmount) || 0) + (Number(row?.commissionAmount) || 0) + (Number(row?.fxMarginAmount) || 0))
-      : '—';
-  }, [formatUsdAmount]);
+  const hasPositiveUsdFxMargin = useCallback((row) => (
+    (Number(row?.usdFxMarginAmount ?? 0) || 0) > 0
+  ), []);
+
+  const shouldShowFxSourceLegNote = useCallback((row) => (
+    normalizeEnumKey(row?.action) === 'CONVERT_FIAT' &&
+    normalizeEnumKey(row?.balanceEffect) === 'CREDIT' &&
+    !hasPositiveUsdFxMargin(row)
+  ), [hasPositiveUsdFxMargin]);
 
   const formatSettlementLocalAndUsd = useCallback((row, localField, localCurrencyField = 'currency', usdField) => {
     const usd = row?.[usdField];
@@ -2055,6 +2051,10 @@ export default function TransactionsPage() {
     }
   };
 
+  const selectedRevenueBreakdown = getRevenueBreakdownUsd(selected);
+  const selectedShowsFxMargin = hasPositiveUsdFxMargin(selected);
+  const selectedShowsFxSourceLegNote = shouldShowFxSourceLegNote(selected);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
@@ -2389,16 +2389,12 @@ export default function TransactionsPage() {
                 { label: 'External fee', value: formatLocalAndUsd(selected, 'externalFeeAmount', 'currency', 'usdExternalFeeAmount') },
                 { label: 'Internal fee', value: formatLocalAndUsd(selected, 'internalFeeAmount', 'currency', 'usdInternalFeeAmount') },
                 { label: 'Other fees', value: formatMoneyWithCurrency(selected?.otherFeesAmount, selected?.currency) },
+                { label: 'Tax fee', value: formatMoneyWithCurrency(selected?.taxFeeAmount, selected?.currency) },
                 { label: 'All fees', value: formatLocalAndUsd(selected, 'allFees', 'currency', 'usdAllFees') },
                 { label: 'Commission amount', value: formatLocalAndUsd(selected, 'commissionAmount', 'currency', 'usdCommissionAmount') },
                 { label: 'FX margin', value: formatFxMargin(selected) },
-                { label: 'FX raw rate', value: selected?.fxRawRate ?? '—' },
-                { label: 'FX effective rate', value: selected?.fxEffectiveRate ?? '—' },
-                { label: 'FX margin percent', value: hasValue(selected?.fxMarginPercent) ? `${formatMoneyAmount(selected.fxMarginPercent)}%` : '—' },
-                { label: 'FX margin flow', value: formatEnumLabel(selected?.fxMarginFlow) },
-                { label: 'FX margin provider', value: formatEnumLabel(selected?.fxMarginProvider) },
-                { label: 'Platform revenue (local)', value: formatPlatformRevenueLocal(selected) },
-                { label: 'Platform revenue (USD)', value: formatPlatformRevenueUsd(selected) },
+                { label: 'Provider amount', value: formatMoneyWithCurrency(selected?.providerAmount, selected?.providerCurrency) },
+                { label: 'Source amount', value: formatMoneyWithCurrency(selected?.sourceAmount, selected?.sourceCurrency) },
                 { label: 'Settlement amount', value: formatSettlementLocalAndUsd(selected, 'settlementAmount', 'currency', 'usdSettlementAmount') },
                 { label: 'Settlement fees', value: formatSettlementLocalAndUsd(selected, 'settlementAllFees', 'currency', 'usdSettlementAllFees') },
                 { label: 'Settlement net', value: formatSettlementLocalAndUsd(selected, 'settlementNet', 'currency', 'usdSettlementNet') },
@@ -2444,7 +2440,7 @@ export default function TransactionsPage() {
                       }
                     ]
                   : []),
-                { label: 'Payment method', value: selected?.paymentMethodName || selected?.paymentMethodId },
+                { label: 'Payment method', value: selected?.paymentMethodDisplayName || selected?.paymentMethodName || selected?.paymentMethodId },
                 ...(selected?.paymentMethodType ? [{ label: 'Payment method type', value: selected?.paymentMethodType }] : []),
                 { label: 'Payment provider', value: selected?.paymentProviderName || selected?.paymentProviderId },
                 ...(hasCardMetadata(selected)
@@ -2464,6 +2460,41 @@ export default function TransactionsPage() {
                 ...(showErrorMessage ? [{ label: 'Error message', value: selected?.errorMessage || '—' }] : [])
               ]}
             />
+
+            <div className="card" style={{ padding: '1rem', display: 'grid', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                <div style={{ fontWeight: 800 }}>Revenue</div>
+                <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                  Uses top-level USD fields only: usdAllFees + usdCommissionAmount + usdFxMarginAmount. Fee breakdown fields are already included in allFees.
+                </div>
+              </div>
+              <DetailGrid
+                rows={[
+                  { label: 'Fees', value: formatUsdAmount(selectedRevenueBreakdown.feeRevenueUsd) },
+                  { label: 'Commission', value: formatUsdAmount(selectedRevenueBreakdown.commissionRevenueUsd) },
+                  { label: 'FX margin', value: formatUsdAmount(selectedRevenueBreakdown.fxRevenueUsd) },
+                  { label: 'Total revenue', value: formatUsdAmount(selectedRevenueBreakdown.totalRevenueUsd) }
+                ]}
+              />
+              {selectedShowsFxMargin ? (
+                <div style={{ display: 'grid', gap: '0.5rem' }}>
+                  <div style={{ fontWeight: 800 }}>FX details</div>
+                  <DetailGrid
+                    rows={[
+                      { label: 'Flow', value: formatEnumLabel(selected?.fxMarginFlow) },
+                      { label: 'Provider', value: formatEnumLabel(selected?.fxMarginProvider) },
+                      { label: 'Raw rate', value: selected?.fxRawRate ?? '—' },
+                      { label: 'Applied rate', value: selected?.fxEffectiveRate ?? '—' },
+                      { label: 'Margin', value: formatFxMargin(selected) }
+                    ]}
+                  />
+                </div>
+              ) : selectedShowsFxSourceLegNote ? (
+                <div style={{ padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '10px', color: 'var(--muted)', fontSize: '13px' }}>
+                  FX revenue is recorded on the source debit transaction.
+                </div>
+              ) : null}
+            </div>
 
             <div className="card" style={{ padding: '1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem', flexWrap: 'wrap' }}>

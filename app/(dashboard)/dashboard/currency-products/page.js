@@ -1191,6 +1191,7 @@ export default function CurrencyProductsPage() {
       Boolean(fee) ||
       hasValue(previewResult.feeAdjustedSourceAmount) ||
       hasValue(previewResult.feeAdjustedConvertedAmount) ||
+      hasValue(previewResult.actionConvertedAmount) ||
       hasValue(previewResult.executionSourceAmount) ||
       hasValue(previewResult.executionTargetAmount) ||
       hasValue(previewResult.executionRate) ||
@@ -1225,6 +1226,7 @@ export default function CurrencyProductsPage() {
           <DetailGrid
             rows={[
               { label: 'Action', value: previewResult.action || '-' },
+              { label: 'Action converted', value: formatMoney(previewResult.actionConvertedAmount, previewResult.targetCurrency) },
               { label: 'Fee-adjusted source', value: formatMoney(previewResult.feeAdjustedSourceAmount, previewResult.feeAdjustedSourceCurrency || previewResult.sourceCurrency) },
               { label: 'Fee-adjusted converted', value: formatMoney(previewResult.feeAdjustedConvertedAmount, previewResult.targetCurrency) },
               { label: 'Execution source', value: formatMoney(previewResult.executionSourceAmount, previewResult.sourceCurrency) },
@@ -1637,6 +1639,9 @@ export default function CurrencyProductsPage() {
           <div style={{ display: 'grid', gap: '0.85rem' }}>
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
               QA preview only. This does not create transactions, debit wallets, credit balances, or call payment providers.
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Leave action empty for a generic currency/margin simulation. Add an action such as CONVERT_FIAT to include fee lookup and estimated execution fields; currency product IDs are resolved by backend from the selected currencies.
             </div>
             {previewOptionsLoading ? <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Loading backend options...</div> : null}
             {previewOptionsError ? <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{previewOptionsError}</div> : null}
