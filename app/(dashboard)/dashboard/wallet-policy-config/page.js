@@ -68,6 +68,18 @@ const feeApplicationModeOptions = [
   { value: 'EXCLUSIVE', label: 'Sender pays fees (EXCLUSIVE)' },
   { value: 'INCLUSIVE', label: 'Recipient pays fees (INCLUSIVE)' }
 ];
+const DEFAULT_WALLET_ACTION_DEFAULTS = {
+  walletDepositActionTitleEn: 'Deposit',
+  walletDepositActionTitleFr: 'Déposer',
+  walletDepositActionSubtitleEn: 'Add money',
+  walletDepositActionSubtitleFr: 'Ajouter de l’argent',
+  walletDepositActionShowSubText: true,
+  walletWithdrawActionTitleEn: 'Withdraw',
+  walletWithdrawActionTitleFr: 'Retirer',
+  walletWithdrawActionSubtitleEn: 'Send money',
+  walletWithdrawActionSubtitleFr: 'Envoyer de l’argent',
+  walletWithdrawActionShowSubText: true
+};
 const TAB_ITEMS = [
   { key: 'overview', label: 'Overview' },
   { key: 'fees', label: 'Fees & Actions' },
@@ -284,6 +296,7 @@ export default function WalletPolicyConfigPage() {
   const [actionMinimumAmounts, setActionMinimumAmounts] = useState({});
   const [actionMaximumAmounts, setActionMaximumAmounts] = useState({});
   const [collectionSourceRiskRules, setCollectionSourceRiskRules] = useState([]);
+  const [walletActionDefaults, setWalletActionDefaults] = useState(DEFAULT_WALLET_ACTION_DEFAULTS);
   const [configSnapshot, setConfigSnapshot] = useState(null);
 
   const autoRefundActionOptions = useMemo(() => {
@@ -516,6 +529,18 @@ export default function WalletPolicyConfigPage() {
       );
       setActionMaximumAmounts(normalizedActionMaximumAmounts);
       setCollectionSourceRiskRules(normalizeCollectionSourceRiskRulesFromResponse(res?.collectionSourceRiskRules));
+      setWalletActionDefaults({
+        walletDepositActionTitleEn: res?.walletDepositActionTitleEn ?? DEFAULT_WALLET_ACTION_DEFAULTS.walletDepositActionTitleEn,
+        walletDepositActionTitleFr: res?.walletDepositActionTitleFr ?? DEFAULT_WALLET_ACTION_DEFAULTS.walletDepositActionTitleFr,
+        walletDepositActionSubtitleEn: res?.walletDepositActionSubtitleEn ?? DEFAULT_WALLET_ACTION_DEFAULTS.walletDepositActionSubtitleEn,
+        walletDepositActionSubtitleFr: res?.walletDepositActionSubtitleFr ?? DEFAULT_WALLET_ACTION_DEFAULTS.walletDepositActionSubtitleFr,
+        walletDepositActionShowSubText: res?.walletDepositActionShowSubText !== false,
+        walletWithdrawActionTitleEn: res?.walletWithdrawActionTitleEn ?? DEFAULT_WALLET_ACTION_DEFAULTS.walletWithdrawActionTitleEn,
+        walletWithdrawActionTitleFr: res?.walletWithdrawActionTitleFr ?? DEFAULT_WALLET_ACTION_DEFAULTS.walletWithdrawActionTitleFr,
+        walletWithdrawActionSubtitleEn: res?.walletWithdrawActionSubtitleEn ?? DEFAULT_WALLET_ACTION_DEFAULTS.walletWithdrawActionSubtitleEn,
+        walletWithdrawActionSubtitleFr: res?.walletWithdrawActionSubtitleFr ?? DEFAULT_WALLET_ACTION_DEFAULTS.walletWithdrawActionSubtitleFr,
+        walletWithdrawActionShowSubText: res?.walletWithdrawActionShowSubText !== false
+      });
     } catch (err) {
       setError(err?.message || 'Failed to load wallet policy config');
     } finally {
@@ -644,6 +669,25 @@ export default function WalletPolicyConfigPage() {
       normalizedDepositPromptThresholdAmounts[normalizedCurrency] = parsedAmount.toFixed(2);
     }
     const normalizedCardDetailsFetchMode = normalizeCardDetailsFetchMode(cardDetailsFetchMode);
+    const normalizedWalletActionDefaults = {
+      walletDepositActionTitleEn: String(walletActionDefaults.walletDepositActionTitleEn || '').trim(),
+      walletDepositActionTitleFr: String(walletActionDefaults.walletDepositActionTitleFr || '').trim(),
+      walletDepositActionSubtitleEn: String(walletActionDefaults.walletDepositActionSubtitleEn || '').trim(),
+      walletDepositActionSubtitleFr: String(walletActionDefaults.walletDepositActionSubtitleFr || '').trim(),
+      walletDepositActionShowSubText: Boolean(walletActionDefaults.walletDepositActionShowSubText),
+      walletWithdrawActionTitleEn: String(walletActionDefaults.walletWithdrawActionTitleEn || '').trim(),
+      walletWithdrawActionTitleFr: String(walletActionDefaults.walletWithdrawActionTitleFr || '').trim(),
+      walletWithdrawActionSubtitleEn: String(walletActionDefaults.walletWithdrawActionSubtitleEn || '').trim(),
+      walletWithdrawActionSubtitleFr: String(walletActionDefaults.walletWithdrawActionSubtitleFr || '').trim(),
+      walletWithdrawActionShowSubText: Boolean(walletActionDefaults.walletWithdrawActionShowSubText)
+    };
+    for (const [field, value] of Object.entries(normalizedWalletActionDefaults)) {
+      if (field.endsWith('ShowSubText')) continue;
+      if (!value) {
+        setError('Wallet action titles and subtitles require separate EN and FR text.');
+        return;
+      }
+    }
     const cardDetailsCacheMaxAgeSecondsRaw = String(cardDetailsCacheMaxAgeSeconds || '').trim();
     const cardDetailsCacheMaxAgeSecondsParsed =
       cardDetailsCacheMaxAgeSecondsRaw === '' ? 60 : Number(cardDetailsCacheMaxAgeSecondsRaw);
@@ -806,7 +850,8 @@ export default function WalletPolicyConfigPage() {
         actionFeeApplicationModes: normalizedActionFeeModes,
         actionMinimumAmounts: normalizedActionMinimumAmounts,
         actionMaximumAmounts: normalizedActionMaximumAmounts,
-        collectionSourceRiskRules: normalizedCollectionSourceRiskRules
+        collectionSourceRiskRules: normalizedCollectionSourceRiskRules,
+        ...normalizedWalletActionDefaults
       };
       const changedConfig = pickChangedConfigFields(nextConfig, configSnapshot);
       if (Object.keys(changedConfig).length > 0) {
@@ -881,6 +926,89 @@ export default function WalletPolicyConfigPage() {
           <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
             Allowed range: {MIN_COOLDOWN} to {MAX_COOLDOWN} minutes.
           </div>
+        </div>
+        <div style={{ display: 'grid', gap: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border)' }}>
+          <div style={{ display: 'grid', gap: '0.2rem' }}>
+            <div style={{ fontWeight: 700 }}>Global Wallet Button Defaults</div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              These labels apply to everyone unless an account has a wallet button override. Provide English and French text separately; the backend resolves the final customer language.
+            </div>
+          </div>
+
+          {[
+            {
+              key: 'Deposit',
+              titleEn: 'walletDepositActionTitleEn',
+              titleFr: 'walletDepositActionTitleFr',
+              subtitleEn: 'walletDepositActionSubtitleEn',
+              subtitleFr: 'walletDepositActionSubtitleFr',
+              showSubText: 'walletDepositActionShowSubText'
+            },
+            {
+              key: 'Withdraw',
+              titleEn: 'walletWithdrawActionTitleEn',
+              titleFr: 'walletWithdrawActionTitleFr',
+              subtitleEn: 'walletWithdrawActionSubtitleEn',
+              subtitleFr: 'walletWithdrawActionSubtitleFr',
+              showSubText: 'walletWithdrawActionShowSubText'
+            }
+          ].map((action) => (
+            <div
+              key={action.key}
+              style={{
+                display: 'grid',
+                gap: '0.65rem',
+                padding: '0.75rem',
+                border: '1px solid var(--border)',
+                borderRadius: '12px'
+              }}
+            >
+              <div style={{ fontWeight: 800 }}>{action.key} button</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
+                <label style={{ display: 'grid', gap: '0.25rem' }}>
+                  <span>Title EN</span>
+                  <input
+                    value={walletActionDefaults[action.titleEn] || ''}
+                    onChange={(e) => setWalletActionDefaults((prev) => ({ ...prev, [action.titleEn]: e.target.value }))}
+                    disabled={loading || saving}
+                  />
+                </label>
+                <label style={{ display: 'grid', gap: '0.25rem' }}>
+                  <span>Title FR</span>
+                  <input
+                    value={walletActionDefaults[action.titleFr] || ''}
+                    onChange={(e) => setWalletActionDefaults((prev) => ({ ...prev, [action.titleFr]: e.target.value }))}
+                    disabled={loading || saving}
+                  />
+                </label>
+                <label style={{ display: 'grid', gap: '0.25rem' }}>
+                  <span>Subtitle EN</span>
+                  <input
+                    value={walletActionDefaults[action.subtitleEn] || ''}
+                    onChange={(e) => setWalletActionDefaults((prev) => ({ ...prev, [action.subtitleEn]: e.target.value }))}
+                    disabled={loading || saving}
+                  />
+                </label>
+                <label style={{ display: 'grid', gap: '0.25rem' }}>
+                  <span>Subtitle FR</span>
+                  <input
+                    value={walletActionDefaults[action.subtitleFr] || ''}
+                    onChange={(e) => setWalletActionDefaults((prev) => ({ ...prev, [action.subtitleFr]: e.target.value }))}
+                    disabled={loading || saving}
+                  />
+                </label>
+              </div>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(walletActionDefaults[action.showSubText])}
+                  onChange={(e) => setWalletActionDefaults((prev) => ({ ...prev, [action.showSubText]: e.target.checked }))}
+                  disabled={loading || saving}
+                />
+                Show subtitle
+              </label>
+            </div>
+          ))}
         </div>
           </>
         )}

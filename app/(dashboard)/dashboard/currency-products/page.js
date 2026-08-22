@@ -64,6 +64,10 @@ const emptyDraft = {
   legacyBalanceBacked: false,
   baseCurrency: 'USD',
   rate: '',
+  collectionRate: '',
+  payoutRate: '',
+  clearCollectionRate: false,
+  clearPayoutRate: false,
   manualFxRate: false,
   collectionMarginPercent: '',
   payoutMarginPercent: '',
@@ -454,6 +458,8 @@ export default function CurrencyProductsPage() {
     const currency = upperTrim(draft.currency);
     const baseCurrency = upperTrim(draft.baseCurrency);
     const rate = Number(draft.rate);
+    const collectionRate = nullableNumber(draft.collectionRate);
+    const payoutRate = nullableNumber(draft.payoutRate);
     const collectionMarginPercent = nullableNumber(draft.collectionMarginPercent);
     const payoutMarginPercent = nullableNumber(draft.payoutMarginPercent);
     const bankAccountOrderPriceAmount = nullableNumber(draft.bankAccountOrderPriceAmount);
@@ -464,6 +470,8 @@ export default function CurrencyProductsPage() {
     if (!draft.displayName.trim()) return 'Display name is required.';
     if (!baseCurrency) return 'Base currency is required.';
     if (!Number.isFinite(rate) || rate <= 0) return 'Rate must be a positive number.';
+    if (draft.collectionRate !== '' && (collectionRate === null || collectionRate <= 0)) return 'Collection base rate override must be a positive number.';
+    if (draft.payoutRate !== '' && (payoutRate === null || payoutRate <= 0)) return 'Payout base rate override must be a positive number.';
     if (draft.collectionMarginPercent !== '' && (collectionMarginPercent === null || collectionMarginPercent < 0)) return 'Collection margin must be zero or a positive number.';
     if (draft.payoutMarginPercent !== '' && (payoutMarginPercent === null || payoutMarginPercent < 0)) return 'Payout margin must be zero or a positive number.';
     if (draft.bankAccountOrderPriceAmount !== '' && (bankAccountOrderPriceAmount === null || bankAccountOrderPriceAmount < 0)) return 'Bank account order price must be zero or a positive number.';
@@ -477,7 +485,7 @@ export default function CurrencyProductsPage() {
   const buildPayload = () => {
     const defaultCountryCodes = normalizeCountryCodes(draft.defaultCountryCodes);
     const countryCodes = mergeCountryCodes(draft.countryCodes, defaultCountryCodes);
-    return {
+    const payload = {
       currency: upperTrim(draft.currency),
       displayName: draft.displayName.trim(),
       logoUrl: draft.logoUrl.trim() || null,
@@ -501,6 +509,11 @@ export default function CurrencyProductsPage() {
       countryCodes,
       defaultCountryCodes
     };
+    if (draft.collectionRate !== '') payload.collectionRate = nullableNumber(draft.collectionRate);
+    if (draft.payoutRate !== '') payload.payoutRate = nullableNumber(draft.payoutRate);
+    if (draft.clearCollectionRate) payload.clearCollectionRate = true;
+    if (draft.clearPayoutRate) payload.clearPayoutRate = true;
+    return payload;
   };
 
   const openCreate = () => {
@@ -542,6 +555,10 @@ export default function CurrencyProductsPage() {
       legacyBalanceBacked: row.legacyBalanceBacked ?? false,
       baseCurrency: row.baseCurrency ?? 'USD',
       rate: row.rate ?? '',
+      collectionRate: row.collectionRate ?? '',
+      payoutRate: row.payoutRate ?? '',
+      clearCollectionRate: false,
+      clearPayoutRate: false,
       manualFxRate: Boolean(row.manualFxRate),
       collectionMarginPercent: row.collectionMarginPercent ?? '',
       payoutMarginPercent: row.payoutMarginPercent ?? '',
@@ -949,8 +966,7 @@ export default function CurrencyProductsPage() {
       )
     },
     { key: 'displayName', label: 'Display name' },
-    { key: 'rate', label: 'Rate' },
-    { key: 'baseCurrency', label: 'Base' },
+    { key: 'rate', label: 'Market rate' },
     { key: 'countryCodes', label: 'Countries', render: (row) => renderCountryTrigger(row, 'countryCodes', 'Country availability') },
     { key: 'defaultCountryCodes', label: 'Defaults', render: (row) => renderCountryTrigger(row, 'defaultCountryCodes', 'Default in countries') },
     { key: 'collectionMarginPercent', label: 'Collection margin', render: (row) => formatPercent(row.collectionMarginPercent) },
@@ -958,21 +974,15 @@ export default function CurrencyProductsPage() {
     { key: 'manualFxRate', label: 'Manual FX', render: (row) => formatBool(row.manualFxRate) },
     { key: 'walletEnabled', label: 'Wallet', render: (row) => formatBool(row.walletEnabled) },
     { key: 'bankAccountEnabled', label: 'Bank account available', render: (row) => formatBool(getBankAccountEnabled(row)) },
-    { key: 'bankAccountApplicationEnabled', label: 'Bank account application enabled', render: (row) => formatBool(getBankAccountApplicationEnabled(row)) },
-    { key: 'bankAccountAutoCreateEnabled', label: 'Auto-create', render: (row) => formatBool(row.bankAccountAutoCreateEnabled) },
     { key: 'active', label: 'Active', render: (row) => formatBool(row.active) },
-    { key: 'rateProvider', label: 'Provider', hideOnMobile: true },
     { key: 'rateFetchedAt', label: 'Rate fetched', hideOnMobile: true, render: (row) => formatDateTime(row.rateFetchedAt) },
     {
       key: 'actions',
       label: 'Actions',
       render: (row) => (
         <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-          <button type="button" onClick={() => openPreview(row)} className="btn-neutral" disabled={actionLoading || previewLoading}>Simulate Exchange</button>
           <button type="button" onClick={() => openDetail(row)} className="btn-neutral" disabled={actionLoading}>View</button>
           <button type="button" onClick={() => openEdit(row)} className="btn-neutral" disabled={actionLoading}>Edit</button>
-          <button type="button" onClick={() => openDefaultBankAccount(row)} className="btn-neutral" disabled={actionLoading}>Default bank account</button>
-          {getBankAccountEnabled(row) ? <button type="button" onClick={() => openCreateBankAccount(row)} className="btn-success" disabled={actionLoading}>Create bank account</button> : null}
           {row.active ? <button type="button" onClick={() => handleDeactivate(row)} className="btn-neutral" disabled={actionLoading}>Deactivate</button> : null}
           <button type="button" onClick={() => setConfirmDelete(row)} className="btn-danger" disabled={actionLoading}>Delete</button>
         </div>
@@ -1053,8 +1063,42 @@ export default function CurrencyProductsPage() {
       </div>
       {renderCurrencyInput('baseCurrency', 'Base currency', draft.baseCurrency, (e) => setDraft((p) => ({ ...p, baseCurrency: e.target.value.toUpperCase() })))}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="rate">Rate</label>
+        <label htmlFor="rate">Synced/default market rate</label>
         <input id="rate" type="number" min="0" step="0.000001" value={draft.rate} onChange={(e) => setDraft((p) => ({ ...p, rate: e.target.value }))} />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="collectionRate">Collection base rate override</label>
+        <input
+          id="collectionRate"
+          type="number"
+          min="0"
+          step="0.000001"
+          value={draft.collectionRate}
+          onChange={(e) => setDraft((p) => ({ ...p, collectionRate: e.target.value, clearCollectionRate: e.target.value ? false : p.clearCollectionRate }))}
+          placeholder="Use synced/default market rate"
+        />
+        {selected?.id ? renderCheckbox('clearCollectionRate', 'Clear collection override on save', draft.clearCollectionRate, (e) => setDraft((p) => ({
+          ...p,
+          clearCollectionRate: e.target.checked,
+          collectionRate: e.target.checked ? '' : p.collectionRate
+        }))) : null}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="payoutRate">Payout base rate override</label>
+        <input
+          id="payoutRate"
+          type="number"
+          min="0"
+          step="0.000001"
+          value={draft.payoutRate}
+          onChange={(e) => setDraft((p) => ({ ...p, payoutRate: e.target.value, clearPayoutRate: e.target.value ? false : p.clearPayoutRate }))}
+          placeholder="Use synced/default market rate"
+        />
+        {selected?.id ? renderCheckbox('clearPayoutRate', 'Clear payout override on save', draft.clearPayoutRate, (e) => setDraft((p) => ({
+          ...p,
+          clearPayoutRate: e.target.checked,
+          payoutRate: e.target.checked ? '' : p.payoutRate
+        }))) : null}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', padding: '0.65rem', border: '1px solid var(--border)', borderRadius: '10px' }}>
         {renderCheckbox('manualFxRate', 'Manually manage FX rate', draft.manualFxRate, (e) => setDraft((p) => ({
@@ -1184,6 +1228,14 @@ export default function CurrencyProductsPage() {
   const renderPreviewResult = () => {
     if (!previewResult) return null;
     const fee = previewResult.feePreview;
+    const previewMetadata = previewResult.metadata && typeof previewResult.metadata === 'object' && !Array.isArray(previewResult.metadata)
+      ? previewResult.metadata
+      : {};
+    const hasFlowRateMetadata =
+      hasValue(previewMetadata.rawFxRate) ||
+      hasValue(previewMetadata.marketFxRate) ||
+      hasValue(previewMetadata.fxEffectiveRate) ||
+      hasValue(previewMetadata.fxMarginPercent);
     const customerPaidProviderFeeSource = fee || previewResult;
     const hasCustomerPaidProviderFee =
       hasValue(customerPaidProviderFeeSource.customerPaidProviderFeeAmount) ||
@@ -1263,6 +1315,16 @@ export default function CurrencyProductsPage() {
               { label: 'Billing FX provider', value: fee.billingFxProvider || '-' },
               { label: 'Total to pay', value: formatMoney(fee.totalToPay, fee.requestedCurrency) },
               { label: 'Fees percentage', value: formatPercent(fee.feesPercentage) }
+            ]}
+          />
+        ) : null}
+        {hasFlowRateMetadata ? (
+          <DetailGrid
+            rows={[
+              { label: 'Flow base rate', value: formatRate(previewMetadata.rawFxRate) },
+              { label: 'Market/default rate', value: formatRate(previewMetadata.marketFxRate) },
+              { label: 'Effective FX rate', value: formatRate(previewMetadata.fxEffectiveRate) },
+              { label: 'FX margin percent', value: formatPercent(previewMetadata.fxMarginPercent) }
             ]}
           />
         ) : null}
@@ -1493,7 +1555,9 @@ export default function CurrencyProductsPage() {
               { label: 'Base currency', value: selected?.baseCurrency },
               { label: 'Country availability', value: formatCountryCodes(selected?.countryCodes) },
               { label: 'Default in countries', value: formatCountryCodes(selected?.defaultCountryCodes) },
-              { label: 'Rate', value: selected?.rate },
+              { label: 'Synced/default market rate', value: selected?.rate },
+              { label: 'Collection base rate override', value: selected?.collectionRate ?? '—' },
+              { label: 'Payout base rate override', value: selected?.payoutRate ?? '—' },
               { label: 'Collection margin', value: formatPercent(selected?.collectionMarginPercent) },
               { label: 'Payout margin', value: formatPercent(selected?.payoutMarginPercent) },
               { label: 'Rate provider', value: selected?.rateProvider },
@@ -1502,6 +1566,19 @@ export default function CurrencyProductsPage() {
               { label: 'Updated at', value: formatDateTime(selected?.updatedAt) }
             ]}
           />
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button type="button" onClick={() => openPreview(selected)} className="btn-neutral" disabled={actionLoading || previewLoading}>
+              Simulate Exchange
+            </button>
+            <button type="button" onClick={() => openDefaultBankAccount(selected)} className="btn-neutral" disabled={actionLoading}>
+              Default bank account
+            </button>
+            {getBankAccountEnabled(selected) ? (
+              <button type="button" onClick={() => openCreateBankAccount(selected)} className="btn-success" disabled={actionLoading}>
+                Create bank account
+              </button>
+            ) : null}
+          </div>
         </Modal>
       )}
 

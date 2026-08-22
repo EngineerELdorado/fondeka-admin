@@ -36,6 +36,18 @@ const emptyEnhancedKycRequirementDraft = {
   allowedSources: 'GALLERY, FILES, CAMERA',
   rank: '10'
 };
+const emptyWalletActionOverrideDraft = {
+  depositTitleEn: '',
+  depositTitleFr: '',
+  depositSubtitleEn: '',
+  depositSubtitleFr: '',
+  depositShowSubText: true,
+  withdrawTitleEn: '',
+  withdrawTitleFr: '',
+  withdrawSubtitleEn: '',
+  withdrawSubtitleFr: '',
+  withdrawShowSubText: true
+};
 const emptyNotificationAnnouncement = {
   enabled: false,
   link: '',
@@ -733,6 +745,13 @@ const [trustedDeviceSaving, setTrustedDeviceSaving] = useState(false);
   const [enhancedKycRequirementDraft, setEnhancedKycRequirementDraft] = useState(emptyEnhancedKycRequirementDraft);
   const [enhancedKycRequirementSaving, setEnhancedKycRequirementSaving] = useState(false);
   const [enhancedKycRequirementError, setEnhancedKycRequirementError] = useState(null);
+  const [walletActionOverride, setWalletActionOverride] = useState(null);
+  const [walletActionOverrideDraft, setWalletActionOverrideDraft] = useState(emptyWalletActionOverrideDraft);
+  const [walletActionOverrideLoading, setWalletActionOverrideLoading] = useState(false);
+  const [walletActionOverrideSaving, setWalletActionOverrideSaving] = useState(false);
+  const [walletActionOverrideError, setWalletActionOverrideError] = useState(null);
+  const [walletActionOverrideInfo, setWalletActionOverrideInfo] = useState(null);
+  const [showWalletActionOverrideSection, setShowWalletActionOverrideSection] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [notifications, setNotifications] = useState([]);
 const [notificationsLoading, setNotificationsLoading] = useState(false);
@@ -1042,6 +1061,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       await loadCryptoLimits(targetId);
       await loadPhoneVerificationOverride(targetId, acc);
       await loadEnhancedKycVerificationOverride(targetId, acc);
+      await loadWalletActionOverride(targetId);
     } catch (err) {
       setError(err.message || 'Failed to load account');
       pushToast({ tone: 'error', message: err.message || 'Failed to load account' });
@@ -1226,6 +1246,44 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       setWalletPolicyReference(res || null);
     } catch {
       setWalletPolicyReference(null);
+    }
+  };
+
+  const walletActionOverrideToDraft = (override) => ({
+    depositTitleEn: override?.depositTitleEn ?? '',
+    depositTitleFr: override?.depositTitleFr ?? '',
+    depositSubtitleEn: override?.depositSubtitleEn ?? '',
+    depositSubtitleFr: override?.depositSubtitleFr ?? '',
+    depositShowSubText: override?.depositShowSubText !== false,
+    withdrawTitleEn: override?.withdrawTitleEn ?? '',
+    withdrawTitleFr: override?.withdrawTitleFr ?? '',
+    withdrawSubtitleEn: override?.withdrawSubtitleEn ?? '',
+    withdrawSubtitleFr: override?.withdrawSubtitleFr ?? '',
+    withdrawShowSubText: override?.withdrawShowSubText !== false
+  });
+
+  const loadWalletActionOverride = async (accountIdValue = resolvedAccountId) => {
+    if (accountIdValue === null || accountIdValue === undefined) {
+      setWalletActionOverride(null);
+      setWalletActionOverrideDraft(emptyWalletActionOverrideDraft);
+      return;
+    }
+    setWalletActionOverrideLoading(true);
+    setWalletActionOverrideError(null);
+    try {
+      const res = await api.accounts.walletActions.get(accountIdValue);
+      setWalletActionOverride(res || null);
+      setWalletActionOverrideDraft(walletActionOverrideToDraft(res || {}));
+    } catch (err) {
+      if (err?.status === 404) {
+        setWalletActionOverride(null);
+        setWalletActionOverrideDraft(emptyWalletActionOverrideDraft);
+      } else {
+        setWalletActionOverride(null);
+        setWalletActionOverrideError(err.message || 'Failed to load wallet button override');
+      }
+    } finally {
+      setWalletActionOverrideLoading(false);
     }
   };
 
@@ -2011,6 +2069,69 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       pushToast({ tone: 'error', message });
     } finally {
       setPhoneVerificationSaving(false);
+    }
+  };
+
+  const saveWalletActionOverride = async () => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) {
+      pushToast({ tone: 'error', message: 'No account loaded' });
+      return;
+    }
+    const payload = {
+      depositTitleEn: String(walletActionOverrideDraft.depositTitleEn || '').trim(),
+      depositTitleFr: String(walletActionOverrideDraft.depositTitleFr || '').trim(),
+      depositSubtitleEn: String(walletActionOverrideDraft.depositSubtitleEn || '').trim(),
+      depositSubtitleFr: String(walletActionOverrideDraft.depositSubtitleFr || '').trim(),
+      depositShowSubText: Boolean(walletActionOverrideDraft.depositShowSubText),
+      withdrawTitleEn: String(walletActionOverrideDraft.withdrawTitleEn || '').trim(),
+      withdrawTitleFr: String(walletActionOverrideDraft.withdrawTitleFr || '').trim(),
+      withdrawSubtitleEn: String(walletActionOverrideDraft.withdrawSubtitleEn || '').trim(),
+      withdrawSubtitleFr: String(walletActionOverrideDraft.withdrawSubtitleFr || '').trim(),
+      withdrawShowSubText: Boolean(walletActionOverrideDraft.withdrawShowSubText)
+    };
+    const missingText = Object.entries(payload).some(([key, value]) => !key.endsWith('ShowSubText') && !value);
+    if (missingText) {
+      setWalletActionOverrideError('Provide separate EN and FR title/subtitle text for both deposit and withdraw.');
+      return;
+    }
+    setWalletActionOverrideSaving(true);
+    setWalletActionOverrideError(null);
+    setWalletActionOverrideInfo(null);
+    try {
+      const res = await api.accounts.walletActions.update(resolvedAccountId, payload);
+      setWalletActionOverride(res || payload);
+      setWalletActionOverrideDraft(walletActionOverrideToDraft(res || payload));
+      setWalletActionOverrideInfo('Wallet button override saved.');
+      pushToast({ tone: 'success', message: 'Wallet button override saved.' });
+    } catch (err) {
+      const message = err.message || 'Failed to save wallet button override';
+      setWalletActionOverrideError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setWalletActionOverrideSaving(false);
+    }
+  };
+
+  const removeWalletActionOverride = async () => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) {
+      pushToast({ tone: 'error', message: 'No account loaded' });
+      return;
+    }
+    setWalletActionOverrideSaving(true);
+    setWalletActionOverrideError(null);
+    setWalletActionOverrideInfo(null);
+    try {
+      await api.accounts.walletActions.remove(resolvedAccountId);
+      setWalletActionOverride(null);
+      setWalletActionOverrideDraft(emptyWalletActionOverrideDraft);
+      setWalletActionOverrideInfo('Wallet button override removed. This account now uses global defaults.');
+      pushToast({ tone: 'success', message: 'Wallet button override removed.' });
+    } catch (err) {
+      const message = err.message || 'Failed to remove wallet button override';
+      setWalletActionOverrideError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setWalletActionOverrideSaving(false);
     }
   };
 
@@ -3831,6 +3952,150 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             {countrySaving ? 'Saving…' : 'Update country'}
           </button>
         </div>
+      </div>
+
+      <div className="card" style={{ padding: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+            <div style={{ fontWeight: 800 }}>Account Wallet Button Override</div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              {walletActionOverrideLoading
+                ? 'Checking override…'
+                : walletActionOverride
+                  ? 'This account has custom deposit and withdraw button text.'
+                  : 'Use global defaults.'}
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Provide EN and FR separately. The backend resolves the final customer language from Accept-Language.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn-neutral btn-sm"
+              onClick={() => loadWalletActionOverride(resolvedAccountId)}
+              disabled={walletActionOverrideLoading || resolvedAccountId === null || resolvedAccountId === undefined}
+            >
+              {walletActionOverrideLoading ? 'Refreshing…' : 'Refresh'}
+            </button>
+            <button
+              type="button"
+              className="btn-neutral btn-sm"
+              onClick={() => setShowWalletActionOverrideSection((prev) => !prev)}
+            >
+              {showWalletActionOverrideSection ? 'Hide override' : 'Show override'}
+            </button>
+          </div>
+        </div>
+
+        {showWalletActionOverrideSection && (
+          <>
+            {(walletActionOverrideError || walletActionOverrideInfo) && (
+              <div style={{ marginTop: '0.5rem', color: walletActionOverrideError ? '#b91c1c' : '#15803d', fontWeight: 700 }}>
+                {walletActionOverrideError || walletActionOverrideInfo}
+              </div>
+            )}
+
+            <div style={{ marginTop: '0.75rem', display: 'grid', gap: '0.75rem' }}>
+              {[
+                {
+                  label: 'Deposit',
+                  titleEn: 'depositTitleEn',
+                  titleFr: 'depositTitleFr',
+                  subtitleEn: 'depositSubtitleEn',
+                  subtitleFr: 'depositSubtitleFr',
+                  showSubText: 'depositShowSubText',
+                  titlePlaceholderEn: 'Top up',
+                  titlePlaceholderFr: 'Recharger',
+                  subtitlePlaceholderEn: 'Add funds',
+                  subtitlePlaceholderFr: 'Ajouter des fonds'
+                },
+                {
+                  label: 'Withdraw',
+                  titleEn: 'withdrawTitleEn',
+                  titleFr: 'withdrawTitleFr',
+                  subtitleEn: 'withdrawSubtitleEn',
+                  subtitleFr: 'withdrawSubtitleFr',
+                  showSubText: 'withdrawShowSubText',
+                  titlePlaceholderEn: 'Cash out',
+                  titlePlaceholderFr: 'Retirer',
+                  subtitlePlaceholderEn: 'Send money',
+                  subtitlePlaceholderFr: 'Envoyer de l’argent'
+                }
+              ].map((action) => (
+                <div key={action.label} style={{ display: 'grid', gap: '0.65rem', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '12px' }}>
+                  <div style={{ fontWeight: 800 }}>{action.label} button</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
+                    <label style={{ display: 'grid', gap: '0.25rem' }}>
+                      <span>Title EN</span>
+                      <input
+                        value={walletActionOverrideDraft[action.titleEn] || ''}
+                        onChange={(e) => setWalletActionOverrideDraft((prev) => ({ ...prev, [action.titleEn]: e.target.value }))}
+                        placeholder={action.titlePlaceholderEn}
+                        disabled={walletActionOverrideSaving || walletActionOverrideLoading}
+                      />
+                    </label>
+                    <label style={{ display: 'grid', gap: '0.25rem' }}>
+                      <span>Title FR</span>
+                      <input
+                        value={walletActionOverrideDraft[action.titleFr] || ''}
+                        onChange={(e) => setWalletActionOverrideDraft((prev) => ({ ...prev, [action.titleFr]: e.target.value }))}
+                        placeholder={action.titlePlaceholderFr}
+                        disabled={walletActionOverrideSaving || walletActionOverrideLoading}
+                      />
+                    </label>
+                    <label style={{ display: 'grid', gap: '0.25rem' }}>
+                      <span>Subtitle EN</span>
+                      <input
+                        value={walletActionOverrideDraft[action.subtitleEn] || ''}
+                        onChange={(e) => setWalletActionOverrideDraft((prev) => ({ ...prev, [action.subtitleEn]: e.target.value }))}
+                        placeholder={action.subtitlePlaceholderEn}
+                        disabled={walletActionOverrideSaving || walletActionOverrideLoading}
+                      />
+                    </label>
+                    <label style={{ display: 'grid', gap: '0.25rem' }}>
+                      <span>Subtitle FR</span>
+                      <input
+                        value={walletActionOverrideDraft[action.subtitleFr] || ''}
+                        onChange={(e) => setWalletActionOverrideDraft((prev) => ({ ...prev, [action.subtitleFr]: e.target.value }))}
+                        placeholder={action.subtitlePlaceholderFr}
+                        disabled={walletActionOverrideSaving || walletActionOverrideLoading}
+                      />
+                    </label>
+                  </div>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(walletActionOverrideDraft[action.showSubText])}
+                      onChange={(e) => setWalletActionOverrideDraft((prev) => ({ ...prev, [action.showSubText]: e.target.checked }))}
+                      disabled={walletActionOverrideSaving || walletActionOverrideLoading}
+                    />
+                    Show subtitle
+                  </label>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn-danger btn-sm"
+                onClick={removeWalletActionOverride}
+                disabled={walletActionOverrideSaving || walletActionOverrideLoading || resolvedAccountId === null || resolvedAccountId === undefined || !walletActionOverride}
+              >
+                {walletActionOverrideSaving ? 'Saving…' : 'Use global defaults'}
+              </button>
+              <button
+                type="button"
+                className="btn-primary btn-sm"
+                onClick={saveWalletActionOverride}
+                disabled={walletActionOverrideSaving || walletActionOverrideLoading || resolvedAccountId === null || resolvedAccountId === undefined}
+              >
+                {walletActionOverrideSaving ? 'Saving…' : 'Save wallet button override'}
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="card" style={{ padding: '1rem' }}>
