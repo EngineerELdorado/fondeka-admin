@@ -2020,7 +2020,7 @@ export default function DashboardPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
               {[
                 { label: 'Disbursed principal', value: formatCurrency(metrics?.loanDisbursedVolume), sub: `Loans disbursed ${formatNumber(metrics?.loansDisbursed)}` },
-                { label: 'Collected interest', value: formatCurrency(metrics?.loanInterestVolume), sub: `From repayments • Of disbursed principal ${formatPercentage(metrics?.loanInterestVolumePercentage)}` },
+                { label: 'Collected interest', value: formatCurrency(metrics?.loanInterestVolume), sub: `USD-normalized from repayments • Of disbursed principal ${formatPercentage(metrics?.loanInterestVolumePercentage)}` },
                 { label: 'Total due volume', value: formatCurrency(metrics?.loanDueVolume), sub: `Of disbursed principal ${formatPercentage(metrics?.loanDueVolumePercentage)}` },
                 { label: 'Paid back volume', value: formatCurrency(metrics?.loanPaidBackVolume), sub: `Of disbursed principal ${formatPercentage(metrics?.loanPaidBackVolumePercentage)}` },
                 { label: 'Outstanding balance', value: formatCurrency(metrics?.loansOutstanding), sub: `Open loans ${formatNumber(metrics?.loansOpen)} • Of disbursed principal ${formatPercentage(metrics?.loansOutstandingPercentage)}` },
@@ -2061,7 +2061,7 @@ export default function DashboardPage() {
                     <BarChart
                       data={[
                         { name: 'Disbursed', amount: Number(metrics?.loanDisbursedVolume) || 0 },
-                        { name: 'Collected interest', amount: Number(metrics?.loanInterestVolume) || 0 },
+                        { name: 'Collected interest (USD)', amount: Number(metrics?.loanInterestVolume) || 0 },
                         { name: 'Due', amount: Number(metrics?.loanDueVolume) || 0 },
                         { name: 'Paid back', amount: Number(metrics?.loanPaidBackVolume) || 0 },
                         { name: 'Outstanding', amount: Number(metrics?.loansOutstanding) || 0 }
@@ -2152,7 +2152,7 @@ export default function DashboardPage() {
                 ]}
                 rows={[
                   { label: 'Disbursed principal', amount: metrics?.loanDisbursedVolume, percentage: null },
-                  { label: 'Collected interest', amount: metrics?.loanInterestVolume, percentage: metrics?.loanInterestVolumePercentage },
+                  { label: 'Collected interest (USD)', amount: metrics?.loanInterestVolume, percentage: metrics?.loanInterestVolumePercentage },
                   { label: 'Total due volume', amount: metrics?.loanDueVolume, percentage: metrics?.loanDueVolumePercentage },
                   { label: 'Paid back volume', amount: metrics?.loanPaidBackVolume, percentage: metrics?.loanPaidBackVolumePercentage },
                   { label: 'Outstanding balance', amount: metrics?.loansOutstanding, percentage: metrics?.loansOutstandingPercentage }

@@ -46,8 +46,6 @@ const countryOptions = [
     && list.findIndex((candidate) => candidate.cca2 === country.cca2) === index
   ))
 ];
-const countryByCode = new Map(countryOptions.map((country) => [country.cca2, country]));
-
 const emptyDraft = {
   currency: '',
   displayName: '',
@@ -225,11 +223,6 @@ const formatCountryCodes = (value) => {
   return codes.length ? codes.join(', ') : '-';
 };
 
-const formatCountryLabel = (code) => {
-  const country = countryByCode.get(code);
-  return country ? `${code} - ${country.name}` : code;
-};
-
 const nullableNumber = (value) => {
   if (value === '' || value === null || value === undefined) return null;
   const number = Number(value);
@@ -266,6 +259,23 @@ const formatRate = (value) => {
   const number = Number(value);
   if (!Number.isFinite(number)) return String(value);
   return number.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 18 });
+};
+
+const rateDisplay = (row, displayField, valueField) => {
+  if (hasValue(row?.[displayField])) return row[displayField];
+  return formatRate(row?.[valueField]);
+};
+
+const flowRateDisplay = (row, displayField, valueField) => {
+  if (hasValue(row?.[displayField]) || hasValue(row?.[valueField])) return rateDisplay(row, displayField, valueField);
+  return rateDisplay(row, 'rateDisplay', 'rate');
+};
+
+const rateSourceLabel = (value) => {
+  if (value === 'MARKET_RATE') return 'Market rate';
+  if (value === 'COLLECTION_RATE_OVERRIDE') return 'Collection override';
+  if (value === 'PAYOUT_RATE_OVERRIDE') return 'Payout override';
+  return value || '-';
 };
 
 const formatJson = (value) => {
@@ -321,7 +331,6 @@ export default function CurrencyProductsPage() {
   const [draft, setDraft] = useState(emptyDraft);
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
-  const [countryPopup, setCountryPopup] = useState(null);
   const [defaultBankAccountTarget, setDefaultBankAccountTarget] = useState(null);
   const [defaultBankAccountDraft, setDefaultBankAccountDraft] = useState(emptyDefaultBankAccountDraft);
   const [showDefaultBankAccount, setShowDefaultBankAccount] = useState(false);
@@ -934,23 +943,6 @@ export default function CurrencyProductsPage() {
   const canPrev = page > 0;
   const canNext = pageMeta.totalPages === null ? rows.length === size : page + 1 < pageMeta.totalPages;
 
-  const renderCountryTrigger = (row, field, label) => {
-    const codes = normalizeCountryCodes(row[field]);
-    if (!codes.length) return '-';
-    return (
-      <button
-        type="button"
-        className="btn-neutral btn-sm"
-        onClick={() => setCountryPopup({
-          title: `${label} - ${row.currency || `Product ${row.id}`}`,
-          codes
-        })}
-      >
-        View {codes.length}
-      </button>
-    );
-  };
-
   const columns = [
     {
       key: 'currency',
@@ -966,16 +958,51 @@ export default function CurrencyProductsPage() {
       )
     },
     { key: 'displayName', label: 'Display name' },
-    { key: 'rate', label: 'Market rate' },
-    { key: 'countryCodes', label: 'Countries', render: (row) => renderCountryTrigger(row, 'countryCodes', 'Country availability') },
-    { key: 'defaultCountryCodes', label: 'Defaults', render: (row) => renderCountryTrigger(row, 'defaultCountryCodes', 'Default in countries') },
-    { key: 'collectionMarginPercent', label: 'Collection margin', render: (row) => formatPercent(row.collectionMarginPercent) },
-    { key: 'payoutMarginPercent', label: 'Payout margin', render: (row) => formatPercent(row.payoutMarginPercent) },
+    {
+      key: 'rate',
+      label: 'Market rate',
+      render: (row) => rateDisplay(row, 'rateDisplay', 'rate')
+    },
+    {
+      key: 'collectionRate',
+      label: 'Collection rate',
+      render: (row) => flowRateDisplay(row, 'collectionRateDisplay', 'collectionRate')
+    },
+    {
+      key: 'collectionMarginPercent',
+      label: 'Collection margin',
+      render: (row) => {
+        return (
+          <div style={{ display: 'grid', gap: '0.2rem' }}>
+            <div style={{ fontWeight: 700 }}>{formatPercent(row.collectionMarginPercent)}</div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Effective <strong style={{ color: 'var(--text)', fontSize: '14px' }}>{rateDisplay(row, 'collectionEffectiveRateDisplay', 'collectionEffectiveRate')}</strong>
+            </div>
+          </div>
+        );
+      }
+    },
+    {
+      key: 'payoutRate',
+      label: 'Payout rate',
+      render: (row) => flowRateDisplay(row, 'payoutRateDisplay', 'payoutRate')
+    },
+    {
+      key: 'payoutMarginPercent',
+      label: 'Payout margin',
+      render: (row) => {
+        return (
+          <div style={{ display: 'grid', gap: '0.2rem' }}>
+            <div style={{ fontWeight: 700 }}>{formatPercent(row.payoutMarginPercent)}</div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Effective <strong style={{ color: 'var(--text)', fontSize: '14px' }}>{rateDisplay(row, 'payoutEffectiveRateDisplay', 'payoutEffectiveRate')}</strong>
+            </div>
+          </div>
+        );
+      }
+    },
     { key: 'manualFxRate', label: 'Manual FX', render: (row) => formatBool(row.manualFxRate) },
     { key: 'walletEnabled', label: 'Wallet', render: (row) => formatBool(row.walletEnabled) },
-    { key: 'bankAccountEnabled', label: 'Bank account available', render: (row) => formatBool(getBankAccountEnabled(row)) },
-    { key: 'active', label: 'Active', render: (row) => formatBool(row.active) },
-    { key: 'rateFetchedAt', label: 'Rate fetched', hideOnMobile: true, render: (row) => formatDateTime(row.rateFetchedAt) },
     {
       key: 'actions',
       label: 'Actions',
@@ -983,7 +1010,6 @@ export default function CurrencyProductsPage() {
         <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
           <button type="button" onClick={() => openDetail(row)} className="btn-neutral" disabled={actionLoading}>View</button>
           <button type="button" onClick={() => openEdit(row)} className="btn-neutral" disabled={actionLoading}>Edit</button>
-          {row.active ? <button type="button" onClick={() => handleDeactivate(row)} className="btn-neutral" disabled={actionLoading}>Deactivate</button> : null}
           <button type="button" onClick={() => setConfirmDelete(row)} className="btn-danger" disabled={actionLoading}>Delete</button>
         </div>
       )
@@ -1555,9 +1581,13 @@ export default function CurrencyProductsPage() {
               { label: 'Base currency', value: selected?.baseCurrency },
               { label: 'Country availability', value: formatCountryCodes(selected?.countryCodes) },
               { label: 'Default in countries', value: formatCountryCodes(selected?.defaultCountryCodes) },
-              { label: 'Synced/default market rate', value: selected?.rate },
-              { label: 'Collection base rate override', value: selected?.collectionRate ?? '—' },
-              { label: 'Payout base rate override', value: selected?.payoutRate ?? '—' },
+              { label: 'Synced/default market rate', value: rateDisplay(selected, 'rateDisplay', 'rate') },
+              { label: 'Collection base rate', value: flowRateDisplay(selected, 'collectionRateDisplay', 'collectionRate') },
+              { label: 'Collection effective rate', value: rateDisplay(selected, 'collectionEffectiveRateDisplay', 'collectionEffectiveRate') },
+              { label: 'Collection effective source', value: rateSourceLabel(selected?.collectionEffectiveRateSource) },
+              { label: 'Payout base rate', value: flowRateDisplay(selected, 'payoutRateDisplay', 'payoutRate') },
+              { label: 'Payout effective rate', value: rateDisplay(selected, 'payoutEffectiveRateDisplay', 'payoutEffectiveRate') },
+              { label: 'Payout effective source', value: rateSourceLabel(selected?.payoutEffectiveRateSource) },
               { label: 'Collection margin', value: formatPercent(selected?.collectionMarginPercent) },
               { label: 'Payout margin', value: formatPercent(selected?.payoutMarginPercent) },
               { label: 'Rate provider', value: selected?.rateProvider },
@@ -1576,6 +1606,11 @@ export default function CurrencyProductsPage() {
             {getBankAccountEnabled(selected) ? (
               <button type="button" onClick={() => openCreateBankAccount(selected)} className="btn-success" disabled={actionLoading}>
                 Create bank account
+              </button>
+            ) : null}
+            {selected?.active ? (
+              <button type="button" onClick={() => handleDeactivate(selected)} className="btn-neutral" disabled={actionLoading}>
+                Deactivate
               </button>
             ) : null}
           </div>
@@ -1796,23 +1831,6 @@ export default function CurrencyProductsPage() {
               </button>
             </div>
             {renderPreviewResult()}
-          </div>
-        </Modal>
-      )}
-
-      {countryPopup && (
-        <Modal title={countryPopup.title} onClose={() => setCountryPopup(null)}>
-          <div style={{ display: 'grid', gap: '0.5rem', maxHeight: '60vh', overflow: 'auto' }}>
-            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-              {countryPopup.codes.length} {countryPopup.codes.length === 1 ? 'country' : 'countries'}
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem' }}>
-              {countryPopup.codes.map((code) => (
-                <div key={code} style={{ padding: '0.55rem 0.65rem', border: '1px solid var(--border)', borderRadius: '8px', fontWeight: 700 }}>
-                  {formatCountryLabel(code)}
-                </div>
-              ))}
-            </div>
           </div>
         </Modal>
       )}

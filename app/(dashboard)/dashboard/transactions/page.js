@@ -760,21 +760,37 @@ export default function TransactionsPage() {
     );
   }, [formatMoneyWithCurrency, formatUsdAmount]);
 
-  const getRevenueBreakdownUsd = useCallback((row) => {
-    const feeRevenueUsd = Number(row?.usdAllFees ?? 0) || 0;
-    const commissionRevenueUsd = Number(row?.usdCommissionAmount ?? 0) || 0;
-    const fxRevenueUsd = Number(row?.usdFxMarginAmount ?? 0) || 0;
-    return {
-      feeRevenueUsd,
-      commissionRevenueUsd,
-      fxRevenueUsd,
-      totalRevenueUsd: feeRevenueUsd + commissionRevenueUsd + fxRevenueUsd
-    };
+  const getFxMarginBreakdown = useCallback((row) => {
+    const breakdown = row?.fxMarginBreakdown;
+    if (!breakdown || typeof breakdown !== 'object') return null;
+    return breakdown;
   }, []);
 
+  const getFxRevenueUsd = useCallback((row) => {
+    const breakdown = getFxMarginBreakdown(row);
+    if (hasValue(breakdown?.consolidatedUsdMarginAmount)) {
+      return Number(breakdown.consolidatedUsdMarginAmount) || 0;
+    }
+    return Number(row?.usdFxMarginAmount ?? 0) || 0;
+  }, [getFxMarginBreakdown]);
+
+  const getRevenueBreakdownUsd = useCallback((row) => {
+    const internalFeeRevenueUsd = Number(row?.usdInternalFeeAmount ?? 0) || 0;
+    const commissionRevenueUsd = Number(row?.usdCommissionAmount ?? 0) || 0;
+    const fxRevenueUsd = getFxRevenueUsd(row);
+    const loanInterestRevenueUsd = Number(row?.usdLoanInterestRevenueAmount ?? 0) || 0;
+    return {
+      internalFeeRevenueUsd,
+      commissionRevenueUsd,
+      fxRevenueUsd,
+      loanInterestRevenueUsd,
+      totalRevenueUsd: internalFeeRevenueUsd + commissionRevenueUsd + fxRevenueUsd + loanInterestRevenueUsd
+    };
+  }, [getFxRevenueUsd]);
+
   const hasPositiveUsdFxMargin = useCallback((row) => (
-    (Number(row?.usdFxMarginAmount ?? 0) || 0) > 0
-  ), []);
+    getFxRevenueUsd(row) > 0
+  ), [getFxRevenueUsd]);
 
   const shouldShowFxSourceLegNote = useCallback((row) => (
     normalizeEnumKey(row?.action) === 'CONVERT_FIAT' &&
@@ -2052,6 +2068,8 @@ export default function TransactionsPage() {
   };
 
   const selectedRevenueBreakdown = getRevenueBreakdownUsd(selected);
+  const selectedFxMarginBreakdown = getFxMarginBreakdown(selected);
+  const selectedFxMarginLegs = Array.isArray(selectedFxMarginBreakdown?.legs) ? selectedFxMarginBreakdown.legs : [];
   const selectedShowsFxMargin = hasPositiveUsdFxMargin(selected);
   const selectedShowsFxSourceLegNote = shouldShowFxSourceLegNote(selected);
 
@@ -2374,13 +2392,14 @@ export default function TransactionsPage() {
                 { label: 'USD FX rate', value: selected?.usdFxRate ?? '—' },
                 ...(isSelectedLoanTransaction
                   ? [
-                      {
-                        label: 'Expected interest',
-                        value:
-                          selected?.expectedInterestAmount === null || selected?.expectedInterestAmount === undefined
-                            ? '—'
-                            : formatMoneyWithCurrency(selected.expectedInterestAmount, selected?.currency)
-                      }
+                      ...(Number(selected?.expectedInterestAmount ?? 0) > 0
+                        ? [
+                            {
+                              label: 'Expected interest',
+                              value: formatMoneyWithCurrency(selected.expectedInterestAmount, selected?.currency)
+                            }
+                          ]
+                        : [])
                     ]
                   : []),
                 { label: 'Account ref', value: <CopyableValue value={selected?.accountReference} label="Account ref" onCopy={copyToClipboard} /> },
@@ -2393,6 +2412,8 @@ export default function TransactionsPage() {
                 { label: 'All fees', value: formatLocalAndUsd(selected, 'allFees', 'currency', 'usdAllFees') },
                 { label: 'Commission amount', value: formatLocalAndUsd(selected, 'commissionAmount', 'currency', 'usdCommissionAmount') },
                 { label: 'FX margin', value: formatFxMargin(selected) },
+                { label: 'Loan interest revenue', value: formatLocalAndUsd(selected, 'loanInterestRevenueAmount', 'loanInterestRevenueCurrency', 'usdLoanInterestRevenueAmount') },
+                { label: 'Loan interest revenue source', value: selected?.loanInterestRevenueSource || '—' },
                 { label: 'Provider amount', value: formatMoneyWithCurrency(selected?.providerAmount, selected?.providerCurrency) },
                 { label: 'Source amount', value: formatMoneyWithCurrency(selected?.sourceAmount, selected?.sourceCurrency) },
                 { label: 'Settlement amount', value: formatSettlementLocalAndUsd(selected, 'settlementAmount', 'currency', 'usdSettlementAmount') },
@@ -2465,29 +2486,74 @@ export default function TransactionsPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
                 <div style={{ fontWeight: 800 }}>Revenue</div>
                 <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-                  Uses top-level USD fields only: usdAllFees + usdCommissionAmount + usdFxMarginAmount. Fee breakdown fields are already included in allFees.
+                  Uses top-level USD fields only: usdInternalFeeAmount + usdCommissionAmount + usdFxMarginAmount + usdLoanInterestRevenueAmount. The dashboard does not calculate loan interest locally.
                 </div>
               </div>
               <DetailGrid
                 rows={[
-                  { label: 'Fees', value: formatUsdAmount(selectedRevenueBreakdown.feeRevenueUsd) },
-                  { label: 'Commission', value: formatUsdAmount(selectedRevenueBreakdown.commissionRevenueUsd) },
-                  { label: 'FX margin', value: formatUsdAmount(selectedRevenueBreakdown.fxRevenueUsd) },
+                  { label: 'Internal fee revenue', value: formatUsdAmount(selectedRevenueBreakdown.internalFeeRevenueUsd) },
+                  { label: 'Commission revenue', value: formatUsdAmount(selectedRevenueBreakdown.commissionRevenueUsd) },
+                  { label: 'FX margin revenue', value: formatUsdAmount(selectedRevenueBreakdown.fxRevenueUsd) },
+                  { label: 'Loan interest revenue', value: formatUsdAmount(selectedRevenueBreakdown.loanInterestRevenueUsd) },
                   { label: 'Total revenue', value: formatUsdAmount(selectedRevenueBreakdown.totalRevenueUsd) }
                 ]}
               />
               {selectedShowsFxMargin ? (
                 <div style={{ display: 'grid', gap: '0.5rem' }}>
                   <div style={{ fontWeight: 800 }}>FX details</div>
-                  <DetailGrid
-                    rows={[
-                      { label: 'Flow', value: formatEnumLabel(selected?.fxMarginFlow) },
-                      { label: 'Provider', value: formatEnumLabel(selected?.fxMarginProvider) },
-                      { label: 'Raw rate', value: selected?.fxRawRate ?? '—' },
-                      { label: 'Applied rate', value: selected?.fxEffectiveRate ?? '—' },
-                      { label: 'Margin', value: formatFxMargin(selected) }
-                    ]}
-                  />
+                  {selectedFxMarginLegs.length > 0 ? (
+                    <>
+                      <DetailGrid
+                        rows={[
+                          {
+                            label: 'Consolidated FX revenue',
+                            value: formatMoneyWithCurrency(
+                              selectedFxMarginBreakdown?.consolidatedAmount ?? selectedFxMarginBreakdown?.consolidatedUsdMarginAmount,
+                              selectedFxMarginBreakdown?.consolidatedCurrency || 'USD'
+                            )
+                          },
+                          { label: 'Consolidated USD revenue', value: formatUsdAmount(selectedFxMarginBreakdown?.consolidatedUsdMarginAmount) },
+                          { label: 'Breakdown source', value: selectedFxMarginBreakdown?.source || '—' }
+                        ]}
+                      />
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '980px' }}>
+                          <thead>
+                            <tr style={{ color: 'var(--muted)', fontSize: '12px', textAlign: 'left' }}>
+                              {['Leg', 'Flow', 'Provider', 'Source', 'Target', 'Raw rate', 'Applied rate', 'Margin', 'USD margin'].map((heading) => (
+                                <th key={heading} style={{ padding: '0.45rem', borderBottom: '1px solid var(--border)' }}>{heading}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {selectedFxMarginLegs.map((leg, index) => (
+                              <tr key={`${leg?.leg || 'leg'}-${index}`} style={{ borderBottom: '1px solid var(--border)' }}>
+                                <td style={{ padding: '0.45rem', fontWeight: 700 }}>{formatEnumLabel(leg?.leg)}</td>
+                                <td style={{ padding: '0.45rem' }}>{formatEnumLabel(leg?.flow)}</td>
+                                <td style={{ padding: '0.45rem' }}>{formatEnumLabel(leg?.provider)}</td>
+                                <td style={{ padding: '0.45rem' }}>{formatMoneyWithCurrency(leg?.sourceAmount, leg?.sourceCurrency)}</td>
+                                <td style={{ padding: '0.45rem' }}>{formatMoneyWithCurrency(leg?.targetAmount, leg?.targetCurrency)}</td>
+                                <td style={{ padding: '0.45rem' }}>{leg?.rawRate ?? '—'}</td>
+                                <td style={{ padding: '0.45rem' }}>{leg?.effectiveRate ?? '—'}</td>
+                                <td style={{ padding: '0.45rem' }}>{formatMoneyWithCurrency(leg?.marginAmount, leg?.marginCurrency)}</td>
+                                <td style={{ padding: '0.45rem', fontWeight: 800 }}>{formatUsdAmount(leg?.usdMarginAmount)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  ) : (
+                    <DetailGrid
+                      rows={[
+                        { label: 'Flow', value: formatEnumLabel(selected?.fxMarginFlow) },
+                        { label: 'Provider', value: formatEnumLabel(selected?.fxMarginProvider) },
+                        { label: 'Raw rate', value: selected?.fxRawRate ?? '—' },
+                        { label: 'Applied rate', value: selected?.fxEffectiveRate ?? '—' },
+                        { label: 'Margin', value: formatFxMargin(selected) }
+                      ]}
+                    />
+                  )}
                 </div>
               ) : selectedShowsFxSourceLegNote ? (
                 <div style={{ padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '10px', color: 'var(--muted)', fontSize: '13px' }}>
