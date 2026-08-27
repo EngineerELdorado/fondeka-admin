@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
+import { useAuth } from '@/contexts/AuthContext';
 
 const emptyState = { token: '', providerName: '', profileKey: '' };
 const tokenProviderNameOptions = ['MAPLERAD'];
@@ -51,6 +52,7 @@ const maskToken = (value) => {
 };
 
 export default function ProviderTokensPage() {
+  const { session } = useAuth();
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
@@ -65,6 +67,22 @@ export default function ProviderTokensPage() {
   const [draft, setDraft] = useState(emptyState);
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+
+  const isSuperAdmin = useMemo(() => {
+    const payloads = [session?.tokens?.idToken?.payload, session?.tokens?.accessToken?.payload].filter(Boolean);
+    return payloads.some((payload) => {
+      const role = payload?.role || payload?.adminRole || payload?.['custom:role'];
+      if (role && String(role).trim().toUpperCase() === 'SUPER_ADMIN') return true;
+      const groups = payload?.['cognito:groups'];
+      if (Array.isArray(groups)) {
+        return groups.some((group) => String(group).trim().toUpperCase() === 'SUPER_ADMIN');
+      }
+      if (typeof groups === 'string') {
+        return groups.split(',').some((group) => String(group).trim().toUpperCase() === 'SUPER_ADMIN');
+      }
+      return false;
+    });
+  }, [session]);
 
   const fetchRows = async () => {
     setLoading(true);
@@ -362,7 +380,7 @@ export default function ProviderTokensPage() {
               { label: 'ID', value: selected?.id },
               { label: 'Provider name', value: selected?.providerName },
               { label: 'Profile key', value: selected?.profileKey },
-              { label: 'Token', value: selected?.token },
+              { label: 'Token', value: isSuperAdmin ? selected?.token : maskToken(selected?.token) },
               { label: 'Expires at', value: formatDateTime(tokenExpiresAt(selected)) },
               { label: 'Created at', value: formatDateTime(selected?.createdAt) },
               { label: 'Updated at', value: formatDateTime(selected?.updatedAt) }
