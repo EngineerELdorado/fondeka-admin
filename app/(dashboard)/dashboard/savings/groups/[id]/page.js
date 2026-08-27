@@ -94,6 +94,10 @@ const emptyInviteForm = {
 const emptyMessageForm = {
   message: ''
 };
+const emptyRemoveMemberForm = {
+  reason: '',
+  note: ''
+};
 const emptyInterventionDraft = {
   reason: '',
   note: '',
@@ -120,6 +124,9 @@ const getCurrentRoundNumber = (group) => pickFirst(group?.currentRoundNumber, gr
 const getMembersCount = (group) => pickFirst(group?.activeMemberCount, group?.memberCount);
 const getDeletedAt = (group) => pickFirst(group?.deletedAt);
 const isActiveGroup = (group) => String(getStatus(group) || '').toUpperCase() === 'ACTIVE';
+const getMemberStatus = (member) => String(pickFirst(member?.status, '')).toUpperCase();
+const isRemovedMember = (member) => getMemberStatus(member) === 'REMOVED';
+const isActiveMember = (member) => getMemberStatus(member) === 'ACTIVE';
 const getRoundNumber = (row) => pickFirst(row?.roundNumber, row?.round?.number);
 const getCycleNumber = (row) => pickFirst(row?.cycleNumber, row?.cycle?.cycleNumber);
 const getCycleId = (row) => pickFirst(row?.cycleId, row?.cycle?.id);
@@ -128,7 +135,7 @@ const getPayoutId = (row) => pickFirst(row?.payoutId, row?.id);
 const getLoanId = (row) => pickFirst(row?.loanId, row?.id);
 const getRepaymentId = (row) => pickFirst(row?.repaymentId, row?.id);
 const getTreasuryWithdrawalId = (row) => pickFirst(row?.withdrawalId, row?.id);
-const getMemberId = (row) => pickFirst(row?.memberId, row?.groupMemberId, row?.member?.id);
+const getMemberId = (row) => pickFirst(row?.memberId, row?.groupMemberId, row?.id, row?.member?.id);
 const getMemberAccountId = (row) => pickFirst(row?.accountId, row?.memberAccountId, row?.account?.id, row?.member?.accountId, row?.member?.account?.id);
 const joinName = (firstName, lastName) => [firstName, lastName].filter(Boolean).join(' ').trim();
 const getMemberName = (row) => {
@@ -274,6 +281,7 @@ export default function GroupSavingDetailPage() {
   const [policyDraft, setPolicyDraft] = useState(emptyPolicyForm);
   const [inviteDraft, setInviteDraft] = useState(emptyInviteForm);
   const [messageDraft, setMessageDraft] = useState(emptyMessageForm);
+  const [removeMemberDraft, setRemoveMemberDraft] = useState(emptyRemoveMemberForm);
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(false);
   const [tabLoading, setTabLoading] = useState('');
@@ -334,6 +342,25 @@ export default function GroupSavingDetailPage() {
   const ensureMembersLoaded = async () => {
     if (loadedTabs.members) return members;
     return loadMembers();
+  };
+
+  const applyGroupSnapshot = (nextGroup) => {
+    if (!nextGroup || typeof nextGroup !== 'object') return;
+    const snapshot = nextGroup?.group && typeof nextGroup.group === 'object' ? nextGroup.group : nextGroup;
+    setGroup((prev) => ({
+      ...(prev || {}),
+      ...snapshot,
+      activeMemberCount: pickFirst(nextGroup?.activeMemberCount, snapshot?.activeMemberCount, prev?.activeMemberCount),
+      targetMemberCount: pickFirst(nextGroup?.targetMemberCount, snapshot?.targetMemberCount, prev?.targetMemberCount)
+    }));
+    const returnedMembers = listFromResponse(nextGroup?.members).length > 0
+      ? listFromResponse(nextGroup?.members)
+      : listFromResponse(snapshot?.members);
+    if (returnedMembers.length > 0) {
+      setMembers(returnedMembers);
+      setLoadedTabs((prev) => ({ ...prev, members: true }));
+    }
+    setSelectedReminderMemberIds([]);
   };
 
   const loadOverviewData = async (nextGroup = group) => {
@@ -621,6 +648,9 @@ export default function GroupSavingDetailPage() {
     return map;
   }, [members]);
 
+  const activeMembers = useMemo(() => members.filter((member) => !isRemovedMember(member)), [members]);
+  const removedMembers = useMemo(() => members.filter(isRemovedMember), [members]);
+
   const getMappedMemberName = ({ memberId, accountId }) => {
     if (memberId !== null && memberId !== undefined && memberId !== '') {
       const mapped = memberNameById.get(`member:${memberId}`);
@@ -875,11 +905,21 @@ export default function GroupSavingDetailPage() {
   };
 
   const handleRemoveMember = async (member) => {
-    setSavingAction(`remove-member-${member.id}`);
+    const memberId = getMemberId(member);
+    if (memberId === null || memberId === undefined || String(memberId).trim() === '') {
+      setError('Could not remove member because the member id is missing. Refresh the group and try again.');
+      return;
+    }
+    setSavingAction(`remove-member-${memberId}`);
     setError(null);
     setInfo(null);
     try {
-      await api.groupSavings.members.remove(groupId, member.id);
+      const payload = {
+        ...(removeMemberDraft.reason.trim() ? { reason: removeMemberDraft.reason.trim() } : {}),
+        ...(removeMemberDraft.note.trim() ? { note: removeMemberDraft.note.trim() } : {})
+      };
+      const updatedGroup = await api.groupSavings.members.remove(groupId, memberId, Object.keys(payload).length > 0 ? payload : null);
+      applyGroupSnapshot(updatedGroup);
       setInfo('Member removed.');
       await loadGroup();
     } catch (err) {
@@ -887,6 +927,7 @@ export default function GroupSavingDetailPage() {
     } finally {
       setSavingAction('');
       setConfirmAction(null);
+      setRemoveMemberDraft(emptyRemoveMemberForm);
     }
   };
 
@@ -1166,10 +1207,10 @@ export default function GroupSavingDetailPage() {
       key: 'actions',
       label: 'Actions',
       render: (row) => {
-        const blocked = Boolean(row?.exitBlockedByDebt) || String(pickFirst(row?.status, '')).toUpperCase() !== 'ACTIVE';
+        const blocked = Boolean(row?.exitBlockedByDebt) || !isActiveMember(row);
         const reason = Boolean(row?.exitBlockedByDebt)
           ? 'Member cannot be removed because they still have unresolved AVEC debt.'
-          : String(pickFirst(row?.status, '')).toUpperCase() !== 'ACTIVE'
+          : !isActiveMember(row)
             ? 'Only active members can be removed.'
             : '';
         return (
@@ -1178,7 +1219,10 @@ export default function GroupSavingDetailPage() {
             className="btn-danger"
             disabled={blocked}
             title={reason}
-            onClick={() => setConfirmAction({ type: 'remove-member', member: row })}
+            onClick={() => {
+              setRemoveMemberDraft(emptyRemoveMemberForm);
+              setConfirmAction({ type: 'remove-member', member: row });
+            }}
           >
             {isAvec ? 'Admin Override Remove' : 'Remove'}
           </button>
@@ -1495,7 +1539,25 @@ export default function GroupSavingDetailPage() {
               : 'LIKELEMBA removal remains the simpler direct flow during allowed setup stages.'
           }
         >
-          <DataTable showIndex={false} columns={membersColumns} rows={members} pageSize={100} emptyLabel="No members found" />
+          <DataTable showIndex={false} columns={membersColumns} rows={activeMembers} pageSize={100} emptyLabel="No active members found" />
+          {removedMembers.length > 0 ? (
+            <div style={{ display: 'grid', gap: '0.6rem', marginTop: '1rem' }}>
+              <div style={{ display: 'grid', gap: '0.2rem' }}>
+                <div style={{ fontWeight: 800 }}>Removed members</div>
+                <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                  Removed members are retained for audit/history and are excluded from active rotation.
+                </div>
+              </div>
+              <DataTable
+                showIndex={false}
+                columns={membersColumns}
+                rows={removedMembers}
+                pageSize={100}
+                emptyLabel="No removed members found"
+                rowStyle={() => ({ opacity: 0.62, background: '#F8FAFC' })}
+              />
+            </div>
+          ) : null}
         </SectionCard>
       ) : null}
 
@@ -2578,7 +2640,10 @@ export default function GroupSavingDetailPage() {
                   ? 'Restore group?'
                   : 'Remove member?'
           }
-          onClose={() => setConfirmAction(null)}
+          onClose={() => {
+            setConfirmAction(null);
+            setRemoveMemberDraft(emptyRemoveMemberForm);
+          }}
           width={560}
         >
           <div style={{ display: 'grid', gap: '1rem' }}>
@@ -2603,8 +2668,45 @@ export default function GroupSavingDetailPage() {
                       ? 'This is an admin override removal. The owner-governed AVEC member-removal flow is separate and policy-based.'
                       : 'Remove this member from the group if allowed by policy and debt state?'}
             </div>
+            {confirmAction.type === 'remove-member' ? (
+              <div style={{ display: 'grid', gap: '0.75rem' }}>
+                <DetailGrid
+                  rows={[
+                    { label: 'Member', value: getMemberName(confirmAction.member) },
+                    { label: 'Status', value: pickFirst(confirmAction.member?.status, 'UNKNOWN') },
+                    { label: 'Rotation order', value: isLikelemba ? pickFirst(confirmAction.member?.rotationOrder, '—') : '—' }
+                  ]}
+                />
+                <div style={{ display: 'grid', gap: '0.25rem' }}>
+                  <label htmlFor="removeMemberReason">Reason (optional)</label>
+                  <input
+                    id="removeMemberReason"
+                    value={removeMemberDraft.reason}
+                    onChange={(e) => setRemoveMemberDraft((prev) => ({ ...prev, reason: e.target.value }))}
+                    placeholder="Member is no longer active"
+                  />
+                </div>
+                <div style={{ display: 'grid', gap: '0.25rem' }}>
+                  <label htmlFor="removeMemberNote">Note (optional)</label>
+                  <textarea
+                    id="removeMemberNote"
+                    rows={3}
+                    value={removeMemberDraft.note}
+                    onChange={(e) => setRemoveMemberDraft((prev) => ({ ...prev, note: e.target.value }))}
+                    placeholder="Removed by support after group owner request"
+                  />
+                </div>
+              </div>
+            ) : null}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-              <button type="button" className="btn-neutral" onClick={() => setConfirmAction(null)}>
+              <button
+                type="button"
+                className="btn-neutral"
+                onClick={() => {
+                  setConfirmAction(null);
+                  setRemoveMemberDraft(emptyRemoveMemberForm);
+                }}
+              >
                 Cancel
               </button>
               {confirmAction.type === 'activate' ? (
@@ -2628,14 +2730,20 @@ export default function GroupSavingDetailPage() {
                 </button>
               ) : null}
               {confirmAction.type === 'remove-member' ? (
-                <button
-                  type="button"
-                  className="btn-danger"
-                  onClick={() => handleRemoveMember(confirmAction.member)}
-                  disabled={savingAction === `remove-member-${confirmAction.member?.id}`}
-                >
-                  {savingAction === `remove-member-${confirmAction.member?.id}` ? 'Removing…' : isAvec ? 'Admin Override Remove' : 'Remove Member'}
-                </button>
+                (() => {
+                  const confirmMemberId = getMemberId(confirmAction.member);
+                  const isRemovingMember = savingAction === `remove-member-${confirmMemberId}`;
+                  return (
+                    <button
+                      type="button"
+                      className="btn-danger"
+                      onClick={() => handleRemoveMember(confirmAction.member)}
+                      disabled={isRemovingMember}
+                    >
+                      {isRemovingMember ? 'Removing…' : isAvec ? 'Admin Override Remove' : 'Remove Member'}
+                    </button>
+                  );
+                })()
               ) : null}
               {confirmAction.type === 'restore-group' ? (
                 <button type="button" className="btn-primary" onClick={handleRestoreGroup} disabled={savingAction === 'restore-group'}>
