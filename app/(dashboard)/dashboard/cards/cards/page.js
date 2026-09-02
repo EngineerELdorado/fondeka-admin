@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 import { useAuth } from '@/contexts/AuthContext';
+import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
 
 const statusOptions = ['IN_PREPARATION', 'ACTIVE', 'FAILED', 'BLOCKED_BY_USER', 'BLOCKED_BY_ADMIN', 'BLOCKED_BY_PROVIDER'];
 
@@ -262,7 +263,7 @@ export default function CardsPage() {
       paymentMethods
         .map((method) => {
           const id = method?.id;
-          const name = method?.displayName || method?.name || method?.paymentMethodName || `Payment method ${id}`;
+          const name = paymentMethodAdminLabel(method, `Payment method ${id}`);
           const type = method?.type ? ` (${method.type})` : '';
           return { value: String(id), label: `${name}${type}` };
         })

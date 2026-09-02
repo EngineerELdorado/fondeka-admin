@@ -19,6 +19,7 @@ import {
   pickFirst
 } from '@/components/SavingsAdmin';
 import { api } from '@/lib/api';
+import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
 
 const emptyFilters = {
   reference: '',
@@ -103,15 +104,15 @@ const getActivityCurrency = (row) => pickFirst(row?.currency, row?.savingCurrenc
 const getActivitySavingId = (row) => pickFirst(row?.savingId, row?.saving?.id, row?.personalSavingId);
 const getActivityTransactionId = (row) => pickFirst(row?.transactionId, row?.transaction?.transactionId, row?.transaction?.id);
 const getActivityPaymentMethod = (row) =>
-  pickFirst(
-    row?.paymentMethodName,
-    row?.paymentMethodDisplayName,
-    row?.paymentMethod?.displayName,
-    row?.paymentMethod?.name,
-    row?.transaction?.paymentMethodName,
-    row?.transaction?.paymentMethodDisplayName,
-    row?.transaction?.paymentMethod?.displayName,
-    row?.transaction?.paymentMethod?.name
+  paymentMethodAdminLabel(
+    {
+      paymentMethodName: pickFirst(row?.paymentMethodName, row?.paymentMethod?.name, row?.transaction?.paymentMethodName, row?.transaction?.paymentMethod?.name),
+      paymentMethodId: pickFirst(row?.paymentMethodId, row?.paymentMethod?.id, row?.transaction?.paymentMethodId, row?.transaction?.paymentMethod?.id),
+      paymentMethodCountryCode: pickFirst(row?.paymentMethodCountryCode, row?.paymentMethod?.countryCode, row?.transaction?.paymentMethodCountryCode, row?.transaction?.paymentMethod?.countryCode),
+      paymentMethodCountryName: pickFirst(row?.paymentMethodCountryName, row?.paymentMethod?.countryName, row?.transaction?.paymentMethodCountryName, row?.transaction?.paymentMethod?.countryName),
+      paymentMethodCurrency: pickFirst(row?.paymentMethodCurrency, row?.paymentMethod?.currency, row?.transaction?.paymentMethodCurrency, row?.transaction?.paymentMethod?.currency)
+    },
+    '—'
   );
 const formatDisplayName = (value) => {
   const text = String(value || '').trim();
@@ -1089,7 +1090,13 @@ export default function PersonalSavingsPage() {
                   : []),
                 {
                   label: 'Payment method',
-                  value: pickFirst(activityTransactionDetail?.paymentMethodName, activityTransactionDetail?.paymentMethodDisplayName, activityTransactionDetail?.paymentMethod?.displayName, activityTransactionDetail?.paymentMethod?.name, activityTransactionDetail?.paymentMethodId, '—')
+                  value: paymentMethodAdminLabel({
+                    paymentMethodName: pickFirst(activityTransactionDetail?.paymentMethodName, activityTransactionDetail?.paymentMethod?.name),
+                    paymentMethodId: pickFirst(activityTransactionDetail?.paymentMethodId, activityTransactionDetail?.paymentMethod?.id),
+                    paymentMethodCountryCode: pickFirst(activityTransactionDetail?.paymentMethodCountryCode, activityTransactionDetail?.paymentMethod?.countryCode),
+                    paymentMethodCountryName: pickFirst(activityTransactionDetail?.paymentMethodCountryName, activityTransactionDetail?.paymentMethod?.countryName),
+                    paymentMethodCurrency: pickFirst(activityTransactionDetail?.paymentMethodCurrency, activityTransactionDetail?.paymentMethod?.currency)
+                  })
                 },
                 ...(activityTransactionDetail?.paymentMethodType ? [{ label: 'Payment method type', value: activityTransactionDetail.paymentMethodType }] : []),
                 { label: 'Payment provider', value: activityTransactionDetail?.paymentProviderName || activityTransactionDetail?.paymentProviderId || '—' },

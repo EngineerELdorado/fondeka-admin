@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
+import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
 
 const emptyState = {
   paymentRequestId: '',
@@ -71,6 +72,7 @@ export default function PaymentRequestPaymentsPage() {
   const [showEdit, setShowEdit] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const [draft, setDraft] = useState(emptyState);
+  const [paymentMethods, setPaymentMethods] = useState([]);
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
@@ -95,11 +97,37 @@ export default function PaymentRequestPaymentsPage() {
     fetchRows();
   }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    const loadPaymentMethods = async () => {
+      try {
+        const res = await api.paymentMethods.list(new URLSearchParams({ page: '0', size: '300' }));
+        setPaymentMethods(Array.isArray(res) ? res : res?.content || []);
+      } catch {
+        setPaymentMethods([]);
+      }
+    };
+    loadPaymentMethods();
+  }, []);
+
+  const paymentMethodById = useMemo(() => {
+    const map = new Map();
+    paymentMethods.forEach((method) => {
+      if (method?.id !== null && method?.id !== undefined) map.set(String(method.id), method);
+    });
+    return map;
+  }, [paymentMethods]);
+
+  const getPaymentMethodLabel = useCallback((row) => {
+    const methodId = row?.paymentMethodId;
+    const match = methodId !== null && methodId !== undefined ? paymentMethodById.get(String(methodId)) : null;
+    return paymentMethodAdminLabel({ ...row, ...(match || {}) }, methodId ? `Method #${methodId}` : '—');
+  }, [paymentMethodById]);
+
   const columns = useMemo(
     () => [
       { key: 'id', label: 'ID' },
       { key: 'paymentRequestId', label: 'Request ID' },
-      { key: 'paymentMethodId', label: 'Method ID' },
+      { key: 'paymentMethodId', label: 'Payment method', render: getPaymentMethodLabel },
       { key: 'amount', label: 'Amount' },
       { key: 'currency', label: 'Currency' },
       { key: 'status', label: 'Status' },
@@ -121,7 +149,7 @@ export default function PaymentRequestPaymentsPage() {
         )
       }
     ],
-    []
+    [getPaymentMethodLabel]
   );
 
   const openCreate = () => {
@@ -209,8 +237,15 @@ export default function PaymentRequestPaymentsPage() {
         <input id="paymentRequestId" type="number" value={draft.paymentRequestId} onChange={(e) => setDraft((p) => ({ ...p, paymentRequestId: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="paymentMethodId">Payment method ID</label>
-        <input id="paymentMethodId" type="number" value={draft.paymentMethodId} onChange={(e) => setDraft((p) => ({ ...p, paymentMethodId: e.target.value }))} />
+        <label htmlFor="paymentMethodId">Payment method</label>
+        <select id="paymentMethodId" value={draft.paymentMethodId} onChange={(e) => setDraft((p) => ({ ...p, paymentMethodId: e.target.value }))}>
+          <option value="">Select payment method</option>
+          {paymentMethods.map((method) => (
+            <option key={method.id} value={method.id}>
+              {paymentMethodAdminLabel(method)}
+            </option>
+          ))}
+        </select>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="status">Status</label>
@@ -335,7 +370,7 @@ export default function PaymentRequestPaymentsPage() {
             rows={[
               { label: 'ID', value: selected?.id },
               { label: 'Payment request ID', value: selected?.paymentRequestId },
-              { label: 'Payment method ID', value: selected?.paymentMethodId },
+              { label: 'Payment method', value: getPaymentMethodLabel(selected) },
               { label: 'Status', value: selected?.status },
               { label: 'Provider Txn ID', value: selected?.providerTxnId },
               { label: 'Amount', value: selected?.amount },

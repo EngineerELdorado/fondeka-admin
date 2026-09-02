@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
+import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
 
 const initialFilters = {
   accountReference: '',
@@ -26,7 +27,7 @@ const feeLabel = (fee) =>
   [
     fee?.service,
     fee?.action,
-    fee?.paymentMethodName || fee?.paymentMethod,
+    paymentMethodAdminLabel(fee, fee?.paymentMethod || ''),
     fee?.paymentProviderName || fee?.paymentProvider
   ].filter(Boolean).join(' / ') || `Custom fee #${fee?.id}`;
 

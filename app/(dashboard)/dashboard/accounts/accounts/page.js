@@ -6,6 +6,7 @@ import { DataTable } from '@/components/DataTable';
 import { useLocale } from '@/contexts/LocaleContext';
 import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
+import { paymentMethodRouteAdminLabel } from '@/lib/payment-method-labels';
 
 const initialFilters = {
   accountId: '',
@@ -1670,7 +1671,7 @@ export default function AccountsListPage() {
                                 ? (() => {
                                     const match = pmps.find((p) => String(p.id) === String(fee.paymentMethodPaymentProviderId));
                                     if (match) {
-                                      return `${match.paymentMethodName || match.paymentMethodDisplayName || 'Method'} → ${match.paymentProviderName || 'Provider'}`;
+                                      return `${paymentMethodRouteAdminLabel(match)} → ${match.paymentProviderName || 'Provider'}`;
                                     }
                                     return fee.paymentMethodPaymentProviderId;
                                   })()
@@ -2035,7 +2036,7 @@ export default function AccountsListPage() {
                   <option value="">{t('accounts.accountWide')}</option>
                   {pmps.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {(p.paymentMethodName || p.paymentMethodDisplayName || 'Method') + ' → ' + (p.paymentProviderName || 'Provider')}
+                      {paymentMethodRouteAdminLabel(p) + ' → ' + (p.paymentProviderName || 'Provider')}
                     </option>
                   ))}
                 </select>

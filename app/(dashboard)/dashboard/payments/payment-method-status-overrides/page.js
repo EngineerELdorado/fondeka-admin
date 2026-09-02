@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
+import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
 
 const emptyFilters = { paymentMethodId: '', accountId: '', email: '' };
 const emptyDraft = { accountId: '', email: '', paymentMethodId: '', active: true };
@@ -52,7 +53,7 @@ const targetType = (row) => {
   return '-';
 };
 
-const paymentMethodLabel = (row) => row?.paymentMethodDisplayName || row?.paymentMethodName || row?.paymentMethodId || '-';
+const paymentMethodLabel = (row) => paymentMethodAdminLabel(row, '-');
 
 export default function PaymentMethodStatusOverridesPage() {
   const [rows, setRows] = useState([]);
@@ -262,7 +263,7 @@ export default function PaymentMethodStatusOverridesPage() {
           <option value="">Select method</option>
           {paymentMethods.map((method) => (
             <option key={method.id} value={method.id}>
-              {method.displayName || method.name || method.id}{method.currency ? ` (${method.currency})` : ''}
+              {paymentMethodAdminLabel(method)}
             </option>
           ))}
         </select>
@@ -320,7 +321,7 @@ export default function PaymentMethodStatusOverridesPage() {
             <option value="">All methods</option>
             {paymentMethods.map((method) => (
               <option key={method.id} value={method.id}>
-                {method.displayName || method.name || method.id}{method.currency ? ` (${method.currency})` : ''}
+                {paymentMethodAdminLabel(method)}
               </option>
             ))}
           </select>

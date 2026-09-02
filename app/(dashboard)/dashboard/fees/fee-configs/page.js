@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
+import { paymentMethodAdminLabel, paymentMethodRouteAdminLabel } from '@/lib/payment-method-labels';
 
 const serviceOptions = ['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'PAYMENT_REQUEST', 'E_SIM', 'AIRTIME_AND_DATA', 'OTHER'];
 const paymentMethodTypeOptions = ['MOBILE_MONEY', 'CRYPTO', 'BALANCE', 'CREDIT', 'AIRTIME', 'BANK'];
@@ -449,11 +450,11 @@ export default function FeeConfigsPage() {
     if (!row?.paymentMethodPaymentProviderId) return 'GLOBAL';
     const match = pmps.find((p) => Number(p.id) === Number(row.paymentMethodPaymentProviderId));
     if (match) {
-      const method = match.paymentMethodName || match.paymentMethodDisplayName || 'Method';
+      const method = paymentMethodRouteAdminLabel(match);
       const provider = match.paymentProviderName || 'Provider';
       return `${method} → ${provider}`;
     }
-    const fallbackLabel = [row.paymentMethodName, row.paymentProviderName].filter(Boolean).join(' → ');
+    const fallbackLabel = [paymentMethodAdminLabel(row, ''), row.paymentProviderName].filter(Boolean).join(' → ');
     return fallbackLabel ? `${fallbackLabel} (#${row.paymentMethodPaymentProviderId})` : `PMPP #${row.paymentMethodPaymentProviderId}`;
   }, [pmps]);
 
@@ -601,7 +602,7 @@ export default function FeeConfigsPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
             <div>{getPmpLabel(row)}</div>
             <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', fontSize: '12px', color: 'var(--muted)' }}>
-              {row.paymentMethodName && <span>Method: {row.paymentMethodName}</span>}
+              {row.paymentMethodName && <span>Method: {paymentMethodAdminLabel(row)}</span>}
               {row.paymentProviderName && <span>Provider: {row.paymentProviderName}</span>}
             </div>
           </div>
@@ -1199,7 +1200,7 @@ export default function FeeConfigsPage() {
           <option value="">Global (no PMPP)</option>
           {pmps.map((pmp) => (
             <option key={pmp.id} value={pmp.id}>
-              {pmp.paymentMethodName || pmp.paymentMethodDisplayName || 'Method'} → {pmp.paymentProviderName || 'Provider'}
+              {paymentMethodRouteAdminLabel(pmp)} → {pmp.paymentProviderName || 'Provider'}
               {pmp.countryName ? ` (${pmp.countryName})` : ''} #{pmp.id}
             </option>
           ))}
@@ -1582,7 +1583,7 @@ export default function FeeConfigsPage() {
               <option value="">All</option>
               {paymentMethods.map((pm) => (
                 <option key={pm.id} value={pm.id}>
-                  {pm.name || pm.displayName || pm.id}
+                  {paymentMethodAdminLabel(pm)}
                 </option>
               ))}
             </select>
@@ -1630,7 +1631,7 @@ export default function FeeConfigsPage() {
               <option value="">All</option>
               {pmps.map((pmp) => (
                 <option key={pmp.id} value={pmp.id}>
-                  {pmp.paymentMethodName || pmp.paymentMethodDisplayName || 'Method'} → {pmp.paymentProviderName || 'Provider'}
+                  {paymentMethodRouteAdminLabel(pmp)} → {pmp.paymentProviderName || 'Provider'}
                 </option>
               ))}
             </select>

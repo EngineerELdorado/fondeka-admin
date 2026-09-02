@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
+import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
 
 const statusOptions = ['CREDITED', 'PENDING', 'REJECTED'];
 
@@ -353,7 +354,7 @@ export default function BankDepositProofsPage() {
           <option value="">Select BANK method</option>
           {bankMethods.map((pm) => (
             <option key={pm.id} value={pm.id}>
-              {pm.name || pm.displayName || pm.bankName || pm.id}
+              {paymentMethodAdminLabel(pm)}
             </option>
           ))}
         </select>

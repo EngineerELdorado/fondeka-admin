@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
+import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
 
 const emptyState = {
   name: '',
@@ -371,7 +372,7 @@ export default function PaymentMethodsPage() {
       const key = paymentMethodRailFlagKey(row.id, flow);
       await api.featureFlags.update(key, { enabled: Boolean(enabled) });
       setRailFlags((prev) => ({ ...prev, [stateKey]: Boolean(enabled) }));
-      setInfo(`${row.displayName || row.name || `Payment method ${row.id}`} ${flow} ${enabled ? 'enabled' : 'blocked'}.`);
+      setInfo(`${paymentMethodAdminLabel(row, `Payment method ${row.id}`)} ${flow} ${enabled ? 'enabled' : 'blocked'}.`);
     } catch (err) {
       const message = err?.message || `Failed to update ${flow} gate`;
       if (err?.data?.errorCode === WARNING_ERROR_CODE) {
@@ -389,7 +390,7 @@ export default function PaymentMethodsPage() {
     const featureFlagKey = paymentMethodRailFlagKey(row.id, flow);
     setOverrideModal({
       featureFlagKey,
-      label: `${row.displayName || row.name || `Payment method ${row.id}`} - ${flow}`
+      label: `${paymentMethodAdminLabel(row, `Payment method ${row.id}`)} - ${flow}`
     });
     setOverrideAccountId('');
     setOverrideAccountEnabled(true);
@@ -458,7 +459,7 @@ export default function PaymentMethodsPage() {
         active: Boolean(statusOverrideActive),
         ...(targetIsAccount ? { accountId: Number(accountId) } : { email })
       });
-      setInfo(`Payment method status override saved for ${statusOverrideModal.displayName || statusOverrideModal.name || statusOverrideModal.id}.`);
+      setInfo(`Payment method status override saved for ${paymentMethodAdminLabel(statusOverrideModal, statusOverrideModal.id)}.`);
       setStatusOverrideAccountId('');
       setStatusOverrideEmail('');
       await loadStatusOverridesForMethod(statusOverrideModal.id);
@@ -1268,7 +1269,7 @@ export default function PaymentMethodsPage() {
       {confirmDelete && (
         <Modal title="Confirm delete" onClose={() => setConfirmDelete(null)}>
           <div style={{ color: 'var(--muted)' }}>
-            Delete payment method <strong>{confirmDelete.displayName || confirmDelete.name || confirmDelete.id}</strong>? This cannot be undone.
+            Delete payment method <strong>{paymentMethodAdminLabel(confirmDelete, confirmDelete.id)}</strong>? This cannot be undone.
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" onClick={() => setConfirmDelete(null)} className="btn-neutral">Cancel</button>
@@ -1348,7 +1349,7 @@ export default function PaymentMethodsPage() {
 
       {statusOverrideModal && (
         <Modal
-          title={`Status override: ${statusOverrideModal.displayName || statusOverrideModal.name || statusOverrideModal.id}`}
+          title={`Status override: ${paymentMethodAdminLabel(statusOverrideModal, statusOverrideModal?.id)}`}
           onClose={() => (!statusOverrideSaving ? setStatusOverrideModal(null) : null)}
         >
           <div style={{ display: 'grid', gap: '0.75rem' }}>

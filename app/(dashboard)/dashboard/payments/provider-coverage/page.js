@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
+import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
 
 const initialFilters = {
   activeOnly: true,
@@ -26,8 +27,7 @@ const CONTEXTS = ['COLLECTION', 'PAYOUT'];
 
 const toList = (value) => (Array.isArray(value) ? value : []);
 
-const methodName = (method) =>
-  method?.paymentMethodName || method?.name || method?.paymentMethodCode || method?.code || `Method #${method?.paymentMethodId || method?.id || '—'}`;
+const methodName = (method) => paymentMethodAdminLabel(method, `Method #${method?.paymentMethodId || method?.id || '—'}`);
 
 const providerName = (provider) =>
   provider?.paymentProviderName || provider?.providerName || provider?.name || `Provider #${provider?.paymentProviderId || provider?.id || '—'}`;

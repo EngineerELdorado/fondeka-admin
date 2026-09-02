@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
+import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
 
 const actionOptions = [
   'FUND_WALLET',
@@ -224,7 +225,7 @@ export default function MethodProvidersPage() {
 
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
-    { key: 'paymentMethodName', label: 'Method' },
+    { key: 'paymentMethodName', label: 'Method', render: (row) => paymentMethodAdminLabel(row) },
     { key: 'paymentProviderName', label: 'Provider' },
     {
       key: 'routingTier',
@@ -424,7 +425,7 @@ export default function MethodProvidersPage() {
           <option value="">Select method</option>
           {methods.map((m) => (
             <option key={m.id} value={m.id}>
-              {m.name || m.displayName || m.id}
+              {paymentMethodAdminLabel(m)}
             </option>
           ))}
         </select>
@@ -539,7 +540,7 @@ export default function MethodProvidersPage() {
           <option value="">All methods</option>
           {methods.map((method) => (
             <option key={method.id} value={method.id}>
-              {method.name || method.displayName || method.id}
+              {paymentMethodAdminLabel(method)}
             </option>
           ))}
         </select>
@@ -709,7 +710,7 @@ export default function MethodProvidersPage() {
           <DetailGrid
             rows={[
               { label: 'ID', value: selected?.id },
-              { label: 'Method', value: selected?.paymentMethodName || selected?.paymentMethodId },
+              { label: 'Method', value: paymentMethodAdminLabel(selected) },
               { label: 'Provider', value: selected?.paymentProviderName || selected?.paymentProviderId },
               { label: 'Routing', value: resolveRoutingTier(selected || {}).label },
               { label: 'Action', value: selected?.action || 'Default (rank-based)' },
@@ -729,7 +730,7 @@ export default function MethodProvidersPage() {
       {confirmDelete && (
         <Modal title="Confirm delete" onClose={() => setConfirmDelete(null)}>
           <div style={{ color: 'var(--muted)' }}>
-            Delete link <strong>{confirmDelete.paymentMethodName || confirmDelete.paymentMethodId}</strong> ↔ <strong>{confirmDelete.paymentProviderName || confirmDelete.paymentProviderId}</strong>? This cannot be undone.
+            Delete link <strong>{paymentMethodAdminLabel(confirmDelete)}</strong> ↔ <strong>{confirmDelete.paymentProviderName || confirmDelete.paymentProviderId}</strong>? This cannot be undone.
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" onClick={() => setConfirmDelete(null)} className="btn-neutral">Cancel</button>

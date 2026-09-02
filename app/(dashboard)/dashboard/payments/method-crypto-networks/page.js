@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
+import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
 
 const emptyState = { paymentMethodId: '', cryptoNetworkId: '', rank: '', active: true };
 
@@ -95,7 +96,7 @@ export default function MethodCryptoNetworksPage() {
 
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
-    { key: 'paymentMethodName', label: 'Method' },
+    { key: 'paymentMethodName', label: 'Method', render: (row) => paymentMethodAdminLabel(row) },
     { key: 'cryptoNetworkName', label: 'Crypto Network' },
     { key: 'rank', label: 'Rank' },
     { key: 'active', label: 'Active' },
@@ -203,7 +204,7 @@ export default function MethodCryptoNetworksPage() {
           <option value="">Select method</option>
           {methods.map((m) => (
             <option key={m.id} value={m.id}>
-              {m.name || m.displayName || m.id}
+              {paymentMethodAdminLabel(m)}
             </option>
           ))}
         </select>
@@ -301,7 +302,7 @@ export default function MethodCryptoNetworksPage() {
           <DetailGrid
             rows={[
               { label: 'ID', value: selected?.id },
-              { label: 'Method', value: selected?.paymentMethodName || selected?.paymentMethodId },
+              { label: 'Method', value: paymentMethodAdminLabel(selected) },
               { label: 'Crypto Network', value: selected?.cryptoNetworkName || selected?.cryptoNetworkId },
               { label: 'Rank', value: selected?.rank },
               { label: 'Active', value: selected?.active ? 'Yes' : 'No' },
@@ -315,7 +316,7 @@ export default function MethodCryptoNetworksPage() {
       {confirmDelete && (
         <Modal title="Confirm delete" onClose={() => setConfirmDelete(null)}>
           <div style={{ color: 'var(--muted)' }}>
-            Delete link <strong>{confirmDelete.paymentMethodName || confirmDelete.paymentMethodId}</strong> ↔ <strong>{confirmDelete.cryptoNetworkName || confirmDelete.cryptoNetworkId}</strong>? This cannot be undone.
+            Delete link <strong>{paymentMethodAdminLabel(confirmDelete)}</strong> ↔ <strong>{confirmDelete.cryptoNetworkName || confirmDelete.cryptoNetworkId}</strong>? This cannot be undone.
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" onClick={() => setConfirmDelete(null)} className="btn-neutral">Cancel</button>

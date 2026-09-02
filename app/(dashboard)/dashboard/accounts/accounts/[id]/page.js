@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useToast } from '@/contexts/ToastContext';
 import COUNTRIES from '@/data/countries';
+import { paymentMethodAdminLabel, paymentMethodRouteAdminLabel } from '@/lib/payment-method-labels';
 
 const notificationAnnouncementSeverityOptions = ['INFO', 'WARNING', 'CRITICAL'];
 const enhancedKycRequirementCodeOptions = [
@@ -3075,7 +3076,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     if (!paymentMethodPaymentProviderId && paymentMethodPaymentProviderId !== 0) return '—';
     const match = pmps.find((p) => String(p.id) === String(paymentMethodPaymentProviderId));
     if (!match) return `PMPP #${paymentMethodPaymentProviderId}`;
-    const method = match.paymentMethodName || match.paymentMethodDisplayName || 'Method';
+    const method = paymentMethodRouteAdminLabel(match);
     const provider = match.paymentProviderName || 'Provider';
     return `${method} -> ${provider}`;
   };
@@ -5185,7 +5186,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                           ? (() => {
                               const match = pmps.find((p) => String(p.id) === String(fee.paymentMethodPaymentProviderId));
                               if (match) {
-                                return `${match.paymentMethodName || match.paymentMethodDisplayName || 'Method'} → ${match.paymentProviderName || 'Provider'}`;
+                                return `${paymentMethodRouteAdminLabel(match)} → ${match.paymentProviderName || 'Provider'}`;
                               }
                               return fee.paymentMethodPaymentProviderId;
                             })()
@@ -5459,7 +5460,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                 <tbody>
                   {providerRoutingFilteredRows.map((row) => {
                     const match = pmps.find((p) => String(p.id) === String(row.paymentMethodPaymentProviderId));
-                    const methodName = row.paymentMethodName || match?.paymentMethodName || match?.paymentMethodDisplayName || '—';
+                    const methodName = paymentMethodAdminLabel(row, match ? paymentMethodRouteAdminLabel(match) : '—');
                     const providerName = row.providerName || row.paymentProviderName || match?.paymentProviderName || '—';
                     return (
                       <tr key={row.id} style={{ borderBottom: '1px solid var(--border)' }}>
@@ -5878,7 +5879,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                       <td style={{ padding: '0.5rem' }}>
                         {`${txn.amount ?? '—'} ${txn.currency || ''}`.trim()}
                       </td>
-                      <td style={{ padding: '0.5rem' }}>{txn.paymentMethodName || txn.paymentMethodId || '—'}</td>
+                      <td style={{ padding: '0.5rem' }}>{paymentMethodAdminLabel(txn)}</td>
                       <td style={{ padding: '0.5rem' }}>{txn.customer || '—'}</td>
                       <td style={{ padding: '0.5rem' }}>
                         {transactionId ? (
@@ -7122,7 +7123,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                   <option value="">Account-wide</option>
                   {pmps.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {(p.paymentMethodName || p.paymentMethodDisplayName || 'Method') + ' → ' + (p.paymentProviderName || 'Provider')}
+                      {paymentMethodRouteAdminLabel(p) + ' → ' + (p.paymentProviderName || 'Provider')}
                     </option>
                   ))}
                 </select>

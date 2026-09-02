@@ -5,6 +5,7 @@ import { ResponsiveContainer, LineChart, Line, BarChart, Bar, CartesianGrid, XAx
 import { useRouter } from 'next/navigation';
 import { useLocale } from '@/contexts/LocaleContext';
 import { api } from '@/lib/api';
+import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
 
 const DISPLAY_LOCALE = 'en-US';
 
@@ -1063,7 +1064,7 @@ export default function DashboardPage() {
                     <option value="">{t('common.any')}</option>
                     {paymentMethods.map((pm) => (
                       <option key={pm.id} value={pm.id}>
-                        {pm.name || pm.displayName || pm.id}
+                        {paymentMethodAdminLabel(pm)}
                       </option>
                     ))}
                   </select>
@@ -1530,7 +1531,7 @@ export default function DashboardPage() {
           <div style={{ fontWeight: 800 }}>Payment rails</div>
           <Table
             columns={[
-              { key: 'paymentMethodName', label: 'Method', render: (row) => row.paymentMethodName || row.paymentMethodId || '—' },
+              { key: 'paymentMethodName', label: 'Method', render: (row) => paymentMethodAdminLabel(row) },
               {
                 key: 'count',
                 label: 'Count',

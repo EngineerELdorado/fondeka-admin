@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
+import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
 
 const MIN_COOLDOWN = 1;
 const MAX_COOLDOWN = 1440;
@@ -415,7 +416,7 @@ export default function WalletPolicyConfigPage() {
           const id = method?.id;
           if (id === null || id === undefined) return null;
           const type = String(method?.type || '').trim().toUpperCase();
-          const name = String(method?.displayName || method?.name || '').trim();
+          const name = paymentMethodAdminLabel(method, '').trim();
           return {
             value: String(id),
             type,

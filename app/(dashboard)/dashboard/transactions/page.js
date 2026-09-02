@@ -7,6 +7,7 @@ import { DataTable } from '@/components/DataTable';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
+import { paymentMethodAdminLabel, paymentMethodRouteAdminLabel } from '@/lib/payment-method-labels';
 
 const serviceOptions = ['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'PAYMENT_REQUEST', 'E_SIM', 'AIRTIME_AND_DATA', 'OTHER'];
 const actionOptions = [
@@ -1204,7 +1205,7 @@ export default function TransactionsPage() {
       {
         key: 'paymentMethodName',
         label: 'Method',
-        render: (row) => row.paymentMethodName || row.paymentMethodId || '—'
+        render: (row) => paymentMethodAdminLabel(row)
       },
       {
         key: 'customer',
@@ -2179,7 +2180,7 @@ export default function TransactionsPage() {
               <option value="">Any</option>
               {paymentMethods.map((pm) => (
                 <option key={pm.id} value={pm.id}>
-                  {pm.name || pm.displayName || pm.id}
+                  {paymentMethodAdminLabel(pm)}
                 </option>
               ))}
             </select>
@@ -2205,7 +2206,7 @@ export default function TransactionsPage() {
               <option value="">Any</option>
               {pmps.map((pmp) => (
                 <option key={pmp.id} value={pmp.id}>
-                  {(pmp.paymentMethodName || pmp.paymentMethodDisplayName || 'Method') + ' → ' + (pmp.paymentProviderName || 'Provider')}
+                  {paymentMethodRouteAdminLabel(pmp) + ' → ' + (pmp.paymentProviderName || 'Provider')}
                 </option>
               ))}
             </select>
@@ -2440,7 +2441,7 @@ export default function TransactionsPage() {
                       }
                     ]
                   : []),
-                { label: 'Payment method', value: selected?.paymentMethodDisplayName || selected?.paymentMethodName || selected?.paymentMethodId },
+                { label: 'Payment method', value: paymentMethodAdminLabel(selected) },
                 ...(selected?.paymentMethodType ? [{ label: 'Payment method type', value: selected?.paymentMethodType }] : []),
                 { label: 'Payment provider', value: selected?.paymentProviderName || selected?.paymentProviderId },
                 ...(hasCardMetadata(selected)
@@ -2625,7 +2626,7 @@ export default function TransactionsPage() {
                     rows={[
                       { label: 'Status', value: selected?.status || '—' },
                       { label: 'Action', value: formatEnumLabel(selected?.action, actionLabels) },
-                      { label: 'Method name', value: selected?.paymentMethodName || '—' },
+                      { label: 'Method name', value: paymentMethodAdminLabel(selected) },
                       { label: 'Method type', value: selected?.paymentMethodType || '—' }
                     ]}
                   />
@@ -2719,7 +2720,7 @@ export default function TransactionsPage() {
                   <DetailGrid
                     rows={[
                       { label: 'Current status', value: selected?.status || '—' },
-                      { label: 'Method', value: selected?.paymentMethodName || selected?.paymentMethodId || '—' },
+                      { label: 'Method', value: paymentMethodAdminLabel(selected) },
                       { label: 'Provider', value: selected?.paymentProviderName || selected?.paymentProviderId || '—' },
                       { label: 'External ref', value: <CopyableValue value={selected?.externalReference} label="External ref" onCopy={copyToClipboard} /> }
                     ]}
@@ -3532,7 +3533,7 @@ export default function TransactionsPage() {
                 { label: 'Reference', value: selected?.reference },
                 { label: 'Status', value: selected?.status },
                 { label: 'Amount', value: formatLocalAndUsd(selected, 'amount', 'currency', 'usdAmount') },
-                { label: 'Method', value: selected?.paymentMethodName || '—' }
+                { label: 'Method', value: paymentMethodAdminLabel(selected) }
               ]}
             />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>

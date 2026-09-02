@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
+import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
 
 const DEFAULT_ACCOUNT_PAGE_SIZE = 500;
 const DEFAULT_BATCH_SIZE = 60;
@@ -836,7 +837,7 @@ export default function NotificationPushCampaignsPage() {
                       >
                         {paymentMethods.map((method) => (
                           <option key={method.id} value={String(method.id)}>
-                            {(method.displayName || method.name || `Method ${method.id}`) + ` • ID ${method.id}`}
+                            {paymentMethodAdminLabel(method, `Method ${method.id}`) + ` • ID ${method.id}`}
                           </option>
                         ))}
                       </select>

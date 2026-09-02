@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 import COUNTRIES from '@/data/countries';
+import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
 
 const currencyOptions = ['USD', 'CDF', 'EUR', 'KES', 'UGX', 'GHS', 'XAF'];
 const rateProviderOptions = ['ADMIN', 'EXCHANGERATE_API', 'MANUAL', 'MAPLERAD'];
@@ -1809,7 +1810,7 @@ export default function CurrencyProductsPage() {
                 {renderPreviewSelect('paymentMethodId', 'Payment method', paymentMethodOptions, {
                   emptyLabel: 'No payment method',
                   getValue: (item) => item.id,
-                  getLabel: (item) => optionLabel(item, 'Payment method')
+                  getLabel: (item) => paymentMethodAdminLabel(item, `Payment method #${item?.id ?? '-'}`)
                 })}
                 {renderPreviewSelect('billProductId', 'Bill product', billProductOptions, {
                   emptyLabel: 'No bill product',

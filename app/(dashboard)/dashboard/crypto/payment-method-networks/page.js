@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
+import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
 
 const emptyState = { paymentMethodId: '', cryptoNetworkId: '', rank: '', active: true };
 
@@ -96,7 +97,7 @@ export default function PaymentMethodCryptoNetworksPage() {
     const map = new Map();
     methods.forEach((method) => {
       if (method?.id === undefined || method?.id === null) return;
-      map.set(String(method.id), method.name || method.displayName || String(method.id));
+      map.set(String(method.id), paymentMethodAdminLabel(method, String(method.id)));
     });
     return map;
   }, [methods]);
@@ -112,7 +113,7 @@ export default function PaymentMethodCryptoNetworksPage() {
 
   const getMethodLabel = useCallback(
     (row) => {
-      if (row?.paymentMethodName) return row.paymentMethodName;
+      if (row?.paymentMethodName) return paymentMethodAdminLabel(row);
       const key = row?.paymentMethodId !== undefined && row?.paymentMethodId !== null ? String(row.paymentMethodId) : '';
       return methodNameById.get(key) || row?.paymentMethodId || '—';
     },
