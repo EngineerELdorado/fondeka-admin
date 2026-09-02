@@ -262,6 +262,12 @@ const formatEnumLabel = (value, overrides = {}) => {
   return words || '—';
 };
 
+const transactionPaymentMethodLabel = (method, fallback = '—') => {
+  if (!method || typeof method !== 'object') return fallback;
+  const { paymentMethodCurrency, currency, ...methodWithoutCurrency } = method;
+  return paymentMethodAdminLabel(methodWithoutCurrency, fallback);
+};
+
 const cardProviderLabel = (row) => {
   const name = row?.cardProviderName || row?.providerName || row?.cardProvider?.cardProviderName || row?.cardProvider?.name;
   const id = row?.cardProviderId ?? row?.providerId ?? row?.cardProvider?.id;
@@ -1205,7 +1211,7 @@ export default function TransactionsPage() {
       {
         key: 'paymentMethodName',
         label: 'Method',
-        render: (row) => paymentMethodAdminLabel(row)
+        render: (row) => transactionPaymentMethodLabel(row)
       },
       {
         key: 'customer',
@@ -2180,7 +2186,7 @@ export default function TransactionsPage() {
               <option value="">Any</option>
               {paymentMethods.map((pm) => (
                 <option key={pm.id} value={pm.id}>
-                  {paymentMethodAdminLabel(pm)}
+                  {transactionPaymentMethodLabel(pm)}
                 </option>
               ))}
             </select>
@@ -2441,7 +2447,7 @@ export default function TransactionsPage() {
                       }
                     ]
                   : []),
-                { label: 'Payment method', value: paymentMethodAdminLabel(selected) },
+                { label: 'Payment method', value: transactionPaymentMethodLabel(selected) },
                 ...(selected?.paymentMethodType ? [{ label: 'Payment method type', value: selected?.paymentMethodType }] : []),
                 { label: 'Payment provider', value: selected?.paymentProviderName || selected?.paymentProviderId },
                 ...(hasCardMetadata(selected)
@@ -2626,7 +2632,7 @@ export default function TransactionsPage() {
                     rows={[
                       { label: 'Status', value: selected?.status || '—' },
                       { label: 'Action', value: formatEnumLabel(selected?.action, actionLabels) },
-                      { label: 'Method name', value: paymentMethodAdminLabel(selected) },
+                      { label: 'Method name', value: transactionPaymentMethodLabel(selected) },
                       { label: 'Method type', value: selected?.paymentMethodType || '—' }
                     ]}
                   />
@@ -2720,7 +2726,7 @@ export default function TransactionsPage() {
                   <DetailGrid
                     rows={[
                       { label: 'Current status', value: selected?.status || '—' },
-                      { label: 'Method', value: paymentMethodAdminLabel(selected) },
+                      { label: 'Method', value: transactionPaymentMethodLabel(selected) },
                       { label: 'Provider', value: selected?.paymentProviderName || selected?.paymentProviderId || '—' },
                       { label: 'External ref', value: <CopyableValue value={selected?.externalReference} label="External ref" onCopy={copyToClipboard} /> }
                     ]}
@@ -3533,7 +3539,7 @@ export default function TransactionsPage() {
                 { label: 'Reference', value: selected?.reference },
                 { label: 'Status', value: selected?.status },
                 { label: 'Amount', value: formatLocalAndUsd(selected, 'amount', 'currency', 'usdAmount') },
-                { label: 'Method', value: paymentMethodAdminLabel(selected) }
+                { label: 'Method', value: transactionPaymentMethodLabel(selected) }
               ]}
             />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>

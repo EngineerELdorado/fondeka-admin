@@ -25,6 +25,11 @@ const CARD_DETAILS_FETCH_MODE_OPTIONS = [
   }
 ];
 const CARD_DETAILS_FETCH_MODES = new Set(CARD_DETAILS_FETCH_MODE_OPTIONS.map((option) => option.value));
+const FORCE_SAME_CURRENCY_ACTION_OPTIONS = [
+  'PERSONAL_SAVING_DEPOSIT',
+  'PERSONAL_SAVING_WITHDRAWAL',
+  'GROUP_SAVING_CONTRIBUTION'
+];
 const ACTION_OPTIONS = [
   'FUND_WALLET',
   'WITHDRAW_FROM_WALLET',
@@ -156,29 +161,13 @@ const normalizeCardDetailsFetchMode = (value) => {
   const normalized = String(value || '').trim().toUpperCase();
   return CARD_DETAILS_FETCH_MODES.has(normalized) ? normalized : 'CACHE_WHEN_SAFE';
 };
-const normalizeConfigValueForComparison = (value) => {
-  if (Array.isArray(value)) return value.map((item) => normalizeConfigValueForComparison(item));
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.entries(value)
-        .sort(([left], [right]) => left.localeCompare(right))
-        .map(([key, item]) => [key, normalizeConfigValueForComparison(item)])
-    );
-  }
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    if (trimmed !== '' && Number.isFinite(Number(trimmed))) return Number(trimmed);
-    return trimmed;
-  }
-  return value;
-};
-const areConfigValuesEqual = (left, right) =>
-  JSON.stringify(normalizeConfigValueForComparison(left)) === JSON.stringify(normalizeConfigValueForComparison(right));
-const pickChangedConfigFields = (nextConfig, snapshot) => {
-  if (!snapshot || typeof snapshot !== 'object') return nextConfig;
-  return Object.fromEntries(
-    Object.entries(nextConfig).filter(([key, value]) => !areConfigValuesEqual(value, snapshot[key]))
+const normalizeForceSameCurrencyActions = (value) => {
+  const selectedActions = new Set(
+    (Array.isArray(value) ? value : [])
+      .map((item) => String(item || '').trim().toUpperCase())
+      .filter(Boolean)
   );
+  return FORCE_SAME_CURRENCY_ACTION_OPTIONS.filter((action) => selectedActions.has(action));
 };
 const createEmptyCollectionSourceRiskThreshold = () => ({
   maxDistinctSources: '',
@@ -288,6 +277,7 @@ export default function WalletPolicyConfigPage() {
   const [depositPromptThresholdAmount, setDepositPromptThresholdAmount] = useState('');
   const [depositPromptThresholdAmounts, setDepositPromptThresholdAmounts] = useState({});
   const [transactionsEligibleForLoanEligibility, setTransactionsEligibleForLoanEligibility] = useState(true);
+  const [forceSameCurrencyActions, setForceSameCurrencyActions] = useState([]);
   const [autoRefundBlockedActions, setAutoRefundBlockedActions] = useState([]);
   const [autoRefundTimeoutAllowedActions, setAutoRefundTimeoutAllowedActions] = useState([]);
   const [autoRefundAllowedAccountIdsByAction, setAutoRefundAllowedAccountIdsByAction] = useState({});
@@ -298,7 +288,6 @@ export default function WalletPolicyConfigPage() {
   const [actionMaximumAmounts, setActionMaximumAmounts] = useState({});
   const [collectionSourceRiskRules, setCollectionSourceRiskRules] = useState([]);
   const [walletActionDefaults, setWalletActionDefaults] = useState(DEFAULT_WALLET_ACTION_DEFAULTS);
-  const [configSnapshot, setConfigSnapshot] = useState(null);
 
   const autoRefundActionOptions = useMemo(() => {
     const known = new Set(ACTION_OPTIONS);
@@ -465,7 +454,6 @@ export default function WalletPolicyConfigPage() {
         api.paymentMethods.list(params),
         api.currencyProducts.list(params)
       ]);
-      setConfigSnapshot(res || {});
       setCryptoProducts(normalizeList(cryptoProductsRes));
       setCryptoNetworks(normalizeList(cryptoNetworksRes));
       setPaymentMethods(normalizeList(paymentMethodsRes));
@@ -474,6 +462,7 @@ export default function WalletPolicyConfigPage() {
       setCooldown(value === null || value === undefined ? '' : String(value));
       const incomingActions = Array.isArray(res?.payoutRateLimitActions) ? res.payoutRateLimitActions : [];
       setPayoutRateLimitActions(incomingActions.filter((action) => ALLOWED_PAYOUT_ACTIONS.includes(String(action))));
+      setForceSameCurrencyActions(normalizeForceSameCurrencyActions(res?.forceSameCurrencyActions));
       setAutoRefundBlockedActions(Array.isArray(res?.autoRefundBlockedActions) ? res.autoRefundBlockedActions.map((action) => String(action)).filter(Boolean) : []);
       setAutoRefundTimeoutAllowedActions(
         Array.isArray(res?.autoRefundTimeoutAllowedActions) ? res.autoRefundTimeoutAllowedActions.map((action) => String(action)).filter(Boolean) : []
@@ -566,6 +555,7 @@ export default function WalletPolicyConfigPage() {
           .filter((action) => ALLOWED_PAYOUT_ACTIONS.includes(action))
       )
     );
+    const normalizedForceSameCurrencyActions = normalizeForceSameCurrencyActions(forceSameCurrencyActions);
     const normalizedAutoRefundBlockedActions = Array.from(
       new Set(
         (Array.isArray(autoRefundBlockedActions) ? autoRefundBlockedActions : [])
@@ -820,6 +810,7 @@ export default function WalletPolicyConfigPage() {
       const nextConfig = {
         interTransferCooldownMinutes: parsed,
         payoutRateLimitActions: normalizedActions,
+        forceSameCurrencyActions: normalizedForceSameCurrencyActions,
         cryptoProviderCollectionMinimumUsd: minRaw === '' ? null : minParsed.toFixed(2),
         cryptoProviderCollectionMaximumUsd: maxRaw === '' ? null : maxParsed.toFixed(2),
         sendCryptoMinimumUsd: sendCryptoMinimumRaw === '' ? null : sendCryptoMinimumParsed.toFixed(2),
@@ -854,10 +845,7 @@ export default function WalletPolicyConfigPage() {
         collectionSourceRiskRules: normalizedCollectionSourceRiskRules,
         ...normalizedWalletActionDefaults
       };
-      const changedConfig = pickChangedConfigFields(nextConfig, configSnapshot);
-      if (Object.keys(changedConfig).length > 0) {
-        await api.walletPolicyConfig.update(changedConfig);
-      }
+      await api.walletPolicyConfig.update(nextConfig);
       setInfo('Wallet policy config updated.');
       await loadConfig();
     } catch (err) {
@@ -1041,6 +1029,55 @@ export default function WalletPolicyConfigPage() {
             <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
               App-requested mode, account overrides, fee-config row modes, and action-level wallet policy defaults all win over this master default.
             </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gap: '0.5rem' }}>
+          <div style={{ fontWeight: 700 }}>Force same currency actions</div>
+          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+            When enabled for an action, the customer must use a payment method/wallet in the same currency as the target service. Cross-currency quotes and executions are blocked for that action.
+          </div>
+          <div style={{ display: 'grid', gap: '0.5rem' }}>
+            {FORCE_SAME_CURRENCY_ACTION_OPTIONS.map((action) => {
+              const checked = forceSameCurrencyActions.includes(action);
+              return (
+                <label
+                  key={action}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.65rem',
+                    padding: '0.7rem 0.75rem',
+                    border: '1px solid var(--border)',
+                    borderRadius: '10px'
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(e) => {
+                      const enabled = e.target.checked;
+                      setError(null);
+                      setForceSameCurrencyActions((prev) => {
+                        const selected = new Set(normalizeForceSameCurrencyActions(prev));
+                        if (enabled) selected.add(action);
+                        else selected.delete(action);
+                        return FORCE_SAME_CURRENCY_ACTION_OPTIONS.filter((option) => selected.has(option));
+                      });
+                    }}
+                    disabled={loading || saving}
+                    style={{ margin: 0 }}
+                  />
+                  <span style={{ display: 'grid', gap: '0.1rem' }}>
+                    <span style={{ fontWeight: 700 }}>{humanizeEnum(action)}</span>
+                    <span style={{ color: 'var(--muted)', fontSize: '12px' }}>{action}</span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+            Leave all actions unselected to keep the same-currency gate disabled everywhere.
           </div>
         </div>
 
