@@ -5,12 +5,13 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
-const emptyState = { name: '', displayName: '', active: true };
+const emptyState = { name: '', displayName: '', active: true, invoiceCreationEnabled: true };
 
 const toPayload = (state) => ({
   name: state.name,
   displayName: state.displayName || null,
-  active: Boolean(state.active)
+  active: Boolean(state.active),
+  invoiceCreationEnabled: state.invoiceCreationEnabled !== false
 });
 
 const Modal = ({ title, onClose, children }) => (
@@ -75,7 +76,8 @@ export default function CryptoNetworksPage() {
     { key: 'id', label: 'ID' },
     { key: 'name', label: 'Name' },
     { key: 'displayName', label: 'Display name' },
-    { key: 'active', label: 'Active' },
+    { key: 'active', label: 'Active', render: (row) => (row.active ? 'Yes' : 'No') },
+    { key: 'invoiceCreationEnabled', label: 'Invoice creation', render: (row) => (row.invoiceCreationEnabled === false ? 'Blocked' : 'Enabled') },
     {
       key: 'actions',
       label: 'Actions',
@@ -101,7 +103,8 @@ export default function CryptoNetworksPage() {
     setDraft({
       name: row.name ?? '',
       displayName: row.displayName ?? '',
-      active: Boolean(row.active)
+      active: Boolean(row.active),
+      invoiceCreationEnabled: row.invoiceCreationEnabled !== false
     });
     setShowEdit(true);
     setInfo(null);
@@ -171,6 +174,20 @@ export default function CryptoNetworksPage() {
         <input id="active" type="checkbox" checked={draft.active} onChange={(e) => setDraft((p) => ({ ...p, active: e.target.checked }))} />
         <label htmlFor="active">Active</label>
       </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <input
+            id="invoiceCreationEnabled"
+            type="checkbox"
+            checked={draft.invoiceCreationEnabled}
+            onChange={(e) => setDraft((p) => ({ ...p, invoiceCreationEnabled: e.target.checked }))}
+          />
+          <label htmlFor="invoiceCreationEnabled">Invoice creation enabled</label>
+        </div>
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          Turn this off to block new crypto payment invoices without hiding the network elsewhere.
+        </div>
+      </div>
     </div>
   );
 
@@ -179,7 +196,7 @@ export default function CryptoNetworksPage() {
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <div style={{ fontWeight: 800, fontSize: '20px' }}>Crypto Networks</div>
-          <div style={{ color: 'var(--muted)' }}>Manage supported blockchains.</div>
+          <div style={{ color: 'var(--muted)' }}>Manage supported blockchains and invoice creation availability.</div>
         </div>
         <Link href="/dashboard/crypto" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
           ← Crypto hub
@@ -235,7 +252,8 @@ export default function CryptoNetworksPage() {
               { label: 'ID', value: selected?.id },
               { label: 'Name', value: selected?.name },
               { label: 'Display name', value: selected?.displayName },
-              { label: 'Active', value: String(selected?.active) }
+              { label: 'Active', value: selected?.active ? 'Yes' : 'No' },
+              { label: 'Invoice creation', value: selected?.invoiceCreationEnabled === false ? 'Blocked' : 'Enabled' }
             ]}
           />
         </Modal>
