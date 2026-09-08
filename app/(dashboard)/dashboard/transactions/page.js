@@ -19,6 +19,7 @@ const actionOptions = [
   'GROUP_SAVING_CONTRIBUTION',
   'GROUP_SAVING_PAYOUT',
   'GROUP_SAVING_ROUND_DISTRIBUTION',
+  'GROUP_SAVING_TREASURY_WITHDRAWAL',
   'REFUND_TO_WALLET',
   'BONUS',
   'PAY_INTERNET_BILL',
@@ -121,6 +122,7 @@ const actionLabels = {
   GROUP_SAVING_CONTRIBUTION: 'Group saving contribution',
   GROUP_SAVING_PAYOUT: 'Group saving payout',
   GROUP_SAVING_ROUND_DISTRIBUTION: 'Group saving round distribution',
+  GROUP_SAVING_TREASURY_WITHDRAWAL: 'Group saving treasury withdrawal',
   REFUND_TO_WALLET: 'Refund to wallet',
   BONUS: 'Bonus',
   PAY_INTERNET_BILL: 'Pay internet bill',
@@ -653,7 +655,8 @@ export default function TransactionsPage() {
   const showErrorMessage = ['FAILED', 'CANCELED', 'CANCELLED'].includes(normalizedStatus);
   const canCompleteOrFailSelected = !isTerminalForManualReconciliation;
   const canCancelSelected = !isTerminalForManualReconciliation;
-  const receiptPayloadData = receipt?.payload && typeof receipt.payload === 'object' ? receipt.payload : null;
+  const selectedReceiptPayloadData = selected?.receipt?.payload && typeof selected.receipt.payload === 'object' ? selected.receipt.payload : null;
+  const receiptPayloadData = receipt?.payload && typeof receipt.payload === 'object' ? receipt.payload : selectedReceiptPayloadData;
   const sendCryptoPublishedHash =
     receiptPayloadData?.trxHash ||
     receiptPayloadData?.txHash ||
@@ -2058,6 +2061,55 @@ export default function TransactionsPage() {
   const selectedFxMarginLegs = Array.isArray(selectedFxMarginBreakdown?.legs) ? selectedFxMarginBreakdown.legs : [];
   const selectedShowsFxMargin = hasPositiveUsdFxMargin(selected);
   const selectedShowsFxSourceLegNote = shouldShowFxSourceLegNote(selected);
+  const groupSavingsReporting = useMemo(() => {
+    const payload = receiptPayloadData && typeof receiptPayloadData === 'object' ? receiptPayloadData : {};
+    if (normalizedSelectedAction === 'GROUP_SAVING_ROUND_DISTRIBUTION') {
+      const currency = payload.groupSavingDistributionCurrency || payload.amountCreditedCurrency || selected?.currency;
+      const contribution = payload.groupSavingDistributionContributionAmount;
+      const profit = payload.groupSavingDistributionProfitAmount;
+      const shortfall = payload.groupSavingDistributionShortfallAmount;
+      const contributionNumber = Number(contribution || 0);
+      const profitNumber = Number(profit || 0);
+      const shortfallNumber = Number(shortfall || 0);
+      const computedPayout =
+        (hasValue(contribution) || hasValue(profit) || hasValue(shortfall)) &&
+        Number.isFinite(contributionNumber) &&
+        Number.isFinite(profitNumber) &&
+        Number.isFinite(shortfallNumber)
+          ? contributionNumber + profitNumber - shortfallNumber
+          : null;
+      return {
+        title: 'Group savings reporting',
+        description: 'Member payout. Shortfall is a member deficit, not platform fee, margin, profit, or revenue. Contribution capital is returned member capital, not new inflow.',
+        rows: [
+          { label: 'Group saving ID', value: payload.groupSavingId ?? '—' },
+          { label: 'Round', value: payload.roundNumber ?? '—' },
+          { label: 'Member ID', value: payload.memberId ?? '—' },
+          { label: 'Actual payout', value: formatMoneyWithCurrency(payload.groupSavingDistributionAmount, currency) },
+          { label: 'Contribution capital', value: formatMoneyWithCurrency(contribution, currency) },
+          { label: 'Profit paid', value: formatMoneyWithCurrency(profit, currency) },
+          { label: 'Shortfall absorbed by member', value: formatMoneyWithCurrency(shortfall, currency) },
+          { label: 'Formula payout', value: formatMoneyWithCurrency(computedPayout, currency) },
+          { label: 'Wallet credit', value: formatMoneyWithCurrency(payload.amountCredited, payload.amountCreditedCurrency || currency) }
+        ]
+      };
+    }
+    if (normalizedSelectedAction === 'GROUP_SAVING_TREASURY_WITHDRAWAL') {
+      const currency = payload.groupSavingTreasuryWithdrawalCurrency || payload.amountCreditedCurrency || selected?.currency;
+      return {
+        title: 'Group savings reporting',
+        description: 'Group treasury outflow. Use transaction fee and margin fields for platform revenue reporting.',
+        rows: [
+          { label: 'Group saving ID', value: payload.groupSavingId ?? '—' },
+          { label: 'Treasury withdrawal ID', value: payload.treasuryWithdrawalId ?? '—' },
+          { label: 'Requester member ID', value: payload.requesterMemberId ?? '—' },
+          { label: 'Treasury outflow', value: formatMoneyWithCurrency(payload.groupSavingTreasuryWithdrawalAmount, currency) },
+          { label: 'Wallet credit', value: formatMoneyWithCurrency(payload.amountCredited, payload.amountCreditedCurrency || currency) }
+        ]
+      };
+    }
+    return null;
+  }, [formatMoneyWithCurrency, normalizedSelectedAction, receiptPayloadData, selected?.currency]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -2408,13 +2460,6 @@ export default function TransactionsPage() {
                 { label: 'Request amount', value: formatMoneyWithCurrency(selected?.requestAmount, selected?.requestCurrency) },
                 { label: 'Billing amount', value: formatMoneyWithCurrency(selected?.billingAmount, selected?.billingCurrency) },
                 { label: 'Billing FX rate', value: selected?.billingFxRate ?? '—' },
-                {
-                  label: 'Referral cost',
-                  value:
-                    selected?.referralCostAmount === null || selected?.referralCostAmount === undefined
-                      ? '—'
-                      : formatMoneyWithCurrency(selected.referralCostAmount, selected?.currency)
-                },
                 { label: 'Customer', value: selected?.customer || '—' },
                 { label: 'Username', value: selected?.username || '—' },
                 { label: 'Customer email', value: selected?.customerEmail || '—' },
@@ -2467,6 +2512,18 @@ export default function TransactionsPage() {
                 ...(showErrorMessage ? [{ label: 'Error message', value: selected?.errorMessage || '—' }] : [])
               ]}
             />
+
+            {groupSavingsReporting && (
+              <div className="card" style={{ padding: '1rem', display: 'grid', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                  <div style={{ fontWeight: 800 }}>{groupSavingsReporting.title}</div>
+                  <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                    {groupSavingsReporting.description}
+                  </div>
+                </div>
+                <DetailGrid rows={groupSavingsReporting.rows} />
+              </div>
+            )}
 
             <div className="card" style={{ padding: '1rem', display: 'grid', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
