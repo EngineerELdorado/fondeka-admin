@@ -14,6 +14,7 @@ const statusToDecision = {
   FAILED: 'REJECT',
   EXPIRED: 'EXPIRE'
 };
+const docTypeOptions = ['VOTER_ID', 'PASSPORT', 'DRIVERS_LICENSE'];
 
 const emptyFilters = {
   status: '',
@@ -1351,7 +1352,14 @@ export default function KycsPage() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="editDocType">Doc type</label>
-              <input id="editDocType" value={editDraft.docType} onChange={(e) => setEditDraft((p) => ({ ...p, docType: e.target.value }))} />
+              <select id="editDocType" value={editDraft.docType} onChange={(e) => setEditDraft((p) => ({ ...p, docType: e.target.value }))}>
+                <option value="">Select doc type</option>
+                {docTypeOptions.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="editProviderComments">Provider comments</label>
