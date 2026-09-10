@@ -138,18 +138,25 @@ export default function LoanPolicyConfigPage() {
   const changedCount = Object.keys(changedPayload).length;
 
   const handleSave = async () => {
-    if (!changedCount) {
-      setInfo('No changes to save.');
-      return;
-    }
-    const payoutBlockPreDueDays = toNumberOrNull(draft.payoutBlockPreDueDays);
-    if (payoutBlockPreDueDays === null || !Number.isInteger(payoutBlockPreDueDays) || payoutBlockPreDueDays < 1) {
+    const payoutBlockPreDueDays = changedPayload.payoutBlockPreDueDays;
+    if (
+      payoutBlockPreDueDays !== undefined &&
+      (!Number.isInteger(payoutBlockPreDueDays) || payoutBlockPreDueDays < 1)
+    ) {
       setError('Pre-due reminder / withdrawal block days must be an integer of 1 or greater.');
       return;
     }
-    const overdueServiceRestrictionDays = toNumberOrNull(draft.overdueServiceRestrictionDays);
-    if (overdueServiceRestrictionDays === null || !Number.isInteger(overdueServiceRestrictionDays) || overdueServiceRestrictionDays < 1) {
+    const overdueServiceRestrictionDays = changedPayload.overdueServiceRestrictionDays;
+    if (
+      overdueServiceRestrictionDays !== undefined &&
+      (!Number.isInteger(overdueServiceRestrictionDays) || overdueServiceRestrictionDays < 1)
+    ) {
       setError('Overdue-loan service restriction days must be an integer of 1 or greater.');
+      return;
+    }
+    if (!changedCount) {
+      setError(null);
+      setInfo('No changes to save.');
       return;
     }
     setSaving(true);
@@ -301,7 +308,7 @@ export default function LoanPolicyConfigPage() {
         <div style={{ color: 'var(--muted)' }}>
           Percent values are human values (for example <strong>12.5</strong> means <strong>12.5%</strong>).
         </div>
-        <button type="button" className="btn-primary" onClick={handleSave} disabled={saving || loading || changedCount === 0}>
+        <button type="button" className="btn-primary" onClick={handleSave} disabled={saving || loading}>
           {saving ? 'Saving…' : `Save ${changedCount ? `(${changedCount} field${changedCount > 1 ? 's' : ''})` : ''}`}
         </button>
       </div>
