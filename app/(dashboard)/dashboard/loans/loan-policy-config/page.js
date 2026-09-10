@@ -26,13 +26,13 @@ const INTEGER_FIELDS = [
     key: 'payoutBlockPreDueDays',
     label: 'Pre-Due Reminder / Withdrawal Block Days',
     help: 'Number of days before a loan due date when reminders start and withdrawals/payouts are blocked.'
-  },
-  {
-    key: 'overdueBlacklistDays',
-    label: 'Late-loan blacklist threshold days',
-    help: 'Number of days after due date before the daily loan penalty cron automatically blacklists the account. Default is 15.'
   }
 ];
+const OVERDUE_SERVICE_RESTRICTION_FIELD = {
+  key: 'overdueServiceRestrictionDays',
+  label: 'Overdue-loan service restriction days',
+  help: 'Number of days after due date before overdue-loan service restrictions apply. Default is 15.'
+};
 
 const toFormValue = (value) => {
   if (value === null || value === undefined || value === '') return '';
@@ -61,7 +61,7 @@ export default function LoanPolicyConfigPage() {
     untrustedEligibilityPercent: '',
     dailyPenaltyPercent: '',
     payoutBlockPreDueDays: '',
-    overdueBlacklistDays: '',
+    overdueServiceRestrictionDays: '',
     likelembaLoanEligibilityEnabled: false
   });
   const [draft, setDraft] = useState({
@@ -69,7 +69,7 @@ export default function LoanPolicyConfigPage() {
     untrustedEligibilityPercent: '',
     dailyPenaltyPercent: '',
     payoutBlockPreDueDays: '',
-    overdueBlacklistDays: '',
+    overdueServiceRestrictionDays: '',
     likelembaLoanEligibilityEnabled: false
   });
 
@@ -84,7 +84,7 @@ export default function LoanPolicyConfigPage() {
         untrustedEligibilityPercent: toFormValue(res?.untrustedEligibilityPercent),
         dailyPenaltyPercent: toFormValue(res?.dailyPenaltyPercent),
         payoutBlockPreDueDays: toFormValue(res?.payoutBlockPreDueDays),
-        overdueBlacklistDays: toFormValue(res?.overdueBlacklistDays),
+        overdueServiceRestrictionDays: toFormValue(res?.overdueServiceRestrictionDays ?? res?.overdueBlacklistDays),
         likelembaLoanEligibilityEnabled: Boolean(res?.likelembaLoanEligibilityEnabled)
       };
       setInitial(next);
@@ -122,24 +122,41 @@ export default function LoanPolicyConfigPage() {
     if (Boolean(draft.likelembaLoanEligibilityEnabled) !== Boolean(initial.likelembaLoanEligibilityEnabled)) {
       payload.likelembaLoanEligibilityEnabled = Boolean(draft.likelembaLoanEligibilityEnabled);
     }
+    const overdueServiceRestrictionDays = toNumberOrNull(draft.overdueServiceRestrictionDays);
+    const originalOverdueServiceRestrictionDays = toNumberOrNull(initial.overdueServiceRestrictionDays);
+    if (
+      overdueServiceRestrictionDays !== null &&
+      Number.isInteger(overdueServiceRestrictionDays) &&
+      overdueServiceRestrictionDays >= 1 &&
+      (originalOverdueServiceRestrictionDays === null || overdueServiceRestrictionDays !== originalOverdueServiceRestrictionDays)
+    ) {
+      payload.overdueServiceRestrictionDays = overdueServiceRestrictionDays;
+    }
     return payload;
   }, [draft, initial]);
 
   const changedCount = Object.keys(changedPayload).length;
 
   const handleSave = async () => {
-    if (!changedCount) {
-      setInfo('No changes to save.');
-      return;
-    }
-    const payoutBlockPreDueDays = toNumberOrNull(draft.payoutBlockPreDueDays);
-    if (payoutBlockPreDueDays === null || !Number.isInteger(payoutBlockPreDueDays) || payoutBlockPreDueDays < 1) {
+    const payoutBlockPreDueDays = changedPayload.payoutBlockPreDueDays;
+    if (
+      payoutBlockPreDueDays !== undefined &&
+      (!Number.isInteger(payoutBlockPreDueDays) || payoutBlockPreDueDays < 1)
+    ) {
       setError('Pre-due reminder / withdrawal block days must be an integer of 1 or greater.');
       return;
     }
-    const overdueBlacklistDays = toNumberOrNull(draft.overdueBlacklistDays);
-    if (overdueBlacklistDays === null || !Number.isInteger(overdueBlacklistDays) || overdueBlacklistDays < 1) {
-      setError('Late-loan blacklist threshold days must be an integer of 1 or greater.');
+    const overdueServiceRestrictionDays = changedPayload.overdueServiceRestrictionDays;
+    if (
+      overdueServiceRestrictionDays !== undefined &&
+      (!Number.isInteger(overdueServiceRestrictionDays) || overdueServiceRestrictionDays < 1)
+    ) {
+      setError('Overdue-loan service restriction days must be an integer of 1 or greater.');
+      return;
+    }
+    if (!changedCount) {
+      setError(null);
+      setInfo('No changes to save.');
       return;
     }
     setSaving(true);
@@ -188,7 +205,7 @@ export default function LoanPolicyConfigPage() {
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
           <div style={{ fontSize: '20px', fontWeight: 800 }}>Loan Policy Config</div>
-          <div style={{ color: 'var(--muted)' }}>Manage global loan eligibility, overdue penalties, and pre-due reminder/blocking settings.</div>
+          <div style={{ color: 'var(--muted)' }}>Manage global loan eligibility, overdue penalties, and overdue service restriction settings.</div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <button type="button" className="btn-neutral" onClick={loadConfig} disabled={loading || saving}>
@@ -256,20 +273,42 @@ export default function LoanPolicyConfigPage() {
                 Users will start receiving loan reminders this many days before due date, and withdrawals/payouts will also be blocked starting the same day.
               </div>
             )}
-            {field.key === 'overdueBlacklistDays' && (
-              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-                Updating this value does not immediately blacklist accounts. The next daily penalty cron run uses the new threshold.
-              </div>
-            )}
           </div>
         ))}
+      </div>
+
+      <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+          <div style={{ fontWeight: 800 }}>Overdue service restriction</div>
+          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+            Configure when overdue borrowers are restricted from value-serving actions. This does not create blacklist entries.
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', maxWidth: '360px' }}>
+          <label htmlFor={OVERDUE_SERVICE_RESTRICTION_FIELD.key}>{OVERDUE_SERVICE_RESTRICTION_FIELD.label}</label>
+          <input
+            id={OVERDUE_SERVICE_RESTRICTION_FIELD.key}
+            type="number"
+            min="1"
+            step="1"
+            inputMode="numeric"
+            placeholder="15"
+            value={draft.overdueServiceRestrictionDays}
+            onChange={(e) => setDraft((prev) => ({ ...prev, overdueServiceRestrictionDays: e.target.value }))}
+            disabled={loading || saving}
+          />
+          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{OVERDUE_SERVICE_RESTRICTION_FIELD.help}</div>
+          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+            Restricted users can still use safe money-in actions such as fund wallet, crypto receive/buy, repay loan, payment requests, and savings contributions.
+          </div>
+        </div>
       </div>
 
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap' }}>
         <div style={{ color: 'var(--muted)' }}>
           Percent values are human values (for example <strong>12.5</strong> means <strong>12.5%</strong>).
         </div>
-        <button type="button" className="btn-primary" onClick={handleSave} disabled={saving || loading || changedCount === 0}>
+        <button type="button" className="btn-primary" onClick={handleSave} disabled={saving || loading}>
           {saving ? 'Saving…' : `Save ${changedCount ? `(${changedCount} field${changedCount > 1 ? 's' : ''})` : ''}`}
         </button>
       </div>

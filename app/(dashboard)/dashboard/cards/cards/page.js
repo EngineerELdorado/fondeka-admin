@@ -125,6 +125,39 @@ const StatusBadge = ({ value }) => {
   );
 };
 
+const formatEnum = (value) => {
+  const text = String(value || '').trim();
+  if (!text) return '—';
+  return text
+    .split('_')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ');
+};
+
+const cardStatusMetaRows = (card) => [
+  { label: 'Status', value: <StatusBadge value={card?.status} /> },
+  { label: 'Previous status', value: card?.previousStatus ? <StatusBadge value={card.previousStatus} /> : '—' },
+  { label: 'Block reason', value: card?.blockReason ? formatEnum(card.blockReason) : '—' }
+];
+
+const CardStatusSummary = ({ card }) => {
+  const previousStatus = card?.previousStatus;
+  const blockReason = card?.blockReason;
+  return (
+    <span style={{ display: 'inline-flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'flex-start' }}>
+      <StatusBadge value={card?.status} />
+      {(previousStatus || blockReason) && (
+        <span style={{ color: 'var(--muted)', fontSize: '12px', lineHeight: 1.35 }}>
+          {previousStatus ? `Previous: ${previousStatus}` : null}
+          {previousStatus && blockReason ? ' • ' : null}
+          {blockReason ? `Reason: ${formatEnum(blockReason)}` : null}
+        </span>
+      )}
+    </span>
+  );
+};
+
 const ExpandableText = ({ value, maxLength = 28 }) => {
   const [expanded, setExpanded] = useState(false);
   const text = value === null || value === undefined ? '' : String(value);
@@ -382,7 +415,7 @@ export default function CardsPage() {
         );
       }
     },
-    { key: 'status', label: 'Status', render: (row) => <StatusBadge value={row.status} /> },
+    { key: 'status', label: 'Status', render: (row) => <CardStatusSummary card={row} /> },
     { key: 'createdAt', label: 'Created', render: (row) => formatDateTime(row.createdAt) },
     { key: 'last4', label: 'Last 4', render: (row) => row.last4 || '—' },
     { key: 'cardProviderName', label: 'Provider', render: (row) => cardProviderLabel(row) },
@@ -626,7 +659,8 @@ export default function CardsPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.cards.update(selected.id, toPayload(draft));
+      const updated = await api.cards.update(selected.id, toPayload(draft));
+      if (updated) syncCardRecord(updated);
       setInfo(`Updated card ${selected.id}.`);
       setShowEdit(false);
       fetchRows();
@@ -1275,7 +1309,7 @@ export default function CardsPage() {
               }}
             >
               <div style={{ display: 'flex', gap: '0.45rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                <StatusBadge value={selected?.status} />
+                <CardStatusSummary card={selected} />
                 <span style={{ fontWeight: 700 }}>Card {selected?.name || selected?.id}</span>
                 <span style={{ color: 'var(--muted)', fontSize: '12px' }}>•••• {selected?.last4 || '—'}</span>
               </div>
@@ -1334,7 +1368,7 @@ export default function CardsPage() {
               rows={[
                 { label: 'ID', value: selected?.id },
                 { label: 'Name', value: selected?.name },
-                { label: 'Status', value: <StatusBadge value={selected?.status} /> },
+                ...cardStatusMetaRows(selected),
                 { label: 'External ref', value: <ExpandableText value={selected?.externalReference} maxLength={40} /> },
                 { label: 'Internal ref', value: <ExpandableText value={selected?.internalReference} maxLength={40} /> },
                 { label: 'Created at', value: formatDateTime(selected?.createdAt) },
@@ -1363,6 +1397,13 @@ export default function CardsPage() {
                 />
               )}
             </div>
+
+            {providerDetailData && (providerDetailData.status || providerDetailData.previousStatus || providerDetailData.blockReason) ? (
+              <div className="card" style={{ padding: '0.9rem', display: 'grid', gap: '0.6rem' }}>
+                <div style={{ fontWeight: 800 }}>Provider details status metadata</div>
+                <DetailGrid rows={cardStatusMetaRows(providerDetailData)} />
+              </div>
+            ) : null}
 
             <div className="card" style={{ padding: '0.9rem', display: 'grid', gap: '0.6rem' }}>
               <div style={{ fontWeight: 800 }}>Transactions</div>

@@ -77,6 +77,16 @@ const providerValue = (value) => {
   return String(value);
 };
 
+const formatEnum = (value) => {
+  const text = String(value || '').trim();
+  if (!text) return '—';
+  return text
+    .split('_')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ');
+};
+
 const providerBool = (value) => {
   if (value === null || value === undefined) return '—';
   return value ? 'Yes' : 'No';
@@ -437,7 +447,12 @@ export default function CardHoldersPage() {
       };
       const res = await api.cards.reconcile(payload);
       setShowReconcile(false);
-      setInfo(`Card reconciled locally (ID: ${res?.id ?? 'new'}).`);
+      const statusDetails = [
+        res?.status ? `Status: ${res.status}` : null,
+        res?.previousStatus ? `Previous: ${res.previousStatus}` : null,
+        res?.blockReason ? `Reason: ${formatEnum(res.blockReason)}` : null
+      ].filter(Boolean);
+      setInfo(`Card reconciled locally (ID: ${res?.id ?? 'new'}).${statusDetails.length ? ` ${statusDetails.join(' • ')}.` : ''}`);
     } catch (err) {
       setError(err?.message || 'Failed to reconcile card.');
     } finally {
