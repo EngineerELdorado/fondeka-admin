@@ -28,9 +28,9 @@ const INTEGER_FIELDS = [
     help: 'Number of days before a loan due date when reminders start and withdrawals/payouts are blocked.'
   },
   {
-    key: 'overdueBlacklistDays',
-    label: 'Late-loan blacklist threshold days',
-    help: 'Number of days after due date before the daily loan penalty cron automatically blacklists the account. Default is 15.'
+    key: 'overdueServiceRestrictionDays',
+    label: 'Overdue-loan service restriction days',
+    help: 'Number of days after due date before overdue-loan service restrictions apply. Default is 15.'
   }
 ];
 
@@ -61,7 +61,7 @@ export default function LoanPolicyConfigPage() {
     untrustedEligibilityPercent: '',
     dailyPenaltyPercent: '',
     payoutBlockPreDueDays: '',
-    overdueBlacklistDays: '',
+    overdueServiceRestrictionDays: '',
     likelembaLoanEligibilityEnabled: false
   });
   const [draft, setDraft] = useState({
@@ -69,7 +69,7 @@ export default function LoanPolicyConfigPage() {
     untrustedEligibilityPercent: '',
     dailyPenaltyPercent: '',
     payoutBlockPreDueDays: '',
-    overdueBlacklistDays: '',
+    overdueServiceRestrictionDays: '',
     likelembaLoanEligibilityEnabled: false
   });
 
@@ -84,7 +84,7 @@ export default function LoanPolicyConfigPage() {
         untrustedEligibilityPercent: toFormValue(res?.untrustedEligibilityPercent),
         dailyPenaltyPercent: toFormValue(res?.dailyPenaltyPercent),
         payoutBlockPreDueDays: toFormValue(res?.payoutBlockPreDueDays),
-        overdueBlacklistDays: toFormValue(res?.overdueBlacklistDays),
+        overdueServiceRestrictionDays: toFormValue(res?.overdueServiceRestrictionDays ?? res?.overdueBlacklistDays),
         likelembaLoanEligibilityEnabled: Boolean(res?.likelembaLoanEligibilityEnabled)
       };
       setInitial(next);
@@ -137,9 +137,9 @@ export default function LoanPolicyConfigPage() {
       setError('Pre-due reminder / withdrawal block days must be an integer of 1 or greater.');
       return;
     }
-    const overdueBlacklistDays = toNumberOrNull(draft.overdueBlacklistDays);
-    if (overdueBlacklistDays === null || !Number.isInteger(overdueBlacklistDays) || overdueBlacklistDays < 1) {
-      setError('Late-loan blacklist threshold days must be an integer of 1 or greater.');
+    const overdueServiceRestrictionDays = toNumberOrNull(draft.overdueServiceRestrictionDays);
+    if (overdueServiceRestrictionDays === null || !Number.isInteger(overdueServiceRestrictionDays) || overdueServiceRestrictionDays < 1) {
+      setError('Overdue-loan service restriction days must be an integer of 1 or greater.');
       return;
     }
     setSaving(true);
@@ -188,7 +188,7 @@ export default function LoanPolicyConfigPage() {
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
           <div style={{ fontSize: '20px', fontWeight: 800 }}>Loan Policy Config</div>
-          <div style={{ color: 'var(--muted)' }}>Manage global loan eligibility, overdue penalties, and pre-due reminder/blocking settings.</div>
+          <div style={{ color: 'var(--muted)' }}>Manage global loan eligibility, overdue penalties, and overdue service restriction settings.</div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <button type="button" className="btn-neutral" onClick={loadConfig} disabled={loading || saving}>
@@ -256,9 +256,9 @@ export default function LoanPolicyConfigPage() {
                 Users will start receiving loan reminders this many days before due date, and withdrawals/payouts will also be blocked starting the same day.
               </div>
             )}
-            {field.key === 'overdueBlacklistDays' && (
+            {field.key === 'overdueServiceRestrictionDays' && (
               <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-                Updating this value does not immediately blacklist accounts. The next daily penalty cron run uses the new threshold.
+                Users past this threshold are restricted from value-serving actions but can still use safe money-in actions like funding, repayment, and savings contributions.
               </div>
             )}
           </div>
