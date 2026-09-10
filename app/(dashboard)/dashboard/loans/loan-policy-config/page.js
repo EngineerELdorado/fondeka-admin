@@ -26,13 +26,13 @@ const INTEGER_FIELDS = [
     key: 'payoutBlockPreDueDays',
     label: 'Pre-Due Reminder / Withdrawal Block Days',
     help: 'Number of days before a loan due date when reminders start and withdrawals/payouts are blocked.'
-  },
-  {
-    key: 'overdueServiceRestrictionDays',
-    label: 'Overdue-loan service restriction days',
-    help: 'Number of days after due date before overdue-loan service restrictions apply. Default is 15.'
   }
 ];
+const OVERDUE_SERVICE_RESTRICTION_FIELD = {
+  key: 'overdueServiceRestrictionDays',
+  label: 'Overdue-loan service restriction days',
+  help: 'Number of days after due date before overdue-loan service restrictions apply. Default is 15.'
+};
 
 const toFormValue = (value) => {
   if (value === null || value === undefined || value === '') return '';
@@ -121,6 +121,16 @@ export default function LoanPolicyConfigPage() {
     }
     if (Boolean(draft.likelembaLoanEligibilityEnabled) !== Boolean(initial.likelembaLoanEligibilityEnabled)) {
       payload.likelembaLoanEligibilityEnabled = Boolean(draft.likelembaLoanEligibilityEnabled);
+    }
+    const overdueServiceRestrictionDays = toNumberOrNull(draft.overdueServiceRestrictionDays);
+    const originalOverdueServiceRestrictionDays = toNumberOrNull(initial.overdueServiceRestrictionDays);
+    if (
+      overdueServiceRestrictionDays !== null &&
+      Number.isInteger(overdueServiceRestrictionDays) &&
+      overdueServiceRestrictionDays >= 1 &&
+      (originalOverdueServiceRestrictionDays === null || overdueServiceRestrictionDays !== originalOverdueServiceRestrictionDays)
+    ) {
+      payload.overdueServiceRestrictionDays = overdueServiceRestrictionDays;
     }
     return payload;
   }, [draft, initial]);
@@ -256,13 +266,35 @@ export default function LoanPolicyConfigPage() {
                 Users will start receiving loan reminders this many days before due date, and withdrawals/payouts will also be blocked starting the same day.
               </div>
             )}
-            {field.key === 'overdueServiceRestrictionDays' && (
-              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-                Users past this threshold are restricted from value-serving actions but can still use safe money-in actions like funding, repayment, and savings contributions.
-              </div>
-            )}
           </div>
         ))}
+      </div>
+
+      <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+          <div style={{ fontWeight: 800 }}>Overdue service restriction</div>
+          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+            Configure when overdue borrowers are restricted from value-serving actions. This does not create blacklist entries.
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', maxWidth: '360px' }}>
+          <label htmlFor={OVERDUE_SERVICE_RESTRICTION_FIELD.key}>{OVERDUE_SERVICE_RESTRICTION_FIELD.label}</label>
+          <input
+            id={OVERDUE_SERVICE_RESTRICTION_FIELD.key}
+            type="number"
+            min="1"
+            step="1"
+            inputMode="numeric"
+            placeholder="15"
+            value={draft.overdueServiceRestrictionDays}
+            onChange={(e) => setDraft((prev) => ({ ...prev, overdueServiceRestrictionDays: e.target.value }))}
+            disabled={loading || saving}
+          />
+          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{OVERDUE_SERVICE_RESTRICTION_FIELD.help}</div>
+          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+            Restricted users can still use safe money-in actions such as fund wallet, crypto receive/buy, repay loan, payment requests, and savings contributions.
+          </div>
+        </div>
       </div>
 
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap' }}>
