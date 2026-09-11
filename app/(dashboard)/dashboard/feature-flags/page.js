@@ -13,6 +13,10 @@ const LABELS = {
   'kyc.allow_gallery_upload': 'Allow KYC gallery upload',
   avecLoanRequestReasonEnabled: 'AVEC loan request reason',
   'customer_service.enabled': 'Customer service FAB',
+  'commerce.enabled': 'Commerce',
+  'commerce.storefront.enabled': 'Commerce Storefront',
+  'commerce.marketplace.enabled': 'Commerce Marketplace',
+  'commerce.pos.enabled': 'Commerce POS',
   'service.loans.enabled': 'Loans',
   'savings.enabled': 'Savings',
   'service.crypto.enabled': 'Crypto',
@@ -49,6 +53,30 @@ const APP_OPEN_AUTH_GLOBAL_KEY = 'app_open_auth_enforcement';
 const APP_OPEN_AUTH_ANDROID_KEY = 'app_open_auth_enforcement.android';
 const APP_OPEN_AUTH_IOS_KEY = 'app_open_auth_enforcement.ios';
 const CUSTOMER_SERVICE_ENABLED_KEY = 'customer_service.enabled';
+const COMMERCE_ENABLED_KEY = 'commerce.enabled';
+const COMMERCE_SURFACE_FLAGS = [
+  {
+    key: COMMERCE_ENABLED_KEY,
+    label: 'Commerce',
+    description: 'Master switch for all customer commerce surfaces.'
+  },
+  {
+    key: 'commerce.storefront.enabled',
+    label: 'Storefront',
+    description: 'Controls storefront visibility and access in the client app.'
+  },
+  {
+    key: 'commerce.marketplace.enabled',
+    label: 'Marketplace',
+    description: 'Controls marketplace visibility and access in the client app.'
+  },
+  {
+    key: 'commerce.pos.enabled',
+    label: 'POS',
+    description: 'Controls POS visibility and access in the client app.'
+  }
+];
+const COMMERCE_SURFACE_KEYS = new Set(COMMERCE_SURFACE_FLAGS.map((item) => item.key));
 const SAVINGS_ENABLED_KEY = 'savings.enabled';
 const PHONE_VERIFICATION_REQUIRED_KEY = 'account.phone_verification.required';
 const ENHANCED_KYC_VERIFICATION_REQUIRED_KEY = 'account.enhanced_kyc_verification.required';
@@ -207,7 +235,7 @@ const getDisabledMessagePlaceholder = (key) =>
     : 'Optional. Shown to users when this feature is disabled.';
 
 const getDisabledMessageHelp = (key) => (key === SAVINGS_ENABLED_KEY ? SAVINGS_DISABLED_MESSAGE_HELP : GENERIC_DISABLED_MESSAGE_HELP);
-const supportsCountryOverrides = (key) => key === SAVINGS_ENABLED_KEY || CUSTOMER_APP_SERVICE_KEYS.has(String(key || ''));
+const supportsCountryOverrides = (key) => key === SAVINGS_ENABLED_KEY || CUSTOMER_APP_SERVICE_KEYS.has(String(key || '')) || COMMERCE_SURFACE_KEYS.has(String(key || ''));
 const normalizeDisabledBehavior = (value) => (value === 'ACCEPT_AND_QUEUE' ? 'ACCEPT_AND_QUEUE' : 'BLOCK_REQUEST');
 const formatDisabledBehavior = (value) => {
   const normalized = normalizeDisabledBehavior(value);
@@ -413,6 +441,35 @@ export default function FeatureFlagsPage() {
     [flags]
   );
 
+  const commerceRows = useMemo(() => {
+    const masterFlag =
+      flags.find((item) => String(item.key) === COMMERCE_ENABLED_KEY) || {
+        key: COMMERCE_ENABLED_KEY,
+        enabled: true,
+        disabledBehavior: 'BLOCK_REQUEST',
+        queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK',
+        isDefault: true
+      };
+    const commerceEnabled = Boolean(masterFlag.enabled);
+    return COMMERCE_SURFACE_FLAGS.map((surface) => {
+      const flag =
+        flags.find((item) => String(item.key) === surface.key) || {
+          key: surface.key,
+          enabled: true,
+          disabledBehavior: 'BLOCK_REQUEST',
+          queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK',
+          isDefault: true
+        };
+      const isChild = surface.key !== COMMERCE_ENABLED_KEY;
+      return {
+        ...surface,
+        flag,
+        effectiveEnabled: isChild ? commerceEnabled && Boolean(flag.enabled) : Boolean(flag.enabled),
+        parentDisabled: isChild && !commerceEnabled
+      };
+    });
+  }, [flags]);
+
   const accountVerificationRequirementRows = useMemo(
     () =>
       ACCOUNT_VERIFICATION_REQUIREMENT_FLAGS.map((requirement) => {
@@ -521,6 +578,7 @@ export default function FeatureFlagsPage() {
           String(flag.key) !== APP_OPEN_AUTH_GLOBAL_KEY &&
           String(flag.key) !== APP_OPEN_AUTH_ANDROID_KEY &&
           String(flag.key) !== APP_OPEN_AUTH_IOS_KEY &&
+          !COMMERCE_SURFACE_KEYS.has(String(flag.key)) &&
           !CUSTOMER_APP_SERVICE_KEYS.has(String(flag.key)) &&
           !isSavingsRelatedKey(flag.key) &&
           !isCryptoSpreadActionKey(flag.key)
@@ -661,6 +719,10 @@ export default function FeatureFlagsPage() {
       const hasTransactionAuthIosFlag = list.some((flag) => String(flag?.key) === TRANSACTION_AUTH_IOS_KEY);
       const hasCustomerServiceEnabledFlag = list.some((flag) => String(flag?.key) === CUSTOMER_SERVICE_ENABLED_KEY);
       const defaults = [];
+      COMMERCE_SURFACE_FLAGS.forEach((surface) => {
+        const exists = list.some((flag) => String(flag?.key) === surface.key);
+        if (!exists) defaults.push({ key: surface.key, enabled: true, disabledBehavior: 'BLOCK_REQUEST', queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK', isDefault: true });
+      });
       CUSTOMER_APP_SERVICE_FLAGS.forEach((service) => {
         const exists = list.some((flag) => String(flag?.key) === service.key);
         if (!exists) defaults.push({ key: service.key, enabled: true, disabledBehavior: 'BLOCK_REQUEST', queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK', isDefault: true });
@@ -1435,6 +1497,67 @@ export default function FeatureFlagsPage() {
         </div>
         <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
           Supported keys: {SUPPORTED_KEYS.join(', ')}
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title="Commerce"
+        subtitle="Commerce flags default to enabled when no database row exists. If Commerce is off, Storefront, Marketplace, and POS are effectively off."
+        borderColor="#0f766e"
+        defaultOpen
+      >
+        <div style={{ display: 'grid', gap: '0.7rem' }}>
+          {commerceRows.map(({ key, label, description, flag, effectiveEnabled, parentDisabled }) => (
+            <div key={key} style={{ display: 'grid', gap: '0.5rem', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontWeight: 800 }}>{label}</div>
+                  <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{description}</div>
+                  <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{key}</div>
+                  <FeatureFlagMeta flag={flag} />
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span
+                    style={{
+                      border: `1px solid ${effectiveEnabled ? 'rgba(22, 163, 74, 0.28)' : 'rgba(220, 38, 38, 0.28)'}`,
+                      background: effectiveEnabled ? 'rgba(22, 163, 74, 0.08)' : 'rgba(220, 38, 38, 0.08)',
+                      color: effectiveEnabled ? '#166534' : '#991b1b',
+                      padding: '0.35rem 0.55rem',
+                      borderRadius: '999px',
+                      fontSize: '12px',
+                      fontWeight: 800
+                    }}
+                  >
+                    {effectiveEnabled ? 'Effective ON' : 'Effective OFF'}
+                  </span>
+                  <button type="button" className="btn-neutral btn-sm" onClick={() => openEditDialog(flag)} disabled={savingKey === key}>
+                    Messages
+                  </button>
+                  <button type="button" className="btn-neutral btn-sm" onClick={() => openOverridesDialog(key)} disabled={savingKey === key}>
+                    Overrides
+                  </button>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                    <input type="checkbox" checked={Boolean(flag.enabled)} onChange={() => handleToggle(key)} disabled={loading || savingKey === key} />
+                    {flag.enabled ? 'Enabled globally' : 'Disabled globally'}
+                  </label>
+                  <button type="button" className="btn-neutral btn-sm" onClick={() => setDeleteConfirm({ key })} disabled={savingKey === key}>
+                    Reset
+                  </button>
+                </div>
+              </div>
+              {parentDisabled ? (
+                <div style={{ color: '#b45309', fontWeight: 700, fontSize: '13px' }}>
+                  commerce.enabled is disabled, so this surface is treated as off even though its own flag is {flag.enabled ? 'enabled' : 'disabled'}.
+                </div>
+              ) : null}
+              {!flag.enabled ? (
+                <div style={{ display: 'grid', gap: '0.25rem', color: 'var(--muted)', fontSize: '13px' }}>
+                  <div>EN: {flag.disabledMessageEn || 'Default unavailable message'}</div>
+                  <div>FR: {flag.disabledMessageFr || 'Default unavailable message'}</div>
+                </div>
+              ) : null}
+            </div>
+          ))}
         </div>
       </CollapsibleSection>
 
