@@ -239,6 +239,7 @@ export default function AccountsListPage() {
     'PAY_TV_SUBSCRIPTION',
     'PAY_WATER_BILL',
     'PAY_REQUEST',
+  'COMMERCE_CHECKOUT_PAYMENT',
     'REPAY_LOAN',
     'CONVERT_FIAT',
     'SELL_CRYPTO',
@@ -2012,7 +2013,7 @@ export default function AccountsListPage() {
                 <label htmlFor="feeService">{t('common.service')}</label>
                 <select id="feeService" value={feeService} onChange={(e) => setFeeService(e.target.value)}>
                   <option value="">{t('accounts.noneOption')}</option>
-                  {['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'PAYMENT_REQUEST', 'E_SIM', 'AIRTIME_AND_DATA', 'OTHER'].map((svc) => (
+                  {['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'COMMERCE', 'PAYMENT_REQUEST', 'E_SIM', 'AIRTIME_AND_DATA', 'OTHER'].map((svc) => (
                     <option key={svc} value={svc}>
                       {svc}
                     </option>

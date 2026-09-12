@@ -594,6 +594,7 @@ const paymentMethodActionRuleOptions = [
   'SWAP_CRYPTO',
   'REQUEST_PAYMENT',
   'PAY_REQUEST',
+  'COMMERCE_CHECKOUT_PAYMENT',
   'SETTLEMENT',
   'GROUP_SAVING_ROUND_DISTRIBUTION',
   'E_SIM_PURCHASE',
@@ -1013,6 +1014,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     'PAY_TV_SUBSCRIPTION',
     'PAY_WATER_BILL',
     'PAY_REQUEST',
+  'COMMERCE_CHECKOUT_PAYMENT',
     'REPAY_LOAN',
     'RECEIVE_CRYPTO',
     'CONVERT_FIAT',
@@ -7063,7 +7065,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                 <label htmlFor="feeService">Service</label>
                 <select id="feeService" value={feeService} onChange={(e) => setFeeService(e.target.value)}>
                   <option value="">None</option>
-                  {['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'PAYMENT_REQUEST', 'E_SIM', 'AIRTIME_AND_DATA', 'OTHER'].map((svc) => (
+                  {['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'COMMERCE', 'PAYMENT_REQUEST', 'E_SIM', 'AIRTIME_AND_DATA', 'OTHER'].map((svc) => (
                     <option key={svc} value={svc}>
                       {svc}
                     </option>

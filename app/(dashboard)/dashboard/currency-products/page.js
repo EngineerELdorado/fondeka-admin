@@ -34,6 +34,7 @@ const fallbackActionOptions = [
   'SEND_CRYPTO',
   'RECEIVE_CRYPTO',
   'PAY_REQUEST',
+  'COMMERCE_CHECKOUT_PAYMENT',
   'SETTLEMENT'
 ].sort();
 const fallbackFeeApplicationModeOptions = ['EXCLUSIVE', 'INCLUSIVE'];

@@ -36,6 +36,8 @@ const formatEnumLabel = (value) => {
   const raw = String(value);
   const special = {
     E_SIM: 'eSIM',
+    COMMERCE: 'Commerce',
+    COMMERCE_CHECKOUT_PAYMENT: 'Checkout payment',
     PAYMENT_REQUEST: 'Payment request',
     BILL_PAYMENTS: 'Bill payments',
     AIRTIME_AND_DATA: 'Airtime & data'
@@ -152,7 +154,7 @@ const formatInputDateTime = (date) => {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };
 
-const serviceOptions = ['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'PAYMENT_REQUEST', 'E_SIM', 'AIRTIME_AND_DATA', 'OTHER'];
+const serviceOptions = ['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'COMMERCE', 'PAYMENT_REQUEST', 'E_SIM', 'AIRTIME_AND_DATA', 'OTHER'];
 const actionOptions = [
   'BUY_CARD',
   'BUY_CRYPTO',
@@ -173,6 +175,7 @@ const actionOptions = [
   'PAY_TV_SUBSCRIPTION',
   'PAY_WATER_BILL',
   'PAY_REQUEST',
+  'COMMERCE_CHECKOUT_PAYMENT',
   'REPAY_LOAN',
   'SELL_CRYPTO',
   'SEND_AIRTIME',

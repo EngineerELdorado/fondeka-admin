@@ -137,6 +137,7 @@ const ACTION_LABELS = {
   swap_crypto: 'Crypto Swap',
   request_payment: 'Request Payment',
   pay_request: 'Pay Request',
+  commerce_checkout_payment: 'Checkout Payment',
   settlement: 'Settlement',
   e_sim_purchase: 'eSIM Purchase',
   e_sim_topup: 'eSIM Top-up',

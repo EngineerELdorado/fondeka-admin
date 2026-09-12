@@ -9,7 +9,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
 import { paymentMethodAdminLabel, paymentMethodRouteAdminLabel } from '@/lib/payment-method-labels';
 
-const serviceOptions = ['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'PAYMENT_REQUEST', 'E_SIM', 'AIRTIME_AND_DATA', 'OTHER'];
+const serviceOptions = ['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'COMMERCE', 'PAYMENT_REQUEST', 'E_SIM', 'AIRTIME_AND_DATA', 'OTHER'];
 const actionOptions = [
   'FUND_WALLET',
   'WITHDRAW_FROM_WALLET',
@@ -42,6 +42,7 @@ const actionOptions = [
   'SWAP_CRYPTO',
   'REQUEST_PAYMENT',
   'PAY_REQUEST',
+  'COMMERCE_CHECKOUT_PAYMENT',
   'E_SIM_PURCHASE',
   'E_SIM_TOPUP',
   'SEND_AIRTIME',
@@ -79,6 +80,7 @@ const receiptTypes = [
   'WALLET_TRANSFER',
   'AIRTIME',
   'ESIM',
+  'COMMERCE_CHECKOUT',
   'PAYMENT_REQUEST'
 ];
 const receiptStatusOptions = ['PROCESSING', 'COMPLETED', 'FAILED'];
@@ -97,6 +99,7 @@ const receiptPayloadTemplates = {
   WALLET_TRANSFER: { destination: '', providerReference: '', fees: '', netAmount: '' },
   AIRTIME: { providerReference: '', token: '', destination: '', valueReceived: '' },
   ESIM: { providerReference: '', qr: '', pin: '', puk: '', instructions: '' },
+  COMMERCE_CHECKOUT: { orderId: '', storeId: '', checkoutReference: '', settlementAmount: '', settlementCurrency: '' },
   PAYMENT_REQUEST: { payer: '', requestReference: '', providerReference: '', note: '' },
   GENERIC: { reference: '', note: '' }
 };
@@ -107,6 +110,7 @@ const serviceLabels = {
   LENDING: 'Lending',
   CARD: 'Card',
   CRYPTO: 'Crypto',
+  COMMERCE: 'Commerce',
   PAYMENT_REQUEST: 'Payment request',
   E_SIM: 'eSIM',
   AIRTIME_AND_DATA: 'Airtime & data',
@@ -144,6 +148,7 @@ const actionLabels = {
   SWAP_CRYPTO: 'Swap crypto',
   REQUEST_PAYMENT: 'Request payment',
   PAY_REQUEST: 'Pay request',
+  COMMERCE_CHECKOUT_PAYMENT: 'Checkout payment',
   E_SIM_PURCHASE: 'eSIM purchase',
   E_SIM_TOPUP: 'eSIM top up',
   SEND_AIRTIME: 'Send airtime',
@@ -2110,6 +2115,22 @@ export default function TransactionsPage() {
     }
     return null;
   }, [formatMoneyWithCurrency, normalizedSelectedAction, receiptPayloadData, selected?.currency]);
+  const commerceCheckoutReporting = useMemo(() => {
+    if (normalizedSelectedAction !== 'COMMERCE_CHECKOUT_PAYMENT') return null;
+    const currency = selected?.currency || selected?.amountCurrency || selected?.grossAmountCurrency || selected?.billingCurrency;
+    return {
+      title: 'Commerce checkout reporting',
+      description: 'Commerce order payment for Store, Marketplace, or POS checkout. This is not wallet funding and is separate from payment request links.',
+      rows: [
+        { label: 'Checkout net payment amount', value: formatMoneyWithCurrency(selected?.amount, selected?.currency || selected?.amountCurrency || currency) },
+        { label: 'Buyer gross charge', value: formatMoneyWithCurrency(selected?.grossAmount, selected?.grossCurrency || selected?.grossAmountCurrency || currency) },
+        { label: 'All fees', value: formatMoneyWithCurrency(selected?.allFees, selected?.allFeesCurrency || currency) },
+        { label: 'Store settlement amount', value: formatMoneyWithCurrency(selected?.billingAmount, selected?.billingCurrency || currency) },
+        { label: 'Service', value: formatEnumLabel(selected?.service, serviceLabels) },
+        { label: 'Action', value: formatEnumLabel(selected?.action, actionLabels) }
+      ]
+    };
+  }, [formatMoneyWithCurrency, normalizedSelectedAction, selected?.action, selected?.allFees, selected?.allFeesCurrency, selected?.amount, selected?.amountCurrency, selected?.billingAmount, selected?.billingCurrency, selected?.currency, selected?.grossAmount, selected?.grossAmountCurrency, selected?.grossCurrency, selected?.service]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -2522,6 +2543,18 @@ export default function TransactionsPage() {
                   </div>
                 </div>
                 <DetailGrid rows={groupSavingsReporting.rows} />
+              </div>
+            )}
+
+            {commerceCheckoutReporting && (
+              <div className="card" style={{ padding: '1rem', display: 'grid', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                  <div style={{ fontWeight: 800 }}>{commerceCheckoutReporting.title}</div>
+                  <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                    {commerceCheckoutReporting.description}
+                  </div>
+                </div>
+                <DetailGrid rows={commerceCheckoutReporting.rows} />
               </div>
             )}
 

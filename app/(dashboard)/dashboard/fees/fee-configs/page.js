@@ -6,7 +6,7 @@ import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 import { paymentMethodAdminLabel, paymentMethodRouteAdminLabel } from '@/lib/payment-method-labels';
 
-const serviceOptions = ['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'PAYMENT_REQUEST', 'E_SIM', 'AIRTIME_AND_DATA', 'OTHER'];
+const serviceOptions = ['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'COMMERCE', 'PAYMENT_REQUEST', 'E_SIM', 'AIRTIME_AND_DATA', 'OTHER'];
 const paymentMethodTypeOptions = ['MOBILE_MONEY', 'CRYPTO', 'BALANCE', 'CREDIT', 'AIRTIME', 'BANK'];
 const scopeTypeOptions = [
   { value: 'specific_route', label: 'Specific route' },
@@ -40,6 +40,7 @@ const actionOptions = [
   'PAY_ELECTRICITY_BILL',
   'PAY_INTERNET_BILL',
   'PAY_REQUEST',
+  'COMMERCE_CHECKOUT_PAYMENT',
   'PAY_TV_SUBSCRIPTION',
   'PAY_WATER_BILL',
   'CARD_PAYMENT_REVERSAL',

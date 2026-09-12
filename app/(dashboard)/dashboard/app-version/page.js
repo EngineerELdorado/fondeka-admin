@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 
-const serviceOptions = ['LENDING', 'CRYPTO', 'WALLET', 'BILL_PAYMENTS', 'CARD', 'PAYMENT_REQUEST', 'E_SIM', 'AIRTIME_AND_DATA', 'OTHER'];
+const serviceOptions = ['LENDING', 'CRYPTO', 'WALLET', 'BILL_PAYMENTS', 'CARD', 'COMMERCE', 'PAYMENT_REQUEST', 'E_SIM', 'AIRTIME_AND_DATA', 'OTHER'];
 
 const emptyVersionDraft = {
   appVersion: '',
