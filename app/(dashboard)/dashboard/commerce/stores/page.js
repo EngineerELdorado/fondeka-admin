@@ -8,6 +8,11 @@ import { api } from '@/lib/api';
 const VERIFICATION_STATUSES = ['UNVERIFIED', 'VERIFIED', 'REJECTED'];
 const STORE_STATUSES = ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'CLOSED'];
 const VISIBILITIES = ['PUBLIC', 'PRIVATE', 'UNLISTED'];
+const DELETED_STATE_OPTIONS = [
+  { value: '', label: 'All' },
+  { value: 'active', label: 'Active only' },
+  { value: 'deleted', label: 'Deleted only' }
+];
 
 const asText = (...values) => {
   const value = values.find((item) => item !== null && item !== undefined && String(item).trim() !== '');
@@ -41,6 +46,8 @@ const verificationTone = (status) => {
 };
 
 const getStoreId = (row) => row?.id ?? row?.storeId ?? row?.commerceStoreId;
+const getDeletedAt = (row) => row?.deletedAt ?? row?.deleted_at ?? row?.selfDeletedAt ?? row?.removedAt ?? null;
+const isDeletedStore = (row) => Boolean(row?.deleted || row?.deletedFlag || row?.isDeleted || getDeletedAt(row) || String(row?.status || '').toUpperCase() === 'DELETED');
 
 const getOwnerLabel = (row) => {
   const account = row?.account || row?.owner || row?.merchant || row?.user;
@@ -55,6 +62,7 @@ export default function CommerceStoresPage() {
   const [verificationStatus, setVerificationStatus] = useState('');
   const [status, setStatus] = useState('');
   const [visibility, setVisibility] = useState('');
+  const [deletedState, setDeletedState] = useState('');
   const [pageMeta, setPageMeta] = useState({ totalElements: null, totalPages: null });
   const [loading, setLoading] = useState(false);
   const [savingId, setSavingId] = useState('');
@@ -69,6 +77,8 @@ export default function CommerceStoresPage() {
       if (verificationStatus) params.set('verificationStatus', verificationStatus);
       if (status) params.set('status', status);
       if (visibility) params.set('visibility', visibility);
+      if (deletedState === 'active') params.set('deleted', 'false');
+      if (deletedState === 'deleted') params.set('deleted', 'true');
       const res = await api.commerceStores.list(params);
       const list = Array.isArray(res) ? res : res?.content || res?.stores || [];
       setRows(list || []);
@@ -87,7 +97,7 @@ export default function CommerceStoresPage() {
 
   useEffect(() => {
     fetchRows();
-  }, [page, size, verificationStatus, status, visibility]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [page, size, verificationStatus, status, visibility, deletedState]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!info && !error) return;
@@ -124,10 +134,39 @@ export default function CommerceStoresPage() {
     [savingId]
   );
 
+  const restoreStore = useCallback(
+    async (row) => {
+      const storeId = getStoreId(row);
+      if (!storeId || savingId) return;
+      setSavingId(String(storeId));
+      setError(null);
+      setInfo(null);
+      try {
+        const res = await api.commerceStores.restore(storeId);
+        setRows((prev) => {
+          if (deletedState === 'deleted') return prev.filter((item) => String(getStoreId(item)) !== String(storeId));
+          return prev.map((item) => {
+            const itemId = getStoreId(item);
+            if (String(itemId) !== String(storeId)) return item;
+            const restored = res && typeof res === 'object' ? res : {};
+            return { ...item, ...restored, deleted: false, isDeleted: false, deletedAt: null, selfDeletedAt: null };
+          });
+        });
+        setInfo(`Store ${storeId} restored.`);
+      } catch (err) {
+        setError(err?.message || 'Failed to restore store.');
+      } finally {
+        setSavingId('');
+      }
+    },
+    [deletedState, savingId]
+  );
+
   const clearFilters = () => {
     setVerificationStatus('');
     setStatus('');
     setVisibility('');
+    setDeletedState('');
     setPage(0);
   };
 
@@ -151,7 +190,19 @@ export default function CommerceStoresPage() {
       {
         key: 'status',
         label: 'Status',
-        render: (row) => asText(row?.status)
+        render: (row) => {
+          const deleted = isDeletedStore(row);
+          return (
+            <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <span>{asText(row?.status)}</span>
+              {deleted ? (
+                <span style={badgeStyle({ border: 'rgba(220, 38, 38, 0.28)', background: 'rgba(220, 38, 38, 0.08)', color: '#991b1b' })}>
+                  Deleted
+                </span>
+              ) : null}
+            </div>
+          );
+        }
       },
       {
         key: 'visibility',
@@ -172,6 +223,11 @@ export default function CommerceStoresPage() {
         render: (row) => asText([row?.countryCode, row?.currency].filter(Boolean).join(' / '), row?.country, row?.currency)
       },
       {
+        key: 'deletedAt',
+        label: 'Deleted at',
+        render: (row) => formatDateTime(getDeletedAt(row))
+      },
+      {
         key: 'createdAt',
         label: 'Created',
         render: (row) => formatDateTime(row?.createdAt || row?.createdDate)
@@ -182,25 +238,37 @@ export default function CommerceStoresPage() {
         render: (row) => {
           const storeId = getStoreId(row);
           const current = asText(row?.verificationStatus, 'UNVERIFIED');
+          const deleted = isDeletedStore(row);
           return (
             <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-              {VERIFICATION_STATUSES.map((nextStatus) => (
+              {deleted ? (
                 <button
-                  key={nextStatus}
                   type="button"
-                  className={nextStatus === 'VERIFIED' ? 'btn-success btn-sm' : nextStatus === 'REJECTED' ? 'btn-danger btn-sm' : 'btn-neutral btn-sm'}
-                  onClick={() => updateVerification(row, nextStatus)}
-                  disabled={!storeId || savingId === String(storeId) || current === nextStatus}
+                  className="btn-success btn-sm"
+                  onClick={() => restoreStore(row)}
+                  disabled={!storeId || savingId === String(storeId)}
                 >
-                  {nextStatus}
+                  {savingId === String(storeId) ? 'Restoring...' : 'Restore'}
                 </button>
-              ))}
+              ) : (
+                VERIFICATION_STATUSES.map((nextStatus) => (
+                  <button
+                    key={nextStatus}
+                    type="button"
+                    className={nextStatus === 'VERIFIED' ? 'btn-success btn-sm' : nextStatus === 'REJECTED' ? 'btn-danger btn-sm' : 'btn-neutral btn-sm'}
+                    onClick={() => updateVerification(row, nextStatus)}
+                    disabled={!storeId || savingId === String(storeId) || current === nextStatus}
+                  >
+                    {nextStatus}
+                  </button>
+                ))
+              )}
             </div>
           );
         }
       }
     ],
-    [savingId, updateVerification]
+    [restoreStore, savingId, updateVerification]
   );
 
   const canPrev = page > 0;
@@ -214,6 +282,9 @@ export default function CommerceStoresPage() {
           <div style={{ color: 'var(--muted)' }}>Review stores and update their verification status.</div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <Link href="/dashboard/commerce/store-creation-fee" className="btn-neutral" style={{ textDecoration: 'none' }}>
+            Store creation fee
+          </Link>
           <Link href="/dashboard/commerce/settlement-policy" className="btn-neutral" style={{ textDecoration: 'none' }}>
             Settlement policy
           </Link>
@@ -280,6 +351,23 @@ export default function CommerceStoresPage() {
             </select>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="deletedState">Deleted state</label>
+            <select
+              id="deletedState"
+              value={deletedState}
+              onChange={(e) => {
+                setDeletedState(e.target.value);
+                setPage(0);
+              }}
+            >
+              {DELETED_STATE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="pageSize">Page size</label>
             <input
               id="pageSize"
@@ -332,6 +420,7 @@ export default function CommerceStoresPage() {
         canPrev={canPrev}
         canNext={canNext}
         emptyLabel={loading ? 'Loading commerce stores...' : 'No commerce stores found'}
+        rowStyle={(row) => (isDeletedStore(row) ? { opacity: 0.62, background: '#FEF2F2' } : {})}
       />
     </div>
   );

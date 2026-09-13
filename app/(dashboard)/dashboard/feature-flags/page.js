@@ -138,6 +138,7 @@ const ACTION_LABELS = {
   request_payment: 'Request Payment',
   pay_request: 'Pay Request',
   commerce_checkout_payment: 'Checkout Payment',
+  create_commerce_store: 'Create Commerce Store',
   settlement: 'Settlement',
   e_sim_purchase: 'eSIM Purchase',
   e_sim_topup: 'eSIM Top-up',

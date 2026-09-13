@@ -240,6 +240,7 @@ export default function AccountsListPage() {
     'PAY_WATER_BILL',
     'PAY_REQUEST',
   'COMMERCE_CHECKOUT_PAYMENT',
+  'CREATE_COMMERCE_STORE',
     'REPAY_LOAN',
     'CONVERT_FIAT',
     'SELL_CRYPTO',

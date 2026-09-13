@@ -38,6 +38,7 @@ const formatEnumLabel = (value) => {
     E_SIM: 'eSIM',
     COMMERCE: 'Commerce',
     COMMERCE_CHECKOUT_PAYMENT: 'Checkout payment',
+    CREATE_COMMERCE_STORE: 'Create commerce store',
     PAYMENT_REQUEST: 'Payment request',
     BILL_PAYMENTS: 'Bill payments',
     AIRTIME_AND_DATA: 'Airtime & data'
@@ -176,6 +177,7 @@ const actionOptions = [
   'PAY_WATER_BILL',
   'PAY_REQUEST',
   'COMMERCE_CHECKOUT_PAYMENT',
+  'CREATE_COMMERCE_STORE',
   'REPAY_LOAN',
   'SELL_CRYPTO',
   'SEND_AIRTIME',
