@@ -213,9 +213,14 @@ export default function CommerceStoresPage() {
           <div style={{ fontSize: '22px', fontWeight: 800 }}>Commerce Stores</div>
           <div style={{ color: 'var(--muted)' }}>Review stores and update their verification status.</div>
         </div>
-        <Link href="/dashboard/feature-flags" className="btn-neutral" style={{ textDecoration: 'none' }}>
-          Commerce flags
-        </Link>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <Link href="/dashboard/commerce/settlement-policy" className="btn-neutral" style={{ textDecoration: 'none' }}>
+            Settlement policy
+          </Link>
+          <Link href="/dashboard/feature-flags" className="btn-neutral" style={{ textDecoration: 'none' }}>
+            Commerce flags
+          </Link>
+        </div>
       </div>
 
       <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
