@@ -4,7 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DataTable } from '@/components/DataTable';
 import { api } from '@/lib/api';
 
+const cronLabels = {
+  COMMERCE_SETTLEMENT: 'Commerce settlement'
+};
+
 const cronDescriptions = {
+  COMMERCE_SETTLEMENT: 'Settles eligible held Commerce merchant proceeds after the configured hold period.',
   'loan.due_reminder': 'Sends loan repayment reminders on D-3, D-2, D-1, and D0 (UTC-day logic). Penalty notifications continue via penalty cron after due date.',
   'reloadly_recharge_catalog.sync': 'Worker-side scheduler that enqueues Reloadly mobile recharge catalog refresh events. Pausing it leaves cached recharge data in place but it will become stale over time.',
   'zendit_recharge_catalog.sync': 'Worker-side scheduler that enqueues Zendit mobile recharge catalog refresh events. Use manual sync on the Recharge Catalog Sync page if you need an immediate refresh.',
@@ -21,6 +26,7 @@ const getCronGroup = (key) => {
   if (['reloadly_utilities_catalog.sync', 'zendit_utilities_catalog.sync'].includes(value)) return 'Utility Bill Catalog Sync';
   if (['exchangerate_api.fiat_refresh_rates', 'maplerad.fiat_refresh_rates'].includes(value)) return 'Fiat FX Rates';
   if (value === 'wallet_currency.audit') return 'Wallet Currency Audit';
+  if (value === 'COMMERCE_SETTLEMENT') return 'Commerce';
   return 'Other';
 };
 
@@ -66,7 +72,7 @@ export default function CronJobsPage() {
       const res = await api.cronJobs.list();
       const list = normalizeList(res).map((item) => ({
         key: item?.key || '',
-        displayName: item?.displayName || item?.key || '—',
+        displayName: cronLabels[item?.key] || item?.displayName || item?.key || '—',
         group: getCronGroup(item?.key),
         schedule: item?.schedule || '—',
         enabled: Boolean(item?.enabled),
@@ -100,7 +106,7 @@ export default function CronJobsPage() {
               ? {
                   ...item,
                   key: res.key || item.key,
-                  displayName: res.displayName || item.displayName,
+                  displayName: cronLabels[res.key || item.key] || res.displayName || item.displayName,
                   group: getCronGroup(res.key || item.key),
                   schedule: res.schedule || item.schedule,
                   enabled: Boolean(res.enabled),
