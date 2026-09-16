@@ -149,7 +149,6 @@ export default function BillOptionsPage() {
     { key: 'displayName', label: 'Display' },
     { key: 'codes', label: 'Codes', render: (row) => formatCodes(row) },
     { key: 'price', label: 'Price', render: (row) => `${row.price ?? ''} ${row.currency ?? ''}`.trim() },
-    { key: 'ourPriceInUsd', label: 'Our price (USD)', render: (row) => (row.ourPriceInUsd ? `${row.ourPriceInUsd} $` : '—') },
     {
       key: 'actions',
       label: 'Actions',
