@@ -153,8 +153,6 @@ export default function LoanServiceRestrictionsPage() {
 
   const columns = useMemo(
     () => [
-      { key: 'accountId', label: 'Account ID' },
-      { key: 'accountReference', label: 'Reference', render: (row) => asText(row.accountReference) },
       {
         key: 'identity',
         label: 'User',
@@ -166,12 +164,10 @@ export default function LoanServiceRestrictionsPage() {
         )
       },
       { key: 'restricted', label: 'Status', render: (row) => <StatusBadge restricted={row.restricted} /> },
-      { key: 'thresholdDays', label: 'Threshold', render: (row) => `${asText(row.thresholdDays)} days` },
       { key: 'oldestOverdueDays', label: 'Oldest overdue', render: (row) => `${asText(row.oldestOverdueDays)} days` },
       { key: 'totalOutstandingAmount', label: 'Outstanding', render: (row) => formatAmount(row.totalOutstandingAmount, row.currency) },
       { key: 'totalOutstandingFineAmount', label: 'Fines', render: (row) => formatAmount(row.totalOutstandingFineAmount, row.currency) },
       { key: 'restrictedAt', label: 'Restricted at', render: (row) => formatDateTime(row.restrictedAt) },
-      { key: 'notificationRecorded', label: 'Notified', render: (row) => formatBoolean(row.notificationRecorded) },
       {
         key: 'actions',
         label: 'Actions',
@@ -291,10 +287,16 @@ export default function LoanServiceRestrictionsPage() {
                     { label: 'Loan ID', value: asText(loan.loanId, loan.id) },
                     { label: 'Reference', value: asText(loan.reference, loan.loanReference) },
                     { label: 'Status', value: asText(loan.status) },
-                    { label: 'Amount', value: formatAmount(loan.amount, loan.currency) },
+                    { label: 'Base amount', value: formatAmount(loan.baseAmount, loan.currency) },
+                    { label: 'Interest', value: formatAmount(loan.interestAmount, loan.currency) },
+                    { label: 'Requested', value: formatAmount(loan.requestedAmount, loan.currency) },
+                    { label: 'Due amount', value: formatAmount(loan.dueAmount, loan.currency) },
                     { label: 'Paid', value: formatAmount(loan.paidAmount, loan.currency) },
                     { label: 'Remaining', value: formatAmount(loan.remainingBalance, loan.currency) },
-                    { label: 'Outstanding fine', value: formatAmount(loan.outstandingFineAmount, loan.currency) }
+                    { label: 'Outstanding fine', value: formatAmount(loan.outstandingFineAmount, loan.currency) },
+                    { label: 'Starts at', value: formatDateTime(loan.startsAt) },
+                    { label: 'Ends at', value: formatDateTime(loan.endsAt) },
+                    { label: 'Deadline', value: formatDateTime(loan.deadlineAt) }
                   ]}
                 />
                 <div style={{ overflowX: 'auto' }}>
