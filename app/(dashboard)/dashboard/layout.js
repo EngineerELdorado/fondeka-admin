@@ -17,6 +17,7 @@ const navItems = [
   { href: '/dashboard/savings', labelKey: 'layout.nav.savingsProducts' },
   { href: '/dashboard/loans/direct-credit', labelKey: 'layout.nav.directLoanCredit' },
   { href: '/dashboard/loans/loan-policy-config', labelKey: 'layout.nav.loanPolicyConfig' },
+  { href: '/dashboard/loans/service-restrictions', labelKey: 'layout.nav.loanServiceRestrictions', label: 'Loan Service Restrictions' },
   { href: '/dashboard/loans/untrusted-borrowers', labelKey: 'layout.nav.untrustedBorrowers' },
   { href: '/dashboard/bills', labelKey: 'layout.nav.billsProducts' },
   { href: '/dashboard/bills/cegaweb-profiles', labelKey: 'layout.nav.cegawebProfiles' },
