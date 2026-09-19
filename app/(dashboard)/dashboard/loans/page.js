@@ -7,6 +7,7 @@ const sections = [
   { href: '/dashboard/loans/direct-credit', title: 'Direct Loan Credit', blurb: 'Create and auto-approve a loan, then credit user wallet immediately.' },
   { href: '/dashboard/loans/products', title: 'Loan Products', blurb: 'Configure available loan products, amounts, rates and terms.' },
   { href: '/dashboard/loans/loan-policy-config', title: 'Loan Policy Config', blurb: 'Set global eligibility, overdue penalties, and overdue service restrictions.' },
+  { href: '/dashboard/loans/service-restrictions', title: 'Loan Service Restrictions', blurb: 'Review accounts currently limited by the live overdue-loan rule.' },
   { href: '/dashboard/loans/eligibility-rules', title: 'Loan Eligibility Rules', blurb: 'Manage transaction-time eligibility rules and preview which rule will win.' },
   { href: '/dashboard/loans/untrusted-borrowers', title: 'Untrusted Borrowers', blurb: 'Manage the list of accounts flagged as untrusted for loans.' },
   { href: '/dashboard/loans/decisions', title: 'Loan Decisions', blurb: 'Review and manage admin decisions for applications.' },
