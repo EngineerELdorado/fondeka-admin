@@ -16,6 +16,7 @@ const LABELS = {
   'commerce.enabled': 'Commerce',
   'commerce.storefront.enabled': 'Commerce Storefront',
   'commerce.marketplace.enabled': 'Commerce Marketplace',
+  'commerce.marketplace.require_store_verification': 'Require store verification for marketplace',
   'commerce.pos.enabled': 'Commerce POS',
   'service.loans.enabled': 'Loans',
   'savings.enabled': 'Savings',
@@ -71,12 +72,20 @@ const COMMERCE_SURFACE_FLAGS = [
     description: 'Controls marketplace visibility and access in the client app.'
   },
   {
+    key: 'commerce.marketplace.require_store_verification',
+    label: 'Require store verification for marketplace',
+    description:
+      'When enabled, only verified stores appear in marketplace discovery. When disabled, active public stores can appear even if they are not verified. Product rules still apply.',
+    defaultEnabled: true,
+    inheritsCommerceEnabled: false
+  },
+  {
     key: 'commerce.pos.enabled',
     label: 'POS',
     description: 'Controls POS visibility and access in the client app.'
   }
 ];
-const COMMERCE_SURFACE_KEYS = new Set(COMMERCE_SURFACE_FLAGS.map((item) => item.key));
+const COMMERCE_SURFACE_KEYS = new Set(COMMERCE_SURFACE_FLAGS.filter((item) => item.inheritsCommerceEnabled !== false).map((item) => item.key));
 const SAVINGS_ENABLED_KEY = 'savings.enabled';
 const PHONE_VERIFICATION_REQUIRED_KEY = 'account.phone_verification.required';
 const ENHANCED_KYC_VERIFICATION_REQUIRED_KEY = 'account.enhanced_kyc_verification.required';
@@ -457,12 +466,12 @@ export default function FeatureFlagsPage() {
       const flag =
         flags.find((item) => String(item.key) === surface.key) || {
           key: surface.key,
-          enabled: true,
+          enabled: surface.defaultEnabled ?? true,
           disabledBehavior: 'BLOCK_REQUEST',
           queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK',
           isDefault: true
         };
-      const isChild = surface.key !== COMMERCE_ENABLED_KEY;
+      const isChild = surface.key !== COMMERCE_ENABLED_KEY && surface.inheritsCommerceEnabled !== false;
       return {
         ...surface,
         flag,
