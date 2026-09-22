@@ -39,6 +39,7 @@ const formatEnumLabel = (value) => {
     COMMERCE: 'Commerce',
     COMMERCE_CHECKOUT_PAYMENT: 'Checkout payment',
     CREATE_COMMERCE_STORE: 'Create commerce store',
+    COMMERCE_STORE_CREATION: 'Commerce store creation',
     PAYMENT_REQUEST: 'Payment request',
     BILL_PAYMENTS: 'Bill payments',
     AIRTIME_AND_DATA: 'Airtime & data'
@@ -178,6 +179,7 @@ const actionOptions = [
   'PAY_REQUEST',
   'COMMERCE_CHECKOUT_PAYMENT',
   'CREATE_COMMERCE_STORE',
+  'COMMERCE_STORE_CREATION',
   'REPAY_LOAN',
   'SELL_CRYPTO',
   'SEND_AIRTIME',

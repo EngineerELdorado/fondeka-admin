@@ -36,6 +36,7 @@ const fallbackActionOptions = [
   'PAY_REQUEST',
   'COMMERCE_CHECKOUT_PAYMENT',
   'CREATE_COMMERCE_STORE',
+  'COMMERCE_STORE_CREATION',
   'SETTLEMENT'
 ].sort();
 const fallbackFeeApplicationModeOptions = ['EXCLUSIVE', 'INCLUSIVE'];

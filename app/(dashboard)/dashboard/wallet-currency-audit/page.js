@@ -19,6 +19,7 @@ const actionOptions = [
   'CONVERT_FIAT',
   'SELL_CRYPTO',
   'CREATE_COMMERCE_STORE',
+  'COMMERCE_STORE_CREATION',
   'FUND_WALLET',
   'WITHDRAW_FROM_WALLET'
 ].sort();

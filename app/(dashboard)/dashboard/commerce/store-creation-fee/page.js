@@ -175,7 +175,7 @@ export default function CommerceStoreCreationFeePage() {
         <div>
           <div style={{ fontWeight: 800 }}>Update creation fee</div>
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-            Extra fees are managed separately in fee configs with action CREATE_COMMERCE_STORE.
+            Extra fees are managed separately in fee configs with action COMMERCE_STORE_CREATION.
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', alignItems: 'end' }}>

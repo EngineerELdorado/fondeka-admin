@@ -17,6 +17,9 @@ const LABELS = {
   'commerce.storefront.enabled': 'Commerce Storefront',
   'commerce.marketplace.enabled': 'Commerce Marketplace',
   'commerce.marketplace.require_store_verification': 'Require store verification for marketplace',
+  'commerce.marketplace.products.physical.enabled': 'Marketplace physical products',
+  'commerce.marketplace.products.digital.enabled': 'Marketplace digital products',
+  'commerce.marketplace.products.service.enabled': 'Marketplace service products',
   'commerce.pos.enabled': 'Commerce POS',
   'service.loans.enabled': 'Loans',
   'savings.enabled': 'Savings',
@@ -86,6 +89,24 @@ const COMMERCE_SURFACE_FLAGS = [
   }
 ];
 const COMMERCE_SURFACE_KEYS = new Set(COMMERCE_SURFACE_FLAGS.filter((item) => item.inheritsCommerceEnabled !== false).map((item) => item.key));
+const MARKETPLACE_PRODUCT_TYPE_FLAGS = [
+  {
+    key: 'commerce.marketplace.products.physical.enabled',
+    label: 'Physical products',
+    description: 'Controls physical product visibility and checkout in the marketplace. Storefront and POS are not affected.'
+  },
+  {
+    key: 'commerce.marketplace.products.digital.enabled',
+    label: 'Digital products',
+    description: 'Controls digital product visibility and checkout in the marketplace. Storefront and POS are not affected.'
+  },
+  {
+    key: 'commerce.marketplace.products.service.enabled',
+    label: 'Service products',
+    description: 'Controls service product visibility and checkout in the marketplace. Storefront and POS are not affected.'
+  }
+];
+const MARKETPLACE_PRODUCT_TYPE_KEYS = new Set(MARKETPLACE_PRODUCT_TYPE_FLAGS.map((item) => item.key));
 const SAVINGS_ENABLED_KEY = 'savings.enabled';
 const PHONE_VERIFICATION_REQUIRED_KEY = 'account.phone_verification.required';
 const ENHANCED_KYC_VERIFICATION_REQUIRED_KEY = 'account.enhanced_kyc_verification.required';
@@ -148,6 +169,7 @@ const ACTION_LABELS = {
   pay_request: 'Pay Request',
   commerce_checkout_payment: 'Checkout Payment',
   create_commerce_store: 'Create Commerce Store',
+  commerce_store_creation: 'Commerce Store Creation',
   settlement: 'Settlement',
   e_sim_purchase: 'eSIM Purchase',
   e_sim_topup: 'eSIM Top-up',
@@ -481,6 +503,22 @@ export default function FeatureFlagsPage() {
     });
   }, [flags]);
 
+  const marketplaceProductTypeRows = useMemo(
+    () =>
+      MARKETPLACE_PRODUCT_TYPE_FLAGS.map((productType) => {
+        const flag =
+          flags.find((item) => String(item.key) === productType.key) || {
+            key: productType.key,
+            enabled: true,
+            disabledBehavior: 'BLOCK_REQUEST',
+            queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK',
+            isDefault: true
+          };
+        return { ...productType, flag };
+      }),
+    [flags]
+  );
+
   const accountVerificationRequirementRows = useMemo(
     () =>
       ACCOUNT_VERIFICATION_REQUIREMENT_FLAGS.map((requirement) => {
@@ -590,6 +628,7 @@ export default function FeatureFlagsPage() {
           String(flag.key) !== APP_OPEN_AUTH_ANDROID_KEY &&
           String(flag.key) !== APP_OPEN_AUTH_IOS_KEY &&
           !COMMERCE_SURFACE_KEYS.has(String(flag.key)) &&
+          !MARKETPLACE_PRODUCT_TYPE_KEYS.has(String(flag.key)) &&
           !CUSTOMER_APP_SERVICE_KEYS.has(String(flag.key)) &&
           !isSavingsRelatedKey(flag.key) &&
           !isCryptoSpreadActionKey(flag.key)
@@ -803,12 +842,12 @@ export default function FeatureFlagsPage() {
     return () => clearTimeout(t);
   }, [info, error]);
 
-  const handleToggle = async (key) => {
+  const handleToggle = async (key, fallbackFlag = null) => {
     if (!key || savingKey === key) return;
-    const current = flags.find((flag) => flag.key === key);
+    const current = flags.find((flag) => flag.key === key) || fallbackFlag;
     const nextEnabled = !current?.enabled;
     if (!nextEnabled) {
-      setConfirm({ key });
+      setConfirm({ key, fallbackFlag: current || fallbackFlag });
       return;
     }
     setSavingKey(key);
@@ -842,7 +881,7 @@ export default function FeatureFlagsPage() {
   const handleConfirmDisable = async () => {
     if (!confirm?.key) return;
     const key = confirm.key;
-    const current = flags.find((flag) => flag.key === key);
+    const current = flags.find((flag) => flag.key === key) || confirm.fallbackFlag;
     if (!current?.enabled) {
       setConfirm(null);
       return;
@@ -1548,7 +1587,7 @@ export default function FeatureFlagsPage() {
                     Overrides
                   </button>
                   <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
-                    <input type="checkbox" checked={Boolean(flag.enabled)} onChange={() => handleToggle(key)} disabled={loading || savingKey === key} />
+                    <input type="checkbox" checked={Boolean(flag.enabled)} onChange={() => handleToggle(key, flag)} disabled={loading || savingKey === key} />
                     {flag.enabled ? 'Enabled globally' : 'Disabled globally'}
                   </label>
                   <button type="button" className="btn-neutral btn-sm" onClick={() => setDeleteConfirm({ key })} disabled={savingKey === key}>
@@ -1565,6 +1604,59 @@ export default function FeatureFlagsPage() {
                 <div style={{ display: 'grid', gap: '0.25rem', color: 'var(--muted)', fontSize: '13px' }}>
                   <div>EN: {flag.disabledMessageEn || 'Default unavailable message'}</div>
                   <div>FR: {flag.disabledMessageFr || 'Default unavailable message'}</div>
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title="Marketplace product types"
+        subtitle="Gates marketplace visibility and checkout by product type. Storefront, public store pages, and POS are not affected."
+        borderColor="#0f766e"
+        defaultOpen
+      >
+        <div style={{ display: 'grid', gap: '0.7rem' }}>
+          {marketplaceProductTypeRows.map(({ key, label, description, flag }) => (
+            <div key={key} style={{ display: 'grid', gap: '0.5rem', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontWeight: 800 }}>{label}</div>
+                  <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{description}</div>
+                  <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{key}</div>
+                  <FeatureFlagMeta flag={flag} />
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span
+                    style={{
+                      border: `1px solid ${flag.enabled ? 'rgba(22, 163, 74, 0.28)' : 'rgba(220, 38, 38, 0.28)'}`,
+                      background: flag.enabled ? 'rgba(22, 163, 74, 0.08)' : 'rgba(220, 38, 38, 0.08)',
+                      color: flag.enabled ? '#166534' : '#991b1b',
+                      padding: '0.35rem 0.55rem',
+                      borderRadius: '999px',
+                      fontSize: '12px',
+                      fontWeight: 800
+                    }}
+                  >
+                    {flag.enabled ? 'Allowed in marketplace' : 'Blocked in marketplace'}
+                  </span>
+                  <button type="button" className="btn-neutral btn-sm" onClick={() => openEditDialog(flag)} disabled={savingKey === key}>
+                    Messages
+                  </button>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                    <input type="checkbox" checked={Boolean(flag.enabled)} onChange={() => handleToggle(key, flag)} disabled={loading || savingKey === key} />
+                    {flag.enabled ? 'Enabled globally' : 'Disabled globally'}
+                  </label>
+                  <button type="button" className="btn-neutral btn-sm" onClick={() => setDeleteConfirm({ key })} disabled={savingKey === key}>
+                    Reset
+                  </button>
+                </div>
+              </div>
+              {!flag.enabled ? (
+                <div style={{ display: 'grid', gap: '0.25rem', color: 'var(--muted)', fontSize: '13px' }}>
+                  <div>Marketplace lists/search/store marketplace pages hide this product type.</div>
+                  <div>Marketplace checkout rejects this product type while disabled.</div>
                 </div>
               ) : null}
             </div>
