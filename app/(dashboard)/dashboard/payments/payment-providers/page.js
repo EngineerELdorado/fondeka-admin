@@ -5,13 +5,34 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
-const emptyState = { name: '', active: true };
-const paymentProviderNameOptions = ['MAPLERAD'];
+const SAME_FUNDING_DESTINATION_SCOPE_OPTIONS = ['SAME_PROVIDER', 'ANY_PROVIDER'];
+const emptyState = {
+  name: '',
+  active: true,
+  requireSameFundingDestinationForPayout: false,
+  sameFundingDestinationScope: 'SAME_PROVIDER'
+};
+const paymentProviderNameOptions = ['MAPLERAD', 'PAWAPAY'];
+
+const normalizeSameFundingDestinationScope = (value) =>
+  SAME_FUNDING_DESTINATION_SCOPE_OPTIONS.includes(String(value || '').trim().toUpperCase())
+    ? String(value || '').trim().toUpperCase()
+    : 'SAME_PROVIDER';
 
 const toPayload = (state) => ({
   name: state.name,
-  active: Boolean(state.active)
+  active: Boolean(state.active),
+  requireSameFundingDestinationForPayout: Boolean(state.requireSameFundingDestinationForPayout),
+  sameFundingDestinationScope: normalizeSameFundingDestinationScope(state.sameFundingDestinationScope)
 });
+
+const formatSameFundingPolicy = (provider) => {
+  if (!provider?.requireSameFundingDestinationForPayout) return 'No same-source restriction';
+  const scope = normalizeSameFundingDestinationScope(provider.sameFundingDestinationScope);
+  return scope === 'ANY_PROVIDER'
+    ? 'Requires prior funding through any mobile-money provider'
+    : 'Requires prior funding through the same provider';
+};
 
 const Modal = ({ title, onClose, children }) => (
   <div className="modal-backdrop">
@@ -76,6 +97,11 @@ export default function PaymentProvidersPage() {
     { key: 'name', label: 'Name' },
     { key: 'active', label: 'Active' },
     {
+      key: 'sameFundingPolicy',
+      label: 'Payout source policy',
+      render: (row) => formatSameFundingPolicy(row)
+    },
+    {
       key: 'actions',
       label: 'Actions',
       render: (row) => (
@@ -99,7 +125,9 @@ export default function PaymentProvidersPage() {
     setSelected(row);
     setDraft({
       name: row.name ?? '',
-      active: Boolean(row.active)
+      active: Boolean(row.active),
+      requireSameFundingDestinationForPayout: Boolean(row.requireSameFundingDestinationForPayout),
+      sameFundingDestinationScope: normalizeSameFundingDestinationScope(row.sameFundingDestinationScope)
     });
     setShowEdit(true);
     setInfo(null);
@@ -170,6 +198,33 @@ export default function PaymentProvidersPage() {
         <input id="active" type="checkbox" checked={draft.active} onChange={(e) => setDraft((p) => ({ ...p, active: e.target.checked }))} />
         <label htmlFor="active">Active</label>
       </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <input
+          id="requireSameFundingDestinationForPayout"
+          type="checkbox"
+          checked={draft.requireSameFundingDestinationForPayout}
+          onChange={(e) => setDraft((p) => ({ ...p, requireSameFundingDestinationForPayout: e.target.checked }))}
+        />
+        <label htmlFor="requireSameFundingDestinationForPayout">Require same funding destination for payout</label>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="sameFundingDestinationScope">Same funding destination scope</label>
+        <select
+          id="sameFundingDestinationScope"
+          value={draft.sameFundingDestinationScope}
+          onChange={(e) => setDraft((p) => ({ ...p, sameFundingDestinationScope: e.target.value }))}
+          disabled={!draft.requireSameFundingDestinationForPayout}
+        >
+          {SAME_FUNDING_DESTINATION_SCOPE_OPTIONS.map((scope) => (
+            <option key={scope} value={scope}>
+              {scope}
+            </option>
+          ))}
+        </select>
+        <div style={{ color: 'var(--muted)', fontSize: '12px', lineHeight: 1.4 }}>
+          SAME_PROVIDER requires a prior funding destination through this provider. ANY_PROVIDER accepts a prior funding destination through any mobile-money provider.
+        </div>
+      </div>
     </div>
   );
 
@@ -234,6 +289,9 @@ export default function PaymentProvidersPage() {
               { label: 'ID', value: selected?.id },
               { label: 'Name', value: selected?.name },
               { label: 'Active', value: selected?.active ? 'Yes' : 'No' },
+              { label: 'Require same funding destination', value: selected?.requireSameFundingDestinationForPayout ? 'Yes' : 'No' },
+              { label: 'Same funding destination scope', value: selected?.requireSameFundingDestinationForPayout ? normalizeSameFundingDestinationScope(selected?.sameFundingDestinationScope) : '—' },
+              { label: 'Payout source policy', value: formatSameFundingPolicy(selected) },
               { label: 'Created', value: selected?.createdAt },
               { label: 'Updated', value: selected?.updatedAt }
             ]}

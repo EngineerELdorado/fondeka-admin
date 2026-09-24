@@ -100,6 +100,10 @@ const normalizeContext = (context) => (typeof context === 'string' ? context.tri
 const normalizeProviderCode = (providerCode) => (typeof providerCode === 'string' ? providerCode.trim() : '');
 const normalizeCurrency = (currency) => (typeof currency === 'string' ? currency.trim().toUpperCase() : '');
 const normalizeCountryCode = (countryCode) => (typeof countryCode === 'string' ? countryCode.trim().toUpperCase() : '');
+const normalizeSameFundingDestinationScope = (value) => {
+  const scope = String(value || '').trim().toUpperCase();
+  return scope === 'ANY_PROVIDER' ? 'ANY_PROVIDER' : 'SAME_PROVIDER';
+};
 
 const normalizeFilterValue = (key, value) => {
   const trimmed = typeof value === 'string' ? value.trim() : value;
@@ -137,6 +141,19 @@ const resolveRoutingTier = (row) => {
 };
 
 const isMapleradRelation = (row) => String(row?.paymentProviderName || '').toUpperCase().includes('MAPLERAD');
+
+const findProviderForRoute = (row, providers) => {
+  const providerId = row?.paymentProviderId ?? row?.paymentProvider?.id;
+  return providers.find((provider) => String(provider.id) === String(providerId)) || row?.paymentProvider || row || {};
+};
+
+const formatSameFundingPolicy = (provider) => {
+  if (!provider?.requireSameFundingDestinationForPayout) return 'No same-source restriction';
+  const scope = normalizeSameFundingDestinationScope(provider.sameFundingDestinationScope);
+  return scope === 'ANY_PROVIDER'
+    ? 'Requires prior funding through any mobile-money provider'
+    : 'Requires prior funding through the same provider';
+};
 
 const Modal = ({ title, onClose, children }) => (
   <div className="modal-backdrop">
@@ -268,6 +285,11 @@ export default function MethodProvidersPage() {
     },
     { key: 'currency', label: 'Currency', render: (row) => normalizeCurrency(row.currency) || '—' },
     {
+      key: 'providerPayoutPolicy',
+      label: 'Provider payout policy',
+      render: (row) => formatSameFundingPolicy(findProviderForRoute(row, providers))
+    },
+    {
       key: 'countryName',
       label: 'Country',
       render: (row) => row.countryName || 'GLOBAL'
@@ -285,7 +307,7 @@ export default function MethodProvidersPage() {
         </div>
       )
     }
-  ], []);
+  ], [providers]);
 
   const sortedRows = useMemo(() => {
     const arr = [...rows];
@@ -416,7 +438,9 @@ export default function MethodProvidersPage() {
     }
   };
 
-  const renderForm = () => (
+  const renderForm = () => {
+    const selectedProvider = providers.find((provider) => String(provider.id) === String(draft.paymentProviderId));
+    return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="paymentMethodId">Payment Method</label>
@@ -447,6 +471,20 @@ export default function MethodProvidersPage() {
             </option>
           ))}
         </select>
+      </div>
+      <div style={{ gridColumn: '1 / -1', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.65rem', display: 'grid', gap: '0.25rem' }}>
+        <div style={{ fontWeight: 800 }}>Inherited provider payout policy</div>
+        <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+          {selectedProvider ? formatSameFundingPolicy(selectedProvider) : 'Select a payment provider to view its payout policy.'}
+        </div>
+        {selectedProvider?.requireSameFundingDestinationForPayout ? (
+          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+            Scope: {normalizeSameFundingDestinationScope(selectedProvider.sameFundingDestinationScope)}
+          </div>
+        ) : null}
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          Edit this policy on the Payment Providers screen, not on individual routes.
+        </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="rank">Rank</label>
@@ -516,7 +554,8 @@ export default function MethodProvidersPage() {
         <label htmlFor="active">Active</label>
       </div>
     </div>
-  );
+    );
+  };
 
   const handleApplyFilters = () => {
     setPage(0);
@@ -720,6 +759,8 @@ export default function MethodProvidersPage() {
               { label: 'Context', value: selected?.context || 'Default (none)' },
               { label: 'Provider code', value: selected?.providerCode || '—' },
               { label: 'Currency', value: normalizeCurrency(selected?.currency) || '—' },
+              { label: 'Inherited provider payout policy', value: formatSameFundingPolicy(findProviderForRoute(selected, providers)) },
+              { label: 'Provider policy scope', value: findProviderForRoute(selected, providers)?.requireSameFundingDestinationForPayout ? normalizeSameFundingDestinationScope(findProviderForRoute(selected, providers)?.sameFundingDestinationScope) : '—' },
               { label: 'Country', value: selected?.countryName || 'GLOBAL' },
               { label: 'Rank', value: selected?.rank },
               { label: 'Active', value: selected?.active ? 'Yes' : 'No' },

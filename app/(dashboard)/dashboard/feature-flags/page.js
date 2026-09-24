@@ -215,6 +215,14 @@ const DISABLED_BEHAVIOR_OPTIONS = [
   { value: 'BLOCK_REQUEST', label: 'Block request' },
   { value: 'ACCEPT_AND_QUEUE', label: 'Accept and queue' }
 ];
+const CLIENT_PRESENTATION_OPTIONS = [
+  { value: 'SHOW', label: 'Show', description: 'Show the feature normally.' },
+  { value: 'HIDE', label: 'Hide', description: 'Remove the service from the app UI.' },
+  { value: 'SHOW_UNAVAILABLE', label: 'Show unavailable', description: 'Show a disabled service card as unavailable.' },
+  { value: 'SHOW_COMING_SOON', label: 'Show coming soon', description: 'Show a disabled service card as coming soon.' }
+];
+const ENABLED_CLIENT_PRESENTATION = 'SHOW';
+const DISABLED_CLIENT_PRESENTATION_FALLBACK = 'SHOW_UNAVAILABLE';
 const QUEUED_PROVIDER_WORK_MODE_OPTIONS = [
   { value: 'HOLD_ALL_PROVIDER_WORK', label: 'Hold all provider work' },
   { value: 'ALLOW_CARD_HOLDER_VERIFICATION', label: 'Allow cardholder verification' }
@@ -270,9 +278,17 @@ const getDisabledMessagePlaceholder = (key) =>
 const getDisabledMessageHelp = (key) => (key === SAVINGS_ENABLED_KEY ? SAVINGS_DISABLED_MESSAGE_HELP : GENERIC_DISABLED_MESSAGE_HELP);
 const supportsCountryOverrides = (key) => key === SAVINGS_ENABLED_KEY || CUSTOMER_APP_SERVICE_KEYS.has(String(key || '')) || COMMERCE_SURFACE_KEYS.has(String(key || ''));
 const normalizeDisabledBehavior = (value) => (value === 'ACCEPT_AND_QUEUE' ? 'ACCEPT_AND_QUEUE' : 'BLOCK_REQUEST');
+const normalizeClientPresentation = (value, fallback = ENABLED_CLIENT_PRESENTATION) => {
+  const normalized = String(value || '').trim().toUpperCase();
+  return CLIENT_PRESENTATION_OPTIONS.some((option) => option.value === normalized) ? normalized : fallback;
+};
 const formatDisabledBehavior = (value) => {
   const normalized = normalizeDisabledBehavior(value);
   return DISABLED_BEHAVIOR_OPTIONS.find((option) => option.value === normalized)?.label || normalized;
+};
+const formatClientPresentation = (value) => {
+  const normalized = normalizeClientPresentation(value, DISABLED_CLIENT_PRESENTATION_FALLBACK);
+  return CLIENT_PRESENTATION_OPTIONS.find((option) => option.value === normalized)?.label || normalized;
 };
 const isCardOrderingFeatureFlag = (key) => String(key || '') === CARD_ORDERING_FEATURE_FLAG_KEY;
 const normalizeQueuedProviderWorkMode = (value, key) => {
@@ -324,7 +340,10 @@ const normalizeOverride = (entry) => {
     displayEmail: hasAccount ? String(email || '') : String(email || ''),
     username: String(username || ''),
     accountReference: String(accountReference || ''),
-    enabled: Boolean(entry.enabled)
+    enabled: Boolean(entry.enabled),
+    clientPresentation: Boolean(entry.enabled)
+      ? ENABLED_CLIENT_PRESENTATION
+      : normalizeClientPresentation(entry.clientPresentation ?? entry.client_presentation, DISABLED_CLIENT_PRESENTATION_FALLBACK)
   };
 };
 
@@ -339,7 +358,10 @@ const normalizeCountryOverride = (entry) => {
     countryCode,
     targetType: 'country',
     targetLabel: `Country ${countryCode}`,
-    enabled: Boolean(entry.enabled)
+    enabled: Boolean(entry.enabled),
+    clientPresentation: Boolean(entry.enabled)
+      ? ENABLED_CLIENT_PRESENTATION
+      : normalizeClientPresentation(entry.clientPresentation ?? entry.client_presentation, DISABLED_CLIENT_PRESENTATION_FALLBACK)
   };
 };
 
@@ -389,6 +411,7 @@ function FeatureFlagMeta({ flag }) {
       {normalizeDisabledBehavior(flag.disabledBehavior) === 'ACCEPT_AND_QUEUE' && (
         <div>Queued provider work: {formatQueuedProviderWorkMode(flag.queuedProviderWorkMode, flag.key)}</div>
       )}
+      {!flag.enabled && <div>Client presentation: {formatClientPresentation(flag.clientPresentation)}</div>}
       {dispatch && <div>Worker/provider dispatch control. Turning it off pauses provider submission but does not block transaction creation by itself.</div>}
     </div>
   );
@@ -398,6 +421,24 @@ const getOverrideErrorMessage = (err, fallback) => {
   if (err?.status === 404) return 'Account or email not found';
   return err?.message || fallback;
 };
+
+function ClientPresentationSelect({ id, value, onChange, disabled = false }) {
+  const selectedValue = normalizeClientPresentation(value, DISABLED_CLIENT_PRESENTATION_FALLBACK);
+  const selected = CLIENT_PRESENTATION_OPTIONS.find((option) => option.value === selectedValue);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+      <label htmlFor={id}>Client presentation</label>
+      <select id={id} value={selectedValue} onChange={(e) => onChange(e.target.value)} disabled={disabled}>
+        {CLIENT_PRESENTATION_OPTIONS.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label} ({option.value})
+          </option>
+        ))}
+      </select>
+      <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{selected?.description}</div>
+    </div>
+  );
+}
 
 const withOverrideIdentity = async (entry) => {
   if (!entry || entry.targetType !== 'account' || !entry.accountId) return entry;
@@ -430,6 +471,7 @@ export default function FeatureFlagsPage() {
   const [draftEnabled, setDraftEnabled] = useState(true);
   const [draftDisabledBehavior, setDraftDisabledBehavior] = useState('BLOCK_REQUEST');
   const [draftQueuedProviderWorkMode, setDraftQueuedProviderWorkMode] = useState('HOLD_ALL_PROVIDER_WORK');
+  const [draftClientPresentation, setDraftClientPresentation] = useState(DISABLED_CLIENT_PRESENTATION_FALLBACK);
   const [draftDisabledMessageEn, setDraftDisabledMessageEn] = useState('');
   const [draftDisabledMessageFr, setDraftDisabledMessageFr] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -438,6 +480,7 @@ export default function FeatureFlagsPage() {
   const [editDraftEnabled, setEditDraftEnabled] = useState(true);
   const [editDraftDisabledBehavior, setEditDraftDisabledBehavior] = useState('BLOCK_REQUEST');
   const [editDraftQueuedProviderWorkMode, setEditDraftQueuedProviderWorkMode] = useState('HOLD_ALL_PROVIDER_WORK');
+  const [editDraftClientPresentation, setEditDraftClientPresentation] = useState(DISABLED_CLIENT_PRESENTATION_FALLBACK);
   const [editDraftDisabledMessageEn, setEditDraftDisabledMessageEn] = useState('');
   const [editDraftDisabledMessageFr, setEditDraftDisabledMessageFr] = useState('');
   const [overrideDialog, setOverrideDialog] = useState(null);
@@ -445,10 +488,13 @@ export default function FeatureFlagsPage() {
   const [overridesSaving, setOverridesSaving] = useState(false);
   const [overrideAccountId, setOverrideAccountId] = useState('');
   const [overrideEnabled, setOverrideEnabled] = useState(true);
+  const [overrideClientPresentation, setOverrideClientPresentation] = useState(DISABLED_CLIENT_PRESENTATION_FALLBACK);
   const [overrideEmail, setOverrideEmail] = useState('');
   const [overrideEmailEnabled, setOverrideEmailEnabled] = useState(true);
+  const [overrideEmailClientPresentation, setOverrideEmailClientPresentation] = useState(DISABLED_CLIENT_PRESENTATION_FALLBACK);
   const [overrideCountryCode, setOverrideCountryCode] = useState('');
   const [overrideCountryEnabled, setOverrideCountryEnabled] = useState(true);
+  const [overrideCountryClientPresentation, setOverrideCountryClientPresentation] = useState(DISABLED_CLIENT_PRESENTATION_FALLBACK);
   const [overrides, setOverrides] = useState([]);
   const [spreadActionDraft, setSpreadActionDraft] = useState('');
   const [spreadActionEnabled, setSpreadActionEnabled] = useState(true);
@@ -709,6 +755,9 @@ export default function FeatureFlagsPage() {
         enabled: Boolean(payload?.enabled),
         disabledBehavior: normalizeDisabledBehavior(payload?.disabledBehavior),
         queuedProviderWorkMode: normalizeQueuedProviderWorkMode(payload?.queuedProviderWorkMode, key),
+        clientPresentation: Boolean(payload?.enabled)
+          ? ENABLED_CLIENT_PRESENTATION
+          : normalizeClientPresentation(payload?.clientPresentation, DISABLED_CLIENT_PRESENTATION_FALLBACK),
         disabledMessageEn: payload?.disabledMessageEn ?? '',
         disabledMessageFr: payload?.disabledMessageFr ?? ''
       };
@@ -728,6 +777,9 @@ export default function FeatureFlagsPage() {
         enabled: Boolean(res?.enabled),
         disabledBehavior: normalizeDisabledBehavior(res?.disabledBehavior),
         queuedProviderWorkMode: normalizeQueuedProviderWorkMode(res?.queuedProviderWorkMode, key),
+        clientPresentation: Boolean(res?.enabled)
+          ? ENABLED_CLIENT_PRESENTATION
+          : normalizeClientPresentation(res?.clientPresentation, DISABLED_CLIENT_PRESENTATION_FALLBACK),
         disabledMessageEn: res?.disabledMessageEn ?? '',
         disabledMessageFr: res?.disabledMessageFr ?? ''
       };
@@ -738,6 +790,9 @@ export default function FeatureFlagsPage() {
           enabled: Boolean(fallbackFlag?.enabled),
           disabledBehavior: normalizeDisabledBehavior(fallbackFlag?.disabledBehavior),
           queuedProviderWorkMode: normalizeQueuedProviderWorkMode(fallbackFlag?.queuedProviderWorkMode, key),
+          clientPresentation: Boolean(fallbackFlag?.enabled)
+            ? ENABLED_CLIENT_PRESENTATION
+            : normalizeClientPresentation(fallbackFlag?.clientPresentation, DISABLED_CLIENT_PRESENTATION_FALLBACK),
           disabledMessageEn: fallbackFlag?.disabledMessageEn ?? '',
           disabledMessageFr: fallbackFlag?.disabledMessageFr ?? ''
         };
@@ -754,7 +809,10 @@ export default function FeatureFlagsPage() {
       const list = (Array.isArray(res) ? res : []).map((flag) => ({
         ...flag,
         disabledBehavior: normalizeDisabledBehavior(flag?.disabledBehavior),
-        queuedProviderWorkMode: normalizeQueuedProviderWorkMode(flag?.queuedProviderWorkMode, flag?.key)
+        queuedProviderWorkMode: normalizeQueuedProviderWorkMode(flag?.queuedProviderWorkMode, flag?.key),
+        clientPresentation: Boolean(flag?.enabled)
+          ? ENABLED_CLIENT_PRESENTATION
+          : normalizeClientPresentation(flag?.clientPresentation, DISABLED_CLIENT_PRESENTATION_FALLBACK)
       }));
       const hasCryptoCollectionGate = list.some((flag) => String(flag?.key) === CRYPTO_COLLECTION_GATE_KEY);
       const hasPublicEndpointsFlag = list.some((flag) => String(flag?.key) === CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY);
@@ -859,6 +917,7 @@ export default function FeatureFlagsPage() {
         enabled: nextEnabled,
         disabledBehavior: detail.disabledBehavior ?? 'BLOCK_REQUEST',
         queuedProviderWorkMode: normalizeQueuedProviderWorkMode(detail.queuedProviderWorkMode, key),
+        clientPresentation: ENABLED_CLIENT_PRESENTATION,
         disabledMessageEn: detail.disabledMessageEn ?? '',
         disabledMessageFr: detail.disabledMessageFr ?? ''
       };
@@ -867,6 +926,7 @@ export default function FeatureFlagsPage() {
         enabled: Boolean(res?.enabled),
         disabledBehavior: res?.disabledBehavior ?? payload.disabledBehavior,
         queuedProviderWorkMode: res?.queuedProviderWorkMode ?? payload.queuedProviderWorkMode,
+        clientPresentation: res?.clientPresentation ?? payload.clientPresentation,
         disabledMessageEn: res?.disabledMessageEn ?? payload.disabledMessageEn,
         disabledMessageFr: res?.disabledMessageFr ?? payload.disabledMessageFr
       });
@@ -895,6 +955,7 @@ export default function FeatureFlagsPage() {
         enabled: false,
         disabledBehavior: detail.disabledBehavior ?? 'BLOCK_REQUEST',
         queuedProviderWorkMode: normalizeQueuedProviderWorkMode(detail.queuedProviderWorkMode, key),
+        clientPresentation: normalizeClientPresentation(detail.clientPresentation, DISABLED_CLIENT_PRESENTATION_FALLBACK),
         disabledMessageEn: detail.disabledMessageEn ?? '',
         disabledMessageFr: detail.disabledMessageFr ?? ''
       };
@@ -903,6 +964,7 @@ export default function FeatureFlagsPage() {
         enabled: Boolean(res?.enabled),
         disabledBehavior: res?.disabledBehavior ?? payload.disabledBehavior,
         queuedProviderWorkMode: res?.queuedProviderWorkMode ?? payload.queuedProviderWorkMode,
+        clientPresentation: res?.clientPresentation ?? payload.clientPresentation,
         disabledMessageEn: res?.disabledMessageEn ?? payload.disabledMessageEn,
         disabledMessageFr: res?.disabledMessageFr ?? payload.disabledMessageFr
       });
@@ -948,6 +1010,7 @@ export default function FeatureFlagsPage() {
         enabled: draftEnabled,
         disabledBehavior: draftDisabledBehavior,
         queuedProviderWorkMode: normalizeQueuedProviderWorkMode(draftQueuedProviderWorkMode, key),
+        clientPresentation: draftEnabled ? ENABLED_CLIENT_PRESENTATION : normalizeClientPresentation(draftClientPresentation, DISABLED_CLIENT_PRESENTATION_FALLBACK),
         disabledMessageEn: draftDisabledMessageEn,
         disabledMessageFr: draftDisabledMessageFr
       };
@@ -956,6 +1019,7 @@ export default function FeatureFlagsPage() {
         enabled: Boolean(res?.enabled),
         disabledBehavior: res?.disabledBehavior ?? payload.disabledBehavior,
         queuedProviderWorkMode: res?.queuedProviderWorkMode ?? payload.queuedProviderWorkMode,
+        clientPresentation: res?.clientPresentation ?? payload.clientPresentation,
         disabledMessageEn: res?.disabledMessageEn ?? payload.disabledMessageEn,
         disabledMessageFr: res?.disabledMessageFr ?? payload.disabledMessageFr
       });
@@ -964,6 +1028,7 @@ export default function FeatureFlagsPage() {
       setDraftEnabled(true);
       setDraftDisabledBehavior('BLOCK_REQUEST');
       setDraftQueuedProviderWorkMode('HOLD_ALL_PROVIDER_WORK');
+      setDraftClientPresentation(DISABLED_CLIENT_PRESENTATION_FALLBACK);
       setDraftDisabledMessageEn('');
       setDraftDisabledMessageFr('');
     } catch (err) {
@@ -1052,6 +1117,11 @@ export default function FeatureFlagsPage() {
       setEditDraftEnabled(Boolean(detail.enabled));
       setEditDraftDisabledBehavior(detail.disabledBehavior ?? 'BLOCK_REQUEST');
       setEditDraftQueuedProviderWorkMode(normalizeQueuedProviderWorkMode(detail.queuedProviderWorkMode, flag.key));
+      setEditDraftClientPresentation(
+        Boolean(detail.enabled)
+          ? DISABLED_CLIENT_PRESENTATION_FALLBACK
+          : normalizeClientPresentation(detail.clientPresentation, DISABLED_CLIENT_PRESENTATION_FALLBACK)
+      );
       setEditDraftDisabledMessageEn(detail.disabledMessageEn ?? '');
       setEditDraftDisabledMessageFr(detail.disabledMessageFr ?? '');
     } catch (err) {
@@ -1069,6 +1139,7 @@ export default function FeatureFlagsPage() {
       enabled: Boolean(editDraftEnabled),
       disabledBehavior: editDraftDisabledBehavior,
       queuedProviderWorkMode: normalizeQueuedProviderWorkMode(editDraftQueuedProviderWorkMode, key),
+      clientPresentation: editDraftEnabled ? ENABLED_CLIENT_PRESENTATION : normalizeClientPresentation(editDraftClientPresentation, DISABLED_CLIENT_PRESENTATION_FALLBACK),
       disabledMessageEn: editDraftDisabledMessageEn,
       disabledMessageFr: editDraftDisabledMessageFr
     };
@@ -1081,6 +1152,7 @@ export default function FeatureFlagsPage() {
         enabled: Boolean(res?.enabled),
         disabledBehavior: res?.disabledBehavior ?? payload.disabledBehavior,
         queuedProviderWorkMode: res?.queuedProviderWorkMode ?? payload.queuedProviderWorkMode,
+        clientPresentation: res?.clientPresentation ?? payload.clientPresentation,
         disabledMessageEn: res?.disabledMessageEn ?? payload.disabledMessageEn,
         disabledMessageFr: res?.disabledMessageFr ?? payload.disabledMessageFr
       });
@@ -1098,10 +1170,13 @@ export default function FeatureFlagsPage() {
     setOverrideDialog({ key });
     setOverrideAccountId('');
     setOverrideEnabled(true);
+    setOverrideClientPresentation(DISABLED_CLIENT_PRESENTATION_FALLBACK);
     setOverrideEmail('');
     setOverrideEmailEnabled(true);
+    setOverrideEmailClientPresentation(DISABLED_CLIENT_PRESENTATION_FALLBACK);
     setOverrideCountryCode('');
     setOverrideCountryEnabled(true);
+    setOverrideCountryClientPresentation(DISABLED_CLIENT_PRESENTATION_FALLBACK);
     setOverrides([]);
     setOverridesLoading(true);
     setError(null);
@@ -1124,11 +1199,15 @@ export default function FeatureFlagsPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.featureFlags.upsertOverride(key, accountId, { enabled });
+      await api.featureFlags.upsertOverride(key, accountId, {
+        enabled,
+        clientPresentation: enabled ? ENABLED_CLIENT_PRESENTATION : normalizeClientPresentation(overrideClientPresentation, DISABLED_CLIENT_PRESENTATION_FALLBACK)
+      });
       const list = await loadOverrideEntries(key);
       setOverrides(list);
       setOverrideAccountId('');
       setOverrideEnabled(true);
+      setOverrideClientPresentation(DISABLED_CLIENT_PRESENTATION_FALLBACK);
       if (key === CRYPTO_COLLECTION_GATE_KEY) {
         setInfo(`Override set for account ${accountId}: ${enabled ? 'gate enforced (verified only)' : 'crypto collection allowed'}.`);
       } else {
@@ -1150,11 +1229,15 @@ export default function FeatureFlagsPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.featureFlags.upsertCountryOverride(key, countryCode, { enabled });
+      await api.featureFlags.upsertCountryOverride(key, countryCode, {
+        enabled,
+        clientPresentation: enabled ? ENABLED_CLIENT_PRESENTATION : normalizeClientPresentation(overrideCountryClientPresentation, DISABLED_CLIENT_PRESENTATION_FALLBACK)
+      });
       const list = await loadOverrideEntries(key);
       setOverrides(list);
       setOverrideCountryCode('');
       setOverrideCountryEnabled(true);
+      setOverrideCountryClientPresentation(DISABLED_CLIENT_PRESENTATION_FALLBACK);
       setInfo(`Country override set for ${countryCode}: ${enabled ? 'forced ON' : 'forced OFF'}.`);
     } catch (err) {
       setError(err?.message || 'Failed to save country override');
@@ -1172,11 +1255,15 @@ export default function FeatureFlagsPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.featureFlags.upsertOverrideByEmail(key, email, { enabled });
+      await api.featureFlags.upsertOverrideByEmail(key, email, {
+        enabled,
+        clientPresentation: enabled ? ENABLED_CLIENT_PRESENTATION : normalizeClientPresentation(overrideEmailClientPresentation, DISABLED_CLIENT_PRESENTATION_FALLBACK)
+      });
       const list = await loadOverrideEntries(key);
       setOverrides(list);
       setOverrideEmail('');
       setOverrideEmailEnabled(true);
+      setOverrideEmailClientPresentation(DISABLED_CLIENT_PRESENTATION_FALLBACK);
       if (key === CRYPTO_COLLECTION_GATE_KEY) {
         setInfo(`Override set for ${email}: ${enabled ? 'gate enforced (verified only)' : 'crypto collection allowed'}.`);
       } else {
@@ -1432,6 +1519,13 @@ export default function FeatureFlagsPage() {
               ))}
             </select>
           </div>
+          {!draftEnabled ? (
+            <ClientPresentationSelect
+              id="draftClientPresentation"
+              value={draftClientPresentation}
+              onChange={setDraftClientPresentation}
+            />
+          ) : null}
           {draftDisabledBehavior === 'ACCEPT_AND_QUEUE' && isCardOrderingFeatureFlag(draftKey.trim()) ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="draftQueuedProviderWorkMode">Queued provider work</label>
@@ -1507,6 +1601,7 @@ export default function FeatureFlagsPage() {
               setDraftEnabled(true);
               setDraftDisabledBehavior('BLOCK_REQUEST');
               setDraftQueuedProviderWorkMode('HOLD_ALL_PROVIDER_WORK');
+              setDraftClientPresentation(DISABLED_CLIENT_PRESENTATION_FALLBACK);
               setDraftDisabledMessageEn('');
               setDraftDisabledMessageFr('');
             }}
@@ -1529,6 +1624,7 @@ export default function FeatureFlagsPage() {
               setDraftEnabled(true);
               setDraftDisabledBehavior('BLOCK_REQUEST');
               setDraftQueuedProviderWorkMode('HOLD_ALL_PROVIDER_WORK');
+              setDraftClientPresentation(DISABLED_CLIENT_PRESENTATION_FALLBACK);
               setDraftDisabledMessageEn('');
               setDraftDisabledMessageFr('');
             }}
@@ -1554,7 +1650,6 @@ export default function FeatureFlagsPage() {
         title="Commerce"
         subtitle="Commerce flags default to enabled when no database row exists. If Commerce is off, Storefront, Marketplace, and POS are effectively off."
         borderColor="#0f766e"
-        defaultOpen
       >
         <div style={{ display: 'grid', gap: '0.7rem' }}>
           {commerceRows.map(({ key, label, description, flag, effectiveEnabled, parentDisabled }) => (
@@ -1615,7 +1710,6 @@ export default function FeatureFlagsPage() {
         title="Marketplace product types"
         subtitle="Gates marketplace visibility and checkout by product type. Storefront, public store pages, and POS are not affected."
         borderColor="#0f766e"
-        defaultOpen
       >
         <div style={{ display: 'grid', gap: '0.7rem' }}>
           {marketplaceProductTypeRows.map(({ key, label, description, flag }) => (
@@ -2681,6 +2775,14 @@ export default function FeatureFlagsPage() {
                     Queued provider work mode: Hold all provider work.
                   </div>
                 ) : null}
+                {!editDraftEnabled ? (
+                  <ClientPresentationSelect
+                    id="editClientPresentation"
+                    value={editDraftClientPresentation}
+                    onChange={setEditDraftClientPresentation}
+                    disabled={savingKey === editDialog.key}
+                  />
+                ) : null}
                 <div style={{ display: 'grid', gap: '0.65rem' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                     <label htmlFor="editDisabledMessageEn">Disabled message (English)</label>
@@ -2789,10 +2891,18 @@ export default function FeatureFlagsPage() {
                   <input type="checkbox" checked={overrideCountryEnabled} onChange={(e) => setOverrideCountryEnabled(e.target.checked)} disabled={overridesSaving} />
                   {overrideCountryEnabled ? t('featureFlags.enabled') : t('featureFlags.disabled')}
                 </label>
+                {!overrideCountryEnabled ? (
+                  <ClientPresentationSelect
+                    id="overrideCountryClientPresentation"
+                    value={overrideCountryClientPresentation}
+                    onChange={setOverrideCountryClientPresentation}
+                    disabled={overridesSaving}
+                  />
+                ) : null}
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                   <button
                     type="button"
-                    onClick={handleSaveCountryOverride}
+                    onClick={() => handleSaveCountryOverride()}
                     disabled={!overrideCountryCode.trim() || overridesSaving}
                     style={{
                       border: `1px solid var(--border)`,
@@ -2803,7 +2913,7 @@ export default function FeatureFlagsPage() {
                       color: 'var(--text)'
                     }}
                   >
-                    {t('featureFlags.saveCountryOverride')}
+                    {overridesSaving ? t('common.refreshing') : t('featureFlags.saveCountryOverride')}
                   </button>
                   <button
                     type="button"
@@ -2842,6 +2952,14 @@ export default function FeatureFlagsPage() {
                 <input type="checkbox" checked={overrideEnabled} onChange={(e) => setOverrideEnabled(e.target.checked)} disabled={overridesSaving} />
                 {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? (overrideEnabled ? 'Enforce gate (verified only)' : 'Allow crypto collection') : overrideEnabled ? t('featureFlags.enabled') : t('featureFlags.disabled')}
               </label>
+              {!overrideEnabled ? (
+                <ClientPresentationSelect
+                  id="overrideClientPresentation"
+                  value={overrideClientPresentation}
+                  onChange={setOverrideClientPresentation}
+                  disabled={overridesSaving}
+                />
+              ) : null}
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <button
                   type="button"
@@ -2894,6 +3012,14 @@ export default function FeatureFlagsPage() {
                 <input type="checkbox" checked={overrideEmailEnabled} onChange={(e) => setOverrideEmailEnabled(e.target.checked)} disabled={overridesSaving} />
                 {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? (overrideEmailEnabled ? 'Enforce gate (verified only)' : 'Allow crypto collection') : overrideEmailEnabled ? t('featureFlags.enabled') : t('featureFlags.disabled')}
               </label>
+              {!overrideEmailEnabled ? (
+                <ClientPresentationSelect
+                  id="overrideEmailClientPresentation"
+                  value={overrideEmailClientPresentation}
+                  onChange={setOverrideEmailClientPresentation}
+                  disabled={overridesSaving}
+                />
+              ) : null}
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <button
                   type="button"
@@ -2968,6 +3094,11 @@ export default function FeatureFlagsPage() {
                       <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
                         {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? (entry.enabled ? t('featureFlags.overrideGateEnforced') : t('featureFlags.overrideAllowCollection')) : entry.enabled ? t('featureFlags.forcedOn') : t('featureFlags.forcedOff')}
                       </div>
+                      {!entry.enabled ? (
+                        <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                          Presentation: {formatClientPresentation(entry.clientPresentation)}
+                        </div>
+                      ) : null}
                     </div>
                     <button
                       type="button"
