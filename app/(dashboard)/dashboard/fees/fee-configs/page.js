@@ -231,6 +231,18 @@ const describeBulkPayload = (payload) => Object.entries(payload)
   .map(([key, value]) => `${key}: ${value ?? 'null'}`)
   .join(', ');
 
+const formatPercent = (value) => (value === null || value === undefined || value === '' ? null : `${Number(value)}%`);
+const formatMoneyValue = (amount, currency) => {
+  if (amount === null || amount === undefined || amount === '') return null;
+  return `${Number(amount)}${currency ? ` ${currency}` : ''}`;
+};
+const formatFeeModeLabel = (value) => {
+  const mode = String(value || '').toUpperCase();
+  if (mode === 'INCLUSIVE') return 'Recipient pays';
+  if (mode === 'EXCLUSIVE') return 'Sender pays';
+  return 'Global default';
+};
+
 const toPayload = (state) => {
   const paymentMethodTypeScope = isPaymentMethodTypeScope(state);
   const fees = {
@@ -644,99 +656,90 @@ export default function FeeConfigsPage() {
     () => [
       { key: 'id', label: 'ID' },
       {
-        key: 'scopeType',
+        key: 'scope',
         label: 'Scope',
-        render: (row) => scopeTypeLabel(resolveScopeType(row))
-      },
-      {
-        key: 'paymentMethodType',
-        label: 'Payment method type',
-        render: (row) => row.paymentMethodType || '—'
-      },
-      {
-        key: 'service',
-        label: 'Service',
-        render: (row) => row.service || 'ALL'
-      },
-      { key: 'action', label: 'Action' },
-      { key: 'feeContext', label: 'Fee context', render: (row) => row.feeContext || '—' },
-      {
-        key: 'country',
-        label: 'Country',
-        render: (row) => getCountryLabel(row)
-      },
-      {
-        key: 'paymentProviderId',
-        label: 'Payment Provider',
-        render: (row) => getPaymentProviderLabel(row)
-      },
-      {
-        key: 'billProviderId',
-        label: 'Bill Provider',
-        render: (row) => getBillProviderLabel(row)
-      },
-      {
-        key: 'paymentMethodPaymentProviderId',
-        label: 'PMPP scope',
         render: (row) => (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-            <div>{getPmpLabel(row)}</div>
-            <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', fontSize: '12px', color: 'var(--muted)' }}>
-              {row.paymentMethodName && <span>Method: {paymentMethodAdminLabel(row)}</span>}
-              {row.paymentProviderName && <span>Provider: {row.paymentProviderName}</span>}
+          <div style={{ display: 'grid', gap: '0.15rem' }}>
+            <div style={{ fontWeight: 700 }}>{scopeTypeLabel(resolveScopeType(row))}</div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{row.paymentMethodType || 'All payment methods'}</div>
+          </div>
+        )
+      },
+      {
+        key: 'serviceAction',
+        label: 'Service / action',
+        render: (row) => (
+          <div style={{ display: 'grid', gap: '0.15rem' }}>
+            <div style={{ fontWeight: 700 }}>{row.action || row.feeContext || 'Default'}</div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{row.service || 'All services'}</div>
+          </div>
+        )
+      },
+      {
+        key: 'market',
+        label: 'Market',
+        render: (row) => (
+          <div style={{ display: 'grid', gap: '0.15rem' }}>
+            <div>{getCountryLabel(row)}</div>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              {formatAmountRange(row?.minAmount, row?.maxAmount)}{row?.amountRangeCurrency ? ` ${row.amountRangeCurrency}` : ''}
             </div>
           </div>
         )
       },
       {
-        key: 'billProductBillProviderId',
-        label: 'BPBP scope',
-        render: (row) => (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-            <div>{getBpbpLabel(row)}</div>
-            <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', fontSize: '12px', color: 'var(--muted)' }}>
-              {row.billProductName && <span>Product: {row.billProductName}</span>}
-              {row.billProviderName && <span>Provider: {row.billProviderName}</span>}
-            </div>
-          </div>
-        )
-      },
-      {
-        key: 'fromCryptoProductId',
-        label: 'From',
-        render: (row) => (row?.fromCryptoProductId ? getCryptoProductLabel(row.fromCryptoProductId) : 'Fallback/global')
-      },
-      {
-        key: 'toCryptoProductId',
-        label: 'To',
-        render: (row) => (row?.toCryptoProductId ? getCryptoProductLabel(row.toCryptoProductId) : 'Fallback/global')
-      },
-      { key: 'providerFeePercentage', label: 'Provider %' },
-      { key: 'providerFlatFee', label: 'Provider flat' },
-      { key: 'providerFlatFeeCurrency', label: 'Provider flat currency', render: (row) => row.providerFlatFeeCurrency || '—' },
-      { key: 'providerMinFee', label: 'Provider min fee' },
-      { key: 'providerMinFeeCurrency', label: 'Provider min currency', render: (row) => row.providerMinFeeCurrency || '—' },
-      { key: 'ourFeePercentage', label: 'Our %' },
-      { key: 'ourFlatFee', label: 'Our flat' },
-      {
-        key: 'amountRange',
-        label: 'Amount range',
-        render: (row) => `${formatAmountRange(row?.minAmount, row?.maxAmount)}${row?.amountRangeCurrency ? ` ${row.amountRangeCurrency}` : ''}`
-      },
-      {
-        key: 'feeApplicationMode',
-        label: 'Fee mode',
+        key: 'target',
+        label: 'Target',
         render: (row) => {
-          const mode = String(row?.feeApplicationMode || '').toUpperCase();
-          if (mode === 'INCLUSIVE') return 'Recipient pays';
-          if (mode === 'EXCLUSIVE') return 'Sender pays';
-          return 'Use global default';
+          const primary =
+            row.paymentMethodPaymentProviderId ? getPmpLabel(row)
+              : row.billProductBillProviderId ? getBpbpLabel(row)
+                : row.paymentProviderId ? getPaymentProviderLabel(row)
+                  : row.billProviderId ? getBillProviderLabel(row)
+                    : row.fromCryptoProductId || row.toCryptoProductId
+                      ? `${getCryptoProductLabel(row.fromCryptoProductId)} → ${getCryptoProductLabel(row.toCryptoProductId)}`
+                      : 'Global';
+          const secondary = [
+            row.paymentMethodPaymentProviderId && row.billProductBillProviderId ? getBpbpLabel(row) : null,
+            row.paymentProviderId && row.billProviderId ? getBillProviderLabel(row) : null
+          ].filter(Boolean).join(' · ');
+          return (
+            <div style={{ display: 'grid', gap: '0.15rem' }}>
+              <div>{primary}</div>
+              {secondary && <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{secondary}</div>}
+            </div>
+          );
         }
       },
       {
-        key: 'overrideSpecificFees',
-        label: 'Override Specific',
-        render: (row) => (row.overrideSpecificFees ? 'Yes' : 'No')
+        key: 'pricing',
+        label: 'Pricing',
+        render: (row) => {
+          const ourParts = [formatPercent(row.ourFeePercentage), formatMoneyValue(row.ourFlatFee)].filter(Boolean).join(' + ');
+          const providerParts = [
+            formatPercent(row.providerFeePercentage),
+            formatMoneyValue(row.providerFlatFee, row.providerFlatFeeCurrency),
+            row.providerMinFee !== null && row.providerMinFee !== undefined && row.providerMinFee !== ''
+              ? `min ${formatMoneyValue(row.providerMinFee, row.providerMinFeeCurrency)}`
+              : null
+          ].filter(Boolean).join(' + ');
+          return (
+            <div style={{ display: 'grid', gap: '0.15rem' }}>
+              <div><strong>Our:</strong> {ourParts || '—'}</div>
+              <div style={{ color: 'var(--muted)', fontSize: '12px' }}><strong>Provider:</strong> {providerParts || '—'}</div>
+            </div>
+          );
+        }
+      },
+      {
+        key: 'mode',
+        label: 'Mode',
+        render: (row) => (
+          <div style={{ display: 'grid', gap: '0.15rem' }}>
+            <div>{formatFeeModeLabel(row.feeApplicationMode)}</div>
+            {row.overrideSpecificFees && <div style={{ color: '#b45309', fontSize: '12px', fontWeight: 700 }}>Override specific</div>}
+          </div>
+        )
       },
       {
         key: 'actions',
@@ -1888,7 +1891,7 @@ export default function FeeConfigsPage() {
         </div>
       )}
 
-      <DataTable columns={columns} rows={filteredRows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No fee configs found" />
+      <DataTable columns={columns} rows={filteredRows} page={page} pageSize={size} onPageChange={setPage} showIndex={false} emptyLabel="No fee configs found" />
 
       {showCreate && (
         <Modal title="Add fee config" onClose={() => setShowCreate(false)}>
