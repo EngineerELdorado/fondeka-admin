@@ -146,6 +146,35 @@ const emptyPawapaySyncDraft = {
   ], null, 2)
 };
 
+const emptyBulkProviderDraft = {
+  paymentProviderId: '',
+  action: '',
+  feeContext: '',
+  service: '',
+  paymentMethodType: '',
+  countryId: '',
+  fields: {
+    ourFeePercentage: false,
+    ourFlatFee: false,
+    providerFeePercentage: false,
+    providerFlatFee: false,
+    providerFlatFeeCurrency: false,
+    providerMinFee: false,
+    providerMinFeeCurrency: false,
+    feeApplicationMode: false
+  },
+  values: {
+    ourFeePercentage: '',
+    ourFlatFee: '',
+    providerFeePercentage: '',
+    providerFlatFee: '',
+    providerFlatFeeCurrency: '',
+    providerMinFee: '',
+    providerMinFeeCurrency: '',
+    feeApplicationMode: ''
+  }
+};
+
 const formatAmountRange = (minAmount, maxAmount) => {
   const hasMin = minAmount !== null && minAmount !== undefined && minAmount !== '';
   const hasMax = maxAmount !== null && maxAmount !== undefined && maxAmount !== '';
@@ -176,6 +205,31 @@ const normalizeOptionalIdForForm = (value) => {
   if (Number.isNaN(num) || num <= 0) return '';
   return String(num);
 };
+
+const buildBulkProviderPayload = (state) => {
+  const payload = {};
+  if (state.action) payload.action = state.action;
+  if (state.feeContext) payload.feeContext = state.feeContext;
+  if (state.service) payload.service = state.service;
+  if (state.paymentMethodType) payload.paymentMethodType = state.paymentMethodType;
+  if (state.countryId !== '') payload.countryId = Number(state.countryId);
+  Object.entries(state.fields).forEach(([key, enabled]) => {
+    if (!enabled) return;
+    const value = state.values[key];
+    if (key.endsWith('Currency')) {
+      payload[key] = String(value || '').trim().toUpperCase();
+    } else if (key === 'feeApplicationMode') {
+      payload[key] = value || null;
+    } else {
+      payload[key] = Number(value);
+    }
+  });
+  return payload;
+};
+
+const describeBulkPayload = (payload) => Object.entries(payload)
+  .map(([key, value]) => `${key}: ${value ?? 'null'}`)
+  .join(', ');
 
 const toPayload = (state) => {
   const paymentMethodTypeScope = isPaymentMethodTypeScope(state);
@@ -306,10 +360,15 @@ export default function FeeConfigsPage() {
   const [showEdit, setShowEdit] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const [showPawapaySync, setShowPawapaySync] = useState(false);
+  const [showBulkProviderUpdate, setShowBulkProviderUpdate] = useState(false);
   const [draft, setDraft] = useState(emptyState);
   const [pawapaySyncDraft, setPawapaySyncDraft] = useState(emptyPawapaySyncDraft);
   const [pawapaySyncResult, setPawapaySyncResult] = useState(null);
   const [pawapaySyncLoading, setPawapaySyncLoading] = useState(false);
+  const [bulkProviderDraft, setBulkProviderDraft] = useState(emptyBulkProviderDraft);
+  const [bulkProviderConfirm, setBulkProviderConfirm] = useState(null);
+  const [bulkProviderLoading, setBulkProviderLoading] = useState(false);
+  const [bulkProviderResult, setBulkProviderResult] = useState(null);
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [filters, setFilters] = useState(initialFilters);
@@ -447,6 +506,10 @@ export default function FeeConfigsPage() {
     fetchOptions();
   }, []);
 
+  useEffect(() => {
+    setBulkProviderConfirm(null);
+  }, [bulkProviderDraft]);
+
   const getCountryLabel = useCallback((row) => row.countryName || row.country || row.countryCode || 'GLOBAL', []);
 
   const getPmpLabel = useCallback((row) => {
@@ -562,6 +625,20 @@ export default function FeeConfigsPage() {
       };
     });
   }, [billProducts, bpbps, rows]);
+
+  const bulkProviderVisibleMatchCount = useMemo(() => {
+    const providerId = Number(bulkProviderDraft.paymentProviderId);
+    if (!providerId) return 0;
+    return rows.filter((row) => {
+      if (Number(row?.paymentProviderId) !== providerId) return false;
+      if (bulkProviderDraft.action && String(row?.action || '').toUpperCase() !== bulkProviderDraft.action) return false;
+      if (bulkProviderDraft.feeContext && String(row?.feeContext || '').toUpperCase() !== bulkProviderDraft.feeContext) return false;
+      if (bulkProviderDraft.service && String(row?.service || '').toUpperCase() !== bulkProviderDraft.service) return false;
+      if (bulkProviderDraft.paymentMethodType && String(row?.paymentMethodType || '').toUpperCase() !== bulkProviderDraft.paymentMethodType) return false;
+      if (bulkProviderDraft.countryId && Number(row?.countryId) !== Number(bulkProviderDraft.countryId)) return false;
+      return true;
+    }).length;
+  }, [bulkProviderDraft, rows]);
 
   const columns = useMemo(
     () => [
@@ -950,6 +1027,96 @@ export default function FeeConfigsPage() {
       setError(err.message || 'PawaPay sync failed.');
     } finally {
       setPawapaySyncLoading(false);
+    }
+  };
+
+  const validateBulkProviderDraft = (state) => {
+    if (!state.paymentProviderId) return 'Select a payment provider for the bulk update.';
+    const selectedFields = Object.entries(state.fields).filter(([, enabled]) => enabled).map(([key]) => key);
+    if (selectedFields.length === 0) return 'Select at least one fee field to update.';
+    if (state.action && state.feeContext) return 'Choose either action or fee context, not both.';
+    if (state.feeContext && !feeContextOptions.includes(String(state.feeContext).toUpperCase())) {
+      return 'Fee context must be COLLECTION or PAYOUT.';
+    }
+    if (state.service === '__custom') return 'Service value is invalid.';
+    if (state.countryId !== '' && Number(state.countryId) < 0) return 'Country ID must be non-negative.';
+    const numericFields = ['ourFeePercentage', 'ourFlatFee', 'providerFeePercentage', 'providerFlatFee', 'providerMinFee'];
+    const invalidNumeric = numericFields.find((key) => state.fields[key] && (!Number.isFinite(Number(state.values[key])) || Number(state.values[key]) < 0));
+    if (invalidNumeric) return `${invalidNumeric} must be zero or positive.`;
+    if (state.fields.providerFlatFeeCurrency && !String(state.values.providerFlatFeeCurrency || '').trim()) {
+      return 'Provider flat fee currency cannot be empty when selected.';
+    }
+    if (state.fields.providerMinFeeCurrency && !String(state.values.providerMinFeeCurrency || '').trim()) {
+      return 'Provider minimum fee currency cannot be empty when selected.';
+    }
+    if (state.fields.feeApplicationMode && !['EXCLUSIVE', 'INCLUSIVE'].includes(String(state.values.feeApplicationMode || '').toUpperCase())) {
+      return 'Fee application mode must be EXCLUSIVE or INCLUSIVE.';
+    }
+    return null;
+  };
+
+  const openBulkProviderUpdate = () => {
+    setBulkProviderDraft(emptyBulkProviderDraft);
+    setBulkProviderConfirm(null);
+    setBulkProviderResult(null);
+    setShowBulkProviderUpdate(true);
+    setError(null);
+    setInfo(null);
+  };
+
+  const updateBulkProviderFieldEnabled = (key, enabled) => {
+    setBulkProviderDraft((previous) => ({
+      ...previous,
+      fields: {
+        ...previous.fields,
+        [key]: enabled
+      }
+    }));
+  };
+
+  const updateBulkProviderValue = (key, value) => {
+    setBulkProviderDraft((previous) => ({
+      ...previous,
+      values: {
+        ...previous.values,
+        [key]: key.endsWith('Currency') ? value.toUpperCase() : value
+      }
+    }));
+  };
+
+  const handleReviewBulkProviderUpdate = () => {
+    const validationError = validateBulkProviderDraft(bulkProviderDraft);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+    const payload = buildBulkProviderPayload(bulkProviderDraft);
+    const provider = paymentProviders.find((item) => Number(item.id) === Number(bulkProviderDraft.paymentProviderId));
+    setBulkProviderConfirm({
+      paymentProviderId: Number(bulkProviderDraft.paymentProviderId),
+      providerLabel: provider?.displayName || provider?.name || `Provider #${bulkProviderDraft.paymentProviderId}`,
+      payload
+    });
+    setError(null);
+    setInfo(null);
+  };
+
+  const handleBulkProviderUpdate = async () => {
+    if (!bulkProviderConfirm?.paymentProviderId || bulkProviderLoading) return;
+    setBulkProviderLoading(true);
+    setError(null);
+    setInfo(null);
+    setBulkProviderResult(null);
+    try {
+      const result = await api.feeConfigs.batchUpdateProvider(bulkProviderConfirm.paymentProviderId, bulkProviderConfirm.payload);
+      setBulkProviderResult(result || {});
+      setBulkProviderConfirm(null);
+      setInfo(`Bulk fee update complete. Matched ${result?.matchedCount ?? 0}, updated ${result?.updatedCount ?? 0}.`);
+      fetchRows();
+    } catch (err) {
+      setError(err.message || 'Bulk fee update failed.');
+    } finally {
+      setBulkProviderLoading(false);
     }
   };
 
@@ -1405,6 +1572,9 @@ export default function FeeConfigsPage() {
         >
           Sync PawaPay fees
         </button>
+        <button type="button" onClick={openBulkProviderUpdate} className="btn-neutral">
+          Bulk provider fee update
+        </button>
         <div>
           <label htmlFor="arrangeBy">Arrange by</label>
           <select id="arrangeBy" value={arrangeBy} onChange={(e) => setArrangeBy(e.target.value)}>
@@ -1744,6 +1914,207 @@ export default function FeeConfigsPage() {
             <button type="button" onClick={handleUpdate} className="btn-primary">
               Save
             </button>
+          </div>
+        </Modal>
+      )}
+
+      {showBulkProviderUpdate && (
+        <Modal title="Bulk provider fee update" onClose={() => setShowBulkProviderUpdate(false)}>
+          <div style={{ display: 'grid', gap: '0.85rem' }}>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Updates all fee configs for one payment provider, including direct provider rows and rows scoped through payment-method provider routes. Only checked fields are sent and changed.
+            </div>
+            {bulkProviderDraft.paymentProviderId ? (
+              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                Visible-page match estimate before update: {bulkProviderVisibleMatchCount}. The backend response is authoritative and may include rows outside the current page.
+              </div>
+            ) : null}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="bulkPaymentProviderId">Payment provider</label>
+                <select
+                  id="bulkPaymentProviderId"
+                  value={bulkProviderDraft.paymentProviderId}
+                  onChange={(e) => setBulkProviderDraft((p) => ({ ...p, paymentProviderId: e.target.value }))}
+                  disabled={bulkProviderLoading}
+                >
+                  <option value="">Select provider</option>
+                  {paymentProviders.map((provider) => (
+                    <option key={provider.id} value={provider.id}>
+                      {provider.name || provider.displayName || provider.id}
+                      {provider.id ? ` #${provider.id}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="bulkAction">Action filter</label>
+                <select
+                  id="bulkAction"
+                  value={bulkProviderDraft.action}
+                  onChange={(e) => setBulkProviderDraft((p) => ({ ...p, action: e.target.value, feeContext: e.target.value ? '' : p.feeContext }))}
+                  disabled={bulkProviderLoading}
+                >
+                  <option value="">All actions</option>
+                  {actionOptions.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="bulkFeeContext">Fee context filter</label>
+                <select
+                  id="bulkFeeContext"
+                  value={bulkProviderDraft.feeContext}
+                  onChange={(e) => setBulkProviderDraft((p) => ({ ...p, feeContext: e.target.value, action: e.target.value ? '' : p.action }))}
+                  disabled={bulkProviderLoading}
+                >
+                  <option value="">All contexts</option>
+                  {feeContextOptions.map((context) => (
+                    <option key={context} value={context}>
+                      {context}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="bulkService">Service filter</label>
+                <select
+                  id="bulkService"
+                  value={bulkProviderDraft.service}
+                  onChange={(e) => setBulkProviderDraft((p) => ({ ...p, service: e.target.value }))}
+                  disabled={bulkProviderLoading}
+                >
+                  <option value="">All services</option>
+                  {serviceOptions.map((svc) => (
+                    <option key={svc} value={svc}>
+                      {svc}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="bulkPaymentMethodType">Payment method type filter</label>
+                <select
+                  id="bulkPaymentMethodType"
+                  value={bulkProviderDraft.paymentMethodType}
+                  onChange={(e) => setBulkProviderDraft((p) => ({ ...p, paymentMethodType: e.target.value }))}
+                  disabled={bulkProviderLoading}
+                >
+                  <option value="">All payment method types</option>
+                  {paymentMethodTypeOptions.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="bulkCountryId">Country filter</label>
+                <select
+                  id="bulkCountryId"
+                  value={bulkProviderDraft.countryId}
+                  onChange={(e) => setBulkProviderDraft((p) => ({ ...p, countryId: e.target.value }))}
+                  disabled={bulkProviderLoading}
+                >
+                  <option value="">All countries</option>
+                  {countries.map((country) => (
+                    <option key={country.id} value={country.id}>
+                      {country.name} ({country.alpha2Code}) #{country.id}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gap: '0.5rem' }}>
+              <div style={{ fontWeight: 700 }}>Fields to update</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
+                {[
+                  ['ourFeePercentage', 'Our %', 'number'],
+                  ['ourFlatFee', 'Our flat', 'number'],
+                  ['providerFeePercentage', 'Provider %', 'number'],
+                  ['providerFlatFee', 'Provider flat', 'number'],
+                  ['providerFlatFeeCurrency', 'Provider flat currency', 'text'],
+                  ['providerMinFee', 'Provider minimum fee', 'number'],
+                  ['providerMinFeeCurrency', 'Provider minimum currency', 'text']
+                ].map(([key, label, type]) => (
+                  <div key={key} style={{ display: 'grid', gap: '0.35rem', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.6rem' }}>
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', fontWeight: 600 }}>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(bulkProviderDraft.fields[key])}
+                        onChange={(e) => updateBulkProviderFieldEnabled(key, e.target.checked)}
+                        disabled={bulkProviderLoading}
+                      />
+                      {label}
+                    </label>
+                    <input
+                      type={type}
+                      min={type === 'number' ? 0 : undefined}
+                      step={type === 'number' ? '0.01' : undefined}
+                      value={bulkProviderDraft.values[key]}
+                      onChange={(e) => updateBulkProviderValue(key, e.target.value)}
+                      disabled={!bulkProviderDraft.fields[key] || bulkProviderLoading}
+                      placeholder={key.endsWith('Currency') ? 'CDF' : '0'}
+                    />
+                  </div>
+                ))}
+                <div style={{ display: 'grid', gap: '0.35rem', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.6rem' }}>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', fontWeight: 600 }}>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(bulkProviderDraft.fields.feeApplicationMode)}
+                      onChange={(e) => updateBulkProviderFieldEnabled('feeApplicationMode', e.target.checked)}
+                      disabled={bulkProviderLoading}
+                    />
+                    Fee application mode
+                  </label>
+                  <select
+                    value={bulkProviderDraft.values.feeApplicationMode}
+                    onChange={(e) => updateBulkProviderValue('feeApplicationMode', e.target.value)}
+                    disabled={!bulkProviderDraft.fields.feeApplicationMode || bulkProviderLoading}
+                  >
+                    <option value="">Select mode</option>
+                    <option value="EXCLUSIVE">Sender pays fees (EXCLUSIVE)</option>
+                    <option value="INCLUSIVE">Recipient pays fees (INCLUSIVE)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {bulkProviderConfirm && (
+              <div style={{ border: '1px solid #f59e0b', background: '#fffbeb', color: '#92400e', borderRadius: '10px', padding: '0.75rem', display: 'grid', gap: '0.35rem' }}>
+                <div style={{ fontWeight: 800 }}>Confirm bulk update</div>
+                <div>This will update matching fee configs for {bulkProviderConfirm.providerLabel}.</div>
+                <div style={{ fontSize: '12px' }}>Payload: {describeBulkPayload(bulkProviderConfirm.payload)}</div>
+              </div>
+            )}
+
+            {bulkProviderResult && (
+              <DetailGrid
+                rows={[
+                  { label: 'Payment provider', value: bulkProviderResult.paymentProviderId },
+                  { label: 'Matched rows', value: bulkProviderResult.matchedCount ?? 0 },
+                  { label: 'Updated rows', value: bulkProviderResult.updatedCount ?? 0 },
+                  { label: 'Returned configs', value: Array.isArray(bulkProviderResult.feeConfigs) ? bulkProviderResult.feeConfigs.length : 0 }
+                ]}
+              />
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button type="button" onClick={() => setShowBulkProviderUpdate(false)} className="btn-neutral" disabled={bulkProviderLoading}>
+                Close
+              </button>
+              <button type="button" onClick={handleReviewBulkProviderUpdate} className="btn-neutral" disabled={bulkProviderLoading}>
+                Review update
+              </button>
+              <button type="button" onClick={handleBulkProviderUpdate} className="btn-danger" disabled={!bulkProviderConfirm || bulkProviderLoading}>
+                {bulkProviderLoading ? 'Updating…' : 'Confirm bulk update'}
+              </button>
+            </div>
           </div>
         </Modal>
       )}
