@@ -348,8 +348,8 @@ export default function WalletPolicyConfigPage() {
 
   const actionAmountLimitEntries = useMemo(() => {
     const actions = new Set([
-      ...actionMinimumAmountEntries.map(([action]) => String(action)),
-      ...actionMaximumAmountEntries.map(([action]) => String(action))
+      ...Object.keys(actionMinimumAmounts || {}).map((action) => String(action || '').trim()).filter(Boolean),
+      ...Object.keys(actionMaximumAmounts || {}).map((action) => String(action || '').trim()).filter(Boolean)
     ]);
     return Array.from(actions)
       .sort((left, right) => left.localeCompare(right))
@@ -360,7 +360,7 @@ export default function WalletPolicyConfigPage() {
           maximum: String(actionMaximumAmounts?.[action] ?? '').trim()
         }
       ]);
-  }, [actionMaximumAmountEntries, actionMaximumAmounts, actionMinimumAmountEntries, actionMinimumAmounts]);
+  }, [actionMaximumAmounts, actionMinimumAmounts]);
 
   const availableActionAmountLimitActions = useMemo(() => {
     const configured = new Set(actionAmountLimitEntries.map(([action]) => String(action)));
