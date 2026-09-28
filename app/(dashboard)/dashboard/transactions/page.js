@@ -3242,11 +3242,11 @@ export default function TransactionsPage() {
               <button type="button" onClick={() => loadInvestigationTimeline(selected)} className="btn-neutral" disabled={investigationLoading}>
                 {investigationLoading ? 'Loading timeline…' : 'Investigation'}
               </button>
-              <button type="button" onClick={() => loadAccountSummary(selected)} className="btn-neutral" disabled={accountLoading}>
+              <button type="button" onClick={() => loadAccountSummary(selected)} className="btn-neutral hide-on-small" disabled={accountLoading}>
                 {accountLoading ? 'Refreshing…' : 'Refresh balance'}
               </button>
               {canRefetchBillStatus && (
-                <button type="button" onClick={handleRefetchBillStatus} className="btn-primary" disabled={refetchBillStatusLoading}>
+                <button type="button" onClick={handleRefetchBillStatus} className="btn-primary hide-on-small" disabled={refetchBillStatusLoading}>
                   {refetchBillStatusLoading ? 'Refetching…' : 'Refetch bill status'}
                 </button>
               )}

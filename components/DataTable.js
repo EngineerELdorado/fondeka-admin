@@ -13,6 +13,16 @@ const resolveAccountId = (row) => {
   return null;
 };
 
+const normalizeGroups = (value) => {
+  if (Array.isArray(value)) {
+    return value.map((group) => String(group).trim().toUpperCase()).filter(Boolean);
+  }
+  if (typeof value === 'string') {
+    return value.split(',').map((group) => group.trim().toUpperCase()).filter(Boolean);
+  }
+  return [];
+};
+
 export function DataTable({
   columns,
   rows,
@@ -37,11 +47,13 @@ export function DataTable({
   const accessTokenPayload = session?.tokens?.accessToken?.payload || null;
   const idTokenPayload = session?.tokens?.idToken?.payload || null;
   const adminGroups = useMemo(() => {
-    const rawGroups = accessTokenPayload?.['cognito:groups']
-      || accessTokenPayload?.groups
-      || idTokenPayload?.['cognito:groups']
-      || idTokenPayload?.groups;
-    return Array.isArray(rawGroups) ? rawGroups.map((group) => String(group).trim().toUpperCase()) : [];
+    const rawGroups = [
+      accessTokenPayload?.['cognito:groups'],
+      accessTokenPayload?.groups,
+      idTokenPayload?.['cognito:groups'],
+      idTokenPayload?.groups
+    ];
+    return Array.from(new Set(rawGroups.flatMap(normalizeGroups)));
   }, [accessTokenPayload, idTokenPayload]);
   const canSeeTotals = adminGroups.includes('SUPER_ADMIN') || adminGroups.includes('ADMIN');
 

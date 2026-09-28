@@ -39,6 +39,15 @@ const bridgecardRegistrationModeOptions = [
 const bridgecardRegistrationModeLabel = (value) =>
   bridgecardRegistrationModeOptions.find((option) => option.value === (value || ''))?.label || value || 'Use global setting';
 
+const pickPageTotal = (response, keys) => {
+  if (!response || typeof response !== 'object') return null;
+  for (const key of keys) {
+    const value = response[key];
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+  }
+  return null;
+};
+
 const pickOwedLoans = (item) =>
   item?.owedLoansAmount ??
   item?.owedLoans ??
@@ -374,8 +383,8 @@ export default function AccountsListPage() {
       const res = await api.accounts.list(params);
       const list = Array.isArray(res) ? res : res?.content || [];
       setPageMeta({
-        totalElements: typeof res?.totalElements === 'number' ? res.totalElements : null,
-        totalPages: typeof res?.totalPages === 'number' ? res.totalPages : null
+        totalElements: pickPageTotal(res, ['totalElements', 'total_elements', 'totalCount', 'total_count', 'total']),
+        totalPages: pickPageTotal(res, ['totalPages', 'total_pages'])
       });
       const flattened = (list || []).map((item) => ({
         id: item.accountId ?? item.id,
@@ -1300,6 +1309,7 @@ export default function AccountsListPage() {
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
       <div className="card" style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        <Badge>Total accounts: {typeof pageMeta.totalElements === 'number' ? pageMeta.totalElements.toLocaleString() : '—'}</Badge>
         <Badge>{t('accounts.visibleRows')}: {rows.length}</Badge>
         <Badge>{t('accounts.blacklistedVisible')}: {blacklistedCount}</Badge>
         <Badge>Referred: {referredCount}</Badge>
