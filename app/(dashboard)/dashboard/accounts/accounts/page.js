@@ -41,9 +41,19 @@ const bridgecardRegistrationModeLabel = (value) =>
 
 const pickPageTotal = (response, keys) => {
   if (!response || typeof response !== 'object') return null;
-  for (const key of keys) {
-    const value = response[key];
-    if (typeof value === 'number' && Number.isFinite(value)) return value;
+  const candidates = [
+    response,
+    response.page,
+    response.pagination,
+    response.meta,
+    response.metadata,
+    response.data
+  ].filter((item) => item && typeof item === 'object');
+  for (const candidate of candidates) {
+    for (const key of keys) {
+      const value = candidate[key];
+      if (typeof value === 'number' && Number.isFinite(value)) return value;
+    }
   }
   return null;
 };
@@ -1324,6 +1334,7 @@ export default function AccountsListPage() {
         pageSize={size}
         totalPages={pageMeta.totalPages}
         totalElements={pageMeta.totalElements}
+        showTotals
         onPageChange={setPage}
         canPrev={canGoPrevious}
         canNext={canGoNext}

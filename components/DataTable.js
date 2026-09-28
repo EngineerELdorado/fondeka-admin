@@ -36,6 +36,7 @@ export function DataTable({
   onPageChange,
   canPrev,
   canNext,
+  showTotals = false,
   showAccountQuickNav = true,
   rowStyle
 }) {
@@ -144,7 +145,7 @@ export function DataTable({
   const renderPagination = (position) => (
     <div className={`table-pagination table-pagination--${position}`} role="navigation" aria-label={`Table pagination (${position})`}>
       <div className="table-pagination__meta">
-        {canSeeTotals && typeof totalElements === 'number' && totalElements >= 0 ? (
+        {(showTotals || canSeeTotals) && typeof totalElements === 'number' && totalElements >= 0 ? (
           <span className="table-pagination__meta-badge">Total {totalElements.toLocaleString()} records</span>
         ) : null}
       </div>
