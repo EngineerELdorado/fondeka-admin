@@ -54,6 +54,9 @@ const formatEnumLabel = (value) => {
 
 const getReferralCostValue = (row) => Number(row?.usdReferralCost ?? row?.referralCost) || 0;
 const getFxMarginValue = (row) => Number(row?.usdFxMarginAmount ?? row?.usdFxMargin ?? row?.fxMargin ?? row?.fxMarginRevenue) || 0;
+const getFeeValue = (row) => Number(row?.usdFee ?? row?.fee ?? row?.fees ?? row?.allFees) || 0;
+const getCommissionValue = (row) => Number(row?.usdCommission ?? row?.commission) || 0;
+const getInterestRevenueValue = (row) => Number(row?.usdInterestRevenue ?? row?.interestRevenue) || 0;
 const getRevenueValue = (row) => {
   if (row?.usdRevenue !== undefined && row?.usdRevenue !== null) return Number(row.usdRevenue) || 0;
   if (row?.revenue !== undefined && row?.revenue !== null) return Number(row.revenue) || 0;
@@ -606,6 +609,7 @@ export default function DashboardPage() {
           paidRevenue: getPaidRevenueValue(p),
           unpaidRevenue: getUnpaidRevenueValue(p),
           fxMargin: getFxMarginValue(p),
+          interestRevenue: getInterestRevenueValue(p),
           referralCost: getReferralCostValue(p),
           netProfit: getNetProfitValue(p),
           label: p.date
@@ -1246,6 +1250,7 @@ export default function DashboardPage() {
                         if (name === 'paidRevenue') return [formatCurrency(value), t('dashboard.paidRevenue')];
                         if (name === 'unpaidRevenue') return [formatCurrency(value), t('dashboard.unpaidRevenue')];
                         if (name === 'fxMargin') return [formatCurrency(value), 'FX margin'];
+                        if (name === 'interestRevenue') return [formatCurrency(value), 'Interest revenue'];
                         if (name === 'referralCost') return [formatCurrency(value), t('dashboard.referralCost')];
                         if (name === 'netProfit') return [formatCurrency(value), t('dashboard.netProfit')];
                         return [value, name];
@@ -1258,6 +1263,7 @@ export default function DashboardPage() {
                     <Line type="monotone" dataKey="paidRevenue" name={t('dashboard.paidRevenue')} stroke="#22c55e" strokeWidth={2} dot={false} yAxisId="left" />
                     <Line type="monotone" dataKey="unpaidRevenue" name={t('dashboard.unpaidRevenue')} stroke="#f59e0b" strokeWidth={2} dot={false} yAxisId="left" />
                     <Line type="monotone" dataKey="fxMargin" name="FX margin" stroke="#0891b2" strokeWidth={2} dot={false} yAxisId="left" />
+                    <Line type="monotone" dataKey="interestRevenue" name="Interest revenue" stroke="#4f46e5" strokeWidth={2} dot={false} yAxisId="left" />
                     <Line type="monotone" dataKey="referralCost" name={t('dashboard.referralCost')} stroke="#ea580c" strokeWidth={2} dot={false} yAxisId="left" />
                     <Line type="monotone" dataKey="netProfit" name={t('dashboard.netProfit')} stroke="#7c3aed" strokeWidth={2} dot={false} yAxisId="left" />
                   </LineChart>
@@ -1507,6 +1513,7 @@ export default function DashboardPage() {
               },
               { key: 'volume', label: 'Volume', render: (row) => <InlineStat value={formatCurrency(row.volume)} percentage={row.volumePercentage} /> },
               { key: 'fxMargin', label: 'FX margin', render: (row) => formatCurrency(getFxMarginValue(row)) },
+              { key: 'interestRevenue', label: 'Interest revenue', render: (row) => formatCurrency(getInterestRevenueValue(row)) },
               { key: 'revenue', label: 'Revenue', render: (row) => <InlineStat value={formatCurrency(getRevenueValue(row))} percentage={row.revenuePercentage} /> },
               { key: 'referralCost', label: 'Referral cost', render: (row) => formatCurrency(getReferralCostValue(row)) },
               { key: 'netProfit', label: 'Net profit', render: (row) => formatCurrency(getNetProfitValue(row)) }
@@ -1527,6 +1534,7 @@ export default function DashboardPage() {
               },
               { key: 'volume', label: 'Volume', render: (row) => <InlineStat value={formatCurrency(row.volume)} percentage={row.volumePercentage} /> },
               { key: 'fxMargin', label: 'FX margin', render: (row) => formatCurrency(getFxMarginValue(row)) },
+              { key: 'interestRevenue', label: 'Interest revenue', render: (row) => formatCurrency(getInterestRevenueValue(row)) },
               { key: 'revenue', label: 'Revenue', render: (row) => <InlineStat value={formatCurrency(getRevenueValue(row))} percentage={row.revenuePercentage} /> },
               { key: 'referralCost', label: 'Referral cost', render: (row) => formatCurrency(getReferralCostValue(row)) },
               { key: 'netProfit', label: 'Net profit', render: (row) => formatCurrency(getNetProfitValue(row)) }
@@ -1780,10 +1788,13 @@ export default function DashboardPage() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
               {[
-                { label: t('dashboard.bookedRevenue'), value: formatCurrency(totalRevenue) },
-                { label: t('dashboard.fullyRealized'), value: formatCurrency(totalPaidRevenue) },
-                { label: t('dashboard.openLoanExposure'), value: formatCurrency(totalUnpaidRevenue) },
-                { label: 'FX margin', value: formatCurrency(getFxMarginValue(totals)) }
+              { label: t('dashboard.bookedRevenue'), value: formatCurrency(totalRevenue) },
+              { label: t('dashboard.fullyRealized'), value: formatCurrency(totalPaidRevenue) },
+              { label: t('dashboard.openLoanExposure'), value: formatCurrency(totalUnpaidRevenue) },
+                { label: 'Fees', value: formatCurrency(getFeeValue(totals)) },
+                { label: 'Commission', value: formatCurrency(getCommissionValue(totals)) },
+                { label: 'FX margin', value: formatCurrency(getFxMarginValue(totals)) },
+                { label: 'Interest revenue', value: formatCurrency(getInterestRevenueValue(totals)) }
               ].map((item) => (
                 <div
                   key={item.label}
@@ -1817,6 +1828,7 @@ export default function DashboardPage() {
                 { label: t('dashboard.volume'), value: formatCurrency(totals.completedVolume), tone: '#0f172a' },
                 { label: t('dashboard.bookedRevenue'), value: formatCurrency(totalRevenue), tone: '#15803d' },
                 { label: 'FX margin', value: formatCurrency(getFxMarginValue(totals)), tone: '#0891b2' },
+                { label: 'Interest revenue', value: formatCurrency(getInterestRevenueValue(totals)), tone: '#4f46e5' },
                 { label: t('dashboard.grossProfit'), value: formatCurrency(grossProfit), tone: '#2563eb' },
                 { label: t('dashboard.referralCost'), value: formatCurrency(totalReferralCost), tone: '#ea580c' },
                 { label: t('dashboard.netProfit'), value: formatCurrency(totalNetProfit), tone: '#15803d' }
