@@ -48,12 +48,45 @@ const verificationTone = (status) => {
 const getStoreId = (row) => row?.id ?? row?.storeId ?? row?.commerceStoreId;
 const getDeletedAt = (row) => row?.deletedAt ?? row?.deleted_at ?? row?.selfDeletedAt ?? row?.removedAt ?? null;
 const isDeletedStore = (row) => Boolean(row?.deleted || row?.deletedFlag || row?.isDeleted || getDeletedAt(row) || String(row?.status || '').toUpperCase() === 'DELETED');
+const getStoreSlug = (row) => {
+  const slug = asText(row?.slug, row?.handle, row?.publicName);
+  return slug === '—' ? '' : slug;
+};
+const getStoreUrl = (row) => {
+  const slug = getStoreSlug(row);
+  return slug ? `https://commerce.fondeka.com/stores/${encodeURIComponent(slug)}` : '';
+};
 
 const getOwnerLabel = (row) => {
   const account = row?.account || row?.owner || row?.merchant || row?.user;
   const name = [account?.firstName, account?.lastName].filter(Boolean).join(' ').trim();
   return asText(row?.accountReference, row?.ownerAccountReference, account?.accountReference, name, account?.email, row?.accountId, row?.ownerAccountId);
 };
+
+const Modal = ({ title, onClose, children }) => (
+  <div className="modal-backdrop">
+    <div className="modal-surface">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ fontWeight: 800 }}>{title}</div>
+        <button type="button" onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: '18px', cursor: 'pointer', color: 'var(--text)' }}>
+          x
+        </button>
+      </div>
+      {children}
+    </div>
+  </div>
+);
+
+const DetailGrid = ({ rows }) => (
+  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+    {rows.map((row) => (
+      <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: '1px solid var(--border)', borderRadius: '10px' }}>
+        <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
+        <div style={{ fontWeight: 700, overflowWrap: 'anywhere' }}>{row.value ?? '—'}</div>
+      </div>
+    ))}
+  </div>
+);
 
 export default function CommerceStoresPage() {
   const [rows, setRows] = useState([]);
@@ -66,6 +99,7 @@ export default function CommerceStoresPage() {
   const [pageMeta, setPageMeta] = useState({ totalElements: null, totalPages: null });
   const [loading, setLoading] = useState(false);
   const [savingId, setSavingId] = useState('');
+  const [detailStore, setDetailStore] = useState(null);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
 
@@ -239,8 +273,23 @@ export default function CommerceStoresPage() {
           const storeId = getStoreId(row);
           const current = asText(row?.verificationStatus, 'UNVERIFIED');
           const deleted = isDeletedStore(row);
+          const storeUrl = getStoreUrl(row);
           return (
             <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+              <button type="button" className="btn-neutral btn-sm" onClick={() => setDetailStore(row)}>
+                Details
+              </button>
+              {storeUrl ? (
+                <a
+                  href={storeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-neutral btn-sm"
+                  style={{ textDecoration: 'none' }}
+                >
+                  Visit store
+                </a>
+              ) : null}
               {deleted ? (
                 <button
                   type="button"
@@ -422,6 +471,45 @@ export default function CommerceStoresPage() {
         emptyLabel={loading ? 'Loading commerce stores...' : 'No commerce stores found'}
         rowStyle={(row) => (isDeletedStore(row) ? { opacity: 0.62, background: '#FEF2F2' } : {})}
       />
+
+      {detailStore ? (
+        <Modal title={`Store details ${getStoreId(detailStore) ? `#${getStoreId(detailStore)}` : ''}`} onClose={() => setDetailStore(null)}>
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <DetailGrid
+              rows={[
+                { label: 'Store ID', value: getStoreId(detailStore) },
+                { label: 'Name', value: asText(detailStore?.name, detailStore?.storeName, detailStore?.displayName) },
+                { label: 'Slug', value: getStoreSlug(detailStore) || '—' },
+                {
+                  label: 'Store URL',
+                  value: getStoreUrl(detailStore) ? (
+                    <a href={getStoreUrl(detailStore)} target="_blank" rel="noopener noreferrer">
+                      {getStoreUrl(detailStore)}
+                    </a>
+                  ) : '—'
+                },
+                { label: 'Owner', value: getOwnerLabel(detailStore) },
+                { label: 'Account ID', value: asText(detailStore?.accountId, detailStore?.ownerAccountId, detailStore?.merchantAccountId) },
+                { label: 'Status', value: asText(detailStore?.status) },
+                { label: 'Visibility', value: asText(detailStore?.visibility) },
+                { label: 'Verification', value: asText(detailStore?.verificationStatus, 'UNVERIFIED') },
+                { label: 'Country', value: asText(detailStore?.countryCode, detailStore?.country) },
+                { label: 'Currency', value: asText(detailStore?.currency) },
+                { label: 'Deleted', value: isDeletedStore(detailStore) ? 'Yes' : 'No' },
+                { label: 'Deleted at', value: formatDateTime(getDeletedAt(detailStore)) },
+                { label: 'Created', value: formatDateTime(detailStore?.createdAt || detailStore?.createdDate) },
+                { label: 'Updated', value: formatDateTime(detailStore?.updatedAt || detailStore?.updatedDate) }
+              ]}
+            />
+            <details>
+              <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Raw store payload</summary>
+              <pre style={{ margin: '0.75rem 0 0', padding: '0.85rem', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'auto', maxHeight: '320px', background: 'var(--bg)', color: 'var(--text)', fontSize: '12px' }}>
+                {JSON.stringify(detailStore, null, 2)}
+              </pre>
+            </details>
+          </div>
+        </Modal>
+      ) : null}
     </div>
   );
 }
