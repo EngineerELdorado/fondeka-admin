@@ -279,6 +279,16 @@ const transactionPaymentMethodLabel = (method, fallback = '—') => {
   return paymentMethodAdminLabel(methodWithoutCurrency, fallback);
 };
 
+const getPawapayDepositId = (transaction, receiptPayload) =>
+  transaction?.externalReference ||
+  transaction?.providerReference ||
+  transaction?.providerTransactionId ||
+  transaction?.depositId ||
+  receiptPayload?.depositId ||
+  receiptPayload?.pawapayDepositId ||
+  receiptPayload?.externalReference ||
+  null;
+
 const cardProviderLabel = (row) => {
   const name = row?.cardProviderName || row?.providerName || row?.cardProvider?.cardProviderName || row?.cardProvider?.name;
   const id = row?.cardProviderId ?? row?.providerId ?? row?.cardProvider?.id;
@@ -618,6 +628,10 @@ export default function TransactionsPage() {
   const [refundLookupResult, setRefundLookupResult] = useState(null);
   const [refundLookupError, setRefundLookupError] = useState(null);
   const [refundLookupLoading, setRefundLookupLoading] = useState(null);
+  const [showPawapayDepositRefund, setShowPawapayDepositRefund] = useState(false);
+  const [pawapayDepositRefundNote, setPawapayDepositRefundNote] = useState('');
+  const [pawapayDepositRefundError, setPawapayDepositRefundError] = useState(null);
+  const [pawapayDepositRefundLoading, setPawapayDepositRefundLoading] = useState(false);
   const [showPostWebhookRetry, setShowPostWebhookRetry] = useState(false);
   const [postWebhookLoading, setPostWebhookLoading] = useState(false);
   const [postWebhookError, setPostWebhookError] = useState(null);
@@ -1301,6 +1315,9 @@ export default function TransactionsPage() {
     setRefundLookupLoading(null);
     setRefundLookupInternalRef(row?.internalReference || row?.reference || '');
     setRefundLookupTransactionId(String(row?.transactionId || row?.id || ''));
+    setShowPawapayDepositRefund(false);
+    setPawapayDepositRefundNote('');
+    setPawapayDepositRefundError(null);
     setAccountSummary(null);
     setReceipt(null);
     setReceiptError(null);
@@ -1436,6 +1453,37 @@ export default function TransactionsPage() {
     const refunded = Boolean(selected.refunded) || Boolean(selected.refundedAt);
     return effect === 'DEBIT' && (status === 'FAILED' || status === 'PROCESSING' || status === 'MANUAL_INTERVENTION_REQUIRED') && !refunded;
   }, [selected]);
+
+  const selectedPawapayDepositId = useMemo(
+    () => getPawapayDepositId(selected, receiptPayloadData),
+    [receiptPayloadData, selected]
+  );
+
+  const canRefundPawapayDeposit = useMemo(() => {
+    if (!selected || !isSuperAdmin) return false;
+    const providerName = normalizeEnumKey(
+      selected?.paymentProviderName ||
+      selected?.providerName ||
+      selected?.paymentProvider ||
+      selected?.provider ||
+      selected?.paymentProviderCode ||
+      selected?.providerCode
+    );
+    const status = normalizeEnumKey(selected?.status);
+    const effect = normalizeEnumKey(selected?.balanceEffect);
+    const flow = normalizeEnumKey(
+      selected?.feeContext ||
+      selected?.routeContext ||
+      selected?.paymentFlow ||
+      selected?.direction ||
+      selected?.context
+    );
+    const refunded = Boolean(selected?.refunded) || Boolean(selected?.refundedAt);
+    const isPawapay = providerName === 'PAWAPAY' || providerName === 'PAWA_PAY' || providerName.includes('PAWAPAY');
+    const isBlockedStatus = ['CANCELED', 'CANCELLED', 'FAILED'].includes(status);
+    const isExplicitPayout = flow.includes('PAYOUT');
+    return isPawapay && effect === 'CREDIT' && !isExplicitPayout && !isBlockedStatus && !refunded && Boolean(selectedPawapayDepositId);
+  }, [isSuperAdmin, selected, selectedPawapayDepositId]);
 
   const canRefetchBillStatus = useMemo(() => {
     if (!selected) return false;
@@ -2024,6 +2072,54 @@ export default function TransactionsPage() {
       }
     } finally {
       setRefundLoading(false);
+    }
+  };
+
+  const openPawapayDepositRefund = () => {
+    setPawapayDepositRefundNote('');
+    setPawapayDepositRefundError(null);
+    setShowPawapayDepositRefund(true);
+  };
+
+  const submitPawapayDepositRefund = async () => {
+    setPawapayDepositRefundError(null);
+    const transactionId = selected?.transactionId || selected?.id;
+    if (!transactionId) {
+      setPawapayDepositRefundError('Missing transaction id');
+      return;
+    }
+    if (!canRefundPawapayDeposit) {
+      setPawapayDepositRefundError('This transaction is not eligible for a provider-side PawaPay deposit refund.');
+      return;
+    }
+
+    setPawapayDepositRefundLoading(true);
+    try {
+      const payload = pawapayDepositRefundNote?.trim() ? { note: pawapayDepositRefundNote.trim() } : undefined;
+      const res = await api.transactions.refundPawapayDeposit(transactionId, payload);
+      pushToast({ tone: 'success', message: `Provider refund ${res?.refundStatus || 'submitted'}.` });
+      setShowPawapayDepositRefund(false);
+      setPawapayDepositRefundNote('');
+      setSelected((prev) => ({
+        ...(prev || {}),
+        status: res?.status || 'CANCELED',
+        refunded: true,
+        refundedAt: res?.refundedAt || prev?.refundedAt,
+        pawapayRefundId: res?.refundId,
+        pawapayRefundStatus: res?.refundStatus
+      }));
+      await fetchRows();
+      await loadTransactionDetails(transactionId);
+      await loadReceipt(transactionId);
+      if (showInvestigation) {
+        await loadInvestigationTimeline({ ...(selected || {}), transactionId });
+      }
+    } catch (err) {
+      const message = err?.status === 403 ? 'Only SUPER_ADMIN can refund via payment provider.' : err?.message || 'Provider refund failed';
+      setPawapayDepositRefundError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setPawapayDepositRefundLoading(false);
     }
   };
 
@@ -3260,6 +3356,11 @@ export default function TransactionsPage() {
                   Change status
                 </button>
               )}
+              {canRefundPawapayDeposit && (
+                <button type="button" onClick={openPawapayDepositRefund} className="btn-danger" disabled={pawapayDepositRefundLoading}>
+                  Refund via payment provider
+                </button>
+              )}
               {canRefundSelected && (
                 <button type="button" onClick={() => setShowRefund(true)} className="btn-danger">
                   Refund to wallet
@@ -3928,6 +4029,48 @@ export default function TransactionsPage() {
               </button>
               <button type="button" className="btn-danger" disabled={receiptDeleteLoading} onClick={deleteReceipt}>
                 {receiptDeleteLoading ? 'Deleting…' : 'Confirm delete'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showPawapayDepositRefund && (
+        <Modal title="Refund via payment provider" onClose={() => (!pawapayDepositRefundLoading ? setShowPawapayDepositRefund(false) : null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ color: 'var(--muted)' }}>
+              This refunds the original collected mobile money payment through the payment provider. It cancels the original transaction and does not create a wallet refund transaction.
+            </div>
+
+            <DetailGrid
+              rows={[
+                { label: 'Transaction ID', value: selected?.transactionId || selected?.id },
+                { label: 'Reference', value: selected?.reference || '—' },
+                { label: 'Provider', value: selected?.paymentProviderName || selected?.paymentProviderId || '—' },
+                { label: 'Deposit ID', value: <CopyableValue value={selectedPawapayDepositId} label="Deposit ID" onCopy={copyToClipboard} /> },
+                { label: 'Status', value: selected?.status || '—' },
+                { label: 'Amount', value: formatLocalAndUsd(selected, 'amount', 'currency', 'usdAmount') }
+              ]}
+            />
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="pawapayDepositRefundNote">Note (optional)</label>
+              <input
+                id="pawapayDepositRefundNote"
+                value={pawapayDepositRefundNote}
+                onChange={(e) => setPawapayDepositRefundNote(e.target.value)}
+                placeholder="Customer requested refund"
+              />
+            </div>
+
+            {pawapayDepositRefundError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{pawapayDepositRefundError}</div>}
+
+            <div className="modal-actions">
+              <button type="button" onClick={() => setShowPawapayDepositRefund(false)} className="btn-neutral" disabled={pawapayDepositRefundLoading}>
+                Cancel
+              </button>
+              <button type="button" onClick={submitPawapayDepositRefund} className="btn-danger" disabled={pawapayDepositRefundLoading || !canRefundPawapayDeposit}>
+                {pawapayDepositRefundLoading ? 'Refunding…' : 'Confirm provider refund'}
               </button>
             </div>
           </div>

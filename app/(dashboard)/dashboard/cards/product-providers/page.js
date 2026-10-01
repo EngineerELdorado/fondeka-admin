@@ -49,6 +49,8 @@ const emptyState = {
   validityType: '',
   notesEn: '',
   notesFr: '',
+  outOfStockMessageEn: '',
+  outOfStockMessageFr: '',
   inStock: true,
   active: true
 };
@@ -159,6 +161,8 @@ const toPayload = (state) => {
     validityType: state.validityType || null,
     notesEn: state.notesEn?.trim() ? state.notesEn.trim() : null,
     notesFr: state.notesFr?.trim() ? state.notesFr.trim() : null,
+    outOfStockMessageEn: state.outOfStockMessageEn?.trim() ? state.outOfStockMessageEn.trim() : null,
+    outOfStockMessageFr: state.outOfStockMessageFr?.trim() ? state.outOfStockMessageFr.trim() : null,
     inStock: Boolean(state.inStock),
     active: Boolean(state.active)
   };
@@ -479,6 +483,8 @@ export default function CardProductProvidersPage() {
       validityType: row.validityType ?? '',
       notesEn: row.notesEn ?? '',
       notesFr: row.notesFr ?? '',
+      outOfStockMessageEn: row.outOfStockMessageEn ?? '',
+      outOfStockMessageFr: row.outOfStockMessageFr ?? '',
       inStock: row.inStock !== false,
       active: Boolean(row.active)
     };
@@ -1350,6 +1356,32 @@ export default function CardProductProvidersPage() {
         </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="outOfStockMessageEn">Out of stock message (English)</label>
+        <textarea
+          id="outOfStockMessageEn"
+          rows={3}
+          value={draft.outOfStockMessageEn}
+          onChange={(e) => setDraft((p) => ({ ...p, outOfStockMessageEn: e.target.value }))}
+          placeholder="{0} is not available right now. Please choose {1}."
+        />
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          Use {'{0}'} for the unavailable card name and {'{1}'} for the suggested alternative card.
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label htmlFor="outOfStockMessageFr">Out of stock message (French)</label>
+        <textarea
+          id="outOfStockMessageFr"
+          rows={3}
+          value={draft.outOfStockMessageFr}
+          onChange={(e) => setDraft((p) => ({ ...p, outOfStockMessageFr: e.target.value }))}
+          placeholder="{0} n'est pas disponible pour le moment. Choisissez {1}."
+        />
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          Use {'{0}'} for the unavailable card name and {'{1}'} for the suggested alternative card.
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="notesEn">Notes (English, optional)</label>
         <textarea
           id="notesEn"
@@ -1589,6 +1621,8 @@ export default function CardProductProvidersPage() {
               { label: 'Rank', value: selected?.rank ?? '—' },
               { label: 'Notes (EN)', value: selected?.notesEn || '—' },
               { label: 'Notes (FR)', value: selected?.notesFr || '—' },
+              { label: 'Out of stock message (EN)', value: selected?.outOfStockMessageEn || '—' },
+              { label: 'Out of stock message (FR)', value: selected?.outOfStockMessageFr || '—' },
               { label: 'Stock', value: renderStockBadge(selected) },
               { label: 'Active', value: selected?.active === undefined || selected?.active === null ? '—' : String(selected?.active) }
             ]}
