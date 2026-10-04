@@ -2449,8 +2449,15 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         channels: selectedChannels,
         ...(announcementPayload ? { announcement: announcementPayload } : {})
       });
+      const channelResults = Array.isArray(res?.channels) ? res.channels : [];
+      const skippedWhatsApp = channelResults.find((entry) => entry?.channel === 'WHATSAPP' && entry?.attempted === false);
       if (res?.attempted) {
-        pushToast({ tone: 'success', message: 'Notification sent' });
+        pushToast({
+          tone: skippedWhatsApp ? 'warning' : 'success',
+          message: skippedWhatsApp
+            ? `Notification sent on supported channels. WhatsApp skipped: ${skippedWhatsApp.reason || 'Generic WhatsApp messages are not supported.'}`
+            : 'Notification sent'
+        });
         setNotificationResult(res);
       } else {
         const reason = res?.reason || 'Notification not attempted';
@@ -6974,6 +6981,11 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                   </label>
                 ))}
               </div>
+              {notificationChannels.includes('WHATSAPP') && (
+                <div style={{ color: '#b45309', fontSize: '12px', fontWeight: 700 }}>
+                  Generic WhatsApp messages are not supported here. WhatsApp will be skipped; use EMAIL, SMS, PUSH, or an approved WhatsApp template.
+                </div>
+              )}
               <div style={{ border: '1px solid var(--border)', borderRadius: '12px', padding: '0.75rem', display: 'grid', gap: '0.75rem' }}>
                 <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
                   <input
