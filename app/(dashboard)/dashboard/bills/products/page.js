@@ -106,77 +106,22 @@ const booleanFilterOptions = [
 
 const filterGroups = [
   {
-    title: 'Search and country',
+    title: 'Filters',
     fields: [
       { key: 'q', label: 'Search', placeholder: 'sbee, Netflix, code...' },
-      { key: 'countryId', label: 'Country ID' },
       { key: 'countryCode', label: 'Country', type: 'country' },
-      { key: 'includeGlobal', label: 'Include global', type: 'boolean' }
-    ]
-  },
-  {
-    title: 'Provider and mapping',
-    fields: [
-      { key: 'providerId', label: 'Provider ID' },
-      { key: 'mappingId', label: 'Mapping ID' },
-      { key: 'providerName', label: 'Provider name' },
-      { key: 'providerQuery', label: 'Provider search' },
-      { key: 'providerActive', label: 'Mapping active', type: 'boolean' },
-      { key: 'billProviderActive', label: 'Provider active', type: 'boolean' },
-      { key: 'hasProvider', label: 'Has provider', type: 'boolean' },
-      { key: 'minProviderRank', label: 'Min provider rank' },
-      { key: 'maxProviderRank', label: 'Max provider rank' },
-      { key: 'providerCurrency', label: 'Provider currency', placeholder: 'USD' },
-      { key: 'cegawebProfileKey', label: 'Cegaweb profile key' }
-    ]
-  },
-  {
-    title: 'Product',
-    fields: [
       { key: 'type', label: 'Type', options: ['', ...typeOptions] },
-      { key: 'name', label: 'Name', options: ['', ...nameOptions] },
-      { key: 'code', label: 'Code', options: ['', ...codeOptions] },
+      { key: 'includeGlobal', label: 'Include global', type: 'boolean' },
       { key: 'active', label: 'Active', type: 'boolean' },
       { key: 'available', label: 'Available', type: 'boolean' },
-      { key: 'giftCard', label: 'Gift card', type: 'boolean' },
       { key: 'giftCardUsageType', label: 'Gift card usage', options: ['', ...giftCardUsageTypeOptions] },
-      { key: 'returnAsCardProduct', label: 'Card product', type: 'boolean' },
-      { key: 'paymentsEligibleForLoanEligibility', label: 'Loan eligibility', type: 'boolean' },
-      { key: 'minRank', label: 'Min rank' },
-      { key: 'maxRank', label: 'Max rank' }
-    ]
-  },
-  {
-    title: 'Reloadly',
-    fields: [
-      { key: 'reloadlyBillerId', label: 'Biller ID' },
-      { key: 'reloadlyServiceType', label: 'Service type' },
-      { key: 'reloadlyDenominationType', label: 'Denomination type' },
-      { key: 'reloadlyRequiresInvoice', label: 'Requires invoice', type: 'boolean' }
-    ]
-  },
-  {
-    title: 'Zendit',
-    fields: [
-      { key: 'zenditOfferId', label: 'Offer ID' },
-      { key: 'zenditOfferName', label: 'Offer name' },
-      { key: 'zenditPriceType', label: 'Price type' },
-      { key: 'zenditBrand', label: 'Brand' },
-      { key: 'zenditCountry', label: 'Country', placeholder: 'BJ' },
-      { key: 'zenditSubType', label: 'Sub type' }
-    ]
-  },
-  {
-    title: 'Presence',
-    fields: [
-      { key: 'hasCountries', label: 'Has countries', type: 'boolean' },
-      { key: 'hasLogo', label: 'Has logo', type: 'boolean' },
-      { key: 'hasDescription', label: 'Has description', type: 'boolean' },
-      { key: 'hasCardProductBackgroundImage', label: 'Has card background', type: 'boolean' },
-      { key: 'hasCardProductMinAppVersion', label: 'Has min app version', type: 'boolean' }
+      { key: 'returnAsCardProduct', label: 'Card product', type: 'boolean' }
     ]
   }
 ];
+
+const countActiveFilters = (source) =>
+  Object.values(source || {}).filter((value) => String(value || '').trim() !== '').length;
 
 const toPayload = (state) => ({
   name: state.name,
@@ -245,6 +190,7 @@ export default function BillProductsPage() {
   const [countriesError, setCountriesError] = useState(null);
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
+  const [filterFeedback, setFilterFeedback] = useState('');
 
   const fetchRows = async () => {
     setLoading(true);
@@ -253,6 +199,7 @@ export default function BillProductsPage() {
       const params = new URLSearchParams();
       params.set('page', String(page));
       params.set('size', String(size));
+      const activeFilterCount = countActiveFilters(appliedFilters);
       Object.entries(appliedFilters).forEach(([key, value]) => {
         const trimmed = String(value || '').trim();
         if (trimmed) params.set(key, trimmed);
@@ -260,6 +207,11 @@ export default function BillProductsPage() {
       const res = await api.billProducts.list(params);
       const list = Array.isArray(res) ? res : res?.content || [];
       setRows(list || []);
+      setFilterFeedback(
+        activeFilterCount > 0
+          ? `${activeFilterCount} filter${activeFilterCount === 1 ? '' : 's'} applied. Loaded ${(list || []).length} visible row${(list || []).length === 1 ? '' : 's'}.`
+          : ''
+      );
     } catch (err) {
       setError(err.message);
     } finally {
@@ -553,6 +505,7 @@ export default function BillProductsPage() {
   };
 
   const allFilterFields = filterGroups.flatMap((group) => group.fields);
+  const activeAppliedFilterCount = countActiveFilters(appliedFilters);
 
   const renderForm = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
@@ -890,10 +843,18 @@ export default function BillProductsPage() {
       <div className="card" style={{ display: 'grid', gap: '0.85rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'grid', gap: '0.25rem' }}>
-            <div style={{ fontWeight: 800 }}>Filters</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <div style={{ fontWeight: 800 }}>Filters</div>
+              {activeAppliedFilterCount > 0 && (
+                <span style={{ padding: '0.18rem 0.5rem', borderRadius: '999px', border: '1px solid var(--border)', color: 'var(--muted)', fontSize: '12px', fontWeight: 800 }}>
+                  {activeAppliedFilterCount} applied
+                </span>
+              )}
+            </div>
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
               Filter bill products by product, provider mapping, country, catalog metadata, and presence fields.
             </div>
+            {filterFeedback && <div style={{ color: '#15803d', fontSize: '13px', fontWeight: 700 }}>{filterFeedback}</div>}
           </div>
           <button type="button" className="btn-neutral btn-sm" onClick={() => setShowFilters((prev) => !prev)}>
             {showFilters ? 'Hide filters' : 'Show filters'}
@@ -911,7 +872,7 @@ export default function BillProductsPage() {
                 }}
                 disabled={loading}
               >
-                Apply filters
+                {loading ? 'Applying…' : 'Apply filters'}
               </button>
               <button
                 type="button"
@@ -919,6 +880,7 @@ export default function BillProductsPage() {
                 onClick={() => {
                   setFilters(emptyFilters);
                   setAppliedFilters(emptyFilters);
+                  setFilterFeedback('');
                   setPage(0);
                 }}
                 disabled={loading}
