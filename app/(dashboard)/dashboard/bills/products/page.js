@@ -222,45 +222,13 @@ const DetailGrid = ({ rows }) => (
   </div>
 );
 
-const CollapsibleFilterSection = ({ title, count, children }) => (
-  <details
-    className="card"
-    style={{
-      display: 'grid',
-      gap: '0.75rem',
-      padding: '0.85rem',
-      borderColor: 'var(--border)'
-    }}
-  >
-    <summary
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: '1rem',
-        flexWrap: 'wrap',
-        cursor: 'pointer',
-        listStyle: 'none'
-      }}
-    >
-      <div style={{ display: 'grid', gap: '0.2rem' }}>
-        <div style={{ fontWeight: 800 }}>{title}</div>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--muted)', fontSize: '12px' }}>
-        <span>{count} filters</span>
-        <span>Expand</span>
-      </div>
-    </summary>
-    <div style={{ display: 'grid', gap: '0.75rem' }}>{children}</div>
-  </details>
-);
-
 export default function BillProductsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
   const [filters, setFilters] = useState(emptyFilters);
   const [appliedFilters, setAppliedFilters] = useState(emptyFilters);
+  const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
@@ -583,6 +551,8 @@ export default function BillProductsPage() {
       </div>
     );
   };
+
+  const allFilterFields = filterGroups.flatMap((group) => group.fields);
 
   const renderForm = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
@@ -918,44 +888,49 @@ export default function BillProductsPage() {
       </div>
 
       <div className="card" style={{ display: 'grid', gap: '0.85rem' }}>
-        <div style={{ display: 'grid', gap: '0.25rem' }}>
-          <div style={{ fontWeight: 800 }}>Advanced filters</div>
-          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-            Filter by product, provider mapping, country, Reloadly, Zendit, and presence metadata.
-          </div>
-        </div>
-        {filterGroups.map((group) => (
-          <CollapsibleFilterSection key={group.title} title={group.title} count={group.fields.length}>
-            <div style={{ marginTop: '0.65rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
-              {group.fields.map(renderFilterField)}
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'grid', gap: '0.25rem' }}>
+            <div style={{ fontWeight: 800 }}>Filters</div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Filter bill products by product, provider mapping, country, catalog metadata, and presence fields.
             </div>
-          </CollapsibleFilterSection>
-        ))}
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={() => {
-              setPage(0);
-              setAppliedFilters(filters);
-            }}
-            disabled={loading}
-          >
-            Search
-          </button>
-          <button
-            type="button"
-            className="btn-neutral"
-            onClick={() => {
-              setFilters(emptyFilters);
-              setAppliedFilters(emptyFilters);
-              setPage(0);
-            }}
-            disabled={loading}
-          >
-            Reset
+          </div>
+          <button type="button" className="btn-neutral btn-sm" onClick={() => setShowFilters((prev) => !prev)}>
+            {showFilters ? 'Hide filters' : 'Show filters'}
           </button>
         </div>
+        {showFilters && (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => {
+                  setPage(0);
+                  setAppliedFilters(filters);
+                }}
+                disabled={loading}
+              >
+                Apply filters
+              </button>
+              <button
+                type="button"
+                className="btn-neutral"
+                onClick={() => {
+                  setFilters(emptyFilters);
+                  setAppliedFilters(emptyFilters);
+                  setPage(0);
+                }}
+                disabled={loading}
+              >
+                Reset
+              </button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.75rem' }}>
+              {allFilterFields.map(renderFilterField)}
+            </div>
+          </>
+        )}
       </div>
 
       <div className="card" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
