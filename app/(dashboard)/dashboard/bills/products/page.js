@@ -830,16 +830,6 @@ export default function BillProductsPage() {
         </Link>
       </div>
 
-      <div className="card" style={{ display: 'grid', gap: '0.25rem' }}>
-        <div style={{ fontWeight: 700 }}>Recharge product categories</div>
-        <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-          `AIRTIME`, `DATA`, and `BUNDLES` are now separate bill-product categories. Use this page for product presence, ordering, and visibility.
-        </div>
-        <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-          Provider fulfillment still routes separately through Recharge Provider Routing. `BUNDLES` here maps to the same business concept as recharge type `BUNDLE`.
-        </div>
-      </div>
-
       <div className="card" style={{ display: 'grid', gap: '0.85rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'grid', gap: '0.25rem' }}>
