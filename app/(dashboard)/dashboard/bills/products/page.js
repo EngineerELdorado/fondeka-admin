@@ -110,7 +110,7 @@ const filterGroups = [
     fields: [
       { key: 'q', label: 'Search', placeholder: 'sbee, Netflix, code...' },
       { key: 'countryId', label: 'Country ID' },
-      { key: 'countryCode', label: 'Country code', placeholder: 'BJ' },
+      { key: 'countryCode', label: 'Country', type: 'country' },
       { key: 'includeGlobal', label: 'Include global', type: 'boolean' }
     ]
   },
@@ -494,6 +494,27 @@ export default function BillProductsPage() {
     const value = filters[field.key] || '';
     const inputId = `bill-product-filter-${field.key}`;
     const update = (nextValue) => setFilters((prev) => ({ ...prev, [field.key]: nextValue }));
+    if (field.type === 'country') {
+      return (
+        <div key={field.key} style={{ display: 'grid', gap: '0.25rem' }}>
+          <label htmlFor={inputId}>{field.label}</label>
+          <select id={inputId} value={value} onChange={(e) => update(e.target.value)} disabled={countriesLoading}>
+            <option value="">Any</option>
+            {countries.map((country) => {
+              const code = country?.isoCode || country?.code || country?.countryCode || '';
+              const name = country?.name || country?.displayName || code;
+              if (!code) return null;
+              return (
+                <option key={code} value={code}>
+                  {name} ({code})
+                </option>
+              );
+            })}
+          </select>
+          {countriesError && <div style={{ color: '#b91c1c', fontSize: '12px', fontWeight: 700 }}>{countriesError}</div>}
+        </div>
+      );
+    }
     if (field.type === 'boolean') {
       return (
         <div key={field.key} style={{ display: 'grid', gap: '0.25rem' }}>
