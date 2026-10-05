@@ -502,11 +502,11 @@ export default function BillProductsPage() {
           <select id={inputId} value={value} onChange={(e) => update(e.target.value)} disabled={countriesLoading}>
             <option value="">Any</option>
             {countries.map((country) => {
-              const code = country?.isoCode || country?.code || country?.countryCode || '';
+              const code = country?.alpha2Code || country?.alpha3Code || country?.isoCode || country?.code || country?.countryCode || '';
               const name = country?.name || country?.displayName || code;
               if (!code) return null;
               return (
-                <option key={code} value={code}>
+                <option key={country?.id || code} value={code}>
                   {name} ({code})
                 </option>
               );
