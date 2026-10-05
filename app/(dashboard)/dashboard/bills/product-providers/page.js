@@ -25,14 +25,6 @@ const emptyState = {
   reloadlyRequiresInvoice: false
 };
 
-const emptyReloadlySearch = {
-  id: '',
-  name: '',
-  type: '',
-  serviceType: '',
-  countryISOCode: ''
-};
-
 const emptyZenditSearch = {
   brand: '',
   country: '',
@@ -97,23 +89,6 @@ const DetailGrid = ({ rows }) => (
   </div>
 );
 
-const formatMoneyRange = (min, max) => {
-  const minValue = min === null || min === undefined || min === '' ? null : min;
-  const maxValue = max === null || max === undefined || max === '' ? null : max;
-  if (minValue !== null && maxValue !== null) return `${minValue} - ${maxValue}`;
-  if (minValue !== null) return `From ${minValue}`;
-  if (maxValue !== null) return `Up to ${maxValue}`;
-  return '—';
-};
-
-const formatFixedAmounts = (biller) => {
-  const list = Array.isArray(biller?.fixedAmounts) ? biller.fixedAmounts : [];
-  if (list.length === 0) return '—';
-  return list
-    .map((item) => item?.amount ?? item?.value ?? item?.providerAmountId ?? item?.id ?? item)
-    .join(', ');
-};
-
 const firstArray = (source, keys) => {
   if (!source || typeof source !== 'object') return [];
   for (const key of keys) {
@@ -146,6 +121,14 @@ const isCegawebCatalogCandidate = (row) => {
   const productLabel = String(`${row?.billProductName || ''} ${row?.billProductCode || ''}`).toUpperCase();
   return isCegawebProviderLabel(providerLabel) || Boolean(row?.cegawebProfileKey) || isCanalProductLabel(productLabel);
 };
+
+const isReloadlyUtilitiesMapping = (row) =>
+  isReloadlyUtilitiesProviderLabel(
+    normalizeProviderLabel({
+      name: row?.billProviderName || row?.providerName,
+      displayName: row?.billProviderDisplayName || row?.providerDisplayName
+    })
+  );
 
 const buildCegawebCatalogRefreshDraft = (row) => {
   const searchable = String([
@@ -184,10 +167,6 @@ export default function BillProductProvidersPage() {
   const [draft, setDraft] = useState(emptyState);
   const [selected, setSelected] = useState(null);
   const [seedingGiftCards, setSeedingGiftCards] = useState(false);
-  const [reloadlyBillerSearch, setReloadlyBillerSearch] = useState(emptyReloadlySearch);
-  const [reloadlyBillers, setReloadlyBillers] = useState([]);
-  const [reloadlyBillersLoading, setReloadlyBillersLoading] = useState(false);
-  const [selectedReloadlyBiller, setSelectedReloadlyBiller] = useState(null);
   const [zenditSearch, setZenditSearch] = useState(emptyZenditSearch);
   const [zenditGroupedBillers, setZenditGroupedBillers] = useState([]);
   const [zenditGroupedBillersLoading, setZenditGroupedBillersLoading] = useState(false);
@@ -252,13 +231,26 @@ export default function BillProductProvidersPage() {
   const reloadlyUtilitiesProviderSelected = isReloadlyUtilitiesProviderLabel(selectedProviderName);
   const zenditProviderSelected = isZenditProviderLabel(selectedProviderName);
   const reloadlyProvider = providers.find((provider) => isReloadlyGiftCardProviderLabel(normalizeProviderLabel(provider)));
-  const reloadlyUtilitiesProvider = providers.find((provider) => isReloadlyUtilitiesProviderLabel(normalizeProviderLabel(provider)));
   const zenditProvider = providers.find((provider) => isZenditProviderLabel(normalizeProviderLabel(provider)));
+  const availableProviders = providers.filter((provider) => !isReloadlyUtilitiesProviderLabel(normalizeProviderLabel(provider)));
 
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
     { key: 'billProductName', label: 'Product' },
-    { key: 'billProviderName', label: 'Provider' },
+    {
+      key: 'billProviderName',
+      label: 'Provider',
+      render: (row) => (
+        <div style={{ display: 'inline-flex', gap: '0.35rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <span>{row.billProviderName || '—'}</span>
+          {isReloadlyUtilitiesMapping(row) && (
+            <span style={{ padding: '0.18rem 0.5rem', borderRadius: '999px', border: '1px solid #fed7aa', background: '#fff7ed', color: '#9a3412', fontSize: '12px', fontWeight: 800 }}>
+              Retired
+            </span>
+          )}
+        </div>
+      )
+    },
     {
       key: 'providerCurrency',
       label: 'Provider currency',
@@ -277,7 +269,7 @@ export default function BillProductProvidersPage() {
       label: 'Reloadly Utility',
       render: (row) => {
         if (!row?.reloadlyBillerId) return '—';
-        return `${row.reloadlyBillerId} • ${row.reloadlyServiceType || '—'} • ${row.reloadlyDenominationType || '—'}`;
+        return `${row.reloadlyBillerId} • ${row.reloadlyServiceType || '—'} • ${row.reloadlyDenominationType || '—'}${isReloadlyUtilitiesMapping(row) ? ' • retired' : ''}`;
       }
     },
     { key: 'cegawebProfileKey', label: 'CegaWeb profile' },
@@ -302,18 +294,16 @@ export default function BillProductProvidersPage() {
           {isCegawebCatalogCandidate(row) && (
             <button type="button" onClick={() => openCegawebCatalogRefresh(row)} className="btn-neutral">Refresh CGAWEB catalog</button>
           )}
-          <button type="button" onClick={() => openEdit(row)} className="btn-neutral">Edit</button>
-          <button type="button" onClick={() => setConfirmDelete(row)} className="btn-danger">Delete</button>
+          {!isReloadlyUtilitiesMapping(row) && (
+            <>
+              <button type="button" onClick={() => openEdit(row)} className="btn-neutral">Edit</button>
+              <button type="button" onClick={() => setConfirmDelete(row)} className="btn-danger">Delete</button>
+            </>
+          )}
         </div>
       )
     }
   ], []);
-
-  const resetReloadlyUtilitiesState = () => {
-    setReloadlyBillerSearch(emptyReloadlySearch);
-    setReloadlyBillers([]);
-    setSelectedReloadlyBiller(null);
-  };
 
   const resetZenditState = () => {
     setZenditSearch(emptyZenditSearch);
@@ -324,7 +314,6 @@ export default function BillProductProvidersPage() {
   const closeCreate = () => {
     setShowCreate(false);
     setDraft(emptyState);
-    resetReloadlyUtilitiesState();
     resetZenditState();
   };
 
@@ -332,7 +321,6 @@ export default function BillProductProvidersPage() {
     setShowEdit(false);
     setDraft(emptyState);
     setSelected(null);
-    resetReloadlyUtilitiesState();
     resetZenditState();
   };
 
@@ -341,7 +329,6 @@ export default function BillProductProvidersPage() {
     setShowCreate(true);
     setInfo(null);
     setError(null);
-    resetReloadlyUtilitiesState();
     resetZenditState();
   };
 
@@ -367,8 +354,6 @@ export default function BillProductProvidersPage() {
     setShowEdit(true);
     setInfo(null);
     setError(null);
-    setReloadlyBillerSearch(emptyReloadlySearch);
-    setReloadlyBillers([]);
     setZenditSearch(emptyZenditSearch);
     setZenditGroupedBillers([]);
     setSelectedZenditBiller(
@@ -379,25 +364,6 @@ export default function BillProductProvidersPage() {
             subType: row.zenditSubType || '',
             displayName: row.zenditCountry ? `${row.zenditBrand} (${row.zenditCountry})` : row.zenditBrand,
             setupHint: row.zenditSetupHint || ''
-          }
-        : null
-    );
-    setSelectedReloadlyBiller(
-      row.reloadlyBillerId
-        ? {
-            id: row.reloadlyBillerId,
-            name: row.reloadlyBillerName || 'Mapped biller',
-            countryCode: row.reloadlyCountryCode || '',
-            countryName: row.reloadlyCountryName || '',
-            type: row.reloadlyBillerType || '',
-            serviceType: row.reloadlyServiceType || '',
-            denominationType: row.reloadlyDenominationType || '',
-            requiresInvoice: row.reloadlyRequiresInvoice,
-            localMinAmount: row.reloadlyLocalMinAmount,
-            localMaxAmount: row.reloadlyLocalMaxAmount,
-            internationalMinAmount: row.reloadlyInternationalMinAmount,
-            internationalMaxAmount: row.reloadlyInternationalMaxAmount,
-            fixedAmounts: row.reloadlyFixedAmounts || []
           }
         : null
     );
@@ -502,10 +468,7 @@ export default function BillProductProvidersPage() {
         return 'Select a grouped Zendit biller before saving a ZENDIT mapping.';
       }
     }
-    if (reloadlyUtilitiesProviderSelected) {
-      if (!draft.reloadlyBillerId) return 'Select a Reloadly utility biller before saving this mapping.';
-      if (!draft.reloadlyServiceType || !draft.reloadlyDenominationType) return 'Reloadly utility fields must come from the selected biller.';
-    }
+    if (reloadlyUtilitiesProviderSelected) return 'Reloadly Utilities bill payments are retired. Choose another provider.';
     return null;
   };
 
@@ -561,27 +524,6 @@ export default function BillProductProvidersPage() {
     }
   };
 
-  const searchReloadlyBillers = async () => {
-    setReloadlyBillersLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams();
-      Object.entries(reloadlyBillerSearch).forEach(([key, value]) => {
-        if (value !== '' && value !== null && value !== undefined) {
-          params.set(key, String(value));
-        }
-      });
-      const res = await api.billProductBillProviders.searchReloadlyUtilitiesBillers(params);
-      const list = Array.isArray(res) ? res : res?.content || [];
-      setReloadlyBillers(list || []);
-    } catch (err) {
-      setReloadlyBillers([]);
-      setError(err.message || 'Failed to search Reloadly billers');
-    } finally {
-      setReloadlyBillersLoading(false);
-    }
-  };
-
   const searchZenditGroupedBillers = async () => {
     setZenditGroupedBillersLoading(true);
     setError(null);
@@ -613,19 +555,6 @@ export default function BillProductProvidersPage() {
       zenditSubType: biller?.subType || ''
     }));
     setInfo(`Selected grouped Zendit biller ${biller?.displayName || biller?.brand}. Map it once as a single bill product.`);
-  };
-
-  const handleSelectReloadlyBiller = (biller) => {
-    setSelectedReloadlyBiller(biller);
-    setDraft((prev) => ({
-      ...prev,
-      billProviderId: reloadlyUtilitiesProvider ? String(reloadlyUtilitiesProvider.id) : prev.billProviderId,
-      reloadlyBillerId: biller?.id ?? '',
-      reloadlyServiceType: biller?.serviceType || '',
-      reloadlyDenominationType: biller?.denominationType || '',
-      reloadlyRequiresInvoice: Boolean(biller?.requiresInvoice)
-    }));
-    setInfo(`Selected Reloadly biller ${biller?.name || biller?.id}. Mapping fields were prefilled from backend metadata.`);
   };
 
   const handleSeedGiftCards = async () => {
@@ -711,104 +640,6 @@ export default function BillProductProvidersPage() {
       setSeedingGiftCards(false);
     }
   };
-
-  const renderReloadlyUtilitiesSearch = () => (
-    <>
-      <div style={{ gridColumn: '1 / -1', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.8rem', display: 'grid', gap: '0.75rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <div style={{ fontWeight: 700 }}>Search Reloadly biller</div>
-          <button type="button" className="btn-neutral btn-sm" onClick={searchReloadlyBillers} disabled={reloadlyBillersLoading}>
-            {reloadlyBillersLoading ? 'Searching…' : 'Search billers'}
-          </button>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="reloadlyBillerIdSearch">Biller ID</label>
-            <input id="reloadlyBillerIdSearch" value={reloadlyBillerSearch.id} onChange={(e) => setReloadlyBillerSearch((prev) => ({ ...prev, id: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="reloadlyBillerNameSearch">Name</label>
-            <input id="reloadlyBillerNameSearch" value={reloadlyBillerSearch.name} onChange={(e) => setReloadlyBillerSearch((prev) => ({ ...prev, name: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="reloadlyBillerTypeSearch">Type</label>
-            <input id="reloadlyBillerTypeSearch" value={reloadlyBillerSearch.type} onChange={(e) => setReloadlyBillerSearch((prev) => ({ ...prev, type: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="reloadlyServiceTypeSearch">Service Type</label>
-            <input id="reloadlyServiceTypeSearch" value={reloadlyBillerSearch.serviceType} onChange={(e) => setReloadlyBillerSearch((prev) => ({ ...prev, serviceType: e.target.value }))} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="reloadlyCountrySearch">Country ISO</label>
-            <input id="reloadlyCountrySearch" value={reloadlyBillerSearch.countryISOCode} onChange={(e) => setReloadlyBillerSearch((prev) => ({ ...prev, countryISOCode: e.target.value }))} />
-          </div>
-        </div>
-        {reloadlyBillers.length > 0 && (
-          <div style={{ display: 'grid', gap: '0.5rem', maxHeight: '240px', overflowY: 'auto' }}>
-            {reloadlyBillers.map((biller) => {
-              const isSelected = String(selectedReloadlyBiller?.id) === String(biller?.id);
-              return (
-                <button
-                  key={biller.id}
-                  type="button"
-                  onClick={() => handleSelectReloadlyBiller(biller)}
-                  style={{
-                    display: 'grid',
-                    gap: '0.25rem',
-                    textAlign: 'left',
-                    padding: '0.7rem',
-                    borderRadius: '10px',
-                    border: `1px solid ${isSelected ? '#60a5fa' : 'var(--border)'}`,
-                    background: isSelected ? '#eff6ff' : 'var(--surface)',
-                    color: 'var(--text)',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <div style={{ fontWeight: 700 }}>{biller.name || `Biller #${biller.id}`}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
-                    #{biller.id} {biller.countryName ? `• ${biller.countryName}` : ''} {biller.serviceType ? `• ${biller.serviceType}` : ''} {biller.denominationType ? `• ${biller.denominationType}` : ''}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
-        {reloadlyBillers.length === 0 && !reloadlyBillersLoading && (
-          <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Search by name, country, type, service type, or exact biller id.</div>
-        )}
-      </div>
-
-      <div style={{ gridColumn: '1 / -1', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.8rem', display: 'grid', gap: '0.75rem' }}>
-        <div style={{ fontWeight: 700 }}>Reloadly biller preview</div>
-        <DetailGrid
-          rows={[
-            { label: 'Biller', value: selectedReloadlyBiller?.name || '—' },
-            { label: 'Biller ID', value: draft.reloadlyBillerId || '—' },
-            { label: 'Country', value: [selectedReloadlyBiller?.countryName, selectedReloadlyBiller?.countryCode].filter(Boolean).join(' ') || '—' },
-            { label: 'Type', value: selectedReloadlyBiller?.type || '—' },
-            { label: 'Service type', value: draft.reloadlyServiceType || '—' },
-            { label: 'Denomination', value: draft.reloadlyDenominationType || '—' },
-            { label: 'Requires invoice', value: draft.reloadlyBillerId === '' ? '—' : draft.reloadlyRequiresInvoice ? 'Yes' : 'No' },
-            { label: 'Local amount range', value: formatMoneyRange(selectedReloadlyBiller?.localMinAmount, selectedReloadlyBiller?.localMaxAmount) },
-            { label: 'International amount range', value: formatMoneyRange(selectedReloadlyBiller?.internationalMinAmount, selectedReloadlyBiller?.internationalMaxAmount) }
-          ]}
-        />
-        <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
-          Fixed amounts: {formatFixedAmounts(selectedReloadlyBiller)}
-        </div>
-        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-          {draft.reloadlyDenominationType && <span style={{ padding: '0.2rem 0.55rem', borderRadius: '999px', border: '1px solid var(--border)', fontSize: '12px', fontWeight: 700 }}>{draft.reloadlyDenominationType}</span>}
-          {draft.reloadlyServiceType && <span style={{ padding: '0.2rem 0.55rem', borderRadius: '999px', border: '1px solid var(--border)', fontSize: '12px', fontWeight: 700 }}>{draft.reloadlyServiceType}</span>}
-          {draft.reloadlyRequiresInvoice && <span style={{ padding: '0.2rem 0.55rem', borderRadius: '999px', border: '1px solid #fecaca', background: '#fef2f2', color: '#b91c1c', fontSize: '12px', fontWeight: 700 }}>INVOICE REQUIRED</span>}
-        </div>
-        <div style={{ display: 'grid', gap: '0.35rem', fontSize: '12px', color: 'var(--muted)' }}>
-          {draft.reloadlyDenominationType === 'FIXED' && <div>Client payments for this biller must use `amountId` from backend offers.</div>}
-          {draft.reloadlyDenominationType === 'RANGE' && <div>Client payments for this biller require manual amount entry.</div>}
-          {draft.reloadlyRequiresInvoice && <div>Client payments for this biller must include `invoiceId`.</div>}
-        </div>
-      </div>
-    </>
-  );
 
   const renderZenditGroupedSearch = () => (
     <>
@@ -918,18 +749,11 @@ export default function BillProductProvidersPage() {
             setDraft((prev) => ({
               ...prev,
               billProviderId: nextProviderId,
-              ...(isReloadlyUtilitiesProviderLabel(nextLabel)
-                ? {}
-                : {
-                    reloadlyBillerId: '',
-                    reloadlyServiceType: '',
-                    reloadlyDenominationType: '',
-                    reloadlyRequiresInvoice: false
-                  })
+              reloadlyBillerId: '',
+              reloadlyServiceType: '',
+              reloadlyDenominationType: '',
+              reloadlyRequiresInvoice: false
             }));
-            if (!isReloadlyUtilitiesProviderLabel(nextLabel)) {
-              resetReloadlyUtilitiesState();
-            }
             if (!isZenditProviderLabel(nextLabel)) {
               setDraft((prev) => ({ ...prev, zenditBrand: '', zenditCountry: '', zenditSubType: '' }));
               resetZenditState();
@@ -937,7 +761,7 @@ export default function BillProductProvidersPage() {
           }}
         >
           <option value="">Select provider</option>
-          {providers.map((prov) => (
+          {availableProviders.map((prov) => (
             <option key={prov.id} value={prov.id}>
               {prov.name || prov.displayName || prov.id}
             </option>
@@ -966,11 +790,6 @@ export default function BillProductProvidersPage() {
                 Use RELOADLY
               </button>
             )}
-          </div>
-        )}
-        {reloadlyUtilitiesProviderSelected && (
-          <div style={{ marginTop: '0.35rem', padding: '0.45rem 0.6rem', borderRadius: '8px', fontSize: '12px', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }}>
-            Reloadly utility mappings must come from a searched biller. Do not type biller metadata manually.
           </div>
         )}
         {zenditProviderSelected && (
@@ -1018,7 +837,6 @@ export default function BillProductProvidersPage() {
         <label htmlFor="active">Active</label>
       </div>
       {zenditProviderSelected && renderZenditGroupedSearch()}
-      {reloadlyUtilitiesProviderSelected && renderReloadlyUtilitiesSearch()}
     </div>
   );
 
@@ -1179,8 +997,8 @@ export default function BillProductProvidersPage() {
         </button>
       </div>
 
-      <div className="card" style={{ color: 'var(--muted)', fontSize: '13px' }}>
-        Reloadly Utilities is a separate mapping flow from Reloadly gift cards. Search the backend biller catalog, review denomination and invoice constraints, then save the internal bill product against provider <strong>RELOADLY_UTILITIES</strong>.
+      <div className="card" style={{ color: '#9a3412', fontSize: '13px', borderColor: '#fed7aa', background: '#fff7ed' }}>
+        Reloadly Utilities bill payments are retired. Existing mappings remain visible for history, but they are read-only and cannot be selected for new or edited bill product mappings. Reloadly gift cards remain available through provider <strong>RELOADLY</strong>.
       </div>
 
       <div className="card" style={{ color: 'var(--muted)', fontSize: '13px' }}>

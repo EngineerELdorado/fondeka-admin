@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { DataTable } from '@/components/DataTable';
 import { api } from '@/lib/api';
 
-const providerOptions = ['RELOADLY_UTILITIES', 'ZENDIT'];
+const providerOptions = ['ZENDIT'];
+const isReloadlyUtilitiesProvider = (value) => String(value || '').toUpperCase() === 'RELOADLY_UTILITIES';
 
 const formatDateTime = (value) => {
   if (!value) return '—';
@@ -84,6 +85,10 @@ export default function UtilityBillCatalogSyncPage() {
 
   const handleTrigger = useCallback(async (providerName) => {
     if (!providerName) return;
+    if (isReloadlyUtilitiesProvider(providerName)) {
+      setError('Reloadly Utilities bill payments are retired. Manual catalog sync is no longer available.');
+      return;
+    }
     setPendingProviders((prev) => ({ ...prev, [providerName]: true }));
     setError(null);
     setInfo(null);
@@ -118,10 +123,9 @@ export default function UtilityBillCatalogSyncPage() {
 
   const summary = useMemo(() => {
     const total = rows.length;
-    const reloadly = rows.filter((row) => String(row?.providerName || '').toUpperCase() === 'RELOADLY_UTILITIES').length;
     const zendit = rows.filter((row) => String(row?.providerName || '').toUpperCase() === 'ZENDIT').length;
     const cronEnabled = rows.filter((row) => Boolean(row?.cronEnabled)).length;
-    return { total, reloadly, zendit, cronEnabled };
+    return { total, zendit, cronEnabled };
   }, [rows]);
 
   const columns = useMemo(
@@ -137,14 +141,15 @@ export default function UtilityBillCatalogSyncPage() {
         label: 'Action',
         render: (row) => {
           const providerName = String(row?.providerName || '').toUpperCase();
+          const retired = isReloadlyUtilitiesProvider(providerName);
           return (
             <button
               type="button"
               className="btn-neutral btn-sm"
               onClick={() => handleTrigger(providerName)}
-              disabled={Boolean(pendingProviders[providerName])}
+              disabled={retired || Boolean(pendingProviders[providerName])}
             >
-              {pendingProviders[providerName] ? 'Enqueuing…' : 'Trigger Sync'}
+              {retired ? 'Retired' : pendingProviders[providerName] ? 'Enqueuing…' : 'Trigger Sync'}
             </button>
           );
         }
@@ -159,7 +164,7 @@ export default function UtilityBillCatalogSyncPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <div style={{ fontWeight: 800, fontSize: '20px' }}>Utility Bill Catalog Sync</div>
           <div style={{ color: 'var(--muted)' }}>
-            Monitor cached utility catalog slices and manually enqueue sync events for Reloadly Utilities and Zendit.
+            Monitor cached utility catalog slices and manually enqueue sync events for Zendit.
           </div>
           <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
             Triggering from this page enqueues an outbox event. The worker performs the real sync asynchronously. Use Utility Bill Catalog to inspect actual synced items afterward.
@@ -174,7 +179,7 @@ export default function UtilityBillCatalogSyncPage() {
               onClick={() => handleTrigger(provider)}
               disabled={Boolean(pendingProviders[provider])}
             >
-              {pendingProviders[provider] ? `Enqueuing ${provider}…` : provider === 'RELOADLY_UTILITIES' ? 'Sync Reloadly Utilities' : 'Sync Zendit Utilities'}
+              {pendingProviders[provider] ? `Enqueuing ${provider}…` : 'Sync Zendit Utilities'}
             </button>
           ))}
           <Link href="/dashboard/bills" className="btn-neutral">
@@ -185,7 +190,6 @@ export default function UtilityBillCatalogSyncPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
         <SummaryCard label="Total Cached Slices" value={summary.total} />
-        <SummaryCard label="Reloadly Utilities" value={summary.reloadly} tone="reloadly" />
         <SummaryCard label="Zendit Utilities" value={summary.zendit} tone="zendit" />
         <SummaryCard label="Cron Enabled" value={summary.cronEnabled} tone="cron" />
       </div>

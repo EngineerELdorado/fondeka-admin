@@ -222,6 +222,39 @@ const DetailGrid = ({ rows }) => (
   </div>
 );
 
+const CollapsibleFilterSection = ({ title, count, children }) => (
+  <details
+    className="card"
+    style={{
+      display: 'grid',
+      gap: '0.75rem',
+      padding: '0.85rem',
+      borderColor: 'var(--border)'
+    }}
+  >
+    <summary
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: '1rem',
+        flexWrap: 'wrap',
+        cursor: 'pointer',
+        listStyle: 'none'
+      }}
+    >
+      <div style={{ display: 'grid', gap: '0.2rem' }}>
+        <div style={{ fontWeight: 800 }}>{title}</div>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--muted)', fontSize: '12px' }}>
+        <span>{count} filters</span>
+        <span>Expand</span>
+      </div>
+    </summary>
+    <div style={{ display: 'grid', gap: '0.75rem' }}>{children}</div>
+  </details>
+);
+
 export default function BillProductsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
@@ -892,12 +925,11 @@ export default function BillProductsPage() {
           </div>
         </div>
         {filterGroups.map((group) => (
-          <details key={group.title}>
-            <summary style={{ cursor: 'pointer', fontWeight: 800 }}>{group.title}</summary>
+          <CollapsibleFilterSection key={group.title} title={group.title} count={group.fields.length}>
             <div style={{ marginTop: '0.65rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
               {group.fields.map(renderFilterField)}
             </div>
-          </details>
+          </CollapsibleFilterSection>
         ))}
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button

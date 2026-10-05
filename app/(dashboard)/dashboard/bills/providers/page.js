@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
 const emptyState = { name: '', displayName: '', rank: '', active: true, cegawebProfileKey: '' };
+const isReloadlyUtilitiesProvider = (row) => String(row?.name || row?.displayName || '').trim().toUpperCase() === 'RELOADLY_UTILITIES';
 
 const DetailGrid = ({ rows }) => (
   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
@@ -89,7 +90,20 @@ export default function BillProvidersPage() {
 
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
-    { key: 'name', label: 'Name' },
+    {
+      key: 'name',
+      label: 'Name',
+      render: (row) => (
+        <div style={{ display: 'inline-flex', gap: '0.35rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <span>{row.name || '—'}</span>
+          {isReloadlyUtilitiesProvider(row) && (
+            <span style={{ padding: '0.18rem 0.5rem', borderRadius: '999px', border: '1px solid #fed7aa', background: '#fff7ed', color: '#9a3412', fontSize: '12px', fontWeight: 800 }}>
+              Retired
+            </span>
+          )}
+        </div>
+      )
+    },
     { key: 'displayName', label: 'Display' },
     { key: 'cegawebProfileKey', label: 'CegaWeb profile' },
     { key: 'rank', label: 'Rank' },
@@ -100,8 +114,12 @@ export default function BillProvidersPage() {
       render: (row) => (
         <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
           <button type="button" onClick={() => openDetail(row)} className="btn-neutral">View</button>
-          <button type="button" onClick={() => openEdit(row)} className="btn-neutral">Edit</button>
-          <button type="button" onClick={() => setConfirmDelete(row)} className="btn-danger">Delete</button>
+          {!isReloadlyUtilitiesProvider(row) && (
+            <>
+              <button type="button" onClick={() => openEdit(row)} className="btn-neutral">Edit</button>
+              <button type="button" onClick={() => setConfirmDelete(row)} className="btn-danger">Delete</button>
+            </>
+          )}
         </div>
       )
     }
@@ -138,6 +156,10 @@ export default function BillProvidersPage() {
   const handleCreate = async () => {
     setError(null);
     setInfo(null);
+    if (isReloadlyUtilitiesProvider(draft)) {
+      setError('Reloadly Utilities bill payments are retired. Do not create this bill provider.');
+      return;
+    }
     try {
       await api.billProviders.create(toPayload(draft));
       setInfo('Created bill provider.');
@@ -152,6 +174,10 @@ export default function BillProvidersPage() {
     if (!selected?.id) return;
     setError(null);
     setInfo(null);
+    if (isReloadlyUtilitiesProvider(selected) || isReloadlyUtilitiesProvider(draft)) {
+      setError('Reloadly Utilities bill payments are retired. Existing provider rows are read-only.');
+      return;
+    }
     try {
       await api.billProviders.update(selected.id, toPayload(draft));
       setInfo(`Updated bill provider ${selected.id}.`);

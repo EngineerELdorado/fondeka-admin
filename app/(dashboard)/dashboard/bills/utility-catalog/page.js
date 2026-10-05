@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { DataTable } from '@/components/DataTable';
 import { api } from '@/lib/api';
 
-const providerOptions = ['RELOADLY_UTILITIES', 'ZENDIT'];
+const providerOptions = ['ZENDIT'];
 const serviceTypeOptions = ['PREPAID', 'POSTPAID'];
 const utilityTypeOptions = ['ELECTRICITY', 'WATER', 'TV', 'INTERNET'];
 const denominationTypeOptions = ['FIXED', 'RANGE'];
@@ -211,7 +211,7 @@ export default function UtilityBillCatalogPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <div style={{ fontWeight: 800, fontSize: '20px' }}>Utility Bill Catalog</div>
           <div style={{ color: 'var(--muted)' }}>
-            Inspect cached provider catalog items for Reloadly Utilities and Zendit voucher offers without calling providers live.
+            Inspect cached provider catalog items for Zendit voucher offers without calling providers live.
           </div>
           <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
             Use this page to confirm what the provider catalog contains. Use sync pages for freshness and bill product mappings to expose items to customers.

@@ -13,7 +13,7 @@ const cronDescriptions = {
   'loan.due_reminder': 'Sends loan repayment reminders on D-3, D-2, D-1, and D0 (UTC-day logic). Penalty notifications continue via penalty cron after due date.',
   'reloadly_recharge_catalog.sync': 'Worker-side scheduler that enqueues Reloadly mobile recharge catalog refresh events. Pausing it leaves cached recharge data in place but it will become stale over time.',
   'zendit_recharge_catalog.sync': 'Worker-side scheduler that enqueues Zendit mobile recharge catalog refresh events. Use manual sync on the Recharge Catalog Sync page if you need an immediate refresh.',
-  'reloadly_utilities_catalog.sync': 'Worker-side scheduler that enqueues Reloadly Utilities catalog refresh events. It controls cache freshness, not customer-facing bill product visibility.',
+  'reloadly_utilities_catalog.sync': 'Retired Reloadly Utilities catalog refresh scheduler. Reloadly bill payments are no longer available; keep this paused.',
   'zendit_utilities_catalog.sync': 'Worker-side scheduler that enqueues Zendit utility voucher catalog refresh events. Use Utility Bill Catalog Sync to enqueue an immediate refresh when needed.',
   'wallet_currency.audit': 'Worker-side scheduler that logs open wallet currency audit violations without modifying transactions or blocking payment flows.',
   'exchangerate_api.fiat_refresh_rates': 'Scheduled automatic ExchangeRate-API fiat FX updates. Pausing also disables the startup ExchangeRate-API refresh because it checks this same flag.',
