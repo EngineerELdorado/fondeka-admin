@@ -871,7 +871,7 @@ export default function BillProductsPage() {
           </div>
         </div>
         {filterGroups.map((group) => (
-          <details key={group.title} open={group.title === 'Search and country' || group.title === 'Product'}>
+          <details key={group.title}>
             <summary style={{ cursor: 'pointer', fontWeight: 800 }}>{group.title}</summary>
             <div style={{ marginTop: '0.65rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
               {group.fields.map(renderFilterField)}
