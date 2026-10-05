@@ -24,6 +24,7 @@ const emptyFilters = {
   type: '',
   createdByAccountId: '',
   memberAccountId: '',
+  email: '',
   deletedState: ''
 };
 
@@ -240,6 +241,10 @@ export default function GroupSavingsPage() {
           <div style={{ display: 'grid', gap: '0.25rem' }}>
             <label htmlFor="group-member">{t('savings.groups.memberAccountId')}</label>
             <input id="group-member" value={filters.memberAccountId} onChange={(e) => setFilters((prev) => ({ ...prev, memberAccountId: e.target.value }))} />
+          </div>
+          <div style={{ display: 'grid', gap: '0.25rem' }}>
+            <label htmlFor="group-email">Creator/member email</label>
+            <input id="group-email" type="email" value={filters.email} onChange={(e) => setFilters((prev) => ({ ...prev, email: e.target.value }))} placeholder="member@example.com" />
           </div>
           <div style={{ display: 'grid', gap: '0.25rem' }}>
             <label htmlFor="group-deleted">Deleted state</label>

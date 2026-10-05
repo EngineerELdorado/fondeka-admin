@@ -26,6 +26,50 @@ const emptyState = {
   paymentsEligibleForLoanEligibility: true
 };
 
+const emptyFilters = {
+  q: '',
+  countryId: '',
+  countryCode: '',
+  includeGlobal: '',
+  providerId: '',
+  mappingId: '',
+  providerName: '',
+  providerQuery: '',
+  providerActive: '',
+  billProviderActive: '',
+  hasProvider: '',
+  minProviderRank: '',
+  maxProviderRank: '',
+  providerCurrency: '',
+  cegawebProfileKey: '',
+  reloadlyBillerId: '',
+  reloadlyServiceType: '',
+  reloadlyDenominationType: '',
+  reloadlyRequiresInvoice: '',
+  zenditOfferId: '',
+  zenditOfferName: '',
+  zenditPriceType: '',
+  zenditBrand: '',
+  zenditCountry: '',
+  zenditSubType: '',
+  type: '',
+  name: '',
+  code: '',
+  active: '',
+  available: '',
+  giftCard: '',
+  giftCardUsageType: '',
+  returnAsCardProduct: '',
+  paymentsEligibleForLoanEligibility: '',
+  minRank: '',
+  maxRank: '',
+  hasCountries: '',
+  hasLogo: '',
+  hasDescription: '',
+  hasCardProductBackgroundImage: '',
+  hasCardProductMinAppVersion: ''
+};
+
 const typeOptions = ['TELEVISION', 'ELECTRICITY', 'INTERNET', 'WATER', 'STREAMING', 'ENTERTAINMENT', 'TRAVELLING', 'AIRTIME', 'DATA', 'BUNDLES', 'OTHERS'];
 const giftCardUsageTypeOptions = ['UNIQUE_USAGE', 'MULTIPLE_USAGE'];
 const nameOptions = ['CANAL_PLUS', 'CANAL_BOX', 'STARLINK', 'LIQUID', 'SOCODEE', 'VIRUNGA', 'SNEL', 'DSTV', 'STARTIMES', 'REGIDESO', 'NETFLIX', 'SPOTIFY', 'APP_STORE', 'APPLE', 'GOOGLE_PLAY', 'AIRBNB', 'UBER', 'AIRTIME', 'DATA', 'BUNDLES'];
@@ -52,6 +96,86 @@ const codeOptions = [
   'AIRTIME',
   'DATA',
   'BUNDLES'
+];
+
+const booleanFilterOptions = [
+  { value: '', label: 'Any' },
+  { value: 'true', label: 'Yes' },
+  { value: 'false', label: 'No' }
+];
+
+const filterGroups = [
+  {
+    title: 'Search and country',
+    fields: [
+      { key: 'q', label: 'Search', placeholder: 'sbee, Netflix, code...' },
+      { key: 'countryId', label: 'Country ID' },
+      { key: 'countryCode', label: 'Country code', placeholder: 'BJ' },
+      { key: 'includeGlobal', label: 'Include global', type: 'boolean' }
+    ]
+  },
+  {
+    title: 'Provider and mapping',
+    fields: [
+      { key: 'providerId', label: 'Provider ID' },
+      { key: 'mappingId', label: 'Mapping ID' },
+      { key: 'providerName', label: 'Provider name' },
+      { key: 'providerQuery', label: 'Provider search' },
+      { key: 'providerActive', label: 'Mapping active', type: 'boolean' },
+      { key: 'billProviderActive', label: 'Provider active', type: 'boolean' },
+      { key: 'hasProvider', label: 'Has provider', type: 'boolean' },
+      { key: 'minProviderRank', label: 'Min provider rank' },
+      { key: 'maxProviderRank', label: 'Max provider rank' },
+      { key: 'providerCurrency', label: 'Provider currency', placeholder: 'USD' },
+      { key: 'cegawebProfileKey', label: 'Cegaweb profile key' }
+    ]
+  },
+  {
+    title: 'Product',
+    fields: [
+      { key: 'type', label: 'Type', options: ['', ...typeOptions] },
+      { key: 'name', label: 'Name', options: ['', ...nameOptions] },
+      { key: 'code', label: 'Code', options: ['', ...codeOptions] },
+      { key: 'active', label: 'Active', type: 'boolean' },
+      { key: 'available', label: 'Available', type: 'boolean' },
+      { key: 'giftCard', label: 'Gift card', type: 'boolean' },
+      { key: 'giftCardUsageType', label: 'Gift card usage', options: ['', ...giftCardUsageTypeOptions] },
+      { key: 'returnAsCardProduct', label: 'Card product', type: 'boolean' },
+      { key: 'paymentsEligibleForLoanEligibility', label: 'Loan eligibility', type: 'boolean' },
+      { key: 'minRank', label: 'Min rank' },
+      { key: 'maxRank', label: 'Max rank' }
+    ]
+  },
+  {
+    title: 'Reloadly',
+    fields: [
+      { key: 'reloadlyBillerId', label: 'Biller ID' },
+      { key: 'reloadlyServiceType', label: 'Service type' },
+      { key: 'reloadlyDenominationType', label: 'Denomination type' },
+      { key: 'reloadlyRequiresInvoice', label: 'Requires invoice', type: 'boolean' }
+    ]
+  },
+  {
+    title: 'Zendit',
+    fields: [
+      { key: 'zenditOfferId', label: 'Offer ID' },
+      { key: 'zenditOfferName', label: 'Offer name' },
+      { key: 'zenditPriceType', label: 'Price type' },
+      { key: 'zenditBrand', label: 'Brand' },
+      { key: 'zenditCountry', label: 'Country', placeholder: 'BJ' },
+      { key: 'zenditSubType', label: 'Sub type' }
+    ]
+  },
+  {
+    title: 'Presence',
+    fields: [
+      { key: 'hasCountries', label: 'Has countries', type: 'boolean' },
+      { key: 'hasLogo', label: 'Has logo', type: 'boolean' },
+      { key: 'hasDescription', label: 'Has description', type: 'boolean' },
+      { key: 'hasCardProductBackgroundImage', label: 'Has card background', type: 'boolean' },
+      { key: 'hasCardProductMinAppVersion', label: 'Has min app version', type: 'boolean' }
+    ]
+  }
 ];
 
 const toPayload = (state) => ({
@@ -102,6 +226,8 @@ export default function BillProductsPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
+  const [filters, setFilters] = useState(emptyFilters);
+  const [appliedFilters, setAppliedFilters] = useState(emptyFilters);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
@@ -126,6 +252,10 @@ export default function BillProductsPage() {
       const params = new URLSearchParams();
       params.set('page', String(page));
       params.set('size', String(size));
+      Object.entries(appliedFilters).forEach(([key, value]) => {
+        const trimmed = String(value || '').trim();
+        if (trimmed) params.set(key, trimmed);
+      });
       const res = await api.billProducts.list(params);
       const list = Array.isArray(res) ? res : res?.content || [];
       setRows(list || []);
@@ -138,7 +268,7 @@ export default function BillProductsPage() {
 
   useEffect(() => {
     fetchRows();
-  }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [page, size, appliedFilters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const loadCountries = async () => {
@@ -358,6 +488,46 @@ export default function BillProductsPage() {
     } catch (err) {
       setError(err.message);
     }
+  };
+
+  const renderFilterField = (field) => {
+    const value = filters[field.key] || '';
+    const inputId = `bill-product-filter-${field.key}`;
+    const update = (nextValue) => setFilters((prev) => ({ ...prev, [field.key]: nextValue }));
+    if (field.type === 'boolean') {
+      return (
+        <div key={field.key} style={{ display: 'grid', gap: '0.25rem' }}>
+          <label htmlFor={inputId}>{field.label}</label>
+          <select id={inputId} value={value} onChange={(e) => update(e.target.value)}>
+            {booleanFilterOptions.map((option) => (
+              <option key={option.value || 'any'} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      );
+    }
+    if (Array.isArray(field.options)) {
+      return (
+        <div key={field.key} style={{ display: 'grid', gap: '0.25rem' }}>
+          <label htmlFor={inputId}>{field.label}</label>
+          <select id={inputId} value={value} onChange={(e) => update(e.target.value)}>
+            {field.options.map((option) => (
+              <option key={option || 'any'} value={option}>
+                {option || 'Any'}
+              </option>
+            ))}
+          </select>
+        </div>
+      );
+    }
+    return (
+      <div key={field.key} style={{ display: 'grid', gap: '0.25rem' }}>
+        <label htmlFor={inputId}>{field.label}</label>
+        <input id={inputId} value={value} onChange={(e) => update(e.target.value)} placeholder={field.placeholder || ''} />
+      </div>
+    );
   };
 
   const renderForm = () => (
@@ -690,6 +860,48 @@ export default function BillProductsPage() {
         </div>
         <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
           Provider fulfillment still routes separately through Recharge Provider Routing. `BUNDLES` here maps to the same business concept as recharge type `BUNDLE`.
+        </div>
+      </div>
+
+      <div className="card" style={{ display: 'grid', gap: '0.85rem' }}>
+        <div style={{ display: 'grid', gap: '0.25rem' }}>
+          <div style={{ fontWeight: 800 }}>Advanced filters</div>
+          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+            Filter by product, provider mapping, country, Reloadly, Zendit, and presence metadata.
+          </div>
+        </div>
+        {filterGroups.map((group) => (
+          <details key={group.title} open={group.title === 'Search and country' || group.title === 'Product'}>
+            <summary style={{ cursor: 'pointer', fontWeight: 800 }}>{group.title}</summary>
+            <div style={{ marginTop: '0.65rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+              {group.fields.map(renderFilterField)}
+            </div>
+          </details>
+        ))}
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => {
+              setPage(0);
+              setAppliedFilters(filters);
+            }}
+            disabled={loading}
+          >
+            Search
+          </button>
+          <button
+            type="button"
+            className="btn-neutral"
+            onClick={() => {
+              setFilters(emptyFilters);
+              setAppliedFilters(emptyFilters);
+              setPage(0);
+            }}
+            disabled={loading}
+          >
+            Reset
+          </button>
         </div>
       </div>
 
