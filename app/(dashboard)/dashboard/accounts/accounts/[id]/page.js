@@ -58,6 +58,17 @@ const emptyNotificationAnnouncement = {
   startAt: '',
   endAt: ''
 };
+const createAccountRewardRuleDraft = (accountId = '') => ({
+  id: '',
+  inviterAccountId: accountId ? String(accountId) : '',
+  action: '',
+  netAmountSharePct: '',
+  maxTransactions: '',
+  minPoints: '',
+  maxPoints: '',
+  enabled: true,
+  notes: ''
+});
 const bridgecardRegistrationModeOptions = [
   { label: 'Use global setting', value: '' },
   { label: 'Async registration - allows Bridgecard manual review', value: 'REGISTER_CARDHOLDER' },
@@ -160,6 +171,8 @@ const splitCsvList = (value) =>
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean);
+const isBlank = (value) => value === null || value === undefined || String(value).trim() === '';
+const toStringOrEmpty = (value) => (value === null || value === undefined ? '' : String(value));
 
 const buildEnhancedKycRequirementPayload = (draft, accountIdValue) => {
   const groupCode = String(draft.groupCode || '').trim().toUpperCase();
@@ -596,7 +609,6 @@ const paymentMethodActionRuleOptions = [
   'PAY_REQUEST',
   'COMMERCE_CHECKOUT_PAYMENT',
   'CREATE_COMMERCE_STORE',
-  'COMMERCE_STORE_CREATION',
   'SETTLEMENT',
   'GROUP_SAVING_ROUND_DISTRIBUTION',
   'E_SIM_PURCHASE',
@@ -877,6 +889,15 @@ const [notificationDataModal, setNotificationDataModal] = useState(null);
   const [manualReferralSaving, setManualReferralSaving] = useState(false);
   const [manualReferralError, setManualReferralError] = useState(null);
   const [manualReferralInfo, setManualReferralInfo] = useState(null);
+  const [accountRewardRules, setAccountRewardRules] = useState([]);
+  const [accountRewardRulesLoading, setAccountRewardRulesLoading] = useState(false);
+  const [accountRewardRulesError, setAccountRewardRulesError] = useState(null);
+  const [accountRewardRulesInfo, setAccountRewardRulesInfo] = useState(null);
+  const [showAccountRewardRuleForm, setShowAccountRewardRuleForm] = useState(false);
+  const [accountRewardRuleDraft, setAccountRewardRuleDraft] = useState(createAccountRewardRuleDraft());
+  const [accountRewardRuleErrors, setAccountRewardRuleErrors] = useState({});
+  const [accountRewardRuleSaving, setAccountRewardRuleSaving] = useState(false);
+  const [accountRewardRuleActionLoading, setAccountRewardRuleActionLoading] = useState('');
   const [loanProducts, setLoanProducts] = useState([]);
   const [loanRates, setLoanRates] = useState([]);
   const [loanRatesLoading, setLoanRatesLoading] = useState(false);
@@ -1018,7 +1039,6 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     'PAY_REQUEST',
   'COMMERCE_CHECKOUT_PAYMENT',
   'CREATE_COMMERCE_STORE',
-  'COMMERCE_STORE_CREATION',
     'REPAY_LOAN',
     'RECEIVE_CRYPTO',
     'CONVERT_FIAT',
@@ -1069,6 +1089,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       await loadPhoneVerificationOverride(targetId, acc);
       await loadEnhancedKycVerificationOverride(targetId, acc);
       await loadWalletActionOverride(targetId);
+      await loadAccountRewardRules(targetId);
     } catch (err) {
       setError(err.message || 'Failed to load account');
       pushToast({ tone: 'error', message: err.message || 'Failed to load account' });
@@ -1223,6 +1244,159 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     } finally {
       setManualReferralSaving(false);
     }
+  };
+
+  const loadAccountRewardRules = async (id = resolvedAccountId) => {
+    if (id === null || id === undefined || id === '') {
+      setAccountRewardRules([]);
+      return;
+    }
+    setAccountRewardRulesLoading(true);
+    setAccountRewardRulesError(null);
+    try {
+      const res = await api.referrals.accountRewardRules.list(new URLSearchParams({ inviterAccountId: String(id) }));
+      const list = Array.isArray(res) ? res : res?.content || res?.items || res?.rewardRules || [];
+      setAccountRewardRules(list || []);
+    } catch (err) {
+      setAccountRewardRules([]);
+      setAccountRewardRulesError(err.message || 'Failed to load referral reward overrides');
+    } finally {
+      setAccountRewardRulesLoading(false);
+    }
+  };
+
+  const openAccountRewardRuleForm = async (rule = null) => {
+    setAccountRewardRulesError(null);
+    setAccountRewardRuleErrors({});
+    if (!rule) {
+      setAccountRewardRuleDraft(createAccountRewardRuleDraft(resolvedAccountId));
+      setShowAccountRewardRuleForm(true);
+      return;
+    }
+    try {
+      const full = rule?.id ? await api.referrals.accountRewardRules.get(rule.id) : rule;
+      setAccountRewardRuleDraft({
+        id: full?.id ? String(full.id) : '',
+        inviterAccountId: String(full?.inviterAccountId || resolvedAccountId || ''),
+        action: full?.action || '',
+        netAmountSharePct: toStringOrEmpty(full?.netAmountSharePct),
+        maxTransactions: toStringOrEmpty(full?.maxTransactions),
+        minPoints: toStringOrEmpty(full?.minPoints),
+        maxPoints: toStringOrEmpty(full?.maxPoints),
+        enabled: full?.enabled !== false,
+        notes: toStringOrEmpty(full?.notes)
+      });
+      setShowAccountRewardRuleForm(true);
+    } catch (err) {
+      const message = err.message || 'Failed to load referral reward override';
+      setAccountRewardRulesError(message);
+      pushToast({ tone: 'error', message });
+    }
+  };
+
+  const buildAccountRewardRulePayload = () => {
+    const errors = {};
+    const inviterAccountId = Number(resolvedAccountId ?? accountRewardRuleDraft.inviterAccountId);
+    const percentage = Number(accountRewardRuleDraft.netAmountSharePct);
+    const maxTransactions = isBlank(accountRewardRuleDraft.maxTransactions) ? null : Number(accountRewardRuleDraft.maxTransactions);
+    const minPoints = isBlank(accountRewardRuleDraft.minPoints) ? null : Number(accountRewardRuleDraft.minPoints);
+    const maxPoints = isBlank(accountRewardRuleDraft.maxPoints) ? null : Number(accountRewardRuleDraft.maxPoints);
+
+    if (!Number.isInteger(inviterAccountId) || inviterAccountId <= 0) errors.inviterAccountId = 'Inviter account ID must be a positive integer.';
+    if (!Number.isFinite(percentage) || percentage < 0 || percentage > 100) errors.netAmountSharePct = 'Percentage must be between 0 and 100.';
+    if (maxTransactions !== null && (!Number.isInteger(maxTransactions) || maxTransactions < 1)) errors.maxTransactions = 'Max transactions must be a positive integer.';
+    if (minPoints !== null && (!Number.isFinite(minPoints) || minPoints < 0)) errors.minPoints = 'Min points must be zero or greater.';
+    if (maxPoints !== null && (!Number.isFinite(maxPoints) || maxPoints < 0)) errors.maxPoints = 'Max points must be zero or greater.';
+    if (minPoints !== null && maxPoints !== null && minPoints > maxPoints) errors.maxPoints = 'Max points must be greater than or equal to min points.';
+
+    if (Object.keys(errors).length) {
+      setAccountRewardRuleErrors(errors);
+      return null;
+    }
+    setAccountRewardRuleErrors({});
+    return {
+      inviterAccountId,
+      action: accountRewardRuleDraft.action || null,
+      netAmountSharePct: percentage,
+      maxTransactions,
+      minPoints,
+      maxPoints,
+      enabled: Boolean(accountRewardRuleDraft.enabled),
+      notes: accountRewardRuleDraft.notes?.trim() || null
+    };
+  };
+
+  const saveAccountRewardRule = async () => {
+    const payload = buildAccountRewardRulePayload();
+    if (!payload) return;
+    setAccountRewardRuleSaving(true);
+    setAccountRewardRulesError(null);
+    setAccountRewardRulesInfo(null);
+    try {
+      if (accountRewardRuleDraft.id) {
+        await api.referrals.accountRewardRules.update(accountRewardRuleDraft.id, payload);
+        setAccountRewardRulesInfo('Referral reward override updated.');
+        pushToast({ tone: 'success', message: 'Referral reward override updated.' });
+      } else {
+        await api.referrals.accountRewardRules.create(payload);
+        setAccountRewardRulesInfo('Referral reward override created.');
+        pushToast({ tone: 'success', message: 'Referral reward override created.' });
+      }
+      setShowAccountRewardRuleForm(false);
+      await loadAccountRewardRules(payload.inviterAccountId);
+    } catch (err) {
+      const message = err?.status === 400
+        ? err.message || 'Invalid or duplicate referral reward override.'
+        : err.message || 'Failed to save referral reward override';
+      setAccountRewardRulesError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setAccountRewardRuleSaving(false);
+    }
+  };
+
+  const setAccountRewardRuleEnabled = async (rule, enabled) => {
+    if (!rule?.id) return;
+    const key = `${enabled ? 'enable' : 'disable'}-${rule.id}`;
+    setAccountRewardRuleActionLoading(key);
+    setAccountRewardRulesError(null);
+    setAccountRewardRulesInfo(null);
+    try {
+      if (enabled) await api.referrals.accountRewardRules.enable(rule.id);
+      else await api.referrals.accountRewardRules.disable(rule.id);
+      setAccountRewardRulesInfo(`Referral reward override ${enabled ? 'enabled' : 'disabled'}.`);
+      pushToast({ tone: 'success', message: `Referral reward override ${enabled ? 'enabled' : 'disabled'}.` });
+      await loadAccountRewardRules(resolvedAccountId);
+    } catch (err) {
+      const message = err.message || `Failed to ${enabled ? 'enable' : 'disable'} referral reward override`;
+      setAccountRewardRulesError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setAccountRewardRuleActionLoading('');
+    }
+  };
+
+  const deleteAccountRewardRule = (rule) => {
+    if (!rule?.id) return;
+    openConfirm({
+      title: 'Delete referral reward override',
+      message: 'Delete this referral reward override? Use disable when you only want to pause a deal temporarily.',
+      onConfirm: async () => {
+        setAccountRewardRulesError(null);
+        setAccountRewardRulesInfo(null);
+        try {
+          await api.referrals.accountRewardRules.remove(rule.id);
+          setAccountRewardRulesInfo('Referral reward override deleted.');
+          pushToast({ tone: 'success', message: 'Referral reward override deleted.' });
+          await loadAccountRewardRules(resolvedAccountId);
+        } catch (err) {
+          const message = err.message || 'Failed to delete referral reward override';
+          setAccountRewardRulesError(message);
+          pushToast({ tone: 'error', message });
+          throw err;
+        }
+      }
+    });
   };
 
   const loadCustomPricing = async (id) => {
@@ -3925,6 +4099,78 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         </div>
         )}
       </details>
+
+      <div className="card" style={{ padding: '1rem', display: 'grid', gap: '0.65rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+              <div style={{ fontWeight: 700 }}>Referral reward overrides</div>
+              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                Configure custom referral remuneration when this account is the inviter.
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button type="button" className="btn-neutral btn-sm" onClick={() => loadAccountRewardRules(resolvedAccountId)} disabled={accountRewardRulesLoading}>
+                {accountRewardRulesLoading ? 'Refreshing…' : 'Refresh'}
+              </button>
+              <button type="button" className="btn-primary btn-sm" onClick={() => openAccountRewardRuleForm()} disabled={resolvedAccountId === null || resolvedAccountId === undefined}>
+                Add reward override
+              </button>
+            </div>
+          </div>
+          {accountRewardRulesError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{accountRewardRulesError}</div>}
+          {accountRewardRulesInfo && <div style={{ color: '#15803d', fontWeight: 700 }}>{accountRewardRulesInfo}</div>}
+          {accountRewardRulesLoading && <div style={{ color: 'var(--muted)' }}>Loading referral reward overrides…</div>}
+          {!accountRewardRulesLoading && accountRewardRules.length === 0 && (
+            <div style={{ color: 'var(--muted)' }}>No custom reward overrides for this account.</div>
+          )}
+          {!accountRewardRulesLoading && accountRewardRules.length > 0 && (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '760px' }}>
+                <thead>
+                  <tr style={{ textAlign: 'left', color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
+                    {['Action', 'Percentage', 'Max tx', 'Min', 'Max', 'Enabled', 'Notes', 'Actions'].map((label) => (
+                      <th key={label} style={{ padding: '0.45rem' }}>{label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {accountRewardRules.map((rule) => (
+                    <tr key={rule.id || `${rule.inviterAccountId}-${rule.action || 'default'}`} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '0.45rem' }}>{rule.action || 'Default for this inviter'}</td>
+                      <td style={{ padding: '0.45rem' }}>{rule.netAmountSharePct === null || rule.netAmountSharePct === undefined ? '—' : `${rule.netAmountSharePct}%`}</td>
+                      <td style={{ padding: '0.45rem' }}>{rule.maxTransactions ?? '—'}</td>
+                      <td style={{ padding: '0.45rem' }}>{rule.minPoints ?? '—'}</td>
+                      <td style={{ padding: '0.45rem' }}>{rule.maxPoints ?? '—'}</td>
+                      <td style={{ padding: '0.45rem' }}>
+                        <Badge>{rule.enabled === false ? 'Disabled' : 'Enabled'}</Badge>
+                      </td>
+                      <td style={{ padding: '0.45rem', maxWidth: '220px' }}>{rule.notes || '—'}</td>
+                      <td style={{ padding: '0.45rem' }}>
+                        <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                          <button type="button" className="btn-neutral btn-sm" onClick={() => openAccountRewardRuleForm(rule)} disabled={Boolean(accountRewardRuleActionLoading)}>
+                            Edit
+                          </button>
+                          {rule.enabled === false ? (
+                            <button type="button" className="btn-success btn-sm" onClick={() => setAccountRewardRuleEnabled(rule, true)} disabled={accountRewardRuleActionLoading === `enable-${rule.id}`}>
+                              {accountRewardRuleActionLoading === `enable-${rule.id}` ? 'Enabling…' : 'Enable'}
+                            </button>
+                          ) : (
+                            <button type="button" className="btn-neutral btn-sm" onClick={() => setAccountRewardRuleEnabled(rule, false)} disabled={accountRewardRuleActionLoading === `disable-${rule.id}`}>
+                              {accountRewardRuleActionLoading === `disable-${rule.id}` ? 'Disabling…' : 'Disable'}
+                            </button>
+                          )}
+                          <button type="button" className="btn-danger btn-sm" onClick={() => deleteAccountRewardRule(rule)} disabled={Boolean(accountRewardRuleActionLoading)}>
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
 
       <div className="card" style={{ padding: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
@@ -6725,6 +6971,129 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               </button>
               <button type="button" className="btn-danger" onClick={submitDebit} disabled={debitLoading}>
                 {debitLoading ? 'Debiting…' : 'Debit wallet'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showAccountRewardRuleForm && (
+        <Modal title={`${accountRewardRuleDraft.id ? 'Edit' : 'Add'} referral reward override`} onClose={() => (!accountRewardRuleSaving ? setShowAccountRewardRuleForm(false) : null)}>
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              This configures rewards paid to account <strong>#{accountRewardRuleDraft.inviterAccountId || resolvedAccountId || '—'}</strong> when they invite other customers.
+              Leave action blank for this inviter&apos;s default rule.
+            </div>
+            {accountRewardRulesError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{accountRewardRulesError}</div>}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="accountRewardRuleInviterAccountId">Inviter account ID</label>
+                <input
+                  id="accountRewardRuleInviterAccountId"
+                  type="number"
+                  min="1"
+                  value={accountRewardRuleDraft.inviterAccountId}
+                  onChange={(e) => setAccountRewardRuleDraft((prev) => ({ ...prev, inviterAccountId: e.target.value }))}
+                  disabled
+                />
+                {accountRewardRuleErrors.inviterAccountId && <div style={{ color: '#b91c1c', fontSize: '12px' }}>{accountRewardRuleErrors.inviterAccountId}</div>}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="accountRewardRuleAction">Action</label>
+                <select
+                  id="accountRewardRuleAction"
+                  value={accountRewardRuleDraft.action}
+                  onChange={(e) => setAccountRewardRuleDraft((prev) => ({ ...prev, action: e.target.value }))}
+                  disabled={accountRewardRuleSaving}
+                >
+                  <option value="">Default for this inviter</option>
+                  {paymentMethodActionRuleOptions.map((action) => (
+                    <option key={action} value={action}>{action}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="accountRewardRulePct">Net amount share %</label>
+                <input
+                  id="accountRewardRulePct"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={accountRewardRuleDraft.netAmountSharePct}
+                  onChange={(e) => setAccountRewardRuleDraft((prev) => ({ ...prev, netAmountSharePct: e.target.value }))}
+                  disabled={accountRewardRuleSaving}
+                />
+                {accountRewardRuleErrors.netAmountSharePct && <div style={{ color: '#b91c1c', fontSize: '12px' }}>{accountRewardRuleErrors.netAmountSharePct}</div>}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="accountRewardRuleMaxTransactions">Max tx</label>
+                <input
+                  id="accountRewardRuleMaxTransactions"
+                  type="number"
+                  min="1"
+                  value={accountRewardRuleDraft.maxTransactions}
+                  onChange={(e) => setAccountRewardRuleDraft((prev) => ({ ...prev, maxTransactions: e.target.value }))}
+                  placeholder="No cap"
+                  disabled={accountRewardRuleSaving}
+                />
+                {accountRewardRuleErrors.maxTransactions && <div style={{ color: '#b91c1c', fontSize: '12px' }}>{accountRewardRuleErrors.maxTransactions}</div>}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="accountRewardRuleMinPoints">Min points</label>
+                <input
+                  id="accountRewardRuleMinPoints"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={accountRewardRuleDraft.minPoints}
+                  onChange={(e) => setAccountRewardRuleDraft((prev) => ({ ...prev, minPoints: e.target.value }))}
+                  placeholder="No minimum"
+                  disabled={accountRewardRuleSaving}
+                />
+                {accountRewardRuleErrors.minPoints && <div style={{ color: '#b91c1c', fontSize: '12px' }}>{accountRewardRuleErrors.minPoints}</div>}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="accountRewardRuleMaxPoints">Max points</label>
+                <input
+                  id="accountRewardRuleMaxPoints"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={accountRewardRuleDraft.maxPoints}
+                  onChange={(e) => setAccountRewardRuleDraft((prev) => ({ ...prev, maxPoints: e.target.value }))}
+                  placeholder="No maximum"
+                  disabled={accountRewardRuleSaving}
+                />
+                {accountRewardRuleErrors.maxPoints && <div style={{ color: '#b91c1c', fontSize: '12px' }}>{accountRewardRuleErrors.maxPoints}</div>}
+              </div>
+            </div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+              <input
+                type="checkbox"
+                checked={accountRewardRuleDraft.enabled}
+                onChange={(e) => setAccountRewardRuleDraft((prev) => ({ ...prev, enabled: e.target.checked }))}
+                disabled={accountRewardRuleSaving}
+              />
+              Enabled
+            </label>
+            <div style={{ display: 'grid', gap: '0.25rem' }}>
+              <label htmlFor="accountRewardRuleNotes">Notes</label>
+              <textarea
+                id="accountRewardRuleNotes"
+                rows={3}
+                value={accountRewardRuleDraft.notes}
+                onChange={(e) => setAccountRewardRuleDraft((prev) => ({ ...prev, notes: e.target.value }))}
+                placeholder="Influencer campaign rate"
+                disabled={accountRewardRuleSaving}
+              />
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn-neutral" onClick={() => setShowAccountRewardRuleForm(false)} disabled={accountRewardRuleSaving}>
+                Cancel
+              </button>
+              <button type="button" className="btn-primary" onClick={saveAccountRewardRule} disabled={accountRewardRuleSaving}>
+                {accountRewardRuleSaving ? 'Saving…' : 'Save override'}
               </button>
             </div>
           </div>

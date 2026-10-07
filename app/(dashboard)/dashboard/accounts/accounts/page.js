@@ -260,7 +260,6 @@ export default function AccountsListPage() {
     'PAY_REQUEST',
   'COMMERCE_CHECKOUT_PAYMENT',
   'CREATE_COMMERCE_STORE',
-  'COMMERCE_STORE_CREATION',
     'REPAY_LOAN',
     'CONVERT_FIAT',
     'SELL_CRYPTO',
