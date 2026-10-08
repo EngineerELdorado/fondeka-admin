@@ -85,7 +85,7 @@ const buildPayload = (draft) => {
     countryCode: countryCode || null,
     code: String(draft.code || '').trim().toUpperCase(),
     displayNameEn: String(draft.displayNameEn || '').trim(),
-    displayNameFr: String(draft.displayNameFr || '').trim(),
+    displayNameFr: String(draft.displayNameFr || '').trim() || null,
     requiresBack: Boolean(draft.requiresBack),
     active: Boolean(draft.active),
     rank: Number(draft.rank || 0)
@@ -96,7 +96,6 @@ const validateDraft = (draft) => {
   const payload = buildPayload(draft);
   if (!payload.code) return 'Code is required.';
   if (!payload.displayNameEn) return 'English display name is required.';
-  if (!payload.displayNameFr) return 'French display name is required.';
   if (payload.countryCode && payload.countryCode.length !== 2) return 'Country code must be ISO alpha-2.';
   if (!Number.isFinite(payload.rank)) return 'Rank must be a number.';
   return null;
@@ -489,6 +488,7 @@ export default function KycDocumentTypesPage() {
 
       {showForm && (
         <Modal title={selected?.id ? `Edit document type ${selected.id}` : 'Add KYC document type'} onClose={() => (!saving ? setShowForm(false) : null)}>
+          {error ? <div style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div> : null}
           <DocumentTypeForm draft={draft} updateDraft={updateDraft} saving={saving} />
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
             <button type="button" className="btn-neutral" onClick={() => setShowForm(false)} disabled={saving}>Cancel</button>
