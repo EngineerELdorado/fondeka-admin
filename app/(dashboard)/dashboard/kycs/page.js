@@ -14,7 +14,6 @@ const statusToDecision = {
   FAILED: 'REJECT',
   EXPIRED: 'EXPIRE'
 };
-const docTypeOptions = ['VOTER_ID', 'PASSPORT', 'DRIVERS_LICENSE', 'NATIONAL_ID', 'IDENTITY_CARD', 'RESIDENT_ID', 'TRAVEL_DOC'];
 
 const emptyFilters = {
   status: '',
@@ -185,6 +184,8 @@ export default function KycsPage() {
   const [showEdit, setShowEdit] = useState(false);
   const [editDraft, setEditDraft] = useState(emptyEditDraft);
   const [editLoading, setEditLoading] = useState(false);
+  const [docTypeOptions, setDocTypeOptions] = useState([]);
+  const [docTypeOptionsLoading, setDocTypeOptionsLoading] = useState(false);
   const [uploadFiles, setUploadFiles] = useState({ docFront: null, docBack: null, selfie: null });
   const [uploadLoading, setUploadLoading] = useState(false);
   const [amlLoading, setAmlLoading] = useState(false);
@@ -515,6 +516,7 @@ export default function KycsPage() {
   const openEdit = (row) => {
     const source = normalizeKyc(row || {});
     setSelected(source);
+    const sourceDocType = String(source.docType ?? source.documentType ?? source.idType ?? '').trim().toUpperCase();
     setEditDraft({
       externalReference: source.externalReference ?? source.externalRef ?? '',
       idNumber: source.idNumber ?? '',
@@ -530,7 +532,7 @@ export default function KycsPage() {
       houseNo: source.houseNo ?? '',
       gender: source.gender ?? '',
       lastJobReference: source.lastJobReference ?? '',
-      docType: source.docType ?? '',
+      docType: sourceDocType,
       providerComments: source.providerComments ?? '',
       status: source.status ?? '',
       level: source.level ?? '',
@@ -543,6 +545,30 @@ export default function KycsPage() {
     setShowEdit(true);
     setInfo(null);
     setError(null);
+    loadDocTypeOptions(source.countryCode, sourceDocType);
+  };
+
+  const loadDocTypeOptions = async (countryCodeValue, currentDocType = '') => {
+    setDocTypeOptionsLoading(true);
+    try {
+      const params = new URLSearchParams({ active: 'true' });
+      const countryCode = String(countryCodeValue || '').trim().toUpperCase();
+      if (countryCode) params.set('countryCode', countryCode);
+      const res = await api.kycDocumentTypes.list(params);
+      const list = Array.isArray(res) ? res : res?.content || [];
+      const codes = Array.from(new Set(
+        (list || [])
+          .map((item) => String(item?.code || item?.documentType || item?.idType || '').trim().toUpperCase())
+          .filter(Boolean)
+      ));
+      const normalizedCurrent = String(currentDocType || '').trim().toUpperCase();
+      setDocTypeOptions(normalizedCurrent && !codes.includes(normalizedCurrent) ? [normalizedCurrent, ...codes] : codes);
+    } catch {
+      const normalizedCurrent = String(currentDocType || '').trim().toUpperCase();
+      setDocTypeOptions(normalizedCurrent ? [normalizedCurrent] : []);
+    } finally {
+      setDocTypeOptionsLoading(false);
+    }
   };
 
   const handleSmileOpen = (row) => {
@@ -707,6 +733,15 @@ export default function KycsPage() {
         if (key === 'dob' || key === 'issuedAt' || key === 'expiresAt') {
           const isoValue = toUtcIsoDateTime(value);
           if (isoValue) payload[key] = isoValue;
+          return;
+        }
+        if (key === 'docType') {
+          const normalizedDocType = String(value || '').trim().toUpperCase();
+          if (normalizedDocType) {
+            payload.docType = normalizedDocType;
+            payload.documentType = normalizedDocType;
+            payload.idType = normalizedDocType;
+          }
           return;
         }
         payload[key] = value;
@@ -1343,7 +1378,13 @@ export default function KycsPage() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="editCountryCode">Country code</label>
-              <input id="editCountryCode" value={editDraft.countryCode} onChange={(e) => setEditDraft((p) => ({ ...p, countryCode: e.target.value }))} placeholder="UG" />
+              <input
+                id="editCountryCode"
+                value={editDraft.countryCode}
+                onChange={(e) => setEditDraft((p) => ({ ...p, countryCode: e.target.value.toUpperCase() }))}
+                onBlur={(e) => loadDocTypeOptions(e.target.value, editDraft.docType)}
+                placeholder="UG"
+              />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="editCity">City</label>
@@ -1371,14 +1412,17 @@ export default function KycsPage() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="editDocType">Doc type</label>
-              <select id="editDocType" value={editDraft.docType} onChange={(e) => setEditDraft((p) => ({ ...p, docType: e.target.value }))}>
-                <option value="">Select doc type</option>
+              <select id="editDocType" value={editDraft.docType} onChange={(e) => setEditDraft((p) => ({ ...p, docType: e.target.value }))} disabled={docTypeOptionsLoading}>
+                <option value="">{docTypeOptionsLoading ? 'Loading document types...' : 'Select doc type'}</option>
                 {docTypeOptions.map((type) => (
                   <option key={type} value={type}>
                     {type}
                   </option>
                 ))}
               </select>
+              {!docTypeOptionsLoading && docTypeOptions.length === 0 ? (
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>No document types returned for this country.</div>
+              ) : null}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="editProviderComments">Provider comments</label>

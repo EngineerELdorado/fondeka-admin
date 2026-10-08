@@ -3,34 +3,58 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
+import COUNTRIES, { codeToFlag } from '@/data/countries';
 
-const DOCUMENT_CODES = [
-  'PASSPORT',
-  'NATIONAL_ID',
-  'IDENTITY_CARD',
-  'VOTER_ID',
-  'DRIVERS_LICENSE',
-  'RESIDENT_ID',
-  'TRAVEL_DOC',
-  'RESIDENCE_CARD',
-  'ALIEN_CARD',
-  'BUSINESS_PERMIT',
-  'REFUGEE_ID',
-  'TRAVEL_DOCUMENT',
-  'TAX_ID',
-  'SOCIAL_SECURITY_CARD',
-  'BIRTH_CERTIFICATE'
-];
+const COUNTRY_OPTIONS = COUNTRIES.filter((country, index, list) => (
+  country?.cca2 && list.findIndex((item) => item.cca2 === country.cca2) === index
+));
+
+const CountrySelect = ({ value, onChange, disabled, emptyLabel = 'Select country' }) => (
+  <select value={value || ''} onChange={(e) => onChange(e.target.value)} disabled={disabled}>
+    <option value="">{emptyLabel}</option>
+    {COUNTRY_OPTIONS.map((country) => (
+      <option key={country.cca2} value={country.cca2}>
+        {codeToFlag(country.cca2)} {country.name} ({country.cca2})
+      </option>
+    ))}
+  </select>
+);
 
 const emptyDraft = {
   countryCode: '',
-  code: 'PASSPORT',
+  code: '',
   displayNameEn: '',
   displayNameFr: '',
   requiresBack: false,
   active: true,
   rank: '10'
 };
+
+const TypeCardSkeleton = () => (
+  <div className="card" style={{ display: 'grid', gap: '0.75rem', padding: '1rem', minHeight: '156px' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center' }}>
+      <div style={{ width: '42%', height: '16px', borderRadius: '999px', background: 'var(--border)' }} />
+      <div style={{ width: '64px', height: '24px', borderRadius: '999px', background: 'var(--border)' }} />
+    </div>
+    <div style={{ display: 'grid', gap: '0.45rem' }}>
+      <div style={{ width: '78%', height: '12px', borderRadius: '999px', background: 'var(--border)' }} />
+      <div style={{ width: '62%', height: '12px', borderRadius: '999px', background: 'var(--border)' }} />
+    </div>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginTop: 'auto' }}>
+      <div style={{ height: '34px', borderRadius: '8px', background: 'var(--border)' }} />
+      <div style={{ height: '34px', borderRadius: '8px', background: 'var(--border)' }} />
+      <div style={{ height: '34px', borderRadius: '8px', background: 'var(--border)' }} />
+    </div>
+  </div>
+);
+
+const TypeCardSkeletonGrid = () => (
+  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.75rem' }}>
+    {Array.from({ length: 6 }).map((_, index) => (
+      <TypeCardSkeleton key={index} />
+    ))}
+  </div>
+);
 
 const Modal = ({ title, onClose, children }) => (
   <div className="modal-backdrop">
@@ -323,111 +347,120 @@ export default function KycDocumentTypesPage() {
         </div>
       )}
 
-      <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <div>
-            <div style={{ fontWeight: 800 }}>SmileID document type sync</div>
-            <div style={{ color: 'var(--muted)', fontSize: '13px', marginTop: '0.2rem' }}>
-              Preview SmileID supported ID types for a country, then sync them into the local document type list.
+      <details className="card" style={{ display: 'grid', gap: '0.75rem' }}>
+        <summary style={{ cursor: 'pointer', listStyle: 'none' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontWeight: 800 }}>SmileID document type sync</div>
+              <div style={{ color: 'var(--muted)', fontSize: '13px', marginTop: '0.2rem' }}>
+                Preview SmileID supported ID types for a country, then sync them into the local document type list.
+              </div>
             </div>
+            <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Expand</span>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <button type="button" className="btn-neutral btn-sm" onClick={previewSmileIdDocumentTypes} disabled={smileSyncLoading || smileSyncSaving}>
-              {smileSyncLoading ? 'Previewing...' : 'Preview SmileID'}
-            </button>
-            <button
-              type="button"
-              className="btn-primary btn-sm"
-              onClick={syncSmileIdDocumentTypes}
-              disabled={smileSyncLoading || smileSyncSaving || !smileSyncPreview}
-            >
-              {smileSyncSaving ? 'Syncing...' : 'Sync SmileID'}
-            </button>
-          </div>
-        </div>
+        </summary>
 
-        {smileSyncError ? <div style={{ color: '#b91c1c', fontWeight: 700 }}>{smileSyncError}</div> : null}
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', alignItems: 'end' }}>
-          <label style={{ display: 'grid', gap: '0.25rem' }}>
-            <span>Country</span>
-            <input
-              value={smileSyncCountryCode}
-              onChange={(e) => setSmileSyncCountryCode(e.target.value.toUpperCase())}
-              placeholder="CD"
-              maxLength={2}
-              disabled={smileSyncLoading || smileSyncSaving}
-            />
-          </label>
-          <label style={{ display: 'inline-flex', gap: '0.45rem', alignItems: 'center' }}>
-            <input
-              type="checkbox"
-              checked={smileSyncActive}
-              onChange={(e) => setSmileSyncActive(e.target.checked)}
-              disabled={smileSyncLoading || smileSyncSaving}
-            />
-            <span>Set synced rows active</span>
-          </label>
-          <label style={{ display: 'inline-flex', gap: '0.45rem', alignItems: 'center' }}>
-            <input
-              type="checkbox"
-              checked={smileSyncDeactivateMissing}
-              onChange={(e) => setSmileSyncDeactivateMissing(e.target.checked)}
-              disabled={smileSyncLoading || smileSyncSaving}
-            />
-            <span>Deactivate missing local rows</span>
-          </label>
-        </div>
-
-        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-          Leave deactivate missing off for the safest sync. Turning it on disables local document types for the country when SmileID no longer returns them.
-        </div>
-
-        {smileSyncPreview ? (
-          <div style={{ display: 'grid', gap: '0.6rem' }}>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', color: 'var(--muted)', fontSize: '13px' }}>
-              <span>Country: <strong>{smileSyncPreview.countryCode || '-'}</strong></span>
-              <span>Fetched: <strong>{smileSyncPreview.fetched ?? '-'}</strong></span>
-              <span>Created: <strong>{smileSyncPreview.created ?? 0}</strong></span>
-              <span>Updated: <strong>{smileSyncPreview.updated ?? 0}</strong></span>
-              <span>Unchanged: <strong>{smileSyncPreview.unchanged ?? 0}</strong></span>
-              <span>Deactivated: <strong>{smileSyncPreview.deactivated ?? 0}</strong></span>
+        <div style={{ display: 'grid', gap: '0.75rem', marginTop: '0.75rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              <button type="button" className="btn-neutral btn-sm" onClick={previewSmileIdDocumentTypes} disabled={smileSyncLoading || smileSyncSaving}>
+                {smileSyncLoading ? 'Previewing...' : 'Preview SmileID'}
+              </button>
+              <button
+                type="button"
+                className="btn-primary btn-sm"
+                onClick={syncSmileIdDocumentTypes}
+                disabled={smileSyncLoading || smileSyncSaving || !smileSyncPreview}
+              >
+                {smileSyncSaving ? 'Syncing...' : 'Sync SmileID'}
+              </button>
             </div>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '760px' }}>
-                <thead>
-                  <tr style={{ textAlign: 'left', color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
-                    {['Code', 'Name EN', 'Name FR', 'Requires back', 'Active', 'Rank', 'Exists', 'Changed'].map((label) => (
-                      <th key={label} style={{ padding: '0.45rem' }}>{label}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {(smileSyncPreview.documentTypes || []).map((row) => (
-                    <tr key={`${row.countryCode || smileSyncPreview.countryCode}-${row.code}`} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td style={{ padding: '0.45rem', fontWeight: 700 }}>{row.code}</td>
-                      <td style={{ padding: '0.45rem' }}>{row.displayNameEn || '-'}</td>
-                      <td style={{ padding: '0.45rem' }}>{row.displayNameFr || '-'}</td>
-                      <td style={{ padding: '0.45rem' }}>{row.requiresBack ? 'Yes' : 'No'}</td>
-                      <td style={{ padding: '0.45rem' }}>{row.active ? 'Yes' : 'No'}</td>
-                      <td style={{ padding: '0.45rem' }}>{row.rank ?? '-'}</td>
-                      <td style={{ padding: '0.45rem' }}>{row.exists ? 'Yes' : 'No'}</td>
-                      <td style={{ padding: '0.45rem' }}>{row.changed ? 'Yes' : 'No'}</td>
+
+          {smileSyncError ? <div style={{ color: '#b91c1c', fontWeight: 700 }}>{smileSyncError}</div> : null}
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', alignItems: 'end' }}>
+            <label style={{ display: 'grid', gap: '0.25rem' }}>
+              <span>Country</span>
+              <CountrySelect
+                value={smileSyncCountryCode}
+                onChange={(value) => setSmileSyncCountryCode(value)}
+                emptyLabel="Select country"
+                disabled={smileSyncLoading || smileSyncSaving}
+              />
+            </label>
+            <label style={{ display: 'inline-flex', gap: '0.45rem', alignItems: 'center' }}>
+              <input
+                type="checkbox"
+                checked={smileSyncActive}
+                onChange={(e) => setSmileSyncActive(e.target.checked)}
+                disabled={smileSyncLoading || smileSyncSaving}
+              />
+              <span>Set synced rows active</span>
+            </label>
+            <label style={{ display: 'inline-flex', gap: '0.45rem', alignItems: 'center' }}>
+              <input
+                type="checkbox"
+                checked={smileSyncDeactivateMissing}
+                onChange={(e) => setSmileSyncDeactivateMissing(e.target.checked)}
+                disabled={smileSyncLoading || smileSyncSaving}
+              />
+              <span>Deactivate missing local rows</span>
+            </label>
+          </div>
+
+          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+            Leave deactivate missing off for the safest sync. Turning it on disables local document types for the country when SmileID no longer returns them.
+          </div>
+
+          {smileSyncPreview ? (
+            <div style={{ display: 'grid', gap: '0.6rem' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', color: 'var(--muted)', fontSize: '13px' }}>
+                <span>Country: <strong>{smileSyncPreview.countryCode || '-'}</strong></span>
+                <span>Fetched: <strong>{smileSyncPreview.fetched ?? '-'}</strong></span>
+                <span>Created: <strong>{smileSyncPreview.created ?? 0}</strong></span>
+                <span>Updated: <strong>{smileSyncPreview.updated ?? 0}</strong></span>
+                <span>Unchanged: <strong>{smileSyncPreview.unchanged ?? 0}</strong></span>
+                <span>Deactivated: <strong>{smileSyncPreview.deactivated ?? 0}</strong></span>
+              </div>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '760px' }}>
+                  <thead>
+                    <tr style={{ textAlign: 'left', color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
+                      {['Code', 'Name EN', 'Name FR', 'Requires back', 'Active', 'Rank', 'Exists', 'Changed'].map((label) => (
+                        <th key={label} style={{ padding: '0.45rem' }}>{label}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {(smileSyncPreview.documentTypes || []).map((row) => (
+                      <tr key={`${row.countryCode || smileSyncPreview.countryCode}-${row.code}`} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '0.45rem', fontWeight: 700 }}>{row.code}</td>
+                        <td style={{ padding: '0.45rem' }}>{row.displayNameEn || '-'}</td>
+                        <td style={{ padding: '0.45rem' }}>{row.displayNameFr || '-'}</td>
+                        <td style={{ padding: '0.45rem' }}>{row.requiresBack ? 'Yes' : 'No'}</td>
+                        <td style={{ padding: '0.45rem' }}>{row.active ? 'Yes' : 'No'}</td>
+                        <td style={{ padding: '0.45rem' }}>{row.rank ?? '-'}</td>
+                        <td style={{ padding: '0.45rem' }}>{row.exists ? 'Yes' : 'No'}</td>
+                        <td style={{ padding: '0.45rem' }}>{row.changed ? 'Yes' : 'No'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-        ) : null}
-      </div>
+          ) : null}
+        </div>
+      </details>
 
-      <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
-        <div style={{ fontWeight: 800 }}>Filters</div>
+      <details className="card" style={{ display: 'grid', gap: '0.75rem' }}>
+        <summary style={{ cursor: 'pointer', listStyle: 'none', fontWeight: 800 }}>Filters</summary>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.75rem', alignItems: 'end' }}>
           <label style={{ display: 'grid', gap: '0.25rem' }}>
             <span>Country</span>
-            <input value={filters.countryCode} onChange={(e) => setFilters((prev) => ({ ...prev, countryCode: e.target.value }))} placeholder="CD" />
+            <CountrySelect
+              value={filters.countryCode}
+              onChange={(value) => setFilters((prev) => ({ ...prev, countryCode: value }))}
+              emptyLabel="All countries"
+            />
           </label>
           <label style={{ display: 'grid', gap: '0.25rem' }}>
             <span>Active</span>
@@ -441,14 +474,18 @@ export default function KycDocumentTypesPage() {
             {loading ? 'Loading...' : 'Apply'}
           </button>
         </div>
-      </div>
+      </details>
 
-      <DataTable
-        columns={columns}
-        rows={rows}
-        emptyLabel={loading ? 'Loading document types...' : 'No KYC document types found.'}
-        showAccountQuickNav={false}
-      />
+      {loading ? (
+        <TypeCardSkeletonGrid />
+      ) : (
+        <DataTable
+          columns={columns}
+          rows={rows}
+          emptyLabel="No KYC document types found."
+          showAccountQuickNav={false}
+        />
+      )}
 
       {showForm && (
         <Modal title={selected?.id ? `Edit document type ${selected.id}` : 'Add KYC document type'} onClose={() => (!saving ? setShowForm(false) : null)}>
@@ -503,21 +540,16 @@ function DocumentTypeForm({ draft, updateDraft, saving }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
         <label style={{ display: 'grid', gap: '0.25rem' }}>
           <span>Country</span>
-          <input value={draft.countryCode} onChange={(e) => updateDraft('countryCode', e.target.value)} placeholder="Leave empty for global" disabled={saving} />
+          <CountrySelect
+            value={draft.countryCode}
+            onChange={(value) => updateDraft('countryCode', value)}
+            disabled={saving}
+            emptyLabel="Global fallback"
+          />
         </label>
         <label style={{ display: 'grid', gap: '0.25rem' }}>
           <span>Code</span>
-          <select
-            value={DOCUMENT_CODES.includes(draft.code) ? draft.code : '__CUSTOM__'}
-            onChange={(e) => updateDraft('code', e.target.value === '__CUSTOM__' ? '' : e.target.value)}
-            disabled={saving}
-          >
-            {DOCUMENT_CODES.map((code) => <option key={code} value={code}>{code}</option>)}
-            <option value="__CUSTOM__">Custom code</option>
-          </select>
-          {!DOCUMENT_CODES.includes(draft.code) ? (
-            <input value={draft.code} onChange={(e) => updateDraft('code', e.target.value)} placeholder="CUSTOM_DOCUMENT_CODE" disabled={saving} />
-          ) : null}
+          <input value={draft.code} onChange={(e) => updateDraft('code', e.target.value.toUpperCase())} placeholder="VOTER_ID" disabled={saving} />
         </label>
         <label style={{ display: 'grid', gap: '0.25rem' }}>
           <span>Rank</span>

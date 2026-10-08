@@ -188,14 +188,16 @@ export default function DashboardLayout({ children }) {
           padding: '1rem 1.1rem',
           display: 'flex',
           flexDirection: 'column',
-          gap: '1rem'
+          gap: '1rem',
+          maxHeight: '100vh',
+          overflow: 'hidden'
         }}
       >
         <div style={{ fontWeight: 900, letterSpacing: 0.6, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <img src="/icon.svg" alt="Fondeka" width={34} height={34} style={{ borderRadius: '10px' }} />
           {t('layout.appName')}
         </div>
-        <nav className="dashboard-nav-links" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+        <nav className="dashboard-nav-links" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', overflowY: 'auto', minHeight: 0, paddingRight: '0.15rem' }}>
           {renderedNavItems.map((item) => (
             <Link
               key={item.href}
