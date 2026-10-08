@@ -7,8 +7,11 @@ import { DataTable } from '@/components/DataTable';
 const DOCUMENT_CODES = [
   'PASSPORT',
   'NATIONAL_ID',
+  'IDENTITY_CARD',
   'VOTER_ID',
   'DRIVERS_LICENSE',
+  'RESIDENT_ID',
+  'TRAVEL_DOC',
   'RESIDENCE_CARD',
   'ALIEN_CARD',
   'BUSINESS_PERMIT',
@@ -87,6 +90,13 @@ export default function KycDocumentTypesPage() {
   const [showForm, setShowForm] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [smileSyncCountryCode, setSmileSyncCountryCode] = useState('');
+  const [smileSyncActive, setSmileSyncActive] = useState(true);
+  const [smileSyncDeactivateMissing, setSmileSyncDeactivateMissing] = useState(false);
+  const [smileSyncPreview, setSmileSyncPreview] = useState(null);
+  const [smileSyncLoading, setSmileSyncLoading] = useState(false);
+  const [smileSyncSaving, setSmileSyncSaving] = useState(false);
+  const [smileSyncError, setSmileSyncError] = useState(null);
 
   const fetchRows = async () => {
     setLoading(true);
@@ -201,6 +211,58 @@ export default function KycDocumentTypesPage() {
     }
   };
 
+  const previewSmileIdDocumentTypes = async () => {
+    const countryCode = String(smileSyncCountryCode || '').trim().toUpperCase();
+    if (countryCode.length !== 2) {
+      setSmileSyncError('Country code must be ISO alpha-2.');
+      return;
+    }
+    setSmileSyncLoading(true);
+    setSmileSyncError(null);
+    setInfo(null);
+    try {
+      const res = await api.kycDocumentTypes.smileIdPreview(new URLSearchParams({ countryCode }));
+      setSmileSyncPreview(res || null);
+    } catch (err) {
+      setSmileSyncPreview(null);
+      setSmileSyncError(err.message || 'Failed to preview SmileID document types.');
+    } finally {
+      setSmileSyncLoading(false);
+    }
+  };
+
+  const syncSmileIdDocumentTypes = async () => {
+    const countryCode = String(smileSyncCountryCode || '').trim().toUpperCase();
+    if (countryCode.length !== 2) {
+      setSmileSyncError('Country code must be ISO alpha-2.');
+      return;
+    }
+    const confirmed = window.confirm(
+      smileSyncDeactivateMissing
+        ? `Sync SmileID document types for ${countryCode} and deactivate missing local rows?`
+        : `Sync SmileID document types for ${countryCode}? Missing local rows will stay unchanged.`
+    );
+    if (!confirmed) return;
+    setSmileSyncSaving(true);
+    setSmileSyncError(null);
+    setInfo(null);
+    try {
+      const res = await api.kycDocumentTypes.smileIdSync({
+        countryCode,
+        active: Boolean(smileSyncActive),
+        deactivateMissing: Boolean(smileSyncDeactivateMissing)
+      });
+      setSmileSyncPreview(res || null);
+      setInfo(`SmileID sync complete for ${countryCode}: ${res?.created ?? 0} created, ${res?.updated ?? 0} updated, ${res?.unchanged ?? 0} unchanged, ${res?.deactivated ?? 0} deactivated.`);
+      setFilters((prev) => ({ ...prev, countryCode }));
+      await fetchRows();
+    } catch (err) {
+      setSmileSyncError(err.message || 'Failed to sync SmileID document types.');
+    } finally {
+      setSmileSyncSaving(false);
+    }
+  };
+
   const columns = useMemo(
     () => [
       { key: 'id', label: 'ID' },
@@ -260,6 +322,105 @@ export default function KycDocumentTypesPage() {
           {error || info}
         </div>
       )}
+
+      <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontWeight: 800 }}>SmileID document type sync</div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px', marginTop: '0.2rem' }}>
+              Preview SmileID supported ID types for a country, then sync them into the local document type list.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button type="button" className="btn-neutral btn-sm" onClick={previewSmileIdDocumentTypes} disabled={smileSyncLoading || smileSyncSaving}>
+              {smileSyncLoading ? 'Previewing...' : 'Preview SmileID'}
+            </button>
+            <button
+              type="button"
+              className="btn-primary btn-sm"
+              onClick={syncSmileIdDocumentTypes}
+              disabled={smileSyncLoading || smileSyncSaving || !smileSyncPreview}
+            >
+              {smileSyncSaving ? 'Syncing...' : 'Sync SmileID'}
+            </button>
+          </div>
+        </div>
+
+        {smileSyncError ? <div style={{ color: '#b91c1c', fontWeight: 700 }}>{smileSyncError}</div> : null}
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', alignItems: 'end' }}>
+          <label style={{ display: 'grid', gap: '0.25rem' }}>
+            <span>Country</span>
+            <input
+              value={smileSyncCountryCode}
+              onChange={(e) => setSmileSyncCountryCode(e.target.value.toUpperCase())}
+              placeholder="CD"
+              maxLength={2}
+              disabled={smileSyncLoading || smileSyncSaving}
+            />
+          </label>
+          <label style={{ display: 'inline-flex', gap: '0.45rem', alignItems: 'center' }}>
+            <input
+              type="checkbox"
+              checked={smileSyncActive}
+              onChange={(e) => setSmileSyncActive(e.target.checked)}
+              disabled={smileSyncLoading || smileSyncSaving}
+            />
+            <span>Set synced rows active</span>
+          </label>
+          <label style={{ display: 'inline-flex', gap: '0.45rem', alignItems: 'center' }}>
+            <input
+              type="checkbox"
+              checked={smileSyncDeactivateMissing}
+              onChange={(e) => setSmileSyncDeactivateMissing(e.target.checked)}
+              disabled={smileSyncLoading || smileSyncSaving}
+            />
+            <span>Deactivate missing local rows</span>
+          </label>
+        </div>
+
+        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          Leave deactivate missing off for the safest sync. Turning it on disables local document types for the country when SmileID no longer returns them.
+        </div>
+
+        {smileSyncPreview ? (
+          <div style={{ display: 'grid', gap: '0.6rem' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', color: 'var(--muted)', fontSize: '13px' }}>
+              <span>Country: <strong>{smileSyncPreview.countryCode || '-'}</strong></span>
+              <span>Fetched: <strong>{smileSyncPreview.fetched ?? '-'}</strong></span>
+              <span>Created: <strong>{smileSyncPreview.created ?? 0}</strong></span>
+              <span>Updated: <strong>{smileSyncPreview.updated ?? 0}</strong></span>
+              <span>Unchanged: <strong>{smileSyncPreview.unchanged ?? 0}</strong></span>
+              <span>Deactivated: <strong>{smileSyncPreview.deactivated ?? 0}</strong></span>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '760px' }}>
+                <thead>
+                  <tr style={{ textAlign: 'left', color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
+                    {['Code', 'Name EN', 'Name FR', 'Requires back', 'Active', 'Rank', 'Exists', 'Changed'].map((label) => (
+                      <th key={label} style={{ padding: '0.45rem' }}>{label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {(smileSyncPreview.documentTypes || []).map((row) => (
+                    <tr key={`${row.countryCode || smileSyncPreview.countryCode}-${row.code}`} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '0.45rem', fontWeight: 700 }}>{row.code}</td>
+                      <td style={{ padding: '0.45rem' }}>{row.displayNameEn || '-'}</td>
+                      <td style={{ padding: '0.45rem' }}>{row.displayNameFr || '-'}</td>
+                      <td style={{ padding: '0.45rem' }}>{row.requiresBack ? 'Yes' : 'No'}</td>
+                      <td style={{ padding: '0.45rem' }}>{row.active ? 'Yes' : 'No'}</td>
+                      <td style={{ padding: '0.45rem' }}>{row.rank ?? '-'}</td>
+                      <td style={{ padding: '0.45rem' }}>{row.exists ? 'Yes' : 'No'}</td>
+                      <td style={{ padding: '0.45rem' }}>{row.changed ? 'Yes' : 'No'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : null}
+      </div>
 
       <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
         <div style={{ fontWeight: 800 }}>Filters</div>

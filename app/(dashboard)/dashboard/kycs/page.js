@@ -14,7 +14,7 @@ const statusToDecision = {
   FAILED: 'REJECT',
   EXPIRED: 'EXPIRE'
 };
-const docTypeOptions = ['VOTER_ID', 'PASSPORT', 'DRIVERS_LICENSE'];
+const docTypeOptions = ['VOTER_ID', 'PASSPORT', 'DRIVERS_LICENSE', 'NATIONAL_ID', 'IDENTITY_CARD', 'RESIDENT_ID', 'TRAVEL_DOC'];
 
 const emptyFilters = {
   status: '',
