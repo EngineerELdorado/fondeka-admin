@@ -198,7 +198,8 @@ export default function KycsPage() {
     enabled: false,
     noFaceMatchEnabled: false,
     spoofDetectedEnabled: false,
-    potentialFraudAttemptEnabled: false
+    potentialFraudAttemptEnabled: false,
+    rejectedStatus: 'PENDING'
   });
   const [zoomedDocument, setZoomedDocument] = useState(null);
   const [documentZoomScale, setDocumentZoomScale] = useState(1);
@@ -295,7 +296,8 @@ export default function KycsPage() {
         enabled: Boolean(res?.enabled),
         noFaceMatchEnabled: Boolean(res?.noFaceMatchEnabled),
         spoofDetectedEnabled: Boolean(res?.spoofDetectedEnabled),
-        potentialFraudAttemptEnabled: Boolean(res?.potentialFraudAttemptEnabled)
+        potentialFraudAttemptEnabled: Boolean(res?.potentialFraudAttemptEnabled),
+        rejectedStatus: ['PENDING', 'REJECTED'].includes(res?.rejectedStatus) ? res.rejectedStatus : 'PENDING'
       });
     } catch (err) {
       setError(err?.message || 'Failed to load SmileID fraud blacklist policy');
@@ -755,7 +757,8 @@ export default function KycsPage() {
         enabled: Boolean(smileFraudPolicy.enabled),
         noFaceMatchEnabled: Boolean(smileFraudPolicy.noFaceMatchEnabled),
         spoofDetectedEnabled: Boolean(smileFraudPolicy.spoofDetectedEnabled),
-        potentialFraudAttemptEnabled: Boolean(smileFraudPolicy.potentialFraudAttemptEnabled)
+        potentialFraudAttemptEnabled: Boolean(smileFraudPolicy.potentialFraudAttemptEnabled),
+        rejectedStatus: ['PENDING', 'REJECTED'].includes(smileFraudPolicy.rejectedStatus) ? smileFraudPolicy.rejectedStatus : 'PENDING'
       });
       setInfo('SmileID fraud blacklist policy updated.');
       await loadSmileFraudPolicy();
@@ -842,6 +845,22 @@ export default function KycsPage() {
                   style={{ margin: 0 }}
                 />
               </label>
+            </div>
+
+            <div style={{ display: 'grid', gap: '0.25rem', maxWidth: '360px' }}>
+              <label htmlFor="smileRejectedStatus" style={{ fontWeight: 700 }}>SmileID rejected result handling</label>
+              <select
+                id="smileRejectedStatus"
+                value={smileFraudPolicy.rejectedStatus || 'PENDING'}
+                onChange={(e) => setSmileFraudPolicy((prev) => ({ ...prev, rejectedStatus: e.target.value }))}
+                disabled={smileFraudPolicyLoading || smileFraudPolicySaving}
+              >
+                <option value="PENDING">Keep pending - require support review</option>
+                <option value="REJECTED">Mark rejected - allow user retry</option>
+              </select>
+              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                Pending keeps rejected SmileID jobs blocked for support review. Rejected lets the client offer retry.
+              </div>
             </div>
           </div>
         </div>
