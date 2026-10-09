@@ -11,6 +11,7 @@ const sections = [
   { href: '/dashboard/cards/card-activities', title: 'Card Activities', blurb: 'Track deposits/withdrawals on cards.' },
   { href: '/dashboard/cards/card-purchase-intents', title: 'Card Purchase Intents', blurb: 'Purchase intents linked to transactions.' },
   { href: '/dashboard/cards/card-policy-config', title: 'Card Policy Config', blurb: 'Configure provider readiness delays for card ordering.' },
+  { href: '/dashboard/cards/card-holder-country-policies', title: 'Card Holder Country Policies', blurb: 'Allow or block card-holder creation by country.' },
   { href: '/dashboard/card-order-retries', title: 'Card Order Retries', blurb: 'Monitor and manage card order retry attempts.' }
 ];
 

@@ -23,6 +23,7 @@ const emptyIssueDraft = {
   accountId: '',
   accountReference: '',
   accountEmail: '',
+  fiatWalletId: '',
   cardProductId: '',
   cardProductCardProviderId: '',
   chargeAccount: false,
@@ -192,6 +193,21 @@ const mappingOptionLabel = (mapping) => {
   return `${product} → ${provider}${currency} (#${mapping?.id ?? '—'})`;
 };
 
+const normalizeFiatWallets = (res) => {
+  if (Array.isArray(res)) return res;
+  return res?.content || res?.wallets || res?.fiatWallets || [];
+};
+
+const fiatWalletIdOf = (wallet) => wallet?.fiatWalletId ?? wallet?.walletId ?? wallet?.id;
+
+const fiatWalletLabel = (wallet) => {
+  const id = fiatWalletIdOf(wallet);
+  const currency = wallet?.currency || wallet?.walletCurrency || wallet?.fiatCurrency;
+  const balance = wallet?.availableBalance ?? wallet?.balance ?? wallet?.currentBalance;
+  const name = wallet?.name || wallet?.displayName || wallet?.label || (id ? `Wallet #${id}` : 'Wallet');
+  return [name, currency, balance !== null && balance !== undefined ? balance : null].filter(Boolean).join(' • ');
+};
+
 export default function CardHoldersPage() {
   const { session } = useAuth();
   const [rows, setRows] = useState([]);
@@ -217,6 +233,9 @@ export default function CardHoldersPage() {
   const [issueLoading, setIssueLoading] = useState(false);
   const [mappingOptions, setMappingOptions] = useState([]);
   const [mappingLoading, setMappingLoading] = useState(false);
+  const [issueFiatWallets, setIssueFiatWallets] = useState([]);
+  const [issueFiatWalletsLoading, setIssueFiatWalletsLoading] = useState(false);
+  const [issueFiatWalletsError, setIssueFiatWalletsError] = useState(null);
 
   const isSuperAdmin = useMemo(() => {
     const payload = session?.tokens?.idToken?.payload || session?.tokens?.accessToken?.payload;
@@ -317,6 +336,43 @@ export default function CardHoldersPage() {
       setMappingLoading(false);
     }
   };
+
+  const loadIssueFiatWallets = async (accountId) => {
+    const normalizedAccountId = Number(accountId);
+    if (!Number.isInteger(normalizedAccountId) || normalizedAccountId <= 0) {
+      setIssueFiatWallets([]);
+      setIssueFiatWalletsError(null);
+      return;
+    }
+    setIssueFiatWalletsLoading(true);
+    setIssueFiatWalletsError(null);
+    try {
+      const res = await api.accounts.getFiatWallets(normalizedAccountId);
+      setIssueFiatWallets(normalizeFiatWallets(res));
+    } catch (err) {
+      setIssueFiatWallets([]);
+      setIssueFiatWalletsError(err?.message || 'Failed to load fiat wallets.');
+    } finally {
+      setIssueFiatWalletsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!showIssue || issueDraft.accountMode !== 'id') {
+      setIssueFiatWallets([]);
+      setIssueFiatWalletsError(null);
+      setIssueDraft((prev) => (prev.fiatWalletId ? { ...prev, fiatWalletId: '' } : prev));
+      return;
+    }
+    const accountId = Number(issueDraft.accountId);
+    if (!Number.isInteger(accountId) || accountId <= 0) {
+      setIssueFiatWallets([]);
+      setIssueFiatWalletsError(null);
+      setIssueDraft((prev) => (prev.fiatWalletId ? { ...prev, fiatWalletId: '' } : prev));
+      return;
+    }
+    loadIssueFiatWallets(accountId);
+  }, [showIssue, issueDraft.accountMode, issueDraft.accountId]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
   const openReconcile = async (row) => {
@@ -472,6 +528,9 @@ export default function CardHoldersPage() {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Account email format is invalid.';
     }
     if (!Number.isInteger(Number(state.cardProductId)) || Number(state.cardProductId) <= 0) return 'Card product id is required.';
+    if (state.fiatWalletId !== '' && (!Number.isInteger(Number(state.fiatWalletId)) || Number(state.fiatWalletId) <= 0)) {
+      return 'Fiat wallet selection is invalid.';
+    }
     const optionalMoneyFields = [
       { key: 'internalFeeAmount', value: state.internalFeeAmount },
       { key: 'commissionAmount', value: state.commissionAmount },
@@ -495,6 +554,9 @@ export default function CardHoldersPage() {
       payload.cardProductCardProviderId = Number(state.cardProductCardProviderId);
     }
     if (state.accountMode === 'id') payload.accountId = Number(state.accountId);
+    if (Number.isInteger(Number(state.fiatWalletId)) && Number(state.fiatWalletId) > 0) {
+      payload.fiatWalletId = Number(state.fiatWalletId);
+    }
     if (state.accountMode === 'reference') payload.accountReference = String(state.accountReference).trim();
     if (state.accountMode === 'email') payload.accountEmail = String(state.accountEmail).trim();
     if (state.internalFeeAmount !== '') payload.internalFeeAmount = Number(state.internalFeeAmount);
@@ -783,6 +845,34 @@ export default function CardHoldersPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="issueAccountId">Account ID</label>
                 <input id="issueAccountId" type="number" min={1} value={issueDraft.accountId} onChange={(e) => setIssueDraft((p) => ({ ...p, accountId: e.target.value }))} />
+              </div>
+            )}
+            {issueDraft.accountMode === 'id' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="issueFiatWalletId">Fiat wallet (optional)</label>
+                <select
+                  id="issueFiatWalletId"
+                  value={issueDraft.fiatWalletId}
+                  onChange={(e) => setIssueDraft((p) => ({ ...p, fiatWalletId: e.target.value }))}
+                  disabled={issueFiatWalletsLoading || !Number.isInteger(Number(issueDraft.accountId)) || Number(issueDraft.accountId) <= 0}
+                >
+                  <option value="">{issueFiatWalletsLoading ? 'Loading wallets…' : 'Use default wallet'}</option>
+                  {issueFiatWallets.map((wallet) => {
+                    const walletId = fiatWalletIdOf(wallet);
+                    if (!walletId) return null;
+                    return (
+                      <option key={walletId} value={walletId}>
+                        {fiatWalletLabel(wallet)}
+                      </option>
+                    );
+                  })}
+                </select>
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                  Used when charging the account balance for card issuance.
+                </div>
+                {issueFiatWalletsError && (
+                  <div style={{ color: 'var(--danger)', fontSize: '12px' }}>{issueFiatWalletsError}</div>
+                )}
               </div>
             )}
             {issueDraft.accountMode === 'reference' && (
