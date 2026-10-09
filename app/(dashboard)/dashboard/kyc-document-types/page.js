@@ -326,9 +326,20 @@ export default function KycDocumentTypesPage() {
             Manage the document selector shown to customers per country.
           </p>
         </div>
-        <button type="button" className="btn-primary" onClick={openCreate}>
-          Add document type
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <a
+            href="https://legacy-docs.usesmileid.com/supported-id-types/for-individuals-kyc/using-document-image/regions/africa"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-neutral"
+            style={{ textDecoration: 'none' }}
+          >
+            SmileID supported IDs
+          </a>
+          <button type="button" className="btn-primary" onClick={openCreate}>
+            Add document type
+          </button>
+        </div>
       </div>
 
       <div className="card" style={{ display: 'grid', gap: '0.55rem' }}>

@@ -56,6 +56,12 @@ const getStoreUrl = (row) => {
   const slug = getStoreSlug(row);
   return slug ? `https://commerce.fondeka.com/stores/${encodeURIComponent(slug)}` : '';
 };
+const getMarketplacePriority = (row) => {
+  const value = row?.marketplacePriority;
+  if (value === null || value === undefined || value === '') return 0;
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : 0;
+};
 
 const getOwnerLabel = (row) => {
   const account = row?.account || row?.owner || row?.merchant || row?.user;
@@ -100,6 +106,7 @@ export default function CommerceStoresPage() {
   const [loading, setLoading] = useState(false);
   const [savingId, setSavingId] = useState('');
   const [detailStore, setDetailStore] = useState(null);
+  const [priorityDraft, setPriorityDraft] = useState(null);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
 
@@ -196,6 +203,52 @@ export default function CommerceStoresPage() {
     [deletedState, savingId]
   );
 
+  const openPriorityEditor = useCallback((row) => {
+    const storeId = getStoreId(row);
+    if (!storeId) return;
+    setPriorityDraft({
+      storeId,
+      storeName: asText(row?.name, row?.storeName, row?.displayName, `Store ${storeId}`),
+      marketplacePriority: String(getMarketplacePriority(row))
+    });
+    setError(null);
+    setInfo(null);
+  }, []);
+
+  const updateMarketplacePriority = async () => {
+    const storeId = priorityDraft?.storeId;
+    const priority = Number(priorityDraft?.marketplacePriority);
+    if (!storeId) return;
+    if (!Number.isFinite(priority) || priority < 0) {
+      setError('Marketplace priority must be 0 or a positive number.');
+      return;
+    }
+    const normalizedPriority = Math.trunc(priority);
+    setSavingId(String(storeId));
+    setError(null);
+    setInfo(null);
+    try {
+      const res = await api.commerceStores.updateMarketplace(storeId, { marketplacePriority: normalizedPriority });
+      setRows((prev) =>
+        prev.map((item) => {
+          if (String(getStoreId(item)) !== String(storeId)) return item;
+          return { ...item, ...(res && typeof res === 'object' ? res : {}), marketplacePriority: normalizedPriority };
+        })
+      );
+      setDetailStore((prev) => (
+        prev && String(getStoreId(prev)) === String(storeId)
+          ? { ...prev, ...(res && typeof res === 'object' ? res : {}), marketplacePriority: normalizedPriority }
+          : prev
+      ));
+      setPriorityDraft(null);
+      setInfo(normalizedPriority > 0 ? `Marketplace priority set to ${normalizedPriority} for store ${storeId}.` : `Marketplace priority cleared for store ${storeId}.`);
+    } catch (err) {
+      setError(err?.message || 'Failed to update marketplace priority.');
+    } finally {
+      setSavingId('');
+    }
+  };
+
   const clearFilters = () => {
     setVerificationStatus('');
     setStatus('');
@@ -252,6 +305,11 @@ export default function CommerceStoresPage() {
         }
       },
       {
+        key: 'marketplacePriority',
+        label: 'Marketplace priority',
+        render: (row) => getMarketplacePriority(row)
+      },
+      {
         key: 'countryCurrency',
         label: 'Country / Currency',
         render: (row) => asText([row?.countryCode, row?.currency].filter(Boolean).join(' / '), row?.country, row?.currency)
@@ -278,6 +336,9 @@ export default function CommerceStoresPage() {
             <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
               <button type="button" className="btn-neutral btn-sm" onClick={() => setDetailStore(row)}>
                 Details
+              </button>
+              <button type="button" className="btn-neutral btn-sm" onClick={() => openPriorityEditor(row)} disabled={!storeId || savingId === String(storeId)}>
+                Priority
               </button>
               {storeUrl ? (
                 <a
@@ -317,7 +378,7 @@ export default function CommerceStoresPage() {
         }
       }
     ],
-    [restoreStore, savingId, updateVerification]
+    [openPriorityEditor, restoreStore, savingId, updateVerification]
   );
 
   const canPrev = page > 0;
@@ -493,6 +554,7 @@ export default function CommerceStoresPage() {
                 { label: 'Status', value: asText(detailStore?.status) },
                 { label: 'Visibility', value: asText(detailStore?.visibility) },
                 { label: 'Verification', value: asText(detailStore?.verificationStatus, 'UNVERIFIED') },
+                { label: 'Marketplace priority', value: getMarketplacePriority(detailStore) },
                 { label: 'Country', value: asText(detailStore?.countryCode, detailStore?.country) },
                 { label: 'Currency', value: asText(detailStore?.currency) },
                 { label: 'Deleted', value: isDeletedStore(detailStore) ? 'Yes' : 'No' },
@@ -507,6 +569,37 @@ export default function CommerceStoresPage() {
                 {JSON.stringify(detailStore, null, 2)}
               </pre>
             </details>
+          </div>
+        </Modal>
+      ) : null}
+
+      {priorityDraft ? (
+        <Modal title="Marketplace priority" onClose={() => (!savingId ? setPriorityDraft(null) : null)}>
+          <div style={{ display: 'grid', gap: '0.75rem', marginTop: '0.75rem' }}>
+            <div style={{ color: 'var(--muted)' }}>
+              Higher priority appears first in marketplace store listings. Use 0 to clear the custom priority.
+            </div>
+            <div style={{ fontWeight: 800 }}>{priorityDraft.storeName}</div>
+            <div style={{ display: 'grid', gap: '0.25rem' }}>
+              <label htmlFor="marketplacePriority">Marketplace priority</label>
+              <input
+                id="marketplacePriority"
+                type="number"
+                min={0}
+                step={1}
+                value={priorityDraft.marketplacePriority}
+                onChange={(e) => setPriorityDraft((prev) => ({ ...prev, marketplacePriority: e.target.value }))}
+                disabled={Boolean(savingId)}
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button type="button" className="btn-neutral" onClick={() => setPriorityDraft(null)} disabled={Boolean(savingId)}>
+                Cancel
+              </button>
+              <button type="button" className="btn-primary" onClick={updateMarketplacePriority} disabled={Boolean(savingId)}>
+                {savingId ? 'Saving...' : 'Save priority'}
+              </button>
+            </div>
           </div>
         </Modal>
       ) : null}
