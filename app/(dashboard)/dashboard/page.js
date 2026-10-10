@@ -923,8 +923,6 @@ export default function DashboardPage() {
     },
     { key: 'loanPaidBackVolume', label: t('dashboard.loansReimbursed'), onClick: () => setShowLoanBreakdown(true) },
     { key: 'fxMargin', label: 'FX margin', getValue: () => getFxMarginValue(totals) },
-    { key: 'billPayments', label: t('dashboard.billPayments') },
-    { key: 'cryptoTransactions', label: t('dashboard.cryptoTransactions') },
     { key: 'kycApproved', label: t('dashboard.kycApproved') },
     { key: 'newAccounts', label: t('dashboard.newAccounts') },
     { key: 'activeAccounts', label: t('dashboard.activeAccounts') }
