@@ -43,7 +43,8 @@ const emptyCegawebCatalogRefresh = {
 };
 
 const cegawebCatalogRefreshDefaults = [
-  { matcher: 'CONGO', subscriberNumber: '29178461', subscriptionNumber: '1' },
+  { matcher: 'DRC', subscriberNumber: '23900411173034', subscriptionNumber: '1' },
+  { matcher: 'CONGO', subscriberNumber: '23900411173034', subscriptionNumber: '1' },
   { matcher: 'RWANDA', subscriberNumber: '35385357', subscriptionNumber: '1' }
 ];
 

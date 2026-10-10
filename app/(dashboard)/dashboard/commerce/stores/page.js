@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { DataTable } from '@/components/DataTable';
 import { api } from '@/lib/api';
+import { useLocale } from '@/contexts/LocaleContext';
 
 const VERIFICATION_STATUSES = ['UNVERIFIED', 'VERIFIED', 'REJECTED'];
 const STORE_STATUSES = ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'CLOSED'];
@@ -62,6 +63,26 @@ const getMarketplacePriority = (row) => {
   const numberValue = Number(value);
   return Number.isFinite(numberValue) ? numberValue : 0;
 };
+const formatBytes = (value) => {
+  const numberValue = Number(value);
+  if (!Number.isFinite(numberValue) || numberValue <= 0) return '—';
+  const mb = numberValue / (1024 * 1024);
+  if (mb >= 1) return `${mb.toFixed(mb >= 10 ? 0 : 1)} MB`;
+  const kb = numberValue / 1024;
+  return `${kb.toFixed(kb >= 10 ? 0 : 1)} KB`;
+};
+const formatSeconds = (value) => {
+  const numberValue = Number(value);
+  if (!Number.isFinite(numberValue) || numberValue <= 0) return '—';
+  return `${numberValue}s`;
+};
+const numericDraftValue = (value) => (value === null || value === undefined ? '' : String(value));
+const parseOptionalInteger = (value) => {
+  if (value === '' || value === null || value === undefined) return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return Number.NaN;
+  return Math.trunc(parsed);
+};
 
 const getOwnerLabel = (row) => {
   const account = row?.account || row?.owner || row?.merchant || row?.user;
@@ -95,6 +116,7 @@ const DetailGrid = ({ rows }) => (
 );
 
 export default function CommerceStoresPage() {
+  const { t } = useLocale();
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
@@ -209,7 +231,9 @@ export default function CommerceStoresPage() {
     setPriorityDraft({
       storeId,
       storeName: asText(row?.name, row?.storeName, row?.displayName, `Store ${storeId}`),
-      marketplacePriority: String(getMarketplacePriority(row))
+      marketplacePriority: String(getMarketplacePriority(row)),
+      productVideoMaxBytes: numericDraftValue(row?.productVideoMaxBytes),
+      productVideoMaxDurationSeconds: numericDraftValue(row?.productVideoMaxDurationSeconds)
     });
     setError(null);
     setInfo(null);
@@ -223,12 +247,27 @@ export default function CommerceStoresPage() {
       setError('Marketplace priority must be 0 or a positive number.');
       return;
     }
+    const productVideoMaxBytes = parseOptionalInteger(priorityDraft?.productVideoMaxBytes);
+    if (Number.isNaN(productVideoMaxBytes)) {
+      setError(t('commerceStores.videoMaxBytesInvalid'));
+      return;
+    }
+    const productVideoMaxDurationSeconds = parseOptionalInteger(priorityDraft?.productVideoMaxDurationSeconds);
+    if (Number.isNaN(productVideoMaxDurationSeconds)) {
+      setError(t('commerceStores.videoMaxDurationInvalid'));
+      return;
+    }
     const normalizedPriority = Math.trunc(priority);
     setSavingId(String(storeId));
     setError(null);
     setInfo(null);
     try {
-      const res = await api.commerceStores.updateMarketplace(storeId, { marketplacePriority: normalizedPriority });
+      const payload = {
+        marketplacePriority: normalizedPriority,
+        productVideoMaxBytes,
+        productVideoMaxDurationSeconds
+      };
+      const res = await api.commerceStores.updateMarketplace(storeId, payload);
       setRows((prev) =>
         prev.map((item) => {
           if (String(getStoreId(item)) !== String(storeId)) return item;
@@ -241,7 +280,7 @@ export default function CommerceStoresPage() {
           : prev
       ));
       setPriorityDraft(null);
-      setInfo(normalizedPriority > 0 ? `Marketplace priority set to ${normalizedPriority} for store ${storeId}.` : `Marketplace priority cleared for store ${storeId}.`);
+      setInfo(t('commerceStores.marketplaceSettingsSaved', { storeId }));
     } catch (err) {
       setError(err?.message || 'Failed to update marketplace priority.');
     } finally {
@@ -338,7 +377,7 @@ export default function CommerceStoresPage() {
                 Details
               </button>
               <button type="button" className="btn-neutral btn-sm" onClick={() => openPriorityEditor(row)} disabled={!storeId || savingId === String(storeId)}>
-                Priority
+                {t('commerceStores.marketplaceAction')}
               </button>
               {storeUrl ? (
                 <a
@@ -378,7 +417,7 @@ export default function CommerceStoresPage() {
         }
       }
     ],
-    [openPriorityEditor, restoreStore, savingId, updateVerification]
+    [openPriorityEditor, restoreStore, savingId, t, updateVerification]
   );
 
   const canPrev = page > 0;
@@ -555,6 +594,10 @@ export default function CommerceStoresPage() {
                 { label: 'Visibility', value: asText(detailStore?.visibility) },
                 { label: 'Verification', value: asText(detailStore?.verificationStatus, 'UNVERIFIED') },
                 { label: 'Marketplace priority', value: getMarketplacePriority(detailStore) },
+                { label: 'Product video max bytes override', value: detailStore?.productVideoMaxBytes ? formatBytes(detailStore.productVideoMaxBytes) : 'Default' },
+                { label: 'Effective product video max bytes', value: formatBytes(detailStore?.effectiveProductVideoMaxBytes) },
+                { label: 'Product video max duration override', value: detailStore?.productVideoMaxDurationSeconds ? formatSeconds(detailStore.productVideoMaxDurationSeconds) : 'Default' },
+                { label: 'Effective product video max duration', value: formatSeconds(detailStore?.effectiveProductVideoMaxDurationSeconds) },
                 { label: 'Country', value: asText(detailStore?.countryCode, detailStore?.country) },
                 { label: 'Currency', value: asText(detailStore?.currency) },
                 { label: 'Deleted', value: isDeletedStore(detailStore) ? 'Yes' : 'No' },
@@ -574,10 +617,10 @@ export default function CommerceStoresPage() {
       ) : null}
 
       {priorityDraft ? (
-        <Modal title="Marketplace priority" onClose={() => (!savingId ? setPriorityDraft(null) : null)}>
+        <Modal title={t('commerceStores.marketplaceSettingsTitle')} onClose={() => (!savingId ? setPriorityDraft(null) : null)}>
           <div style={{ display: 'grid', gap: '0.75rem', marginTop: '0.75rem' }}>
             <div style={{ color: 'var(--muted)' }}>
-              Higher priority appears first in marketplace store listings. Use 0 to clear the custom priority.
+              {t('commerceStores.marketplaceSettingsHelp')}
             </div>
             <div style={{ fontWeight: 800 }}>{priorityDraft.storeName}</div>
             <div style={{ display: 'grid', gap: '0.25rem' }}>
@@ -592,12 +635,44 @@ export default function CommerceStoresPage() {
                 disabled={Boolean(savingId)}
               />
             </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ display: 'grid', gap: '0.25rem' }}>
+                <label htmlFor="productVideoMaxBytes">{t('commerceStores.productVideoMaxBytesOverride')}</label>
+                <input
+                  id="productVideoMaxBytes"
+                  type="number"
+                  step={1}
+                  placeholder={t('commerceStores.blankUnchangedPlaceholder')}
+                  value={priorityDraft.productVideoMaxBytes}
+                  onChange={(e) => setPriorityDraft((prev) => ({ ...prev, productVideoMaxBytes: e.target.value }))}
+                  disabled={Boolean(savingId)}
+                />
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                  {t('commerceStores.productVideoMaxBytesHelp')}
+                </div>
+              </div>
+              <div style={{ display: 'grid', gap: '0.25rem' }}>
+                <label htmlFor="productVideoMaxDurationSeconds">{t('commerceStores.productVideoMaxDurationOverride')}</label>
+                <input
+                  id="productVideoMaxDurationSeconds"
+                  type="number"
+                  step={1}
+                  placeholder={t('commerceStores.blankUnchangedPlaceholder')}
+                  value={priorityDraft.productVideoMaxDurationSeconds}
+                  onChange={(e) => setPriorityDraft((prev) => ({ ...prev, productVideoMaxDurationSeconds: e.target.value }))}
+                  disabled={Boolean(savingId)}
+                />
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                  {t('commerceStores.productVideoMaxDurationHelp')}
+                </div>
+              </div>
+            </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
               <button type="button" className="btn-neutral" onClick={() => setPriorityDraft(null)} disabled={Boolean(savingId)}>
                 Cancel
               </button>
               <button type="button" className="btn-primary" onClick={updateMarketplacePriority} disabled={Boolean(savingId)}>
-                {savingId ? 'Saving...' : 'Save priority'}
+                {savingId ? 'Saving...' : t('commerceStores.saveSettings')}
               </button>
             </div>
           </div>
