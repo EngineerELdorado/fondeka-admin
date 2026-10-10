@@ -2582,7 +2582,7 @@ export default function TransactionsPage() {
                 { label: 'Billing FX rate', value: selected?.billingFxRate ?? '—' },
                 { label: 'Customer', value: selected?.customer || '—' },
                 { label: 'Username', value: selected?.username || '—' },
-                { label: 'Customer email', value: selected?.customerEmail || '—' },
+                { label: 'Customer email', value: <CopyableValue value={selected?.customerEmail} label="Customer email" onCopy={copyToClipboard} /> },
                 { label: 'Customer phone', value: selected?.customerPhone || '—' },
                 { label: 'Recipient', value: <CopyableValue value={selected?.recipient} label="Recipient" onCopy={copyToClipboard} /> },
                 ...(fundFinalDestinationValue
@@ -3259,7 +3259,13 @@ export default function TransactionsPage() {
                           <tr key={row.id || idx} style={{ borderTop: '1px solid var(--border)' }}>
                             <td style={{ padding: '0.5rem' }}>{formatDateTime(row.createdAt || row.timestamp || row.time || row.loggedAt || row.updatedAt)}</td>
                             <td style={{ padding: '0.5rem', fontWeight: 600 }}>{row.action || '—'}</td>
-                            <td style={{ padding: '0.5rem' }}>{row.adminName || row.adminEmail || row.adminId || row.actor || '—'}</td>
+                            <td style={{ padding: '0.5rem' }}>
+                              {row.adminEmail ? (
+                                <CopyableValue value={row.adminEmail} label="Admin email" onCopy={copyToClipboard} />
+                              ) : (
+                                row.adminName || row.adminId || row.actor || '—'
+                              )}
+                            </td>
                             <td style={{ padding: '0.5rem' }}>
                               {targetType || targetId ? `${targetType || 'target'} ${targetId ?? ''}`.trim() : '—'}
                             </td>
@@ -3319,7 +3325,13 @@ export default function TransactionsPage() {
                             <tr key={row.id || idx} style={{ borderTop: '1px solid var(--border)' }}>
                               <td style={{ padding: '0.5rem' }}>{formatDateTime(row.createdAt || row.timestamp || row.time || row.loggedAt || row.updatedAt)}</td>
                               <td style={{ padding: '0.5rem', fontWeight: 600 }}>{row.action || '—'}</td>
-                              <td style={{ padding: '0.5rem' }}>{row.adminName || row.adminEmail || row.adminId || row.actor || '—'}</td>
+                              <td style={{ padding: '0.5rem' }}>
+                                {row.adminEmail ? (
+                                  <CopyableValue value={row.adminEmail} label="Admin email" onCopy={copyToClipboard} />
+                                ) : (
+                                  row.adminName || row.adminId || row.actor || '—'
+                                )}
+                              </td>
                               <td style={{ padding: '0.5rem' }}>
                                 {targetType || targetId ? `${targetType || 'target'} ${targetId ?? ''}`.trim() : '—'}
                               </td>

@@ -73,6 +73,19 @@ const getUnpaidRevenueValue = (row) => {
   return 0;
 };
 const getNetProfitValue = (row) => getRevenueValue(row) - getReferralCostValue(row);
+const findAggregateRow = (rows, key, expectedValue) => {
+  const expected = String(expectedValue || '').trim().toUpperCase();
+  if (!expected || !Array.isArray(rows)) return null;
+  return rows.find((row) => String(row?.[key] || row?.name || row?.label || '').trim().toUpperCase() === expected) || null;
+};
+const sumAggregateFxMargin = (rows, key, expectedValues) => {
+  if (!Array.isArray(rows)) return 0;
+  const expected = new Set(expectedValues.map((value) => String(value).trim().toUpperCase()));
+  return rows.reduce((sum, row) => {
+    const value = String(row?.[key] || row?.name || row?.label || '').trim().toUpperCase();
+    return expected.has(value) ? sum + getFxMarginValue(row) : sum;
+  }, 0);
+};
 const CARD_TRANSACTION_ACTIONS = new Set(['FUND_CARD', 'WITHDRAW_FROM_CARD', 'CARD_ONLINE_TRANSACTION']);
 
 const getCardTransactionsValue = (row, dashboardData) => {
@@ -697,6 +710,12 @@ export default function DashboardPage() {
   const totalNetProfit = useMemo(() => totalRevenue - totalReferralCost, [totalRevenue, totalReferralCost]);
 
   const grossProfit = useMemo(() => totalRevenue, [totalRevenue]);
+  const airtimeFxMargin = useMemo(() => {
+    const serviceRow = findAggregateRow(data?.services, 'service', 'AIRTIME_AND_DATA');
+    const serviceFxMargin = getFxMarginValue(serviceRow);
+    if (serviceFxMargin) return serviceFxMargin;
+    return sumAggregateFxMargin(data?.actions, 'action', ['SEND_AIRTIME', 'SEND_DATA_BUNDLES']);
+  }, [data?.actions, data?.services]);
 
   const goToTransactions = (status) => {
     const params = new URLSearchParams();
@@ -922,7 +941,7 @@ export default function DashboardPage() {
       onClick: () => setShowLoanBreakdown(true)
     },
     { key: 'loanPaidBackVolume', label: t('dashboard.loansReimbursed'), onClick: () => setShowLoanBreakdown(true) },
-    { key: 'airtimePurchases', label: t('dashboard.airtimePurchases') },
+    { key: 'airtimePurchases', label: t('dashboard.airtimePurchases'), sub: `FX margin ${formatCurrency(airtimeFxMargin)}` },
     { key: 'billPayments', label: t('dashboard.billPayments') },
     { key: 'cryptoTransactions', label: t('dashboard.cryptoTransactions') },
     { key: 'kycApproved', label: t('dashboard.kycApproved') },
