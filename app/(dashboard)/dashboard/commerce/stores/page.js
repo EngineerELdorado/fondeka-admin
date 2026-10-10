@@ -123,7 +123,7 @@ export default function CommerceStoresPage() {
   const [verificationStatus, setVerificationStatus] = useState('');
   const [status, setStatus] = useState('');
   const [visibility, setVisibility] = useState('');
-  const [deletedState, setDeletedState] = useState('');
+  const [deletedState, setDeletedState] = useState('active');
   const [pageMeta, setPageMeta] = useState({ totalElements: null, totalPages: null });
   const [loading, setLoading] = useState(false);
   const [savingId, setSavingId] = useState('');
