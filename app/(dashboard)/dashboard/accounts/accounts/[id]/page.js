@@ -329,6 +329,16 @@ const formatAmountWithCurrency = (value, currency) => {
   return formatted === '—' || !normalizedCurrency ? formatted : `${formatted} ${normalizedCurrency}`;
 };
 
+const getReferralRewardCurrency = (reward) =>
+  String(
+    reward?.currency ||
+      reward?.pointsCurrency ||
+      reward?.rewardCurrency ||
+      reward?.metadata?.currency ||
+      reward?.metadata?.pointsCurrency ||
+      ''
+  ).trim().toUpperCase();
+
 const normalizeFiatWallets = (wallets) =>
   (Array.isArray(wallets) ? wallets : [])
     .map((wallet) => ({
@@ -902,6 +912,10 @@ const [notificationDataModal, setNotificationDataModal] = useState(null);
   const [accountReferralRewards, setAccountReferralRewards] = useState([]);
   const [accountReferralRewardsLoading, setAccountReferralRewardsLoading] = useState(false);
   const [accountReferralRewardsError, setAccountReferralRewardsError] = useState(null);
+  const [accountReferralRewardsInfo, setAccountReferralRewardsInfo] = useState(null);
+  const [clearReferralRewardCurrency, setClearReferralRewardCurrency] = useState('');
+  const [clearReferralRewardReason, setClearReferralRewardReason] = useState('');
+  const [clearReferralRewardsSaving, setClearReferralRewardsSaving] = useState(false);
   const [loanProducts, setLoanProducts] = useState([]);
   const [loanRates, setLoanRates] = useState([]);
   const [loanRatesLoading, setLoanRatesLoading] = useState(false);
@@ -1290,6 +1304,46 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     } finally {
       setAccountReferralRewardsLoading(false);
     }
+  };
+
+  const clearAccountReferralRewards = () => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) return;
+    const reason = String(clearReferralRewardReason || '').trim();
+    const currency = String(clearReferralRewardCurrency || '').trim().toUpperCase();
+    if (!reason) {
+      setAccountReferralRewardsError('Enter a reason before clearing referral points.');
+      return;
+    }
+    const scope = currency || 'all approved currencies';
+    openConfirm({
+      title: 'Clear referral points',
+      message: `Clear approved referral rewards for account #${resolvedAccountId} (${scope})? This reverses reward rows for ledger history and cannot be undone from the dashboard.`,
+      onConfirm: async () => {
+        setClearReferralRewardsSaving(true);
+        setAccountReferralRewardsError(null);
+        setAccountReferralRewardsInfo(null);
+        try {
+          const payload = { reason };
+          if (currency) payload.currency = currency;
+          const res = await api.referrals.clearAccountRewards(resolvedAccountId, payload);
+          const count = res?.count ?? res?.clearedCount ?? res?.reversedCount;
+          const total = res?.totalPoints ?? res?.clearedPoints ?? res?.reversedPoints;
+          const details = [count !== undefined ? `${count} rewards` : null, total !== undefined ? `${formatAmount(total)} points` : null].filter(Boolean);
+          const message = `Referral points cleared${details.length ? ` (${details.join(', ')})` : ''}.`;
+          setAccountReferralRewardsInfo(message);
+          setClearReferralRewardReason('');
+          pushToast({ tone: 'success', message });
+          await loadAccountReferralRewards(resolvedAccountId);
+        } catch (err) {
+          const message = err.message || 'Failed to clear referral rewards';
+          setAccountReferralRewardsError(message);
+          pushToast({ tone: 'error', message });
+          throw err;
+        } finally {
+          setClearReferralRewardsSaving(false);
+        }
+      }
+    });
   };
 
   const openAccountRewardRuleForm = async (rule = null) => {
@@ -3870,6 +3924,13 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       { total: 0, approved: 0, pending: 0 }
     );
   }, [accountReferralRewards]);
+  const approvedReferralRewardCurrencies = useMemo(() => {
+    const currencies = accountReferralRewards
+      .filter((reward) => String(reward?.status || '').toUpperCase() === 'APPROVED')
+      .map((reward) => getReferralRewardCurrency(reward))
+      .filter(Boolean);
+    return Array.from(new Set(currencies)).sort();
+  }, [accountReferralRewards]);
 
   useEffect(() => {
     if (resolvedAccountId === null || resolvedAccountId === undefined) return;
@@ -4140,19 +4201,24 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         )}
       </details>
 
-      <div className="card" style={{ padding: '1rem', display: 'grid', gap: '0.75rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-            <div style={{ fontWeight: 700 }}>Referral rewards earned</div>
-            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-              Points granted to this account as the inviter. Showing the latest 50 rewards returned by the backend.
+      <details className="card" style={{ padding: '1rem' }}>
+        <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Referral rewards earned</summary>
+        <div style={{ display: 'grid', gap: '0.75rem', marginTop: '0.75rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+              <div style={{ fontWeight: 700 }}>Referral rewards earned</div>
+              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                Points granted to this account as the inviter. Showing the latest 50 rewards returned by the backend.
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button type="button" className="btn-neutral btn-sm" onClick={() => loadAccountReferralRewards(resolvedAccountId)} disabled={accountReferralRewardsLoading}>
+                {accountReferralRewardsLoading ? 'Refreshing…' : 'Refresh'}
+              </button>
             </div>
           </div>
-          <button type="button" className="btn-neutral btn-sm" onClick={() => loadAccountReferralRewards(resolvedAccountId)} disabled={accountReferralRewardsLoading}>
-            {accountReferralRewardsLoading ? 'Refreshing…' : 'Refresh'}
-          </button>
-        </div>
         {accountReferralRewardsError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{accountReferralRewardsError}</div>}
+        {accountReferralRewardsInfo && <div style={{ color: '#15803d', fontWeight: 700 }}>{accountReferralRewardsInfo}</div>}
         <DetailGrid
           rows={[
             { label: 'Approved points', value: formatAmount(accountReferralRewardSummary.approved) },
@@ -4166,6 +4232,52 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             This account was invited by {typeof accountReferralInsight.invitedBy === 'string' ? accountReferralInsight.invitedBy : accountReferralInsight.invitedBy?.email || accountReferralInsight.invitedBy?.accountId || 'another account'}.
           </div>
         )}
+        <div style={{ border: '1px solid var(--border)', borderRadius: '10px', padding: '0.75rem', display: 'grid', gap: '0.65rem' }}>
+          <div>
+            <div style={{ fontWeight: 700 }}>Clear approved referral points</div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Use this after manually paying a bonus. Approved rewards are reversed for audit history; rows are not deleted.
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="clearReferralRewardCurrency">Currency (optional)</label>
+              <input
+                id="clearReferralRewardCurrency"
+                list="clearReferralRewardCurrencyOptions"
+                value={clearReferralRewardCurrency}
+                onChange={(e) => setClearReferralRewardCurrency(e.target.value.toUpperCase())}
+                placeholder="Blank clears all"
+              />
+              {approvedReferralRewardCurrencies.length > 0 && (
+                <datalist id="clearReferralRewardCurrencyOptions">
+                  {approvedReferralRewardCurrencies.map((currency) => (
+                    <option key={currency} value={currency} />
+                  ))}
+                </datalist>
+              )}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <label htmlFor="clearReferralRewardReason">Reason</label>
+              <input
+                id="clearReferralRewardReason"
+                value={clearReferralRewardReason}
+                onChange={(e) => setClearReferralRewardReason(e.target.value)}
+                placeholder="Paid manually by support"
+              />
+            </div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              type="button"
+              className="btn-danger btn-sm"
+              onClick={clearAccountReferralRewards}
+              disabled={clearReferralRewardsSaving || accountReferralRewardSummary.approved <= 0}
+            >
+              {clearReferralRewardsSaving ? 'Clearing…' : 'Clear approved points'}
+            </button>
+          </div>
+        </div>
         {accountReferralRewardsLoading && <div style={{ color: 'var(--muted)' }}>Loading referral rewards…</div>}
         {!accountReferralRewardsLoading && accountReferralRewards.length === 0 && (
           <div style={{ color: 'var(--muted)' }}>No referral rewards found for this account.</div>
@@ -4206,7 +4318,8 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             </table>
           </div>
         )}
-      </div>
+        </div>
+      </details>
 
       <div className="card" style={{ padding: '1rem', display: 'grid', gap: '0.65rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
