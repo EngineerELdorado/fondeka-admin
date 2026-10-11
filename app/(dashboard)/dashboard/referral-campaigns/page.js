@@ -104,6 +104,7 @@ const createEmptyDraft = () => ({
   activationRewardPoints: '0',
   passportBonusPoints: '0',
   markSuspiciousAsPending: true,
+  settleRewardsToWallet: false,
   rewardMode: 'FIXED',
   revenueSharePct: '',
   netAmountSharePct: '',
@@ -356,6 +357,7 @@ const toPayload = (draft) => {
     activationRewardPoints: toIntegerOrZero(draft.activationRewardPoints),
     passportBonusPoints: toIntegerOrZero(draft.passportBonusPoints),
     markSuspiciousAsPending: Boolean(draft.markSuspiciousAsPending),
+    settleRewardsToWallet: Boolean(draft.settleRewardsToWallet),
     eligibilityRules,
     milestoneRules
   };
@@ -886,6 +888,7 @@ export default function ReferralCampaignsPage() {
       activationRewardPoints: toStringOrEmpty(row?.activationRewardPoints ?? 0),
       passportBonusPoints: toStringOrEmpty(row?.passportBonusPoints ?? 0),
       markSuspiciousAsPending: Boolean(row?.markSuspiciousAsPending),
+      settleRewardsToWallet: Boolean(row?.settleRewardsToWallet),
       ...eligibilityDraft,
       milestoneRules: JSON.stringify(row?.milestoneRules ?? {}, null, 2)
     });
@@ -2056,6 +2059,25 @@ export default function ReferralCampaignsPage() {
                   </div>
                 </div>
 
+                <div style={{ display: 'grid', gap: '0.35rem' }}>
+                  <div style={{ fontWeight: 700 }}>Settle rewards to wallet</div>
+                  <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                    If ON, approved rewards are immediately credited to the inviter wallet as a BONUS transaction and marked ISSUED.
+                  </div>
+                  <label htmlFor="settleRewardsToWallet" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <input
+                      id="settleRewardsToWallet"
+                      type="checkbox"
+                      checked={Boolean(draft.settleRewardsToWallet)}
+                      onChange={(e) => setDraft((p) => ({ ...p, settleRewardsToWallet: e.target.checked }))}
+                    />
+                    <span style={{ fontWeight: 700 }}>{draft.settleRewardsToWallet ? 'ON: Credit approved rewards to wallet' : 'OFF: Keep rewards as referral points'}</span>
+                  </label>
+                  <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                    Pending rewards are not auto-settled. Existing campaigns default to OFF.
+                  </div>
+                </div>
+
                 <details open={showRewardOptions} onToggle={(e) => setShowRewardOptions(e.currentTarget.open)}>
                   <summary style={{ cursor: 'pointer', fontWeight: 700 }}>More options</summary>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem', marginTop: '0.65rem' }}>
@@ -2276,6 +2298,7 @@ export default function ReferralCampaignsPage() {
                 <div><strong>Active window:</strong> {formatDateTime(draft.startsAt)} to {formatDateTime(draft.endsAt)}</div>
                 <div><strong>Reward:</strong> {toIntegerOrZero(draft.baseRewardPoints)} points per qualified invitee</div>
                 <div><strong>Moderation:</strong> {draft.markSuspiciousAsPending ? 'Manual' : 'Automatic'}</div>
+                <div><strong>Settlement:</strong> {draft.settleRewardsToWallet ? 'Credit approved rewards to wallet' : 'Keep as referral points'}</div>
                 <div><strong>Progress goal:</strong> {toIntegerOrZero(draft.targetActions)} referrals</div>
                 <div><strong>Reward mode:</strong> {draft.rewardMode}</div>
                 {draft.rewardMode === 'REVENUE_SHARE' && <div><strong>Revenue share:</strong> {draft.revenueSharePct || 0}%</div>}
@@ -2530,6 +2553,7 @@ export default function ReferralCampaignsPage() {
             <div><strong>Activation reward points:</strong> {selected.activationRewardPoints ?? '—'}</div>
             <div><strong>Passport bonus points:</strong> {selected.passportBonusPoints ?? '—'}</div>
             <div><strong>Mark suspicious as pending:</strong> {String(Boolean(selected.markSuspiciousAsPending))}</div>
+            <div><strong>Settle rewards to wallet:</strong> {String(Boolean(selected.settleRewardsToWallet))}</div>
             <div><strong>Eligibility rules:</strong></div>
             <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '12px' }}>
               {JSON.stringify(selected.eligibilityRules ?? {}, null, 2)}

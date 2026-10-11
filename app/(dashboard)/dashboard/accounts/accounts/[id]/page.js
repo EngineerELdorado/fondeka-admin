@@ -916,6 +916,7 @@ const [notificationDataModal, setNotificationDataModal] = useState(null);
   const [clearReferralRewardCurrency, setClearReferralRewardCurrency] = useState('');
   const [clearReferralRewardReason, setClearReferralRewardReason] = useState('');
   const [clearReferralRewardsSaving, setClearReferralRewardsSaving] = useState(false);
+  const [referralRewardActionLoading, setReferralRewardActionLoading] = useState('');
   const [loanProducts, setLoanProducts] = useState([]);
   const [loanRates, setLoanRates] = useState([]);
   const [loanRatesLoading, setLoanRatesLoading] = useState(false);
@@ -1341,6 +1342,44 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           throw err;
         } finally {
           setClearReferralRewardsSaving(false);
+        }
+      }
+    });
+  };
+
+  const reverseAccountReferralReward = (reward) => {
+    const rewardId = reward?.id;
+    if (!rewardId) {
+      setAccountReferralRewardsError('This reward is missing an ID.');
+      return;
+    }
+    const reason = window.prompt('Reason for reversing this referral reward', 'Paid manually by support');
+    if (reason === null) return;
+    const trimmedReason = String(reason || '').trim();
+    if (!trimmedReason) {
+      setAccountReferralRewardsError('Enter a reason before reversing a referral reward.');
+      return;
+    }
+    openConfirm({
+      title: 'Reverse referral reward',
+      message: `Reverse reward #${rewardId}? This soft-deletes it by marking it REVERSED, so it is no longer redeemable but remains in the ledger.`,
+      onConfirm: async () => {
+        setReferralRewardActionLoading(`reverse-${rewardId}`);
+        setAccountReferralRewardsError(null);
+        setAccountReferralRewardsInfo(null);
+        try {
+          await api.referrals.removeReward(rewardId, { reason: trimmedReason });
+          const message = `Referral reward #${rewardId} reversed.`;
+          setAccountReferralRewardsInfo(message);
+          pushToast({ tone: 'success', message });
+          await loadAccountReferralRewards(resolvedAccountId);
+        } catch (err) {
+          const message = err.message || 'Failed to reverse referral reward';
+          setAccountReferralRewardsError(message);
+          pushToast({ tone: 'error', message });
+          throw err;
+        } finally {
+          setReferralRewardActionLoading('');
         }
       }
     });
@@ -4284,36 +4323,50 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         )}
         {!accountReferralRewardsLoading && accountReferralRewards.length > 0 && (
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '860px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '980px' }}>
               <thead>
                 <tr style={{ textAlign: 'left', color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
-                  {['Date', 'Campaign', 'Invitee', 'Event', 'Points', 'Status', 'Suspicious', 'Reason'].map((label) => (
+                  {['Date', 'Campaign', 'Invitee', 'Event', 'Points', 'Status', 'Suspicious', 'Reason', 'Actions'].map((label) => (
                     <th key={label} style={{ padding: '0.45rem' }}>{label}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {accountReferralRewards.map((reward) => (
-                  <tr key={reward.id || `${reward.campaignId}-${reward.inviteeAccountId}-${reward.createdAt}`} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td style={{ padding: '0.45rem' }}>{formatDateTime(reward.createdAt)}</td>
-                    <td style={{ padding: '0.45rem' }}>{reward.campaignName || reward.campaignId || '—'}</td>
-                    <td style={{ padding: '0.45rem' }}>
-                      <div style={{ display: 'grid', gap: '0.1rem' }}>
-                        <span>{reward.inviteeName || '—'}</span>
-                        {reward.inviteeAccountId ? (
-                          <Link href={`/dashboard/accounts/accounts/${encodeURIComponent(reward.inviteeAccountId)}`} style={{ fontSize: '12px' }}>
-                            #{reward.inviteeAccountId}
-                          </Link>
-                        ) : null}
-                      </div>
-                    </td>
-                    <td style={{ padding: '0.45rem' }}>{reward.milestoneEvent || '—'}</td>
-                    <td style={{ padding: '0.45rem', fontWeight: 700 }}>{formatAmount(reward.points)}</td>
-                    <td style={{ padding: '0.45rem' }}><Badge>{reward.status || '—'}</Badge></td>
-                    <td style={{ padding: '0.45rem' }}>{reward.suspicious ? 'Yes' : 'No'}</td>
-                    <td style={{ padding: '0.45rem', maxWidth: '220px' }}>{reward.statusReason || '—'}</td>
-                  </tr>
-                ))}
+                {accountReferralRewards.map((reward) => {
+                  const rewardId = reward.id;
+                  const canReverseReward = rewardId && String(reward.status || '').toUpperCase() === 'APPROVED';
+                  return (
+                    <tr key={rewardId || `${reward.campaignId}-${reward.inviteeAccountId}-${reward.createdAt}`} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '0.45rem' }}>{formatDateTime(reward.createdAt)}</td>
+                      <td style={{ padding: '0.45rem' }}>{reward.campaignName || reward.campaignId || '—'}</td>
+                      <td style={{ padding: '0.45rem' }}>
+                        <div style={{ display: 'grid', gap: '0.1rem' }}>
+                          <span>{reward.inviteeName || '—'}</span>
+                          {reward.inviteeAccountId ? (
+                            <Link href={`/dashboard/accounts/accounts/${encodeURIComponent(reward.inviteeAccountId)}`} style={{ fontSize: '12px' }}>
+                              #{reward.inviteeAccountId}
+                            </Link>
+                          ) : null}
+                        </div>
+                      </td>
+                      <td style={{ padding: '0.45rem' }}>{reward.milestoneEvent || '—'}</td>
+                      <td style={{ padding: '0.45rem', fontWeight: 700 }}>{formatAmountWithCurrency(reward.points, getReferralRewardCurrency(reward))}</td>
+                      <td style={{ padding: '0.45rem' }}><Badge>{reward.status || '—'}</Badge></td>
+                      <td style={{ padding: '0.45rem' }}>{reward.suspicious ? 'Yes' : 'No'}</td>
+                      <td style={{ padding: '0.45rem', maxWidth: '220px' }}>{reward.statusReason || '—'}</td>
+                      <td style={{ padding: '0.45rem' }}>
+                        <button
+                          type="button"
+                          className="btn-danger btn-sm"
+                          onClick={() => reverseAccountReferralReward(reward)}
+                          disabled={!canReverseReward || referralRewardActionLoading === `reverse-${rewardId}`}
+                        >
+                          {referralRewardActionLoading === `reverse-${rewardId}` ? 'Reversing…' : 'Reverse'}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
