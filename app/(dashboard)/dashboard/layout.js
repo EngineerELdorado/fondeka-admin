@@ -32,6 +32,7 @@ const navItems = [
   { href: '/dashboard/esim', labelKey: 'layout.nav.esimsProviders' },
   { href: '/dashboard/esim-products', labelKey: 'layout.nav.esimProducts' },
   { href: '/dashboard/commerce/stores', labelKey: 'layout.nav.commerceStores', label: 'Commerce Stores' },
+  { href: '/dashboard/commerce/marketplace-ranking-policy', labelKey: 'layout.nav.commerceMarketplaceRankingPolicy', label: 'Commerce Marketplace Ranking' },
   { href: '/dashboard/commerce/settlement-policy', labelKey: 'layout.nav.commerceSettlementPolicy', label: 'Commerce Settlement Policy' },
   { href: '/dashboard/commerce/store-creation-fee', labelKey: 'layout.nav.commerceStoreCreationFee', label: 'Commerce Store Creation Fee' },
   { href: '/dashboard/payment-requests', labelKey: 'layout.nav.paymentRequests' },

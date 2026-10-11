@@ -437,6 +437,9 @@ export default function CommerceStoresPage() {
           <Link href="/dashboard/commerce/settlement-policy" className="btn-neutral" style={{ textDecoration: 'none' }}>
             Settlement policy
           </Link>
+          <Link href="/dashboard/commerce/marketplace-ranking-policy" className="btn-neutral" style={{ textDecoration: 'none' }}>
+            Ranking policy
+          </Link>
           <Link href="/dashboard/feature-flags" className="btn-neutral" style={{ textDecoration: 'none' }}>
             Commerce flags
           </Link>
