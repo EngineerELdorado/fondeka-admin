@@ -898,6 +898,10 @@ const [notificationDataModal, setNotificationDataModal] = useState(null);
   const [accountRewardRuleErrors, setAccountRewardRuleErrors] = useState({});
   const [accountRewardRuleSaving, setAccountRewardRuleSaving] = useState(false);
   const [accountRewardRuleActionLoading, setAccountRewardRuleActionLoading] = useState('');
+  const [accountReferralInsight, setAccountReferralInsight] = useState(null);
+  const [accountReferralRewards, setAccountReferralRewards] = useState([]);
+  const [accountReferralRewardsLoading, setAccountReferralRewardsLoading] = useState(false);
+  const [accountReferralRewardsError, setAccountReferralRewardsError] = useState(null);
   const [loanProducts, setLoanProducts] = useState([]);
   const [loanRates, setLoanRates] = useState([]);
   const [loanRatesLoading, setLoanRatesLoading] = useState(false);
@@ -1090,6 +1094,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       await loadEnhancedKycVerificationOverride(targetId, acc);
       await loadWalletActionOverride(targetId);
       await loadAccountRewardRules(targetId);
+      await loadAccountReferralRewards(targetId);
     } catch (err) {
       setError(err.message || 'Failed to load account');
       pushToast({ tone: 'error', message: err.message || 'Failed to load account' });
@@ -1262,6 +1267,28 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       setAccountRewardRulesError(err.message || 'Failed to load referral reward overrides');
     } finally {
       setAccountRewardRulesLoading(false);
+    }
+  };
+
+  const loadAccountReferralRewards = async (id = resolvedAccountId) => {
+    if (id === null || id === undefined || id === '') {
+      setAccountReferralInsight(null);
+      setAccountReferralRewards([]);
+      return;
+    }
+    setAccountReferralRewardsLoading(true);
+    setAccountReferralRewardsError(null);
+    try {
+      const res = await api.referrals.account(id, { rewardPage: 0, rewardSize: 50 });
+      const rewards = Array.isArray(res?.rewards) ? res.rewards : [];
+      setAccountReferralInsight(res || null);
+      setAccountReferralRewards(rewards);
+    } catch (err) {
+      setAccountReferralInsight(null);
+      setAccountReferralRewards([]);
+      setAccountReferralRewardsError(err.message || 'Failed to load referral rewards');
+    } finally {
+      setAccountReferralRewardsLoading(false);
     }
   };
 
@@ -3830,6 +3857,19 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     const num = Number(accountId);
     return Number.isFinite(num) ? num : null;
   }, [account, accountId]);
+  const accountReferralRewardSummary = useMemo(() => {
+    return accountReferralRewards.reduce(
+      (acc, reward) => {
+        const points = Number(reward?.points);
+        const value = Number.isFinite(points) ? points : 0;
+        acc.total += value;
+        if (String(reward?.status || '').toUpperCase() === 'APPROVED') acc.approved += value;
+        if (String(reward?.status || '').toUpperCase() === 'PENDING') acc.pending += value;
+        return acc;
+      },
+      { total: 0, approved: 0, pending: 0 }
+    );
+  }, [accountReferralRewards]);
 
   useEffect(() => {
     if (resolvedAccountId === null || resolvedAccountId === undefined) return;
@@ -4099,6 +4139,74 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         </div>
         )}
       </details>
+
+      <div className="card" style={{ padding: '1rem', display: 'grid', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+            <div style={{ fontWeight: 700 }}>Referral rewards earned</div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Points granted to this account as the inviter. Showing the latest 50 rewards returned by the backend.
+            </div>
+          </div>
+          <button type="button" className="btn-neutral btn-sm" onClick={() => loadAccountReferralRewards(resolvedAccountId)} disabled={accountReferralRewardsLoading}>
+            {accountReferralRewardsLoading ? 'Refreshing…' : 'Refresh'}
+          </button>
+        </div>
+        {accountReferralRewardsError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{accountReferralRewardsError}</div>}
+        <DetailGrid
+          rows={[
+            { label: 'Approved points', value: formatAmount(accountReferralRewardSummary.approved) },
+            { label: 'Pending points', value: formatAmount(accountReferralRewardSummary.pending) },
+            { label: 'Total points in page', value: formatAmount(accountReferralRewardSummary.total) },
+            { label: 'Rewards returned', value: accountReferralRewards.length }
+          ]}
+        />
+        {accountReferralInsight?.invitedBy && (
+          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+            This account was invited by {typeof accountReferralInsight.invitedBy === 'string' ? accountReferralInsight.invitedBy : accountReferralInsight.invitedBy?.email || accountReferralInsight.invitedBy?.accountId || 'another account'}.
+          </div>
+        )}
+        {accountReferralRewardsLoading && <div style={{ color: 'var(--muted)' }}>Loading referral rewards…</div>}
+        {!accountReferralRewardsLoading && accountReferralRewards.length === 0 && (
+          <div style={{ color: 'var(--muted)' }}>No referral rewards found for this account.</div>
+        )}
+        {!accountReferralRewardsLoading && accountReferralRewards.length > 0 && (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '860px' }}>
+              <thead>
+                <tr style={{ textAlign: 'left', color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
+                  {['Date', 'Campaign', 'Invitee', 'Event', 'Points', 'Status', 'Suspicious', 'Reason'].map((label) => (
+                    <th key={label} style={{ padding: '0.45rem' }}>{label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {accountReferralRewards.map((reward) => (
+                  <tr key={reward.id || `${reward.campaignId}-${reward.inviteeAccountId}-${reward.createdAt}`} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <td style={{ padding: '0.45rem' }}>{formatDateTime(reward.createdAt)}</td>
+                    <td style={{ padding: '0.45rem' }}>{reward.campaignName || reward.campaignId || '—'}</td>
+                    <td style={{ padding: '0.45rem' }}>
+                      <div style={{ display: 'grid', gap: '0.1rem' }}>
+                        <span>{reward.inviteeName || '—'}</span>
+                        {reward.inviteeAccountId ? (
+                          <Link href={`/dashboard/accounts/accounts/${encodeURIComponent(reward.inviteeAccountId)}`} style={{ fontSize: '12px' }}>
+                            #{reward.inviteeAccountId}
+                          </Link>
+                        ) : null}
+                      </div>
+                    </td>
+                    <td style={{ padding: '0.45rem' }}>{reward.milestoneEvent || '—'}</td>
+                    <td style={{ padding: '0.45rem', fontWeight: 700 }}>{formatAmount(reward.points)}</td>
+                    <td style={{ padding: '0.45rem' }}><Badge>{reward.status || '—'}</Badge></td>
+                    <td style={{ padding: '0.45rem' }}>{reward.suspicious ? 'Yes' : 'No'}</td>
+                    <td style={{ padding: '0.45rem', maxWidth: '220px' }}>{reward.statusReason || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       <div className="card" style={{ padding: '1rem', display: 'grid', gap: '0.65rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
