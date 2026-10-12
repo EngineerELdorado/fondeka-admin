@@ -613,9 +613,20 @@ export default function PaymentMethodsPage() {
   useEffect(() => {
     const fetchCountries = async () => {
       try {
-        const res = await api.countries.list(new URLSearchParams({ page: '0', size: '200' }));
-        const list = Array.isArray(res) ? res : res?.content || [];
-        setCountries(list || []);
+        const pageSize = 250;
+        const loaded = [];
+        let pageNumber = 0;
+        let totalPages = 1;
+        do {
+          const res = await api.countries.list(new URLSearchParams({ page: String(pageNumber), size: String(pageSize) }));
+          const list = Array.isArray(res) ? res : res?.content || [];
+          loaded.push(...(list || []));
+          totalPages = Array.isArray(res) ? 1 : Number.isFinite(res?.totalPages) ? res.totalPages : pageNumber + 1;
+          pageNumber += 1;
+        } while (pageNumber < totalPages);
+        const unique = Array.from(new Map(loaded.map((country) => [country.id ?? country.alpha2Code ?? country.alpha3Code ?? country.name, country])).values());
+        unique.sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || '')));
+        setCountries(unique);
       } catch {
         // ignore silently
       }
