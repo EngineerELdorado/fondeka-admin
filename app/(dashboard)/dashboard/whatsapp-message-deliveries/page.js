@@ -17,6 +17,7 @@ const hasErrorOptions = [
 const emptyFilters = {
   status: '',
   hasError: '',
+  accountEmail: '',
   metaMessageId: '',
   recipientLast4: '',
   recipientWaId: '',
@@ -197,7 +198,19 @@ export default function WhatsappMessageDeliveriesPage() {
   const columns = useMemo(() => [
     { key: 'createdAt', label: 'Created', render: (row) => formatDateTime(row.createdAt) },
     { key: 'status', label: 'Status', render: (row) => <StatusBadge value={row.status} /> },
+    { key: 'accountEmail', label: 'Account', render: (row) => row.accountEmail || (row.accountId ? `#${row.accountId}` : '-') },
+    { key: 'messageType', label: 'Message type', render: (row) => row.messageType || '-' },
     { key: 'recipientLast4', label: 'Recipient last 4', render: (row) => row.recipientLast4 || '-' },
+    {
+      key: 'messagePreview',
+      label: 'Message',
+      render: (row) => {
+        const preview = row.messageType === 'TEMPLATE'
+          ? [row.templateName, row.templateLanguage].filter(Boolean).join(' · ')
+          : row.messageBody;
+        return <span title={preview || ''}>{truncate(preview, 42)}</span>;
+      }
+    },
     { key: 'metaMessageId', label: 'Meta message ID', render: (row) => <span title={row.metaMessageId || ''}>{truncate(row.metaMessageId, 28)}</span> },
     { key: 'conversationId', label: 'Conversation', render: (row) => <span title={row.conversationId || ''}>{truncate(row.conversationId, 24)}</span> },
     { key: 'pricingCategory', label: 'Pricing' },
@@ -284,6 +297,7 @@ export default function WhatsappMessageDeliveriesPage() {
                   ))}
                 </select>
               </div>
+              {renderTextFilter('accountEmail', 'Account email', 'user@example.com')}
               {renderTextFilter('recipientLast4', 'Recipient last 4', '1234')}
               {renderTextFilter('metaMessageId', 'Meta message ID', 'wamid...')}
               {renderTextFilter('conversationId', 'Conversation ID', 'conversation id')}
@@ -346,6 +360,13 @@ export default function WhatsappMessageDeliveriesPage() {
             rows={[
               { label: 'ID', value: selected?.id },
               { label: 'Status', value: <StatusBadge value={selected?.status} /> },
+              { label: 'Account ID', value: selected?.accountId },
+              { label: 'Account email', value: selected?.accountEmail },
+              { label: 'Message type', value: selected?.messageType },
+              { label: 'Message body', value: selected?.messageBody },
+              { label: 'Template name', value: selected?.templateName },
+              { label: 'Template language', value: selected?.templateLanguage },
+              { label: 'Template parameters', value: selected?.templateParameters },
               { label: 'Meta message ID', value: selected?.metaMessageId },
               { label: 'Recipient WA ID', value: selected?.recipientWaId },
               { label: 'Recipient last 4', value: selected?.recipientLast4 },
