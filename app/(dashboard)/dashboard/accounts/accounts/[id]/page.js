@@ -966,14 +966,19 @@ const [showCredit, setShowCredit] = useState(false);
 const [creditAmount, setCreditAmount] = useState('');
 const [creditCurrency, setCreditCurrency] = useState('');
 const [creditInternalFeeAmount, setCreditInternalFeeAmount] = useState('');
+const [creditCommissionAmount, setCreditCommissionAmount] = useState('');
 const [creditGrossAmount, setCreditGrossAmount] = useState('');
 const [creditNote, setCreditNote] = useState('');
 const [creditAction, setCreditAction] = useState('MANUAL_ADJUSTMENT');
 const [creditError, setCreditError] = useState(null);
 const [creditLoading, setCreditLoading] = useState(false);
+const [creditResult, setCreditResult] = useState(null);
 const [showDebit, setShowDebit] = useState(false);
 const [debitAmount, setDebitAmount] = useState('');
 const [debitCurrency, setDebitCurrency] = useState('');
+const [debitInternalFeeAmount, setDebitInternalFeeAmount] = useState('');
+const [debitCommissionAmount, setDebitCommissionAmount] = useState('');
+const [debitGrossAmount, setDebitGrossAmount] = useState('');
 const [debitNote, setDebitNote] = useState('');
 const [debitAction, setDebitAction] = useState('MANUAL_ADJUSTMENT');
 const [debitError, setDebitError] = useState(null);
@@ -1934,16 +1939,21 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     setCreditAmount('');
     setCreditCurrency(defaultFiatWalletCurrency(fiatWallets));
     setCreditInternalFeeAmount('');
+    setCreditCommissionAmount('');
     setCreditGrossAmount('');
     setCreditNote('');
     setCreditAction('MANUAL_ADJUSTMENT');
     setCreditError(null);
+    setCreditResult(null);
     setShowCredit(true);
   };
 
   const openDebit = () => {
     setDebitAmount('');
     setDebitCurrency(defaultFiatWalletCurrency(fiatWallets));
+    setDebitInternalFeeAmount('');
+    setDebitCommissionAmount('');
+    setDebitGrossAmount('');
     setDebitNote('');
     setDebitAction('MANUAL_ADJUSTMENT');
     setDebitError(null);
@@ -2577,6 +2587,11 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       setCreditError('Internal fee amount must be 0 or more');
       return;
     }
+    const commissionNum = parseOptionalNumber(creditCommissionAmount);
+    if (Number.isNaN(commissionNum) || (commissionNum !== null && commissionNum < 0)) {
+      setCreditError('Commission amount must be 0 or more');
+      return;
+    }
     const grossAmountNum = parseOptionalNumber(creditGrossAmount);
     if (Number.isNaN(grossAmountNum) || (grossAmountNum !== null && grossAmountNum <= 0)) {
       setCreditError('Gross amount must be greater than 0');
@@ -2589,11 +2604,13 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         amount: amountNum,
         currency,
         ...(internalFeeNum !== null ? { internalFeeAmount: internalFeeNum } : {}),
+        ...(commissionNum !== null ? { commissionAmount: commissionNum } : {}),
         ...(grossAmountNum !== null ? { grossAmount: grossAmountNum } : {}),
         ...(creditAction ? { action: creditAction } : {}),
         ...(creditNote?.trim() ? { note: creditNote.trim() } : {})
       };
       const res = await api.accounts.creditWallet(resolvedAccountId, payload);
+      setCreditResult(res || null);
       const actionLabel = creditAction === 'BONUS' ? 'Bonus' : 'Manual adjustment';
       pushToast({
         tone: 'success',
@@ -2603,6 +2620,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       setCreditAmount('');
       setCreditCurrency('');
       setCreditInternalFeeAmount('');
+      setCreditCommissionAmount('');
       setCreditGrossAmount('');
       setCreditNote('');
       setCreditAction('MANUAL_ADJUSTMENT');
@@ -2631,6 +2649,27 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       setDebitError('Select wallet currency');
       return;
     }
+    const parseOptionalNumber = (raw) => {
+      if (raw === '' || raw === null || raw === undefined) return null;
+      const parsed = Number(raw);
+      if (!Number.isFinite(parsed)) return NaN;
+      return parsed;
+    };
+    const internalFeeNum = parseOptionalNumber(debitInternalFeeAmount);
+    if (Number.isNaN(internalFeeNum) || (internalFeeNum !== null && internalFeeNum < 0)) {
+      setDebitError('Internal fee amount must be 0 or more');
+      return;
+    }
+    const commissionNum = parseOptionalNumber(debitCommissionAmount);
+    if (Number.isNaN(commissionNum) || (commissionNum !== null && commissionNum < 0)) {
+      setDebitError('Commission amount must be 0 or more');
+      return;
+    }
+    const grossAmountNum = parseOptionalNumber(debitGrossAmount);
+    if (Number.isNaN(grossAmountNum) || (grossAmountNum !== null && grossAmountNum <= 0)) {
+      setDebitError('Gross amount must be greater than 0');
+      return;
+    }
     const confirmed = window.confirm("This will debit the user's wallet. This action is irreversible.");
     if (!confirmed) return;
 
@@ -2640,6 +2679,9 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       const payload = {
         amount: amountNum,
         currency,
+        ...(internalFeeNum !== null ? { internalFeeAmount: internalFeeNum } : {}),
+        ...(commissionNum !== null ? { commissionAmount: commissionNum } : {}),
+        ...(grossAmountNum !== null ? { grossAmount: grossAmountNum } : {}),
         ...(debitAction ? { action: debitAction } : {}),
         ...(debitNote?.trim() ? { note: debitNote.trim() } : {})
       };
@@ -7152,6 +7194,19 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                   <div style={{ color: 'var(--muted)', fontSize: '12px' }}>internalFeeAmount = our fee.</div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="creditCommissionAmount">Commission amount</label>
+                  <input
+                    id="creditCommissionAmount"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={creditCommissionAmount}
+                    onChange={(e) => setCreditCommissionAmount(e.target.value)}
+                    placeholder="5.00"
+                  />
+                  <div style={{ color: 'var(--muted)', fontSize: '12px' }}>commissionAmount = commission recorded on the transaction.</div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   <label htmlFor="creditGrossAmount">Gross amount</label>
                   <input
                     id="creditGrossAmount"
@@ -7162,11 +7217,31 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                     onChange={(e) => setCreditGrossAmount(e.target.value)}
                     placeholder="120.00"
                   />
-                  <div style={{ color: 'var(--muted)', fontSize: '12px' }}>grossAmount = net + fee. Leave empty to let backend compute.</div>
+                  <div style={{ color: 'var(--muted)', fontSize: '12px' }}>grossAmount = net + fee + commission. Leave empty to let backend compute.</div>
                 </div>
               </div>
             </details>
             {creditError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{creditError}</div>}
+            {creditResult && (
+              <div style={{ border: `1px solid var(--border)`, borderRadius: '12px', padding: '0.65rem' }}>
+                <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Credit created</div>
+                <div style={{ display: 'grid', gap: '0.3rem', fontSize: '12px', color: 'var(--muted)' }}>
+                  <div>Transaction ID: {creditResult?.transactionId ?? '—'}</div>
+                  <div>Reference: {creditResult?.reference ?? '—'}</div>
+                  <div>Amount: {creditResult?.amount ?? '—'}</div>
+                  <div>Internal fee: {creditResult?.internalFeeAmount ?? '—'}</div>
+                  <div>Commission: {creditResult?.commissionAmount ?? '—'}</div>
+                  <div>Gross amount: {creditResult?.grossAmount ?? '—'}</div>
+                </div>
+                {creditResult?.transactionId && (
+                  <div style={{ marginTop: '0.5rem' }}>
+                    <Link href={`/dashboard/transactions?transactionId=${creditResult.transactionId}`} className="btn-neutral">
+                      View transaction
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
             <div className="modal-actions">
               <button type="button" className="btn-neutral" onClick={() => setShowCredit(false)} disabled={creditLoading}>
                 Cancel
@@ -7201,6 +7276,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                   onChange={(e) => setDebitAmount(e.target.value)}
                   placeholder="25.00"
                 />
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>amount = net/business amount.</div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="debitCurrency">Wallet currency</label>
@@ -7222,6 +7298,48 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                 />
               </div>
             </div>
+            <details style={{ border: '1px solid var(--border)', borderRadius: '10px', padding: '0.6rem 0.75rem' }}>
+              <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Advanced (optional)</summary>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem', marginTop: '0.65rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="debitInternalFeeAmount">Internal fee amount</label>
+                  <input
+                    id="debitInternalFeeAmount"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={debitInternalFeeAmount}
+                    onChange={(e) => setDebitInternalFeeAmount(e.target.value)}
+                    placeholder="2.00"
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="debitCommissionAmount">Commission amount</label>
+                  <input
+                    id="debitCommissionAmount"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={debitCommissionAmount}
+                    onChange={(e) => setDebitCommissionAmount(e.target.value)}
+                    placeholder="1.00"
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label htmlFor="debitGrossAmount">Gross amount</label>
+                  <input
+                    id="debitGrossAmount"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={debitGrossAmount}
+                    onChange={(e) => setDebitGrossAmount(e.target.value)}
+                    placeholder="28.00"
+                  />
+                  <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Debit wallet movement. Leave empty for backend to compute amount + fee + commission.</div>
+                </div>
+              </div>
+            </details>
             {debitError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{debitError}</div>}
             {debitResult && (
               <div style={{ border: `1px solid var(--border)`, borderRadius: '12px', padding: '0.65rem' }}>
@@ -7229,6 +7347,10 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                 <div style={{ display: 'grid', gap: '0.3rem', fontSize: '12px', color: 'var(--muted)' }}>
                   <div>Transaction ID: {debitResult?.transactionId ?? '—'}</div>
                   <div>Reference: {debitResult?.reference ?? '—'}</div>
+                  <div>Amount: {debitResult?.amount ?? '—'}</div>
+                  <div>Internal fee: {debitResult?.internalFeeAmount ?? '—'}</div>
+                  <div>Commission: {debitResult?.commissionAmount ?? '—'}</div>
+                  <div>Gross amount: {debitResult?.grossAmount ?? '—'}</div>
                 </div>
                 {debitResult?.transactionId && (
                   <div style={{ marginTop: '0.5rem' }}>
