@@ -665,6 +665,7 @@ export default function TransactionsPage() {
   const [manualReconciliationSubmitLoading, setManualReconciliationSubmitLoading] = useState(false);
   const [showStatusChange, setShowStatusChange] = useState(false);
   const [statusChangeValue, setStatusChangeValue] = useState('');
+  const [statusChangeNextExpirationDate, setStatusChangeNextExpirationDate] = useState('');
   const [statusChangeError, setStatusChangeError] = useState(null);
   const [statusChangeLoading, setStatusChangeLoading] = useState(false);
   const webhookEvents = Array.isArray(selected?.webhookEvents) ? selected.webhookEvents : [];
@@ -1349,6 +1350,7 @@ export default function TransactionsPage() {
     setManualReconciliationSubmitError(null);
     setShowStatusChange(false);
     setStatusChangeValue('');
+    setStatusChangeNextExpirationDate('');
     setStatusChangeError(null);
     setShowInvestigation(false);
     setInvestigation(null);
@@ -1673,6 +1675,9 @@ export default function TransactionsPage() {
 
   const openStatusChange = () => {
     setStatusChangeValue(normalizeEnumKey(selected?.status));
+    setStatusChangeNextExpirationDate(
+      selected?.nextExpirationDate ? String(selected.nextExpirationDate).slice(0, 10) : ''
+    );
     setStatusChangeError(null);
     setShowStatusChange(true);
   };
@@ -1691,12 +1696,26 @@ export default function TransactionsPage() {
     setStatusChangeLoading(true);
     setStatusChangeError(null);
     try {
-      await api.transactions.updateStatus(transactionId, { status: nextStatus });
-      pushToast({ tone: 'success', message: `Transaction status changed to ${nextStatus}.` });
+      const nextExpirationDate = statusChangeNextExpirationDate.trim();
+      const shouldSendNextExpirationDate =
+        normalizedSelectedAction === 'PAY_TV_SUBSCRIPTION' && nextStatus === 'COMPLETED' && Boolean(nextExpirationDate);
+      const payload = {
+        status: nextStatus,
+        ...(shouldSendNextExpirationDate ? { nextExpirationDate } : {})
+      };
+      await api.transactions.updateStatus(transactionId, payload);
+      const message = nextStatus === 'COMPLETED'
+        ? shouldSendNextExpirationDate
+          ? 'Transaction completed and the next expiration date was saved.'
+          : 'Transaction completed.'
+        : `Transaction status changed to ${nextStatus}.`;
+      pushToast({ tone: 'success', message });
       setShowStatusChange(false);
       await refreshSelectedTransaction(transactionId);
     } catch (err) {
-      const message = err?.status === 403 ? 'Only SUPER_ADMIN can change transaction status.' : err?.message || 'Failed to change transaction status';
+      const message = err?.message || (err?.status === 403
+        ? 'Only SUPER_ADMIN can change transaction status.'
+        : 'Failed to change transaction status');
       setStatusChangeError(message);
       pushToast({ tone: 'error', message });
     } finally {
@@ -3700,7 +3719,7 @@ export default function TransactionsPage() {
         <Modal title="Change transaction status" onClose={() => (!statusChangeLoading ? setShowStatusChange(false) : null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ color: 'var(--muted)' }}>
-              This only updates the transaction status enum. It does not notify, fulfill, refund, update receipts, or trigger provider logic.
+              This updates the transaction status and, for completed TV subscriptions, can save the next expiration date. It does not notify, fulfill, refund, update receipts, or trigger provider logic.
             </div>
             {statusChangeError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{statusChangeError}</div>}
             <DetailGrid
@@ -3722,6 +3741,20 @@ export default function TransactionsPage() {
                 ))}
               </select>
             </div>
+            {normalizedSelectedAction === 'PAY_TV_SUBSCRIPTION' && normalizeEnumKey(statusChangeValue) === 'COMPLETED' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="statusChangeNextExpirationDate">Next expiration date (optional)</label>
+                <input
+                  id="statusChangeNextExpirationDate"
+                  type="date"
+                  value={statusChangeNextExpirationDate}
+                  onChange={(e) => setStatusChangeNextExpirationDate(e.target.value)}
+                />
+                <div style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
+                  Set this when known so Fondeka can send subscription renewal reminders.
+                </div>
+              </div>
+            )}
             <div className="modal-actions">
               <button type="button" className="btn-neutral" onClick={() => setShowStatusChange(false)} disabled={statusChangeLoading}>
                 Cancel
