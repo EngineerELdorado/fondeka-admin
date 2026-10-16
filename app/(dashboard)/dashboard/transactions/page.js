@@ -661,6 +661,8 @@ export default function TransactionsPage() {
   const [showManualReconciliationConfirm, setShowManualReconciliationConfirm] = useState(false);
   const [manualReconciliationAction, setManualReconciliationAction] = useState(null);
   const [manualReconciliationMessage, setManualReconciliationMessage] = useState('');
+  const [manualReconciliationNextExpirationDate, setManualReconciliationNextExpirationDate] = useState('');
+  const [manualReconciliationCompletionApplied, setManualReconciliationCompletionApplied] = useState(false);
   const [manualReconciliationSubmitError, setManualReconciliationSubmitError] = useState(null);
   const [manualReconciliationSubmitLoading, setManualReconciliationSubmitLoading] = useState(false);
   const [showStatusChange, setShowStatusChange] = useState(false);
@@ -1347,6 +1349,8 @@ export default function TransactionsPage() {
     setShowManualReconciliationConfirm(false);
     setManualReconciliationAction(null);
     setManualReconciliationMessage('');
+    setManualReconciliationNextExpirationDate('');
+    setManualReconciliationCompletionApplied(false);
     setManualReconciliationSubmitError(null);
     setShowStatusChange(false);
     setStatusChangeValue('');
@@ -1653,6 +1657,12 @@ export default function TransactionsPage() {
     }
     setManualReconciliationSubmitError(null);
     setManualReconciliationMessage('');
+    setManualReconciliationCompletionApplied(false);
+    setManualReconciliationNextExpirationDate(
+      action === 'complete' && selected?.nextExpirationDate
+        ? String(selected.nextExpirationDate).slice(0, 10)
+        : ''
+    );
     setManualReconciliationAction(action);
     setShowManualReconciliationConfirm(true);
   };
@@ -1775,7 +1785,17 @@ export default function TransactionsPage() {
       };
       const requestPayload = Object.keys(payload).length ? payload : undefined;
       if (manualReconciliationAction === 'complete') {
-        await api.transactions.completeManualReconciliation(transactionId, requestPayload);
+        if (!manualReconciliationCompletionApplied) {
+          await api.transactions.completeManualReconciliation(transactionId, requestPayload);
+          setManualReconciliationCompletionApplied(true);
+        }
+        if (normalizedSelectedAction === 'PAY_TV_SUBSCRIPTION') {
+          const nextExpirationDate = manualReconciliationNextExpirationDate.trim();
+          await api.transactions.updateStatus(transactionId, {
+            status: 'COMPLETED',
+            ...(nextExpirationDate ? { nextExpirationDate } : {})
+          });
+        }
       } else if (manualReconciliationAction === 'cancel') {
         await api.transactions.cancelManualReconciliation(transactionId, requestPayload);
       } else {
@@ -1783,7 +1803,9 @@ export default function TransactionsPage() {
       }
       const successMessage =
         manualReconciliationAction === 'complete'
-          ? 'Transaction marked as completed.'
+          ? manualReconciliationNextExpirationDate.trim()
+            ? 'Transaction completed and the next expiration date was saved.'
+            : 'Transaction completed.'
           : manualReconciliationAction === 'cancel'
             ? 'Transaction canceled.'
             : 'Transaction marked as failed.';
@@ -1791,10 +1813,12 @@ export default function TransactionsPage() {
       setShowManualReconciliationConfirm(false);
       setManualReconciliationAction(null);
       setManualReconciliationMessage('');
+      setManualReconciliationNextExpirationDate('');
+      setManualReconciliationCompletionApplied(false);
       await refreshSelectedTransaction(transactionId);
       await loadReceipt(transactionId);
     } catch (err) {
-      const message = normalizeErrorMessage(err, manualReconciliationAction);
+      const message = err?.message || normalizeErrorMessage(err, manualReconciliationAction);
       setManualReconciliationSubmitError(message);
       pushToast({ tone: 'error', message });
     } finally {
@@ -3851,6 +3875,20 @@ export default function TransactionsPage() {
                 rows={4}
               />
             </div>
+            {manualReconciliationAction === 'complete' && normalizedSelectedAction === 'PAY_TV_SUBSCRIPTION' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label htmlFor="manualReconciliationNextExpirationDate">Next expiration date (optional)</label>
+                <input
+                  id="manualReconciliationNextExpirationDate"
+                  type="date"
+                  value={manualReconciliationNextExpirationDate}
+                  onChange={(e) => setManualReconciliationNextExpirationDate(e.target.value)}
+                />
+                <div style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
+                  Set this when known so Fondeka can send subscription renewal reminders.
+                </div>
+              </div>
+            )}
             {manualReconciliationSubmitError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{manualReconciliationSubmitError}</div>}
             <div className="modal-actions">
               <button
