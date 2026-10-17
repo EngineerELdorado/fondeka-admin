@@ -30,6 +30,27 @@ const toPayload = (state) => {
 const formatMaxActiveCardsPerCardHolder = (value) =>
   value === null || value === undefined || Number(value) === 0 ? 'Unlimited' : value;
 
+const formatMoney = (value, currency = 'USD') => {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return value ?? '—';
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency || 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
+  } catch {
+    return `${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency || ''}`.trim();
+  }
+};
+
+const formatFetchedAt = (value) => {
+  if (!value) return '—';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+};
+
 const Modal = ({ title, onClose, children }) => (
   <div className="modal-backdrop">
     <div className="modal-surface">
@@ -66,6 +87,9 @@ export default function CardProvidersPage() {
   const [draft, setDraft] = useState(emptyState);
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [bridgecardBalance, setBridgecardBalance] = useState(null);
+  const [bridgecardBalanceLoading, setBridgecardBalanceLoading] = useState(false);
+  const [bridgecardBalanceError, setBridgecardBalanceError] = useState(null);
 
   const fetchRows = async () => {
     setLoading(true);
@@ -84,9 +108,26 @@ export default function CardProvidersPage() {
     }
   };
 
+  const fetchBridgecardBalance = async () => {
+    setBridgecardBalanceLoading(true);
+    setBridgecardBalanceError(null);
+    try {
+      const res = await api.cardProviders.bridgecardIssuingWalletBalance();
+      setBridgecardBalance(res || null);
+    } catch (err) {
+      setBridgecardBalanceError(err?.message || 'Failed to fetch Bridgecard issuing balance.');
+    } finally {
+      setBridgecardBalanceLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchRows();
   }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    fetchBridgecardBalance();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
@@ -222,6 +263,29 @@ export default function CardProvidersPage() {
         <Link href="/dashboard/cards" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
           ← Cards hub
         </Link>
+      </div>
+
+      <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <div style={{ color: 'var(--muted)', fontSize: '13px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }}>
+            Bridgecard issuing wallet
+          </div>
+          <div style={{ fontSize: '26px', fontWeight: 800 }}>
+            {bridgecardBalanceLoading && !bridgecardBalance
+              ? 'Loading…'
+              : formatMoney(bridgecardBalance?.balance, bridgecardBalance?.currency)}
+          </div>
+          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+            {bridgecardBalanceError
+              ? <span style={{ color: '#b91c1c', fontWeight: 700 }}>{bridgecardBalanceError}</span>
+              : bridgecardBalance
+                ? `Live provider balance · Fetched ${formatFetchedAt(bridgecardBalance.fetchedAt)}`
+                : 'Live balance has not been fetched yet.'}
+          </div>
+        </div>
+        <button type="button" onClick={fetchBridgecardBalance} disabled={bridgecardBalanceLoading} className="btn-primary">
+          {bridgecardBalanceLoading ? 'Refreshing…' : 'Refresh balance'}
+        </button>
       </div>
 
       <div className="card" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
