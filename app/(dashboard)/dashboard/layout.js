@@ -64,6 +64,7 @@ const navItems = [
   { href: '/dashboard/wallet-policy-config', labelKey: 'layout.nav.walletPolicyConfig' },
   { href: '/dashboard/guide-videos', labelKey: 'layout.nav.guideVideos' },
   { href: '/dashboard/registration-policy-config', labelKey: 'layout.nav.registrationPolicyConfig' },
+  { href: '/dashboard/account-phone-verification-policy', labelKey: 'layout.nav.phoneVerificationPolicy' },
   { href: '/dashboard/app-version', labelKey: 'layout.nav.appVersion' },
   { href: '/dashboard/announcements', labelKey: 'layout.nav.announcements' },
   { href: '/dashboard/notification-providers', labelKey: 'layout.nav.notificationProviders' },
