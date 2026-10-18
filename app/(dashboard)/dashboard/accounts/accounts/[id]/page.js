@@ -755,6 +755,7 @@ const [trustedDeviceSaving, setTrustedDeviceSaving] = useState(false);
   const [appVersionInfo, setAppVersionInfo] = useState(null);
   const [phoneNumberDraft, setPhoneNumberDraft] = useState('');
   const [phoneSaving, setPhoneSaving] = useState(false);
+  const [phoneVerificationStatusSaving, setPhoneVerificationStatusSaving] = useState(false);
   const [phoneError, setPhoneError] = useState(null);
   const [phoneInfo, setPhoneInfo] = useState(null);
   const [phoneVerificationOverride, setPhoneVerificationOverride] = useState(null);
@@ -2320,8 +2321,8 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     setPhoneError(null);
     setPhoneInfo(null);
     try {
-      await api.accounts.updatePhone(resolvedAccountId, { phoneNumber: trimmed });
-      setAccount((prev) => (prev ? { ...prev, phoneNumber: trimmed, phone: trimmed } : prev));
+      const updated = await api.accounts.updatePhone(resolvedAccountId, { phoneNumber: trimmed });
+      setAccount((prev) => (prev ? { ...prev, ...(updated || {}), phoneNumber: trimmed, phone: trimmed } : updated || prev));
       setPhoneInfo(`Phone number updated to ${trimmed}.`);
       pushToast({ tone: 'success', message: `Account phone updated to ${trimmed}` });
     } catch (err) {
@@ -2330,6 +2331,36 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       pushToast({ tone: 'error', message });
     } finally {
       setPhoneSaving(false);
+    }
+  };
+
+  const updatePhoneVerificationStatus = async (verified) => {
+    if (resolvedAccountId === null || resolvedAccountId === undefined) {
+      pushToast({ tone: 'error', message: 'No account loaded' });
+      return;
+    }
+    const actionLabel = verified ? 'mark this phone number as verified' : 'mark this phone number as unverified';
+    const consequence = verified
+      ? 'This clears the phone-verification requirement and bypasses automatic enforcement while the phone remains verified.'
+      : 'Automatic enforcement may require verification again if this account meets the configured policy.';
+    if (!window.confirm(`Are you sure you want to ${actionLabel}? ${consequence}`)) return;
+
+    setPhoneVerificationStatusSaving(true);
+    setPhoneError(null);
+    setPhoneInfo(null);
+    try {
+      const updated = await api.accounts.updatePhoneVerification(resolvedAccountId, { verified });
+      setAccount((prev) => (prev ? { ...prev, ...(updated || {}), phoneVerified: verified } : updated || prev));
+      const message = verified ? 'Phone number marked as verified.' : 'Phone number marked as unverified.';
+      setPhoneInfo(message);
+      pushToast({ tone: 'success', message });
+      await loadPhoneVerificationOverride(resolvedAccountId, updated || account);
+    } catch (err) {
+      const message = err?.message || 'Failed to update phone verification status';
+      setPhoneError(message);
+      pushToast({ tone: 'error', message });
+    } finally {
+      setPhoneVerificationStatusSaving(false);
     }
   };
 
@@ -4710,6 +4741,51 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           >
             {phoneSaving ? 'Saving…' : 'Update phone'}
           </button>
+        </div>
+
+        <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+              <div style={{ fontWeight: 800 }}>Phone verification status</div>
+              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                Current status: <strong style={{ color: 'var(--text)' }}>
+                  {Boolean(accountView?.phoneVerified ?? accountView?.phoneNumberVerified) ? 'Verified' : 'Unverified'}
+                </strong>
+              </div>
+              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                A verified phone bypasses automatic enforcement. Marking it unverified allows the policy to require verification again when the account is eligible.
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn-success btn-sm"
+                onClick={() => updatePhoneVerificationStatus(true)}
+                disabled={
+                  phoneVerificationStatusSaving ||
+                  resolvedAccountId === null ||
+                  resolvedAccountId === undefined ||
+                  !String(accountView?.phoneNumber || accountView?.phone || '').trim() ||
+                  Boolean(accountView?.phoneVerified ?? accountView?.phoneNumberVerified)
+                }
+              >
+                {phoneVerificationStatusSaving ? 'Saving…' : 'Mark as verified'}
+              </button>
+              <button
+                type="button"
+                className="btn-danger btn-sm"
+                onClick={() => updatePhoneVerificationStatus(false)}
+                disabled={
+                  phoneVerificationStatusSaving ||
+                  resolvedAccountId === null ||
+                  resolvedAccountId === undefined ||
+                  !Boolean(accountView?.phoneVerified ?? accountView?.phoneNumberVerified)
+                }
+              >
+                {phoneVerificationStatusSaving ? 'Saving…' : 'Mark as unverified'}
+              </button>
+            </div>
+          </div>
         </div>
 
         <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
