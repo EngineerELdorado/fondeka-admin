@@ -185,6 +185,13 @@ const formatAmountRange = (minAmount, maxAmount) => {
 
 const resolveAction = (state) => (state.action === '__custom' ? state.customAction : state.action);
 const isPaymentMethodTypeScope = (state) => state.scopeType === 'payment_method_type_action' || state.scopeType === 'payment_method_type_fallback';
+const hasExactPaymentRoute = (row) => row?.paymentMethodPaymentProviderId !== null
+  && row?.paymentMethodPaymentProviderId !== undefined
+  && row?.paymentMethodPaymentProviderId !== '';
+const hasUnsupportedMixedPaymentMethodTypeScope = (row) => Boolean(row?.paymentMethodType)
+  && !hasExactPaymentRoute(row)
+  && [row?.paymentProviderId, row?.billProductBillProviderId, row?.billProviderId, row?.countryId, row?.fromCryptoProductId, row?.toCryptoProductId]
+    .some((value) => value !== null && value !== undefined && value !== '');
 const normalizeFeeContext = (value) => {
   const normalized = String(value || '').trim().toUpperCase();
   return feeContextOptions.includes(normalized) ? normalized : '';
@@ -244,6 +251,13 @@ const formatFeeModeLabel = (value) => {
 
 const toPayload = (state) => {
   const paymentMethodTypeScope = isPaymentMethodTypeScope(state);
+  const hasRouteOrCountryScope = [
+    state.paymentMethodPaymentProviderId,
+    state.billProductBillProviderId,
+    state.countryId,
+    state.fromCryptoProductId,
+    state.toCryptoProductId
+  ].some((value) => value !== '' && value !== null && value !== undefined);
   const fees = {
     overrideSpecificFees: Boolean(state.overrideSpecificFees),
     providerFeePercentage: state.providerFeePercentage === '' ? null : Number(state.providerFeePercentage),
@@ -258,23 +272,17 @@ const toPayload = (state) => {
     amountRangeCurrency: state.amountRangeCurrency ? String(state.amountRangeCurrency).trim().toUpperCase() : null,
     feeApplicationMode: state.feeApplicationMode || null
   };
-  if (paymentMethodTypeScope) {
-    return {
-      paymentMethodType: state.paymentMethodType || null,
-      ...(state.scopeType === 'payment_method_type_action' ? { action: resolveAction(state) || null } : {}),
-      feeContext: state.feeContext || null,
-      ...fees
-    };
-  }
   return {
-    paymentMethodType: null,
+    // The API derives paymentMethodType for exact route/country scopes and
+    // currently rejects receiving that descriptive response field back.
+    ...(!hasRouteOrCountryScope ? { paymentMethodType: paymentMethodTypeScope ? state.paymentMethodType || null : null } : {}),
     paymentProviderId: state.paymentProviderId === '' ? null : Number(state.paymentProviderId),
     billProviderId: state.billProviderId === '' ? null : Number(state.billProviderId),
     paymentMethodPaymentProviderId: state.paymentMethodPaymentProviderId === '' ? null : Number(state.paymentMethodPaymentProviderId),
     billProductBillProviderId: state.billProductBillProviderId === '' ? null : Number(state.billProductBillProviderId),
     countryId: state.countryId === '' ? null : Number(state.countryId),
     service: state.service || null,
-    action: resolveAction(state) || null,
+    action: state.scopeType === 'payment_method_type_fallback' ? null : resolveAction(state) || null,
     feeContext: state.feeContext || null,
     fromCryptoProductId: state.fromCryptoProductId === '' ? null : Number(state.fromCryptoProductId),
     toCryptoProductId: state.toCryptoProductId === '' ? null : Number(state.toCryptoProductId),
@@ -340,13 +348,46 @@ const FilterChip = ({ label, onClear }) => (
 );
 
 const resolveScopeType = (row) => {
-  if (row?.paymentMethodType && row?.action) return 'payment_method_type_action';
-  if (row?.paymentMethodType) return 'payment_method_type_fallback';
+  // A payment route response can include a descriptive paymentMethodType derived
+  // from that route. The exact route must win when reconstructing edit state.
   if (row?.paymentMethodPaymentProviderId || row?.billProductBillProviderId || row?.fromCryptoProductId || row?.toCryptoProductId) return 'specific_route';
   if (row?.paymentProviderId) return 'provider_fallback';
   if (row?.billProviderId) return 'bill_provider_fallback';
+  if (row?.paymentMethodType && row?.action) return 'payment_method_type_action';
+  if (row?.paymentMethodType) return 'payment_method_type_fallback';
   if (row?.action || row?.feeContext || row?.service || row?.countryId) return 'global_action_fallback';
   return 'global_default';
+};
+
+const toEditState = (row) => {
+  const actionChoice = actionOptions.includes(row.action) ? row.action : row.action ? '__custom' : '';
+  return {
+    scopeType: resolveScopeType(row),
+    paymentMethodType: row.paymentMethodType ?? '',
+    paymentProviderId: normalizeOptionalIdForForm(row.paymentProviderId),
+    billProviderId: normalizeOptionalIdForForm(row.billProviderId),
+    paymentMethodPaymentProviderId: normalizeOptionalIdForForm(row.paymentMethodPaymentProviderId),
+    billProductBillProviderId: normalizeOptionalIdForForm(row.billProductBillProviderId),
+    countryId: normalizeOptionalIdForForm(row.countryId),
+    service: row.service ?? '',
+    action: actionChoice,
+    customAction: actionChoice === '__custom' ? row.action || '' : '',
+    feeContext: row.feeContext || '',
+    overrideSpecificFees: Boolean(row.overrideSpecificFees),
+    providerFeePercentage: row.providerFeePercentage ?? '',
+    providerFlatFee: row.providerFlatFee ?? '',
+    providerFlatFeeCurrency: row.providerFlatFeeCurrency || '',
+    providerMinFee: row.providerMinFee ?? '',
+    providerMinFeeCurrency: row.providerMinFeeCurrency || '',
+    ourFeePercentage: row.ourFeePercentage ?? '',
+    ourFlatFee: row.ourFlatFee ?? '',
+    minAmount: row.minAmount ?? '',
+    maxAmount: row.maxAmount ?? '',
+    amountRangeCurrency: row.amountRangeCurrency || '',
+    feeApplicationMode: row.feeApplicationMode || '',
+    fromCryptoProductId: normalizeOptionalIdForForm(row.fromCryptoProductId),
+    toCryptoProductId: normalizeOptionalIdForForm(row.toCryptoProductId)
+  };
 };
 
 const scopeTypeLabel = (value) => scopeTypeOptions.find((option) => option.value === value)?.label || 'Specific route';
@@ -369,6 +410,7 @@ export default function FeeConfigsPage() {
   const [info, setInfo] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  const [editLoadingId, setEditLoadingId] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
   const [showPawapaySync, setShowPawapaySync] = useState(false);
   const [showBulkProviderUpdate, setShowBulkProviderUpdate] = useState(false);
@@ -748,8 +790,8 @@ export default function FeeConfigsPage() {
             <button type="button" onClick={() => openDetail(row)} className="btn-neutral">
               View
             </button>
-            <button type="button" onClick={() => openEdit(row)} className="btn-neutral">
-              Edit
+            <button type="button" onClick={() => openEdit(row)} className="btn-neutral" disabled={editLoadingId !== null}>
+              {Number(editLoadingId) === Number(row.id) ? 'Loading…' : 'Edit'}
             </button>
             <button type="button" onClick={() => setConfirmDelete(row)} className="btn-danger">
               Delete
@@ -758,7 +800,7 @@ export default function FeeConfigsPage() {
         )
       }
     ],
-    [getCountryLabel, getPaymentProviderLabel, getBillProviderLabel, getPmpLabel, getBpbpLabel, getCryptoProductLabel]
+    [editLoadingId, getCountryLabel, getPaymentProviderLabel, getBillProviderLabel, getPmpLabel, getBpbpLabel, getCryptoProductLabel]
   );
 
   const openCreate = () => {
@@ -768,39 +810,25 @@ export default function FeeConfigsPage() {
     setError(null);
   };
 
-  const openEdit = (row) => {
-    const actionChoice = actionOptions.includes(row.action) ? row.action : row.action ? '__custom' : '';
-    setSelected(row);
-    setDraft({
-      scopeType: resolveScopeType(row),
-      paymentMethodType: row.paymentMethodType ?? '',
-      paymentProviderId: normalizeOptionalIdForForm(row.paymentProviderId),
-      billProviderId: normalizeOptionalIdForForm(row.billProviderId),
-      paymentMethodPaymentProviderId: normalizeOptionalIdForForm(row.paymentMethodPaymentProviderId),
-      billProductBillProviderId: normalizeOptionalIdForForm(row.billProductBillProviderId),
-      countryId: row.countryId ?? '',
-      service: row.service ?? '',
-      action: actionChoice,
-      customAction: actionChoice === '__custom' ? row.action || '' : '',
-      feeContext: row.feeContext || '',
-      overrideSpecificFees: Boolean(row.overrideSpecificFees),
-      providerFeePercentage: row.providerFeePercentage ?? '',
-      providerFlatFee: row.providerFlatFee ?? '',
-      providerFlatFeeCurrency: row.providerFlatFeeCurrency || '',
-      providerMinFee: row.providerMinFee ?? '',
-      providerMinFeeCurrency: row.providerMinFeeCurrency || 'USD',
-      ourFeePercentage: row.ourFeePercentage ?? '',
-      ourFlatFee: row.ourFlatFee ?? '',
-      minAmount: row.minAmount ?? '',
-      maxAmount: row.maxAmount ?? '',
-      amountRangeCurrency: row.amountRangeCurrency || '',
-      feeApplicationMode: row.feeApplicationMode || '',
-      fromCryptoProductId: normalizeOptionalIdForForm(row.fromCryptoProductId),
-      toCryptoProductId: normalizeOptionalIdForForm(row.toCryptoProductId)
-    });
-    setShowEdit(true);
+  const openEdit = async (row) => {
     setInfo(null);
     setError(null);
+    setEditLoadingId(row.id);
+    try {
+      const current = await api.feeConfigs.get(row.id);
+      if (hasUnsupportedMixedPaymentMethodTypeScope(current)) {
+        throw new Error(
+          `Fee config ${row.id} combines payment method type with provider or country scope and cannot be safely updated under the current backend contract.`
+        );
+      }
+      setSelected(current);
+      setDraft(toEditState(current));
+      setShowEdit(true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setEditLoadingId(null);
+    }
   };
 
   const openDetail = (row) => {
