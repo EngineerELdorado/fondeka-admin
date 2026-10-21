@@ -376,6 +376,11 @@ export default function CommerceStoresPage() {
               <button type="button" className="btn-neutral btn-sm" onClick={() => setDetailStore(row)}>
                 Details
               </button>
+              {storeId ? (
+                <Link href={`/dashboard/commerce/stores/${encodeURIComponent(storeId)}`} className="btn-neutral btn-sm" style={{ textDecoration: 'none' }}>
+                  POS reports
+                </Link>
+              ) : null}
               <button type="button" className="btn-neutral btn-sm" onClick={() => openPriorityEditor(row)} disabled={!storeId || savingId === String(storeId)}>
                 {t('commerceStores.marketplaceAction')}
               </button>
