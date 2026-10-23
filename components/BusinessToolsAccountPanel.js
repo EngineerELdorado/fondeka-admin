@@ -41,6 +41,7 @@ export function BusinessToolsAccountPanel({ accountId }) {
   const [enforcement, setEnforcement] = useState({ global: null, override: null });
   const [expandedPurchases, setExpandedPurchases] = useState(new Set());
   const [expandedHistory, setExpandedHistory] = useState(new Set());
+  const [sectionExpanded, setSectionExpanded] = useState(false);
   const [mutation, setMutation] = useState(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -99,18 +100,24 @@ export function BusinessToolsAccountPanel({ accountId }) {
     purchase,
     planCode: access?.plan?.code || 'BUSINESS_TOOLS_LIFETIME',
     validUntil: '',
-    reason: '',
-    acknowledged: false
+    reason: type === 'requirePayment' ? 'Require Business Tools payment' : '',
+    acknowledged: false,
+    error: ''
   });
 
   const submitMutation = async () => {
     const reason = mutation?.reason?.trim() || '';
-    if (reason.length < 3) return setError('Enter a meaningful audit reason.');
-    if (reason.length > 1000) return setError('Reason must be 1,000 characters or fewer.');
-    if (!mutation?.acknowledged) return setError('Confirm that you reviewed the account and mutation effects.');
-    if (mutation.type === 'grant' && mutation.validUntil && new Date(mutation.validUntil).getTime() <= Date.now()) return setError('Grant expiry must be in the future.');
+    const showMutationError = (message) => {
+      setError(message);
+      setMutation((previous) => previous ? { ...previous, error: message } : previous);
+    };
+    if (reason.length < 3) return showMutationError('Enter a meaningful audit reason.');
+    if (reason.length > 1000) return showMutationError('Reason must be 1,000 characters or fewer.');
+    if (mutation.type !== 'requirePayment' && !mutation?.acknowledged) return showMutationError('Confirm that you reviewed the account and mutation effects.');
+    if (mutation.type === 'grant' && mutation.validUntil && new Date(mutation.validUntil).getTime() <= Date.now()) return showMutationError('Grant expiry must be in the future.');
     setSaving(true);
     setError(null);
+    setMutation((previous) => previous ? { ...previous, error: '' } : previous);
     setInfo(null);
     try {
       if (mutation.type === 'grant') {
@@ -129,7 +136,9 @@ export function BusinessToolsAccountPanel({ accountId }) {
       setMutation(null);
       await refreshAll();
     } catch (err) {
-      setError(`${err?.message || 'Business Tools operation failed.'} The operation was not retried automatically.`);
+      const message = `${err?.message || 'Business Tools operation failed.'} The operation was not retried automatically.`;
+      setError(message);
+      setMutation((previous) => previous ? { ...previous, error: message } : previous);
     } finally { setSaving(false); }
   };
 
@@ -143,8 +152,9 @@ export function BusinessToolsAccountPanel({ accountId }) {
     <section id="business-tools-access" className="card" style={{ padding: '1rem', display: 'grid', gap: '0.9rem', scrollMarginTop: '1rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem', flexWrap: 'wrap' }}>
         <div><div style={{ fontWeight: 800, fontSize: '18px' }}>Business Tools — Access and payments</div><div style={{ color: 'var(--muted)', fontSize: '13px' }}>Account entitlement is separate from Business status/KYB, store verification and payment outcomes.</div></div>
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}><Link href="/dashboard/businesses/plans" className="btn-neutral btn-sm" style={{ textDecoration: 'none' }}>Plans</Link><Link href="/dashboard/feature-flags" className="btn-neutral btn-sm" style={{ textDecoration: 'none' }}>Rollout flag</Link><button type="button" className="btn-neutral btn-sm" disabled={loading} onClick={refreshAll}>{loading ? 'Refreshing…' : 'Refresh'}</button></div>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>{sectionExpanded ? <><Link href="/dashboard/businesses/plans" className="btn-neutral btn-sm" style={{ textDecoration: 'none' }}>Plans</Link><Link href="/dashboard/feature-flags" className="btn-neutral btn-sm" style={{ textDecoration: 'none' }}>Rollout flag</Link><button type="button" className="btn-neutral btn-sm" disabled={loading} onClick={refreshAll}>{loading ? 'Refreshing…' : 'Refresh'}</button></> : null}<button type="button" className="btn-neutral btn-sm" onClick={() => setSectionExpanded((value) => !value)}>{sectionExpanded ? 'Collapse' : 'Expand'}</button></div>
       </div>
+      {sectionExpanded ? <>
       {error ? <div className="alert alert-error">{error}</div> : null}{info ? <div className="alert alert-success">{info}</div> : null}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
         <div style={{ padding: '0.7rem', border: '1px solid var(--border)', borderRadius: '10px' }}><div style={{ color: 'var(--muted)', fontSize: '12px' }}>Entitlement decision</div><span style={badgeStyle(Boolean(access?.accessGranted))}>{access?.accessGranted ? 'Access granted' : 'Access not granted'}</span><div style={{ fontSize: '12px', marginTop: '0.25rem' }}>{formatEnum(access?.status)}</div></div>
@@ -170,7 +180,8 @@ export function BusinessToolsAccountPanel({ accountId }) {
 
       <div style={{ display: 'grid', gap: '0.55rem' }}><strong>Account Business Tools history</strong>{history.length === 0 ? <div style={{ color: 'var(--muted)' }}>No history events.</div> : history.map((event, index) => { const key = event.id || `${event.createdAt}-${index}`; return <div key={key} style={{ padding: '0.65rem', border: '1px solid var(--border)', borderRadius: '10px' }}><div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap' }}><div><strong>{formatEnum(event.action)}</strong><div style={{ color: 'var(--muted)', fontSize: '12px' }}>{formatDateTime(event.createdAt)} · Actor: {event.actorReference || 'System / worker'}{event.purchaseId ? ` · Purchase ${event.purchaseId}` : ''}</div>{event.reason ? <div style={{ marginTop: '0.2rem' }}>{event.reason}</div> : null}</div><button type="button" className="btn-neutral btn-sm" onClick={() => setExpandedHistory((previous) => { const next = new Set(previous); next.has(key) ? next.delete(key) : next.add(key); return next; })}>{expandedHistory.has(key) ? 'Hide details' : 'Details'}</button></div>{expandedHistory.has(key) ? <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: '11px' }}>{JSON.stringify(event.details || {}, null, 2)}</pre> : null}</div>; })}<div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', alignItems: 'center' }}><button type="button" className="btn-neutral btn-sm" disabled={historyPage === 0} onClick={() => setHistoryPage((p) => p - 1)}>←</button><span>Page {historyPage + 1}{historyPages !== null ? ` of ${Math.max(1, historyPages)}` : ''}</span><button type="button" className="btn-neutral btn-sm" disabled={historyPages !== null ? historyPage + 1 >= historyPages : history.length < 10} onClick={() => setHistoryPage((p) => p + 1)}>→</button></div></div>
 
-      {mutation ? <Modal title={mutation.type === 'grant' ? 'Confirm access grant' : mutation.type === 'revoke' ? 'Confirm entitlement revocation' : mutation.type === 'requirePayment' ? 'Require Business Tools payment' : 'Confirm payment reconciliation'} onClose={() => saving ? null : setMutation(null)}><div style={{ display: 'grid', gap: '0.75rem' }}><div style={{ padding: '0.7rem', background: '#FFF7ED', color: '#92400E', borderRadius: '10px', fontSize: '13px' }}>{mutation.type === 'grant' ? 'This creates an ADMIN grant and can replace purchase-backed provenance. It does not create a purchase, payment or refund.' : mutation.type === 'revoke' ? `This is not an account suspension, refund or proactive ban. ${pending ? 'A pending payment exists and may grant access later.' : 'It preserves business data and credentials.'}` : mutation.type === 'requirePayment' ? 'This account will lose Business Tools access until a Business Tools payment completes. Previous store-creation payments will not unlock it. No automatic charge or refund will be made. Existing business data will be kept.' : 'This checks verified local transaction state. It does not retry or resubmit a provider charge.'}</div>{mutation.type === 'grant' ? <><label style={{ display: 'grid', gap: '0.25rem' }}><span>Plan code</span><input value={mutation.planCode} onChange={(e) => setMutation((p) => ({ ...p, planCode: e.target.value }))} /></label><label style={{ display: 'grid', gap: '0.25rem' }}><span>Valid until (optional, local time)</span><input type="datetime-local" value={mutation.validUntil} onChange={(e) => setMutation((p) => ({ ...p, validUntil: e.target.value }))} /></label></> : null}<label style={{ display: 'grid', gap: '0.25rem' }}><span>Required audit reason</span><textarea rows={3} maxLength={1000} value={mutation.reason} onChange={(e) => setMutation((p) => ({ ...p, reason: e.target.value }))} /></label><label style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}><input type="checkbox" checked={mutation.acknowledged} onChange={(e) => setMutation((p) => ({ ...p, acknowledged: e.target.checked }))} /><span>I confirmed account {accountId}, reviewed access/history{pending ? ' and the pending payment' : ''}, and understand this operation is separate from Business/KYB status.</span></label><div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}><button type="button" className="btn-neutral" disabled={saving} onClick={() => setMutation(null)}>Cancel</button><button type="button" className={mutation.type === 'revoke' || mutation.type === 'requirePayment' ? 'btn-danger' : 'btn-primary'} disabled={saving} onClick={submitMutation}>{saving ? 'Submitting…' : mutation.type === 'reconcile' ? 'Reconcile payment status' : mutation.type === 'requirePayment' ? 'Require payment' : 'Confirm'}</button></div></div></Modal> : null}
+      {mutation ? <Modal title={mutation.type === 'grant' ? 'Confirm access grant' : mutation.type === 'revoke' ? 'Confirm entitlement revocation' : mutation.type === 'requirePayment' ? 'Require Business Tools payment' : 'Confirm payment reconciliation'} onClose={() => saving ? null : setMutation(null)}><div style={{ display: 'grid', gap: '0.75rem' }}><div style={{ padding: '0.7rem', background: '#FFF7ED', color: '#92400E', borderRadius: '10px', fontSize: '13px' }}>{mutation.type === 'grant' ? 'This creates an ADMIN grant and can replace purchase-backed provenance. It does not create a purchase, payment or refund.' : mutation.type === 'revoke' ? `This is not an account suspension, refund or proactive ban. ${pending ? 'A pending payment exists and may grant access later.' : 'It preserves business data and credentials.'}` : mutation.type === 'requirePayment' ? 'This account will lose Business Tools access until a Business Tools payment completes. Previous store-creation payments will not unlock it. No automatic charge or refund will be made. Existing business data will be kept.' : 'This checks verified local transaction state. It does not retry or resubmit a provider charge.'}</div>{mutation.error ? <div className="alert alert-error">{mutation.error}</div> : null}{mutation.type === 'grant' ? <><label style={{ display: 'grid', gap: '0.25rem' }}><span>Plan code</span><input value={mutation.planCode} onChange={(e) => setMutation((p) => ({ ...p, planCode: e.target.value, error: '' }))} /></label><label style={{ display: 'grid', gap: '0.25rem' }}><span>Valid until (optional, local time)</span><input type="datetime-local" value={mutation.validUntil} onChange={(e) => setMutation((p) => ({ ...p, validUntil: e.target.value, error: '' }))} /></label></> : null}<label style={{ display: 'grid', gap: '0.25rem' }}><span>Required audit reason</span><textarea rows={3} maxLength={1000} value={mutation.reason} onChange={(e) => setMutation((p) => ({ ...p, reason: e.target.value, error: '' }))} /></label>{mutation.type !== 'requirePayment' ? <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}><input type="checkbox" checked={mutation.acknowledged} onChange={(e) => setMutation((p) => ({ ...p, acknowledged: e.target.checked, error: '' }))} /><span>I confirmed account {accountId}, reviewed access/history{pending ? ' and the pending payment' : ''}, and understand this operation is separate from Business/KYB status.</span></label> : <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Clicking Require payment confirms this action for account {accountId}.</div>}<div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}><button type="button" className="btn-neutral" disabled={saving} onClick={() => setMutation(null)}>Cancel</button><button type="button" className={mutation.type === 'revoke' || mutation.type === 'requirePayment' ? 'btn-danger' : 'btn-primary'} disabled={saving} onClick={() => void submitMutation()}>{saving ? 'Submitting…' : mutation.type === 'reconcile' ? 'Reconcile payment status' : mutation.type === 'requirePayment' ? 'Require payment' : 'Confirm'}</button></div></div></Modal> : null}
+      </> : null}
     </section>
   );
 }
