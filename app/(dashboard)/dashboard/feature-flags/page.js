@@ -21,6 +21,7 @@ const LABELS = {
   'commerce.marketplace.products.digital.enabled': 'Marketplace digital products',
   'commerce.marketplace.products.service.enabled': 'Marketplace service products',
   'commerce.pos.enabled': 'Commerce POS',
+  'business_tools.access.enforced': 'Business Tools access enforcement',
   'service.loans.enabled': 'Loans',
   'savings.enabled': 'Savings',
   'service.crypto.enabled': 'Crypto',
@@ -36,7 +37,8 @@ const WARNINGS = {
   auto_refund: 'Warning: Disabling auto refunds will route failed refunds to manual review.',
   'kyc.allow_gallery_upload': 'If disabled, customers must capture KYC documents directly instead of uploading from their gallery.',
   avecLoanRequestReasonEnabled: 'If disabled, the client app hides the AVEC loan request reason field and does not send notes in loan request payloads.',
-  'customer_service.enabled': 'If disabled, the client app hides the customer service floating action button.'
+  'customer_service.enabled': 'If disabled, the client app hides the customer service floating action button.',
+  'business_tools.access.enforced': 'Enforcement is separate from plan availability and entitlement. Enable only after pricing, migration, client rollout and exception review are complete. Public marketplace and payer checkout remain outside this requirement.'
 };
 
 const ACTION_LIMIT_PREFIX = 'limit.check.action.';
@@ -57,6 +59,7 @@ const APP_OPEN_AUTH_GLOBAL_KEY = 'app_open_auth_enforcement';
 const APP_OPEN_AUTH_ANDROID_KEY = 'app_open_auth_enforcement.android';
 const APP_OPEN_AUTH_IOS_KEY = 'app_open_auth_enforcement.ios';
 const CUSTOMER_SERVICE_ENABLED_KEY = 'customer_service.enabled';
+const BUSINESS_TOOLS_ENFORCEMENT_KEY = 'business_tools.access.enforced';
 const COMMERCE_ENABLED_KEY = 'commerce.enabled';
 const COMMERCE_SURFACE_FLAGS = [
   {
@@ -1114,6 +1117,7 @@ export default function FeatureFlagsPage() {
     setInfo(null);
     try {
       const detail = await loadFlagDetail(flag.key, flag);
+      setEditDialog({ key: flag.key, originalEnabled: Boolean(detail.enabled) });
       setEditDraftEnabled(Boolean(detail.enabled));
       setEditDraftDisabledBehavior(detail.disabledBehavior ?? 'BLOCK_REQUEST');
       setEditDraftQueuedProviderWorkMode(normalizeQueuedProviderWorkMode(detail.queuedProviderWorkMode, flag.key));
@@ -1135,6 +1139,12 @@ export default function FeatureFlagsPage() {
   const handleSaveEditDialog = async () => {
     const key = editDialog?.key;
     if (!key || savingKey === key) return;
+    if (key === BUSINESS_TOOLS_ENFORCEMENT_KEY && editDraftEnabled && !editDialog?.originalEnabled) {
+      const confirmed = window.confirm(
+        'Enable Business Tools enforcement? Confirm pricing is configured, migration and failures are reviewed, customer clients are released, and pilot overrides were validated. This does not grant access or enable purchases.'
+      );
+      if (!confirmed) return;
+    }
     const payload = {
       enabled: Boolean(editDraftEnabled),
       disabledBehavior: editDraftDisabledBehavior,
@@ -1195,6 +1205,12 @@ export default function FeatureFlagsPage() {
     const accountId = overrideAccountId.trim();
     if (!key || !accountId || overridesSaving) return;
     const enabled = typeof forcedEnabled === 'boolean' ? forcedEnabled : overrideEnabled;
+    if (key === BUSINESS_TOOLS_ENFORCEMENT_KEY && enabled) {
+      const confirmed = window.confirm(
+        `Enable Business Tools enforcement for pilot account ${accountId}? This override does not grant paid access or enable plan purchases.`
+      );
+      if (!confirmed) return;
+    }
     setOverridesSaving(true);
     setError(null);
     setInfo(null);

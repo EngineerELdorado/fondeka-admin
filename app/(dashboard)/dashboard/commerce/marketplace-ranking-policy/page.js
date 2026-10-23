@@ -218,8 +218,8 @@ export default function CommerceMarketplaceRankingPolicyPage() {
           <Link href="/dashboard/commerce/settlement-policy" className="btn-neutral" style={{ textDecoration: 'none' }}>
             Settlement policy
           </Link>
-          <Link href="/dashboard/commerce/store-creation-fee" className="btn-neutral" style={{ textDecoration: 'none' }}>
-            Store creation fee
+          <Link href="/dashboard/businesses/plans" className="btn-neutral" style={{ textDecoration: 'none' }}>
+            Business Tools plans
           </Link>
         </div>
       </div>

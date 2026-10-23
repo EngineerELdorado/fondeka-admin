@@ -1,0 +1,176 @@
+'use client';
+
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useAuth } from '@/contexts/AuthContext';
+import { api } from '@/lib/api';
+
+const ENFORCEMENT_KEY = 'business_tools.access.enforced';
+const normalizeGroups = (value) => Array.isArray(value)
+  ? value.map((item) => String(item).trim().toUpperCase()).filter(Boolean)
+  : typeof value === 'string' ? value.split(',').map((item) => item.trim().toUpperCase()).filter(Boolean) : [];
+const pageContent = (response) => Array.isArray(response) ? response : response?.content || [];
+const formatDateTime = (value) => value ? new Date(value).toLocaleString() : '—';
+const formatEnum = (value) => String(value || '—').toLowerCase().split('_').map((part) => part ? part[0].toUpperCase() + part.slice(1) : '').join(' ');
+const formatMoney = (amount, currency) => {
+  if (amount === null || amount === undefined) return '—';
+  try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'USD' }).format(Number(amount)); }
+  catch { return `${amount} ${currency || ''}`.trim(); }
+};
+const badgeStyle = (active) => ({ display: 'inline-flex', padding: '0.2rem 0.55rem', borderRadius: '999px', fontWeight: 800, fontSize: '12px', background: active ? '#ECFDF3' : '#F3F4F6', color: active ? '#15803D' : '#4B5563' });
+
+const Modal = ({ title, onClose, children }) => <div className="modal-backdrop"><div className="modal-surface"><div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}><strong>{title}</strong><button type="button" className="btn-neutral" onClick={onClose}>×</button></div>{children}</div></div>;
+
+const CreditDetails = ({ details }) => {
+  const sources = Array.isArray(details?.sources) ? details.sources : [];
+  return <div style={{ display: 'grid', gap: '0.4rem', marginTop: '0.4rem', maxWidth: '620px' }}>
+    <div style={{ fontSize: '12px' }}>Plan {formatMoney(details?.planAmount, details?.currency)} · Credit {formatMoney(details?.legacyCreditAmount, details?.currency)} · Due {formatMoney(details?.amountDue, details?.currency)}</div>
+    {sources.length ? <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}><thead><tr>{['Transaction', 'Original', 'Credited'].map((label) => <th key={label} style={{ textAlign: 'left', padding: '0.3rem' }}>{label}</th>)}</tr></thead><tbody>{sources.map((source, index) => <tr key={`${source.transactionId}-${index}`}><td style={{ padding: '0.3rem' }}>{source.transactionId ? <Link href={`/dashboard/transactions?transactionId=${encodeURIComponent(source.transactionId)}`}>{source.transactionId}</Link> : '—'}</td><td style={{ padding: '0.3rem' }}>{formatMoney(source.originalAmount, source.originalCurrency)}</td><td style={{ padding: '0.3rem' }}>{formatMoney(source.creditedAmount, source.currency)}</td></tr>)}</tbody></table></div> : <div style={{ color: 'var(--muted)', fontSize: '11px' }}>No legacy credit sources.</div>}
+  </div>;
+};
+
+export function BusinessToolsAccountPanel({ accountId }) {
+  const { session } = useAuth();
+  const [access, setAccess] = useState(null);
+  const [purchases, setPurchases] = useState([]);
+  const [purchasePage, setPurchasePage] = useState(0);
+  const [purchasePages, setPurchasePages] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [historyPage, setHistoryPage] = useState(0);
+  const [historyPages, setHistoryPages] = useState(null);
+  const [enforcement, setEnforcement] = useState({ global: null, override: null });
+  const [expandedPurchases, setExpandedPurchases] = useState(new Set());
+  const [expandedHistory, setExpandedHistory] = useState(new Set());
+  const [mutation, setMutation] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const [info, setInfo] = useState(null);
+
+  const isSuperAdmin = useMemo(() => {
+    const accessToken = session?.tokens?.accessToken?.payload || {};
+    const idToken = session?.tokens?.idToken?.payload || {};
+    return [...normalizeGroups(accessToken?.['cognito:groups'] || accessToken?.groups), ...normalizeGroups(idToken?.['cognito:groups'] || idToken?.groups)].includes('SUPER_ADMIN');
+  }, [session]);
+
+  const loadAccess = useCallback(async () => {
+    if (!accountId) return;
+    const response = await api.businessTools.accounts.getAccess(accountId);
+    setAccess(response);
+  }, [accountId]);
+
+  const loadPurchases = useCallback(async () => {
+    if (!accountId) return;
+    const response = await api.businessTools.accounts.listPurchases(accountId, new URLSearchParams({ page: String(purchasePage), size: '10' }));
+    setPurchases(pageContent(response));
+    setPurchasePages(Number.isFinite(response?.totalPages) ? response.totalPages : null);
+  }, [accountId, purchasePage]);
+
+  const loadHistory = useCallback(async () => {
+    if (!accountId) return;
+    const response = await api.businessTools.accounts.listHistory(accountId, new URLSearchParams({ page: String(historyPage), size: '10' }));
+    setHistory(pageContent(response));
+    setHistoryPages(Number.isFinite(response?.totalPages) ? response.totalPages : null);
+  }, [accountId, historyPage]);
+
+  const loadEnforcement = useCallback(async () => {
+    if (!accountId) return;
+    const [flag, overrides] = await Promise.all([
+      api.featureFlags.get(ENFORCEMENT_KEY).catch((err) => err?.status === 404 ? null : Promise.reject(err)),
+      api.featureFlags.listOverrides(ENFORCEMENT_KEY).catch((err) => err?.status === 404 ? [] : Promise.reject(err))
+    ]);
+    const list = Array.isArray(overrides) ? overrides : [];
+    const override = list.find((item) => String(item?.accountId ?? item?.account?.id) === String(accountId)) || null;
+    setEnforcement({ global: flag, override });
+  }, [accountId]);
+
+  const refreshAll = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try { await Promise.all([loadAccess(), loadPurchases(), loadHistory(), loadEnforcement()]); }
+    catch (err) { setError(err?.message || 'Failed to load Business Tools access and payment data.'); }
+    finally { setLoading(false); }
+  }, [loadAccess, loadEnforcement, loadHistory, loadPurchases]);
+
+  useEffect(() => { refreshAll(); }, [refreshAll]);
+
+  const openMutation = (type, purchase = null) => setMutation({
+    type,
+    purchase,
+    planCode: access?.plan?.code || 'BUSINESS_TOOLS_LIFETIME',
+    validUntil: '',
+    reason: '',
+    acknowledged: false
+  });
+
+  const submitMutation = async () => {
+    const reason = mutation?.reason?.trim() || '';
+    if (reason.length < 3) return setError('Enter a meaningful audit reason.');
+    if (reason.length > 1000) return setError('Reason must be 1,000 characters or fewer.');
+    if (!mutation?.acknowledged) return setError('Confirm that you reviewed the account and mutation effects.');
+    if (mutation.type === 'grant' && mutation.validUntil && new Date(mutation.validUntil).getTime() <= Date.now()) return setError('Grant expiry must be in the future.');
+    setSaving(true);
+    setError(null);
+    setInfo(null);
+    try {
+      if (mutation.type === 'grant') {
+        await api.businessTools.accounts.grant(accountId, { planCode: mutation.planCode, validUntil: mutation.validUntil ? new Date(mutation.validUntil).toISOString() : null, reason });
+        setInfo('Business Tools access granted. This is an admin grant, not a purchase or refund.');
+      } else if (mutation.type === 'requirePayment') {
+        await api.businessTools.accounts.requirePayment(accountId, { reason });
+        setInfo('Business Tools payment is now required. No automatic charge, refund or data deletion occurred.');
+      } else if (mutation.type === 'revoke') {
+        await api.businessTools.accounts.revoke(accountId, { reason });
+        setInfo('Stored entitlement revoked. Stores, payments, credentials and in-flight purchases were preserved.');
+      } else {
+        await api.businessTools.reconcilePurchase(mutation.purchase.id, { reason });
+        setInfo('Payment status reconciled from verified local transaction state. No new charge was submitted.');
+      }
+      setMutation(null);
+      await refreshAll();
+    } catch (err) {
+      setError(`${err?.message || 'Business Tools operation failed.'} The operation was not retried automatically.`);
+    } finally { setSaving(false); }
+  };
+
+  const pending = access?.pendingPurchase;
+  const pricing = access?.pricing;
+  const fullPaymentReviewPurchase = purchases.find((purchase) => purchase?.failureCode === 'BUSINESS_TOOLS_FULL_PAYMENT_REQUIRED');
+  const accountOverride = enforcement.override;
+  const effectiveEnforcement = accountOverride?.enabled ?? enforcement.global?.enabled ?? false;
+
+  return (
+    <section id="business-tools-access" className="card" style={{ padding: '1rem', display: 'grid', gap: '0.9rem', scrollMarginTop: '1rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem', flexWrap: 'wrap' }}>
+        <div><div style={{ fontWeight: 800, fontSize: '18px' }}>Business Tools — Access and payments</div><div style={{ color: 'var(--muted)', fontSize: '13px' }}>Account entitlement is separate from Business status/KYB, store verification and payment outcomes.</div></div>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}><Link href="/dashboard/businesses/plans" className="btn-neutral btn-sm" style={{ textDecoration: 'none' }}>Plans</Link><Link href="/dashboard/feature-flags" className="btn-neutral btn-sm" style={{ textDecoration: 'none' }}>Rollout flag</Link><button type="button" className="btn-neutral btn-sm" disabled={loading} onClick={refreshAll}>{loading ? 'Refreshing…' : 'Refresh'}</button></div>
+      </div>
+      {error ? <div className="alert alert-error">{error}</div> : null}{info ? <div className="alert alert-success">{info}</div> : null}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
+        <div style={{ padding: '0.7rem', border: '1px solid var(--border)', borderRadius: '10px' }}><div style={{ color: 'var(--muted)', fontSize: '12px' }}>Entitlement decision</div><span style={badgeStyle(Boolean(access?.accessGranted))}>{access?.accessGranted ? 'Access granted' : 'Access not granted'}</span><div style={{ fontSize: '12px', marginTop: '0.25rem' }}>{formatEnum(access?.status)}</div></div>
+        <div style={{ padding: '0.7rem', border: '1px solid var(--border)', borderRadius: '10px' }}><div style={{ color: 'var(--muted)', fontSize: '12px' }}>Validity</div><strong>{access?.accessGranted && !access?.validUntil ? 'Active, no expiry' : access?.validUntil ? `Until ${formatDateTime(access.validUntil)}` : 'No active validity'}</strong><div style={{ fontSize: '12px' }}>From {formatDateTime(access?.validFrom)}</div></div>
+        <div style={{ padding: '0.7rem', border: '1px solid var(--border)', borderRadius: '10px' }}><div style={{ color: 'var(--muted)', fontSize: '12px' }}>Purchase availability</div><strong>{!access?.plan || Number(access.plan.amount) <= 0 ? 'Not configured' : access.plan.purchasesEnabled ? 'Purchases enabled' : 'Purchases disabled'}</strong><div style={{ fontSize: '12px' }}>{access?.plan?.name || 'No configured offer'}</div></div>
+        <div style={{ padding: '0.7rem', border: '1px solid var(--border)', borderRadius: '10px' }}><div style={{ color: 'var(--muted)', fontSize: '12px' }}>Rollout enforcement</div><strong>{effectiveEnforcement ? 'Enforced' : 'Not enforced'}</strong><div style={{ fontSize: '12px' }}>{accountOverride ? `Account override: ${accountOverride.enabled ? 'ON' : 'OFF'}` : `Inherited global flag: ${enforcement.global?.enabled ? 'ON' : 'OFF'}`}</div></div>
+      </div>
+      {access?.paymentRequired ? <div style={{ padding: '0.75rem', border: '1px solid #DC2626', borderRadius: '10px', background: '#FEF2F2', color: '#991B1B' }}><strong>Payment required by admin</strong><div style={{ fontSize: '13px', marginTop: '0.2rem' }}>Previous store-creation payments cannot unlock access. A new completed Business Tools purchase or an explicit admin grant is required. This restriction applies even when rollout enforcement is disabled.</div></div> : null}
+      {!effectiveEnforcement && !access?.accessGranted && !access?.paymentRequired ? <div style={{ padding: '0.7rem', borderRadius: '10px', background: 'var(--accent-soft)', fontSize: '13px' }}>Access is inactive, but the rollout flag currently indicates protected production operations are not enforced for this account.</div> : null}
+
+      {pricing ? <div><strong>Pricing</strong><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.6rem', marginTop: '0.5rem' }}>
+        {[['Business Tools price', pricing.planAmount], ['Amount due', pricing.amountDue]].map(([label, value]) => <div key={label} style={{ padding: '0.65rem', border: '1px solid var(--border)', borderRadius: '10px' }}><div style={{ color: 'var(--muted)', fontSize: '12px' }}>{label}</div><strong>{formatMoney(value, pricing.currency)}</strong></div>)}
+        <div style={{ padding: '0.65rem', border: '1px solid var(--border)', borderRadius: '10px' }}><div style={{ color: 'var(--muted)', fontSize: '12px' }}>Payment processing fees</div><strong>See payment quote / transaction</strong></div>
+      </div></div> : null}
+
+      {pending ? <div style={{ padding: '0.75rem', border: '1px solid #F59E0B', borderRadius: '10px' }}><strong>Payment processing</strong><div>Purchase {pending.id}</div>{pending.paymentTransactionId ? <Link href={`/dashboard/transactions?transactionId=${encodeURIComponent(pending.paymentTransactionId)}`}>Transaction {pending.paymentTransactionId}</Link> : null}</div> : null}
+      {fullPaymentReviewPurchase ? <div style={{ padding: '0.75rem', border: '1px solid #F59E0B', borderRadius: '10px', background: '#FFFBEB', color: '#92400E' }}><strong>Payment received — access requires review</strong><div style={{ fontSize: '13px', marginTop: '0.2rem' }}>Purchase {fullPaymentReviewPurchase.id} used historical store credit and cannot satisfy the later admin payment requirement. Review its payment and the approved support/refund path before asking the customer to pay again.</div></div> : null}
+      {isSuperAdmin ? <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}><button type="button" className="btn-success" onClick={() => openMutation('grant')}>Grant / replace access</button><button type="button" className="btn-danger" onClick={() => openMutation('revoke')}>Revoke stored entitlement</button><button type="button" className="btn-danger" disabled={Boolean(access?.paymentRequired)} onClick={() => openMutation('requirePayment')}>{access?.paymentRequired ? 'Payment already required' : 'Require Business Tools payment'}</button></div> : <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Read only — Business Tools mutations require Super Admin.</div>}
+
+      <div style={{ display: 'grid', gap: '0.55rem' }}><strong>Purchases</strong>{purchases.length === 0 ? <div style={{ color: 'var(--muted)' }}>No purchases.</div> : <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '980px' }}><thead><tr>{['Purchase', 'Status', 'Offer snapshot', 'Credit', 'New gross charge', 'Method', 'Transaction', 'Timeline', ''].map((label) => <th key={label} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)' }}>{label}</th>)}</tr></thead><tbody>{purchases.map((purchase) => <tr key={purchase.id} style={{ borderBottom: '1px solid var(--border)' }}><td style={{ padding: '0.45rem' }}>{purchase.id}</td><td style={{ padding: '0.45rem' }}>{purchase.failureCode === 'BUSINESS_TOOLS_LEGACY_CREDIT_UNAVAILABLE' ? <span style={{ color: '#B45309', fontWeight: 700 }}>Payment received — access requires review</span> : formatEnum(purchase.status)}{purchase.failureCode && purchase.failureCode !== 'BUSINESS_TOOLS_LEGACY_CREDIT_UNAVAILABLE' ? <div style={{ fontSize: '11px' }}>{formatEnum(purchase.failureCode)}</div> : null}</td><td style={{ padding: '0.45rem' }}>{formatMoney(purchase.planAmount, purchase.planCurrency)}<div style={{ fontSize: '11px' }}>{formatEnum(purchase.billingMode)} · v{purchase.planVersion}</div></td><td style={{ padding: '0.45rem' }}>{formatMoney(purchase.legacyCreditAmount, purchase.planCurrency)}</td><td style={{ padding: '0.45rem' }}>{formatMoney(purchase.amount, purchase.currency)}<div style={{ fontSize: '11px' }}>Includes payment fees</div></td><td style={{ padding: '0.45rem' }}>{formatEnum(purchase.paymentMethodType)}</td><td style={{ padding: '0.45rem' }}>{purchase.paymentTransactionId ? <Link href={`/dashboard/transactions?transactionId=${encodeURIComponent(purchase.paymentTransactionId)}`}>{purchase.paymentTransactionId}</Link> : '—'}</td><td style={{ padding: '0.45rem' }}>Created {formatDateTime(purchase.createdAt)}<div style={{ fontSize: '11px' }}>Completed {formatDateTime(purchase.completedAt)}</div></td><td style={{ padding: '0.45rem' }}><div style={{ display: 'flex', gap: '0.35rem' }}><button type="button" className="btn-neutral btn-sm" onClick={() => setExpandedPurchases((previous) => { const next = new Set(previous); next.has(purchase.id) ? next.delete(purchase.id) : next.add(purchase.id); return next; })}>{expandedPurchases.has(purchase.id) ? 'Hide credit' : 'Credit details'}</button>{isSuperAdmin ? <button type="button" className="btn-neutral btn-sm" onClick={() => openMutation('reconcile', purchase)}>Reconcile payment status</button> : null}</div>{expandedPurchases.has(purchase.id) ? <CreditDetails details={purchase.legacyCreditDetails || {}} /> : null}</td></tr>)}</tbody></table></div>}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', alignItems: 'center' }}><button type="button" className="btn-neutral btn-sm" disabled={purchasePage === 0} onClick={() => setPurchasePage((p) => p - 1)}>←</button><span>Page {purchasePage + 1}{purchasePages !== null ? ` of ${Math.max(1, purchasePages)}` : ''}</span><button type="button" className="btn-neutral btn-sm" disabled={purchasePages !== null ? purchasePage + 1 >= purchasePages : purchases.length < 10} onClick={() => setPurchasePage((p) => p + 1)}>→</button></div>
+      </div>
+
+      <div style={{ display: 'grid', gap: '0.55rem' }}><strong>Account Business Tools history</strong>{history.length === 0 ? <div style={{ color: 'var(--muted)' }}>No history events.</div> : history.map((event, index) => { const key = event.id || `${event.createdAt}-${index}`; return <div key={key} style={{ padding: '0.65rem', border: '1px solid var(--border)', borderRadius: '10px' }}><div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap' }}><div><strong>{formatEnum(event.action)}</strong><div style={{ color: 'var(--muted)', fontSize: '12px' }}>{formatDateTime(event.createdAt)} · Actor: {event.actorReference || 'System / worker'}{event.purchaseId ? ` · Purchase ${event.purchaseId}` : ''}</div>{event.reason ? <div style={{ marginTop: '0.2rem' }}>{event.reason}</div> : null}</div><button type="button" className="btn-neutral btn-sm" onClick={() => setExpandedHistory((previous) => { const next = new Set(previous); next.has(key) ? next.delete(key) : next.add(key); return next; })}>{expandedHistory.has(key) ? 'Hide details' : 'Details'}</button></div>{expandedHistory.has(key) ? <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: '11px' }}>{JSON.stringify(event.details || {}, null, 2)}</pre> : null}</div>; })}<div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', alignItems: 'center' }}><button type="button" className="btn-neutral btn-sm" disabled={historyPage === 0} onClick={() => setHistoryPage((p) => p - 1)}>←</button><span>Page {historyPage + 1}{historyPages !== null ? ` of ${Math.max(1, historyPages)}` : ''}</span><button type="button" className="btn-neutral btn-sm" disabled={historyPages !== null ? historyPage + 1 >= historyPages : history.length < 10} onClick={() => setHistoryPage((p) => p + 1)}>→</button></div></div>
+
+      {mutation ? <Modal title={mutation.type === 'grant' ? 'Confirm access grant' : mutation.type === 'revoke' ? 'Confirm entitlement revocation' : mutation.type === 'requirePayment' ? 'Require Business Tools payment' : 'Confirm payment reconciliation'} onClose={() => saving ? null : setMutation(null)}><div style={{ display: 'grid', gap: '0.75rem' }}><div style={{ padding: '0.7rem', background: '#FFF7ED', color: '#92400E', borderRadius: '10px', fontSize: '13px' }}>{mutation.type === 'grant' ? 'This creates an ADMIN grant and can replace purchase-backed provenance. It does not create a purchase, payment or refund.' : mutation.type === 'revoke' ? `This is not an account suspension, refund or proactive ban. ${pending ? 'A pending payment exists and may grant access later.' : 'It preserves business data and credentials.'}` : mutation.type === 'requirePayment' ? 'This account will lose Business Tools access until a Business Tools payment completes. Previous store-creation payments will not unlock it. No automatic charge or refund will be made. Existing business data will be kept.' : 'This checks verified local transaction state. It does not retry or resubmit a provider charge.'}</div>{mutation.type === 'grant' ? <><label style={{ display: 'grid', gap: '0.25rem' }}><span>Plan code</span><input value={mutation.planCode} onChange={(e) => setMutation((p) => ({ ...p, planCode: e.target.value }))} /></label><label style={{ display: 'grid', gap: '0.25rem' }}><span>Valid until (optional, local time)</span><input type="datetime-local" value={mutation.validUntil} onChange={(e) => setMutation((p) => ({ ...p, validUntil: e.target.value }))} /></label></> : null}<label style={{ display: 'grid', gap: '0.25rem' }}><span>Required audit reason</span><textarea rows={3} maxLength={1000} value={mutation.reason} onChange={(e) => setMutation((p) => ({ ...p, reason: e.target.value }))} /></label><label style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}><input type="checkbox" checked={mutation.acknowledged} onChange={(e) => setMutation((p) => ({ ...p, acknowledged: e.target.checked }))} /><span>I confirmed account {accountId}, reviewed access/history{pending ? ' and the pending payment' : ''}, and understand this operation is separate from Business/KYB status.</span></label><div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}><button type="button" className="btn-neutral" disabled={saving} onClick={() => setMutation(null)}>Cancel</button><button type="button" className={mutation.type === 'revoke' || mutation.type === 'requirePayment' ? 'btn-danger' : 'btn-primary'} disabled={saving} onClick={submitMutation}>{saving ? 'Submitting…' : mutation.type === 'reconcile' ? 'Reconcile payment status' : mutation.type === 'requirePayment' ? 'Require payment' : 'Confirm'}</button></div></div></Modal> : null}
+    </section>
+  );
+}

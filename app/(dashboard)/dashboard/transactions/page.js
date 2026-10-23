@@ -9,7 +9,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
 import { paymentMethodAdminLabel, paymentMethodRouteAdminLabel } from '@/lib/payment-method-labels';
 
-const serviceOptions = ['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'COMMERCE', 'PAYMENT_REQUEST', 'E_SIM', 'AIRTIME_AND_DATA', 'OTHER'];
+const serviceOptions = ['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'COMMERCE', 'PAYMENT_REQUEST', 'BUSINESS_TOOLS', 'BUSINESS_API', 'E_SIM', 'AIRTIME_AND_DATA', 'OTHER'];
 const actionOptions = [
   'FUND_WALLET',
   'WITHDRAW_FROM_WALLET',
@@ -45,6 +45,9 @@ const actionOptions = [
   'PAY_REQUEST',
   'COMMERCE_CHECKOUT_PAYMENT',
   'CREATE_COMMERCE_STORE',
+  'BUSINESS_TOOLS_ACCESS',
+  'BUSINESS_API_COLLECTION',
+  'BUSINESS_API_PAYOUT',
   'E_SIM_PURCHASE',
   'E_SIM_TOPUP',
   'SEND_AIRTIME',
@@ -114,6 +117,8 @@ const serviceLabels = {
   CRYPTO: 'Crypto',
   COMMERCE: 'Commerce',
   PAYMENT_REQUEST: 'Payment request',
+  BUSINESS_TOOLS: 'Business Tools',
+  BUSINESS_API: 'Business API',
   E_SIM: 'eSIM',
   AIRTIME_AND_DATA: 'Airtime & data',
   OTHER: 'Other'
@@ -152,6 +157,9 @@ const actionLabels = {
   PAY_REQUEST: 'Pay request',
   COMMERCE_CHECKOUT_PAYMENT: 'Checkout payment',
   CREATE_COMMERCE_STORE: 'Create commerce store',
+  BUSINESS_TOOLS_ACCESS: 'Business Tools access',
+  BUSINESS_API_COLLECTION: 'Business API collection',
+  BUSINESS_API_PAYOUT: 'Business API payout',
 
   E_SIM_PURCHASE: 'eSIM purchase',
   E_SIM_TOPUP: 'eSIM top up',

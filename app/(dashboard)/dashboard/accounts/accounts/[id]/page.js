@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useToast } from '@/contexts/ToastContext';
+import { BusinessToolsAccountPanel } from '@/components/BusinessToolsAccountPanel';
 import COUNTRIES from '@/data/countries';
 import { paymentMethodAdminLabel, paymentMethodRouteAdminLabel } from '@/lib/payment-method-labels';
 
@@ -4211,6 +4212,10 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           }
         ]}
       />
+
+      {resolvedAccountId !== null && resolvedAccountId !== undefined ? (
+        <BusinessToolsAccountPanel accountId={resolvedAccountId} />
+      ) : null}
 
       <details className="card" style={{ padding: '1rem' }}>
         <summary style={{ cursor: 'pointer', listStyle: 'none' }}>

@@ -436,8 +436,8 @@ export default function CommerceStoresPage() {
           <div style={{ color: 'var(--muted)' }}>Review stores and update their verification status.</div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <Link href="/dashboard/commerce/store-creation-fee" className="btn-neutral" style={{ textDecoration: 'none' }}>
-            Store creation fee
+          <Link href="/dashboard/businesses/plans" className="btn-neutral" style={{ textDecoration: 'none' }}>
+            Business Tools plans
           </Link>
           <Link href="/dashboard/commerce/settlement-policy" className="btn-neutral" style={{ textDecoration: 'none' }}>
             Settlement policy
