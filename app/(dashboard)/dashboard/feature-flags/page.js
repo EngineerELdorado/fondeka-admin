@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 
 const LABELS = {
   trusted_device_enforcement: 'Enforce Trusted Device',
+  'trusted_device_enforcement.web': 'Web portal device approval',
   auto_refund: 'Auto Refunds',
   'crypto.external.collection.verified_only': 'Restrict crypto collection to verified users',
   'crypto.external.collection.allow_public_endpoints': 'Allow public crypto payment links',
@@ -34,6 +35,7 @@ const LABELS = {
 
 const WARNINGS = {
   trusted_device_enforcement: 'Warning: Disabling trusted device enforcement reduces security for customer endpoints.',
+  'trusted_device_enforcement.web': 'The web portal defaults to bypass when this flag is not stored. Explicit account overrides take precedence over this global setting.',
   auto_refund: 'Warning: Disabling auto refunds will route failed refunds to manual review.',
   'kyc.allow_gallery_upload': 'If disabled, customers must capture KYC documents directly instead of uploading from their gallery.',
   avecLoanRequestReasonEnabled: 'If disabled, the client app hides the AVEC loan request reason field and does not send notes in loan request payloads.',
@@ -52,6 +54,7 @@ const CARD_ORDERING_FEATURE_FLAG_KEY = 'card.order_card';
 const TRUSTED_DEVICE_GLOBAL_KEY = 'trusted_device_enforcement';
 const TRUSTED_DEVICE_ANDROID_KEY = 'trusted_device_enforcement.android';
 const TRUSTED_DEVICE_IOS_KEY = 'trusted_device_enforcement.ios';
+const TRUSTED_DEVICE_WEB_KEY = 'trusted_device_enforcement.web';
 const TRANSACTION_AUTH_GLOBAL_KEY = 'transaction_auth_enforcement';
 const TRANSACTION_AUTH_ANDROID_KEY = 'transaction_auth_enforcement.android';
 const TRANSACTION_AUTH_IOS_KEY = 'transaction_auth_enforcement.ios';
@@ -495,6 +498,8 @@ export default function FeatureFlagsPage() {
   const [overrideEmail, setOverrideEmail] = useState('');
   const [overrideEmailEnabled, setOverrideEmailEnabled] = useState(true);
   const [overrideEmailClientPresentation, setOverrideEmailClientPresentation] = useState(DISABLED_CLIENT_PRESENTATION_FALLBACK);
+  const [overrideWebPolicy, setOverrideWebPolicy] = useState('INHERIT');
+  const [overrideEmailWebPolicy, setOverrideEmailWebPolicy] = useState('INHERIT');
   const [overrideCountryCode, setOverrideCountryCode] = useState('');
   const [overrideCountryEnabled, setOverrideCountryEnabled] = useState(true);
   const [overrideCountryClientPresentation, setOverrideCountryClientPresentation] = useState(DISABLED_CLIENT_PRESENTATION_FALLBACK);
@@ -619,6 +624,10 @@ export default function FeatureFlagsPage() {
     () => flags.find((flag) => String(flag.key) === TRUSTED_DEVICE_IOS_KEY),
     [flags]
   );
+  const trustedDeviceWebFlag = useMemo(
+    () => flags.find((flag) => String(flag.key) === TRUSTED_DEVICE_WEB_KEY),
+    [flags]
+  );
   const transactionAuthGlobalFlag = useMemo(
     () => flags.find((flag) => String(flag.key) === TRANSACTION_AUTH_GLOBAL_KEY),
     [flags]
@@ -670,6 +679,7 @@ export default function FeatureFlagsPage() {
           String(flag.key) !== TRUSTED_DEVICE_GLOBAL_KEY &&
           String(flag.key) !== TRUSTED_DEVICE_ANDROID_KEY &&
           String(flag.key) !== TRUSTED_DEVICE_IOS_KEY &&
+          String(flag.key) !== TRUSTED_DEVICE_WEB_KEY &&
           String(flag.key) !== TRANSACTION_AUTH_GLOBAL_KEY &&
           String(flag.key) !== TRANSACTION_AUTH_ANDROID_KEY &&
           String(flag.key) !== TRANSACTION_AUTH_IOS_KEY &&
@@ -825,6 +835,7 @@ export default function FeatureFlagsPage() {
       const hasTrustedGlobalFlag = list.some((flag) => String(flag?.key) === TRUSTED_DEVICE_GLOBAL_KEY);
       const hasTrustedAndroidFlag = list.some((flag) => String(flag?.key) === TRUSTED_DEVICE_ANDROID_KEY);
       const hasTrustedIosFlag = list.some((flag) => String(flag?.key) === TRUSTED_DEVICE_IOS_KEY);
+      const hasTrustedWebFlag = list.some((flag) => String(flag?.key) === TRUSTED_DEVICE_WEB_KEY);
       const hasTransactionAuthGlobalFlag = list.some((flag) => String(flag?.key) === TRANSACTION_AUTH_GLOBAL_KEY);
       const hasTransactionAuthAndroidFlag = list.some((flag) => String(flag?.key) === TRANSACTION_AUTH_ANDROID_KEY);
       const hasTransactionAuthIosFlag = list.some((flag) => String(flag?.key) === TRANSACTION_AUTH_IOS_KEY);
@@ -846,6 +857,7 @@ export default function FeatureFlagsPage() {
       if (!hasTrustedGlobalFlag) defaults.push({ key: TRUSTED_DEVICE_GLOBAL_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK', isDefault: true });
       if (!hasTrustedAndroidFlag) defaults.push({ key: TRUSTED_DEVICE_ANDROID_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK', isDefault: true });
       if (!hasTrustedIosFlag) defaults.push({ key: TRUSTED_DEVICE_IOS_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK', isDefault: true });
+      if (!hasTrustedWebFlag) defaults.push({ key: TRUSTED_DEVICE_WEB_KEY, enabled: false, disabledBehavior: 'BLOCK_REQUEST', queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK', isDefault: true });
       if (!hasTransactionAuthGlobalFlag) defaults.push({ key: TRANSACTION_AUTH_GLOBAL_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK', isDefault: true });
       if (!hasTransactionAuthAndroidFlag) defaults.push({ key: TRANSACTION_AUTH_ANDROID_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK', isDefault: true });
       if (!hasTransactionAuthIosFlag) defaults.push({ key: TRANSACTION_AUTH_IOS_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK', isDefault: true });
@@ -1184,6 +1196,8 @@ export default function FeatureFlagsPage() {
     setOverrideEmail('');
     setOverrideEmailEnabled(true);
     setOverrideEmailClientPresentation(DISABLED_CLIENT_PRESENTATION_FALLBACK);
+    setOverrideWebPolicy('INHERIT');
+    setOverrideEmailWebPolicy('INHERIT');
     setOverrideCountryCode('');
     setOverrideCountryEnabled(true);
     setOverrideCountryClientPresentation(DISABLED_CLIENT_PRESENTATION_FALLBACK);
@@ -1287,6 +1301,42 @@ export default function FeatureFlagsPage() {
       }
     } catch (err) {
       setError(getOverrideErrorMessage(err, 'Failed to save override'));
+    } finally {
+      setOverridesSaving(false);
+    }
+  };
+
+  const handleSaveWebPortalPolicy = async (targetType) => {
+    const key = overrideDialog?.key;
+    if (key !== TRUSTED_DEVICE_WEB_KEY || overridesSaving) return;
+    const byEmail = targetType === 'email';
+    const target = (byEmail ? overrideEmail : overrideAccountId).trim();
+    const policy = byEmail ? overrideEmailWebPolicy : overrideWebPolicy;
+    if (!target) return;
+    setOverridesSaving(true);
+    setError(null);
+    setInfo(null);
+    try {
+      if (policy === 'INHERIT') {
+        if (byEmail) await api.featureFlags.removeOverrideByEmail(key, target);
+        else await api.featureFlags.removeOverride(key, target);
+      } else {
+        const payload = { enabled: policy === 'REQUIRE' };
+        if (byEmail) await api.featureFlags.upsertOverrideByEmail(key, target, payload);
+        else await api.featureFlags.upsertOverride(key, target, payload);
+      }
+      setOverrides(await loadOverrideEntries(key));
+      if (byEmail) {
+        setOverrideEmail('');
+        setOverrideEmailWebPolicy('INHERIT');
+      } else {
+        setOverrideAccountId('');
+        setOverrideWebPolicy('INHERIT');
+      }
+      const resultLabel = policy === 'INHERIT' ? 'inherits the global policy' : policy === 'REQUIRE' ? 'requires device approval' : 'bypasses device approval';
+      setInfo(`${byEmail ? target : `Account ${target}`} now ${resultLabel}.`);
+    } catch (err) {
+      setError(getOverrideErrorMessage(err, 'Failed to update web portal device policy'));
     } finally {
       setOverridesSaving(false);
     }
@@ -2303,7 +2353,7 @@ export default function FeatureFlagsPage() {
         </CollapsibleSection>
       )}
 
-      {trustedDeviceGlobalFlag && trustedDeviceAndroidFlag && trustedDeviceIosFlag && (
+      {trustedDeviceGlobalFlag && trustedDeviceAndroidFlag && trustedDeviceIosFlag && trustedDeviceWebFlag && (
         <CollapsibleSection title={t('featureFlags.trustedDeviceTitle')} borderColor="#f59e0b">
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
             {t('featureFlags.globalOffIgnored')}
@@ -2311,12 +2361,16 @@ export default function FeatureFlagsPage() {
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
             {t('featureFlags.platformOffBypass')}
           </div>
+          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+            Web portal approval is independent from the legacy account setting and mobile flags. Its missing-global default is bypass; explicit account overrides win whether they require or bypass approval.
+          </div>
 
           <div style={{ display: 'grid', gap: '0.5rem' }}>
             {[
               { key: TRUSTED_DEVICE_GLOBAL_KEY, label: t('featureFlags.globalEnforcement'), flag: trustedDeviceGlobalFlag },
               { key: TRUSTED_DEVICE_ANDROID_KEY, label: t('featureFlags.androidEnforcement'), flag: trustedDeviceAndroidFlag },
-              { key: TRUSTED_DEVICE_IOS_KEY, label: t('featureFlags.iosEnforcement'), flag: trustedDeviceIosFlag }
+              { key: TRUSTED_DEVICE_IOS_KEY, label: t('featureFlags.iosEnforcement'), flag: trustedDeviceIosFlag },
+              { key: TRUSTED_DEVICE_WEB_KEY, label: 'Web portal device approval', flag: trustedDeviceWebFlag }
             ].map((item) => (
               <div
                 key={item.key}
@@ -2336,7 +2390,7 @@ export default function FeatureFlagsPage() {
                   <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{item.key}</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <button
+                  {item.key !== TRUSTED_DEVICE_WEB_KEY ? <button
                     type="button"
                     onClick={() => openEditDialog(item.flag)}
                     disabled={savingKey === item.key}
@@ -2350,7 +2404,7 @@ export default function FeatureFlagsPage() {
                     }}
                   >
                     Edit
-                  </button>
+                  </button> : null}
                   <button
                     type="button"
                     onClick={() => openOverridesDialog(item.key)}
@@ -2373,7 +2427,7 @@ export default function FeatureFlagsPage() {
                       onChange={() => handleToggle(item.key)}
                       disabled={loading || savingKey === item.key}
                     />
-                    {item.flag?.enabled ? t('featureFlags.enabled') : t('featureFlags.disabled')}
+                    {item.key === TRUSTED_DEVICE_WEB_KEY ? (item.flag?.enabled ? 'Required globally' : 'Bypassed globally') : item.flag?.enabled ? t('featureFlags.enabled') : t('featureFlags.disabled')}
                   </label>
                 </div>
               </div>
@@ -2854,7 +2908,7 @@ export default function FeatureFlagsPage() {
         <div className="modal-backdrop">
           <div className="modal-surface" style={{ width: 'min(920px, 96vw)', display: 'grid', gap: '0.85rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.25rem', borderBottom: '1px solid var(--border)' }}>
-              <div style={{ fontWeight: 800 }}>{overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? t('featureFlags.cryptoVerifiedTitle') : t('featureFlags.overrideModal')}</div>
+              <div style={{ fontWeight: 800 }}>{overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? t('featureFlags.cryptoVerifiedTitle') : overrideDialog.key === TRUSTED_DEVICE_WEB_KEY ? 'Web portal device approval overrides' : t('featureFlags.overrideModal')}</div>
               <button
                 type="button"
                 onClick={() => setOverrideDialog(null)}
@@ -2868,7 +2922,9 @@ export default function FeatureFlagsPage() {
               Feature: <strong>{overrideDialog.key}</strong>.
             </div>
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-              {overrideDialog.key === SAVINGS_ENABLED_KEY ? (
+              {overrideDialog.key === TRUSTED_DEVICE_WEB_KEY ? (
+                <>An explicit account choice wins over the global setting. Require and Bypass are both stored overrides; Inherit global removes the override. Country overrides do not apply.</>
+              ) : overrideDialog.key === SAVINGS_ENABLED_KEY ? (
                 <>{t('featureFlags.savingsResolution')}</>
               ) : overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? (
                 t('featureFlags.overridesPrecedence')
@@ -2964,51 +3020,20 @@ export default function FeatureFlagsPage() {
                   style={{ width: '100%' }}
                 />
               </div>
-              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
-                <input type="checkbox" checked={overrideEnabled} onChange={(e) => setOverrideEnabled(e.target.checked)} disabled={overridesSaving} />
-                {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? (overrideEnabled ? 'Enforce gate (verified only)' : 'Allow crypto collection') : overrideEnabled ? t('featureFlags.enabled') : t('featureFlags.disabled')}
-              </label>
-              {!overrideEnabled ? (
-                <ClientPresentationSelect
-                  id="overrideClientPresentation"
-                  value={overrideClientPresentation}
-                  onChange={setOverrideClientPresentation}
-                  disabled={overridesSaving}
-                />
-              ) : null}
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  onClick={handleSaveOverride}
-                  disabled={!overrideAccountId.trim() || overridesSaving}
-                  style={{
-                    border: `1px solid var(--border)`,
-                    background: 'var(--surface)',
-                    padding: '0.6rem 0.85rem',
-                    borderRadius: '10px',
-                    cursor: 'pointer',
-                    color: 'var(--text)'
-                  }}
-                >
-                  {t('featureFlags.saveAccountOverride')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSaveOverride(false)}
-                  disabled={!overrideAccountId.trim() || overridesSaving}
-                  style={{
-                    border: `1px solid #b91c1c`,
-                    background: '#fff',
-                    color: '#b91c1c',
-                    padding: '0.6rem 0.85rem',
-                    borderRadius: '10px',
-                    cursor: 'pointer',
-                    fontWeight: 700
-                  }}
-                >
-                  {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? t('featureFlags.allowCryptoCollectionForUser') : t('featureFlags.blockAccount')}
-                </button>
-              </div>
+              {overrideDialog.key === TRUSTED_DEVICE_WEB_KEY ? <>
+                <label style={{ display: 'grid', gap: '0.25rem' }}><span>Portal device policy</span><select value={overrideWebPolicy} onChange={(e) => setOverrideWebPolicy(e.target.value)} disabled={overridesSaving}><option value="INHERIT">Inherit global</option><option value="REQUIRE">Require device approval</option><option value="BYPASS">Bypass device approval</option></select></label>
+                <button type="button" className="btn-primary" onClick={() => void handleSaveWebPortalPolicy('account')} disabled={!overrideAccountId.trim() || overridesSaving}>{overridesSaving ? 'Saving…' : 'Apply account policy'}</button>
+              </> : <>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                  <input type="checkbox" checked={overrideEnabled} onChange={(e) => setOverrideEnabled(e.target.checked)} disabled={overridesSaving} />
+                  {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? (overrideEnabled ? 'Enforce gate (verified only)' : 'Allow crypto collection') : overrideEnabled ? t('featureFlags.enabled') : t('featureFlags.disabled')}
+                </label>
+                {!overrideEnabled ? <ClientPresentationSelect id="overrideClientPresentation" value={overrideClientPresentation} onChange={setOverrideClientPresentation} disabled={overridesSaving} /> : null}
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <button type="button" onClick={handleSaveOverride} disabled={!overrideAccountId.trim() || overridesSaving} style={{ border: `1px solid var(--border)`, background: 'var(--surface)', padding: '0.6rem 0.85rem', borderRadius: '10px', cursor: 'pointer', color: 'var(--text)' }}>{t('featureFlags.saveAccountOverride')}</button>
+                  <button type="button" onClick={() => handleSaveOverride(false)} disabled={!overrideAccountId.trim() || overridesSaving} style={{ border: `1px solid #b91c1c`, background: '#fff', color: '#b91c1c', padding: '0.6rem 0.85rem', borderRadius: '10px', cursor: 'pointer', fontWeight: 700 }}>{overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? t('featureFlags.allowCryptoCollectionForUser') : t('featureFlags.blockAccount')}</button>
+                </div>
+              </>}
             </div>
 
             <div className="card" style={{ display: 'grid', gap: '0.65rem' }}>
@@ -3024,66 +3049,21 @@ export default function FeatureFlagsPage() {
                   style={{ width: '100%' }}
                 />
               </div>
-              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
-                <input type="checkbox" checked={overrideEmailEnabled} onChange={(e) => setOverrideEmailEnabled(e.target.checked)} disabled={overridesSaving} />
-                {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? (overrideEmailEnabled ? 'Enforce gate (verified only)' : 'Allow crypto collection') : overrideEmailEnabled ? t('featureFlags.enabled') : t('featureFlags.disabled')}
-              </label>
-              {!overrideEmailEnabled ? (
-                <ClientPresentationSelect
-                  id="overrideEmailClientPresentation"
-                  value={overrideEmailClientPresentation}
-                  onChange={setOverrideEmailClientPresentation}
-                  disabled={overridesSaving}
-                />
-              ) : null}
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  onClick={handleSaveOverrideByEmail}
-                  disabled={!overrideEmail.trim() || overridesSaving}
-                  style={{
-                    border: `1px solid var(--border)`,
-                    background: 'var(--surface)',
-                    padding: '0.6rem 0.85rem',
-                    borderRadius: '10px',
-                    cursor: 'pointer',
-                    color: 'var(--text)'
-                  }}
-                >
-                  {t('featureFlags.saveEmailOverride')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSaveOverrideByEmail(false)}
-                  disabled={!overrideEmail.trim() || overridesSaving}
-                  style={{
-                    border: `1px solid #b91c1c`,
-                    background: '#fff',
-                    color: '#b91c1c',
-                    padding: '0.6rem 0.85rem',
-                    borderRadius: '10px',
-                    cursor: 'pointer',
-                    fontWeight: 700
-                  }}
-                >
-                  {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? t('featureFlags.allowCryptoCollectionForUser') : t('featureFlags.blockEmail')}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDeleteOverrideByEmail}
-                  disabled={!overrideEmail.trim() || overridesSaving}
-                  style={{
-                    border: `1px solid #b91c1c`,
-                    background: '#fff',
-                    color: '#b91c1c',
-                    padding: '0.6rem 0.85rem',
-                    borderRadius: '10px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {t('featureFlags.deleteEmailOverride')}
-                </button>
-              </div>
+              {overrideDialog.key === TRUSTED_DEVICE_WEB_KEY ? <>
+                <label style={{ display: 'grid', gap: '0.25rem' }}><span>Portal device policy</span><select value={overrideEmailWebPolicy} onChange={(e) => setOverrideEmailWebPolicy(e.target.value)} disabled={overridesSaving}><option value="INHERIT">Inherit global</option><option value="REQUIRE">Require device approval</option><option value="BYPASS">Bypass device approval</option></select></label>
+                <button type="button" className="btn-primary" onClick={() => void handleSaveWebPortalPolicy('email')} disabled={!overrideEmail.trim() || overridesSaving}>{overridesSaving ? 'Saving…' : 'Apply email policy'}</button>
+              </> : <>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                  <input type="checkbox" checked={overrideEmailEnabled} onChange={(e) => setOverrideEmailEnabled(e.target.checked)} disabled={overridesSaving} />
+                  {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? (overrideEmailEnabled ? 'Enforce gate (verified only)' : 'Allow crypto collection') : overrideEmailEnabled ? t('featureFlags.enabled') : t('featureFlags.disabled')}
+                </label>
+                {!overrideEmailEnabled ? <ClientPresentationSelect id="overrideEmailClientPresentation" value={overrideEmailClientPresentation} onChange={setOverrideEmailClientPresentation} disabled={overridesSaving} /> : null}
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <button type="button" onClick={handleSaveOverrideByEmail} disabled={!overrideEmail.trim() || overridesSaving} style={{ border: `1px solid var(--border)`, background: 'var(--surface)', padding: '0.6rem 0.85rem', borderRadius: '10px', cursor: 'pointer', color: 'var(--text)' }}>{t('featureFlags.saveEmailOverride')}</button>
+                  <button type="button" onClick={() => handleSaveOverrideByEmail(false)} disabled={!overrideEmail.trim() || overridesSaving} style={{ border: `1px solid #b91c1c`, background: '#fff', color: '#b91c1c', padding: '0.6rem 0.85rem', borderRadius: '10px', cursor: 'pointer', fontWeight: 700 }}>{overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? t('featureFlags.allowCryptoCollectionForUser') : t('featureFlags.blockEmail')}</button>
+                  <button type="button" onClick={handleDeleteOverrideByEmail} disabled={!overrideEmail.trim() || overridesSaving} style={{ border: `1px solid #b91c1c`, background: '#fff', color: '#b91c1c', padding: '0.6rem 0.85rem', borderRadius: '10px', cursor: 'pointer' }}>{t('featureFlags.deleteEmailOverride')}</button>
+                </div>
+              </>}
             </div>
 
             <div className="card" style={{ display: 'grid', gap: '0.65rem' }}>
@@ -3108,9 +3088,9 @@ export default function FeatureFlagsPage() {
                         </div>
                       ) : null}
                       <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-                        {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? (entry.enabled ? t('featureFlags.overrideGateEnforced') : t('featureFlags.overrideAllowCollection')) : entry.enabled ? t('featureFlags.forcedOn') : t('featureFlags.forcedOff')}
+                        {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? (entry.enabled ? t('featureFlags.overrideGateEnforced') : t('featureFlags.overrideAllowCollection')) : overrideDialog.key === TRUSTED_DEVICE_WEB_KEY ? (entry.enabled ? 'Require device approval' : 'Bypass device approval') : entry.enabled ? t('featureFlags.forcedOn') : t('featureFlags.forcedOff')}
                       </div>
-                      {!entry.enabled ? (
+                      {!entry.enabled && overrideDialog.key !== TRUSTED_DEVICE_WEB_KEY ? (
                         <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
                           Presentation: {formatClientPresentation(entry.clientPresentation)}
                         </div>
