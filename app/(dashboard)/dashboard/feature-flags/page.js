@@ -21,8 +21,10 @@ const LABELS = {
   'commerce.marketplace.products.physical.enabled': 'Marketplace physical products',
   'commerce.marketplace.products.digital.enabled': 'Marketplace digital products',
   'commerce.marketplace.products.service.enabled': 'Marketplace service products',
+  'commerce.marketplace.products.training.enabled': 'Show training products in the marketplace',
   'commerce.pos.enabled': 'Commerce POS',
   'business_tools.access.enforced': 'Business Tools access enforcement',
+  'business_tools.pricing.per_tool': 'Business Tools per-tool pricing',
   'service.loans.enabled': 'Loans',
   'savings.enabled': 'Savings',
   'service.crypto.enabled': 'Crypto',
@@ -40,7 +42,8 @@ const WARNINGS = {
   'kyc.allow_gallery_upload': 'If disabled, customers must capture KYC documents directly instead of uploading from their gallery.',
   avecLoanRequestReasonEnabled: 'If disabled, the client app hides the AVEC loan request reason field and does not send notes in loan request payloads.',
   'customer_service.enabled': 'If disabled, the client app hides the customer service floating action button.',
-  'business_tools.access.enforced': 'Enforcement is separate from plan availability and entitlement. Enable only after pricing, migration, client rollout and exception review are complete. Public marketplace and payer checkout remain outside this requirement.'
+  'business_tools.access.enforced': 'Enforcement is separate from plan availability and entitlement. Enable only after pricing, migration, client rollout and exception review are complete. Public marketplace and payer checkout remain outside this requirement.',
+  'business_tools.pricing.per_tool': 'Keep disabled for bundle compatibility until compatible app and web clients can handle independent tool offers. This flag does not change access enforcement.'
 };
 
 const ACTION_LIMIT_PREFIX = 'limit.check.action.';
@@ -63,6 +66,7 @@ const APP_OPEN_AUTH_ANDROID_KEY = 'app_open_auth_enforcement.android';
 const APP_OPEN_AUTH_IOS_KEY = 'app_open_auth_enforcement.ios';
 const CUSTOMER_SERVICE_ENABLED_KEY = 'customer_service.enabled';
 const BUSINESS_TOOLS_ENFORCEMENT_KEY = 'business_tools.access.enforced';
+const BUSINESS_TOOLS_PER_TOOL_KEY = 'business_tools.pricing.per_tool';
 const COMMERCE_ENABLED_KEY = 'commerce.enabled';
 const COMMERCE_SURFACE_FLAGS = [
   {
@@ -110,6 +114,11 @@ const MARKETPLACE_PRODUCT_TYPE_FLAGS = [
     key: 'commerce.marketplace.products.service.enabled',
     label: 'Service products',
     description: 'Controls service product visibility and checkout in the marketplace. Storefront and POS are not affected.'
+  },
+  {
+    key: 'commerce.marketplace.products.training.enabled',
+    label: 'Show training products in the marketplace',
+    description: 'Controls training discovery in the marketplace. It does not affect paid learner access, training prices, direct-link/storefront visibility, or authoring permissions.'
   }
 ];
 const MARKETPLACE_PRODUCT_TYPE_KEYS = new Set(MARKETPLACE_PRODUCT_TYPE_FLAGS.map((item) => item.key));
@@ -282,7 +291,7 @@ const getDisabledMessagePlaceholder = (key) =>
     : 'Optional. Shown to users when this feature is disabled.';
 
 const getDisabledMessageHelp = (key) => (key === SAVINGS_ENABLED_KEY ? SAVINGS_DISABLED_MESSAGE_HELP : GENERIC_DISABLED_MESSAGE_HELP);
-const supportsCountryOverrides = (key) => key === SAVINGS_ENABLED_KEY || CUSTOMER_APP_SERVICE_KEYS.has(String(key || '')) || COMMERCE_SURFACE_KEYS.has(String(key || ''));
+const supportsCountryOverrides = (key) => key === SAVINGS_ENABLED_KEY || CUSTOMER_APP_SERVICE_KEYS.has(String(key || '')) || COMMERCE_SURFACE_KEYS.has(String(key || '')) || MARKETPLACE_PRODUCT_TYPE_KEYS.has(String(key || ''));
 const normalizeDisabledBehavior = (value) => (value === 'ACCEPT_AND_QUEUE' ? 'ACCEPT_AND_QUEUE' : 'BLOCK_REQUEST');
 const normalizeClientPresentation = (value, fallback = ENABLED_CLIENT_PRESENTATION) => {
   const normalized = String(value || '').trim().toUpperCase();
@@ -840,6 +849,7 @@ export default function FeatureFlagsPage() {
       const hasTransactionAuthAndroidFlag = list.some((flag) => String(flag?.key) === TRANSACTION_AUTH_ANDROID_KEY);
       const hasTransactionAuthIosFlag = list.some((flag) => String(flag?.key) === TRANSACTION_AUTH_IOS_KEY);
       const hasCustomerServiceEnabledFlag = list.some((flag) => String(flag?.key) === CUSTOMER_SERVICE_ENABLED_KEY);
+      const hasBusinessToolsPerToolFlag = list.some((flag) => String(flag?.key) === BUSINESS_TOOLS_PER_TOOL_KEY);
       const defaults = [];
       COMMERCE_SURFACE_FLAGS.forEach((surface) => {
         const exists = list.some((flag) => String(flag?.key) === surface.key);
@@ -862,6 +872,7 @@ export default function FeatureFlagsPage() {
       if (!hasTransactionAuthAndroidFlag) defaults.push({ key: TRANSACTION_AUTH_ANDROID_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK', isDefault: true });
       if (!hasTransactionAuthIosFlag) defaults.push({ key: TRANSACTION_AUTH_IOS_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK', isDefault: true });
       if (!hasCustomerServiceEnabledFlag) defaults.push({ key: CUSTOMER_SERVICE_ENABLED_KEY, enabled: true, disabledBehavior: 'BLOCK_REQUEST', queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK', isDefault: true });
+      if (!hasBusinessToolsPerToolFlag) defaults.push({ key: BUSINESS_TOOLS_PER_TOOL_KEY, enabled: false, disabledBehavior: 'BLOCK_REQUEST', queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK', isDefault: true });
       ACCOUNT_VERIFICATION_REQUIREMENT_FLAGS.forEach((requirement) => {
         const exists = list.some((flag) => String(flag?.key) === requirement.key);
         if (!exists) {
@@ -1157,6 +1168,10 @@ export default function FeatureFlagsPage() {
       );
       if (!confirmed) return;
     }
+    if (key === BUSINESS_TOOLS_PER_TOOL_KEY && editDraftEnabled && !editDialog?.originalEnabled) {
+      const confirmed = window.confirm('Enable per-tool Business Tools pricing? Confirm compatible customer clients are deployed and pilot account overrides were reviewed. This does not change access enforcement or disable the bundle offer.');
+      if (!confirmed) return;
+    }
     const payload = {
       enabled: Boolean(editDraftEnabled),
       disabledBehavior: editDraftDisabledBehavior,
@@ -1223,6 +1238,10 @@ export default function FeatureFlagsPage() {
       const confirmed = window.confirm(
         `Enable Business Tools enforcement for pilot account ${accountId}? This override does not grant paid access or enable plan purchases.`
       );
+      if (!confirmed) return;
+    }
+    if (key === BUSINESS_TOOLS_PER_TOOL_KEY && enabled) {
+      const confirmed = window.confirm(`Enable per-tool pricing for pilot account ${accountId}? Existing bundle access remains valid and enforcement is unchanged.`);
       if (!confirmed) return;
     }
     setOverridesSaving(true);

@@ -117,7 +117,7 @@ export default function BusinessToolsMigrationPage() {
           <label style={{ display: 'grid', gap: '0.25rem' }}><span>Accounts per request</span><input type="number" min="1" max="500" value={limit} disabled={Boolean(running)} onChange={(e) => setLimit(e.target.value)} /></label>
           <label style={{ display: 'grid', gap: '0.25rem' }}><span>Audit reason</span><input maxLength={1000} value={reason} disabled={Boolean(running)} placeholder="Approved migration review run" onChange={(e) => setReason(e.target.value)} /></label>
         </div>
-        <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Eligible means the account has a positive, completed, non-refunded store-creation payment and no existing entitlement. Every eligible account receives lifetime access; no top-up, FX conversion, refund or wallet credit is created.</div>
+        <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Eligible means the account has a positive, completed, non-refunded store-creation payment and no conflicting entitlement. The server grants all tools in BUNDLE mode or Online Stores only in PER_TOOL mode. No top-up, FX conversion, refund or wallet credit is created.</div>
         {isSuperAdmin ? (
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             <button type="button" className="btn-neutral" disabled={Boolean(running)} onClick={() => runAllPages(true)}>{running === 'preview' ? 'Running preview…' : 'Preview all pages'}</button>

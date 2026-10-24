@@ -35,6 +35,7 @@ const navItems = [
   { href: '/dashboard/businesses/plans', labelKey: 'layout.nav.businessToolsPlans', label: 'Business Tools Plans' },
   { href: '/dashboard/businesses/migration', labelKey: 'layout.nav.businessToolsMigration', label: 'Business Tools Migration' },
   { href: '/dashboard/commerce/stores', labelKey: 'layout.nav.commerceStores', label: 'Commerce Stores' },
+  { href: '/dashboard/commerce/products', labelKey: 'layout.nav.commerceProducts', label: 'Commerce Products' },
   { href: '/dashboard/commerce/marketplace-ranking-policy', labelKey: 'layout.nav.commerceMarketplaceRankingPolicy', label: 'Commerce Marketplace Ranking' },
   { href: '/dashboard/commerce/settlement-policy', labelKey: 'layout.nav.commerceSettlementPolicy', label: 'Commerce Settlement Policy' },
   { href: '/dashboard/payment-requests', labelKey: 'layout.nav.paymentRequests' },

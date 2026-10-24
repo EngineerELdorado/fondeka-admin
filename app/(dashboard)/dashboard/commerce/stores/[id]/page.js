@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { DataTable } from '@/components/DataTable';
 import { api } from '@/lib/api';
+import { useLocale } from '@/contexts/LocaleContext';
 
 const ORDER_STATUSES = [
   'PENDING_PAYMENT',
@@ -47,6 +48,11 @@ const formatEnum = (value) => {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
+};
+
+const formatProductType = (value, locale) => {
+  if (String(value || '').toUpperCase() === 'TRAINING') return locale === 'fr' ? 'Formation' : 'Training';
+  return formatEnum(value);
 };
 
 const formatDateTime = (value) => {
@@ -113,6 +119,7 @@ const BucketList = ({ title, rows }) => (
 
 export default function CommerceStorePosPage() {
   const params = useParams();
+  const { locale } = useLocale();
   const storeId = Array.isArray(params?.id) ? params.id[0] : params?.id;
 
   const [report, setReport] = useState(null);
@@ -249,8 +256,17 @@ export default function CommerceStorePosPage() {
     { key: 'paid', label: 'Paid', render: (row) => formatMoney(row.amountPaid, row.amountPaidCurrency || row.totalCurrency) },
     { key: 'outstanding', label: 'Outstanding', render: (row) => formatMoney(row.outstandingAmount ?? row.balanceDue, row.outstandingCurrency || row.balanceDueCurrency || row.totalCurrency) },
     { key: 'dueDate', label: 'Due date', render: (row) => row.paymentDueDate || '—' },
-    { key: 'items', label: 'Items', render: (row) => Array.isArray(row.items) ? row.items.length : '—' }
-  ], []);
+    { key: 'items', label: 'Items', render: (row) => Array.isArray(row.items) ? row.items.length : '—' },
+    {
+      key: 'productTypes',
+      label: 'Product types',
+      render: (row) => {
+        if (!Array.isArray(row.items) || row.items.length === 0) return '—';
+        const types = Array.from(new Set(row.items.map((item) => item?.productType ?? item?.type).filter(Boolean)));
+        return types.length ? types.map((type) => formatProductType(type, locale)).join(', ') : '—';
+      }
+    }
+  ], [locale]);
 
   const customerColumns = useMemo(() => [
     { key: 'id', label: 'ID' },
@@ -356,11 +372,12 @@ export default function CommerceStorePosPage() {
             <div className="card" style={{ display: 'grid', gap: '0.65rem', overflowX: 'auto' }}>
               <div style={{ fontWeight: 800 }}>Top products</div>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead><tr>{['Product', 'Quantity', 'Orders', 'Sales'].map((label) => <th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid var(--border)' }}>{label}</th>)}</tr></thead>
+                <thead><tr>{['Product', 'Type', 'Quantity', 'Orders', 'Sales'].map((label) => <th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid var(--border)' }}>{label}</th>)}</tr></thead>
                 <tbody>
-                  {!report.topProducts?.length ? <tr><td colSpan={4} style={{ padding: '0.75rem', color: 'var(--muted)' }}>No product sales.</td></tr> : report.topProducts.map((product) => (
+                  {!report.topProducts?.length ? <tr><td colSpan={5} style={{ padding: '0.75rem', color: 'var(--muted)' }}>No product sales.</td></tr> : report.topProducts.map((product) => (
                     <tr key={product.productId || product.productSlug}>
                       <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border)' }}>{product.productName || product.productSlug || product.productId}</td>
+                      <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border)' }}>{formatProductType(product.productType || product.type, locale)}</td>
                       <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border)' }}>{product.quantitySold ?? '—'}</td>
                       <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border)' }}>{product.orderCount ?? 0}</td>
                       <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border)' }}>{formatMoney(product.salesAmount, product.salesCurrency)}</td>
