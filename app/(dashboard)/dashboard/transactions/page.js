@@ -226,6 +226,138 @@ const DetailGrid = ({ rows }) => (
   </div>
 );
 
+const commerceIdentityAccountId = (identity) => identity?.accountId ?? identity?.id ?? identity?.account?.id ?? null;
+
+const CommerceIdentity = ({ title, identity }) => {
+  if (!identity) return <div style={{ color: 'var(--muted)' }}>{title}: —</div>;
+  const accountId = commerceIdentityAccountId(identity);
+  const name = identity.name || [identity.firstName, identity.lastName].filter(Boolean).join(' ') || identity.username || identity.accountReference || '—';
+  return (
+    <div style={{ padding: '0.65rem', border: '1px solid var(--border)', borderRadius: '10px', minWidth: 0 }}>
+      <div style={{ color: 'var(--muted)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: 0.4 }}>{title}</div>
+      <div style={{ fontWeight: 800, overflowWrap: 'anywhere' }}>{name}</div>
+      <div style={{ fontSize: '12px', overflowWrap: 'anywhere' }}>{identity.accountReference || identity.userReference || identity.username || '—'}</div>
+      <div style={{ fontSize: '12px', overflowWrap: 'anywhere' }}>{identity.email || identity.contactEmail || identity.phoneNumber || identity.phone || '—'}</div>
+      {accountId !== null && accountId !== undefined ? <Link href={`/dashboard/accounts/accounts/${encodeURIComponent(accountId)}`} style={{ display: 'inline-block', marginTop: '0.3rem', fontSize: '12px' }}>Open account {accountId}</Link> : null}
+    </div>
+  );
+};
+
+const CommerceContextPanel = ({ commerce, formatDate, formatMoney }) => {
+  if (!commerce) return null;
+  const store = commerce.store || {};
+  const buyer = commerce.buyer || {};
+  const order = commerce.order || null;
+  const orderItems = Array.isArray(order?.items) ? order.items : Array.isArray(order?.orderItems) ? order.orderItems : [];
+  const fulfillment = Array.isArray(commerce.fulfillment) ? commerce.fulfillment : [];
+  const orderCurrency = order?.totalCurrency || order?.paymentCurrency || order?.currency;
+
+  return (
+    <div className="card" style={{ display: 'grid', gap: '0.85rem', padding: '1rem' }}>
+      <div>
+        <div style={{ fontWeight: 900 }}>Commerce order context</div>
+        <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Current store ownership, recorded merchant identity and captured buyer details are shown separately. Transaction account fields are not used to infer store ownership.</div>
+      </div>
+      <DetailGrid rows={[
+        { label: 'Order', value: commerce.orderReference || commerce.orderId || '—' },
+        { label: 'Order ID', value: commerce.orderId ?? order?.id ?? '—' },
+        { label: 'Checkout ID', value: commerce.checkoutId ?? order?.checkoutId ?? '—' },
+        { label: 'Order status', value: formatEnumLabel(commerce.orderStatus || order?.status) },
+        { label: 'Sales channel', value: formatEnumLabel(commerce.channel || order?.channel || order?.salesChannel) },
+        { label: 'Store', value: store.name || store.slug || store.id || '—' },
+        { label: 'Store ID', value: store.id ?? commerce.storeId ?? '—' },
+        { label: 'Business ID', value: store.businessId ?? commerce.businessId ?? '—' },
+        { label: 'Store status', value: formatEnumLabel(store.status) },
+        { label: 'Visibility', value: formatEnumLabel(store.visibility) },
+        { label: 'Verification', value: formatEnumLabel(store.verificationStatus || store.verification) },
+        { label: 'Store deleted', value: store.deletedAt ? formatDate(store.deletedAt) : 'No' }
+      ]} />
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.6rem' }}>
+        <CommerceIdentity title="Current store owner" identity={commerce.storeOwnerAccount} />
+        <CommerceIdentity title="Recorded merchant / recipient" identity={commerce.merchantAccount} />
+        <CommerceIdentity title="Order creator / POS staff" identity={commerce.createdByAccount} />
+        <div style={{ padding: '0.65rem', border: '1px solid var(--border)', borderRadius: '10px', minWidth: 0 }}>
+          <div style={{ color: 'var(--muted)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: 0.4 }}>Captured buyer</div>
+          <div style={{ fontWeight: 800, overflowWrap: 'anywhere' }}>{buyer.name || '—'}</div>
+          <div style={{ fontSize: '12px', overflowWrap: 'anywhere' }}>{buyer.email || '—'}</div>
+          <div style={{ fontSize: '12px', overflowWrap: 'anywhere' }}>{buyer.phoneNumber || buyer.phone || '—'}</div>
+          <div style={{ fontSize: '12px', marginTop: '0.25rem' }}>{buyer.guest ? 'Guest order' : 'Linked account order'}</div>
+          {commerceIdentityAccountId(buyer.account) !== null ? <Link href={`/dashboard/accounts/accounts/${encodeURIComponent(commerceIdentityAccountId(buyer.account))}`} style={{ display: 'inline-block', marginTop: '0.3rem', fontSize: '12px' }}>Open buyer account {commerceIdentityAccountId(buyer.account)}</Link> : null}
+          {buyer.customer ? <div style={{ fontSize: '12px', marginTop: '0.25rem' }}>Store customer: {buyer.customer.name || buyer.customer.id || 'Linked'}</div> : null}
+        </div>
+      </div>
+
+      {order ? (
+        <details>
+          <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Complete order snapshot</summary>
+          <div style={{ display: 'grid', gap: '0.75rem', marginTop: '0.75rem' }}>
+            <DetailGrid rows={[
+              { label: 'Reference', value: order.reference || order.orderReference || commerce.orderReference || '—' },
+              { label: 'Checkout reference', value: order.checkoutReference || order.checkout?.reference || '—' },
+              { label: 'Payment status', value: formatEnumLabel(order.paymentStatus) },
+              { label: 'Payment transaction', value: order.paymentTransactionId || order.transactionId || '—' },
+              { label: 'Total', value: formatMoney(order.totalAmount, orderCurrency) },
+              { label: 'Amount paid', value: formatMoney(order.amountPaid, order.amountPaidCurrency || orderCurrency) },
+              { label: 'Outstanding', value: formatMoney(order.outstandingAmount ?? order.balanceDue, order.outstandingCurrency || order.balanceDueCurrency || orderCurrency) },
+              { label: 'Fees', value: formatMoney(order.feeAmount ?? order.allFees, order.feeCurrency || order.allFeesCurrency || orderCurrency) },
+              { label: 'Merchant proceeds', value: formatMoney(order.merchantProceedsAmount ?? order.merchantAmount, order.merchantProceedsCurrency || order.merchantCurrency || orderCurrency) },
+              { label: 'Settlement status', value: formatEnumLabel(order.settlementStatus) },
+              { label: 'Available at', value: formatDate(order.proceedsAvailableAt || order.availableAt) },
+              { label: 'Settled at', value: formatDate(order.settledAt || order.settlementDate) },
+              { label: 'Due date', value: formatDate(order.paymentDueDate || order.dueDate) },
+              { label: 'Created', value: formatDate(order.createdAt) },
+              { label: 'Updated', value: formatDate(order.updatedAt) }
+            ]} />
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '920px' }}>
+                <thead><tr>{['Item', 'Type', 'Quantity', 'Original price', 'Normalized price', 'Description'].map((label) => <th key={label} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)' }}>{label}</th>)}</tr></thead>
+                <tbody>{orderItems.length ? orderItems.map((item, index) => (
+                  <tr key={item.id || item.orderItemId || index} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <td style={{ padding: '0.45rem' }}><strong>{item.productName || item.name || `Item ${item.id || index + 1}`}</strong><div style={{ fontSize: '11px', color: 'var(--muted)' }}>Item {item.id || item.orderItemId || '—'} · Product {item.productId || '—'}</div></td>
+                    <td style={{ padding: '0.45rem' }}>{formatEnumLabel(item.productType || item.type)}</td>
+                    <td style={{ padding: '0.45rem' }}>{item.quantity ?? 1}</td>
+                    <td style={{ padding: '0.45rem' }}>{formatMoney(item.originalPriceAmount ?? item.unitPriceAmount ?? item.priceAmount, item.originalPriceCurrency || item.unitPriceCurrency || item.priceCurrency || orderCurrency)}</td>
+                    <td style={{ padding: '0.45rem' }}>{formatMoney(item.normalizedPriceAmount ?? item.normalizedUnitPriceAmount, item.normalizedPriceCurrency || orderCurrency)}</td>
+                    <td style={{ padding: '0.45rem', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{item.productDescription || item.description || '—'}</td>
+                  </tr>
+                )) : <tr><td colSpan={6} style={{ padding: '0.75rem', color: 'var(--muted)' }}>No order items returned.</td></tr>}</tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+      ) : null}
+
+      {fulfillment.length ? (
+        <details open>
+          <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Recorded fulfillment ({fulfillment.length})</summary>
+          <div style={{ display: 'grid', gap: '0.7rem', marginTop: '0.75rem' }}>
+            <div style={{ color: '#92400e', background: '#FFF7ED', borderRadius: '10px', padding: '0.65rem', fontSize: '13px' }}>Payment/content eligibility is not delivery proof. Delivery evidence marked NOT_TRACKED means no shipping receipt, email confirmation, download or view event was recorded.</div>
+            {fulfillment.map((entry, index) => {
+              const training = entry.training || null;
+              const modules = Array.isArray(training?.modules) ? training.modules : [];
+              return <div key={entry.orderItemId || index} style={{ border: '1px solid var(--border)', borderRadius: '10px', padding: '0.75rem', display: 'grid', gap: '0.6rem' }}>
+                <DetailGrid rows={[
+                  { label: 'Order item', value: entry.orderItemId ?? '—' },
+                  { label: 'Product', value: entry.productId ?? '—' },
+                  { label: 'Product type', value: formatEnumLabel(entry.productType) },
+                  { label: 'Delivery type', value: formatEnumLabel(entry.deliveryType) },
+                  { label: 'Access available', value: entry.accessAvailable === true ? 'Yes' : entry.accessAvailable === false ? 'No' : 'Not applicable' },
+                  { label: 'Delivery evidence', value: formatEnumLabel(entry.deliveryEvidence) },
+                  { label: 'Digital file', value: entry.digitalFileAttached ? entry.digitalFileName || 'Attached' : 'Not attached' },
+                  { label: 'Fulfillment link', value: entry.fulfillmentLinkAttached ? <span style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{entry.fulfillmentUrl || 'Attached'}</span> : 'Not attached' }
+                ]} />
+                {entry.instructions ? <div><div style={{ color: 'var(--muted)', fontSize: '12px', textTransform: 'uppercase' }}>Seller instructions</div><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', margin: '0.25rem 0 0', fontFamily: 'inherit' }}>{String(entry.instructions)}</pre></div> : null}
+                {training ? <details><summary style={{ cursor: 'pointer', fontWeight: 800 }}>Training curriculum ({training.publishedModuleCount ?? modules.length} modules, {training.publishedMaterialCount ?? modules.reduce((sum, module) => sum + (Array.isArray(module.materials) ? module.materials.length : 0), 0)} materials)</summary><div style={{ display: 'grid', gap: '0.5rem', marginTop: '0.55rem' }}><div style={{ color: 'var(--muted)', fontSize: '12px' }}>Curriculum source: {training.curriculumSource || 'CURRENT'} · Access account: {training.accessAccountId || '—'}. Current published curriculum is not a purchase-time version snapshot.</div>{modules.length ? modules.map((module, moduleIndex) => <div key={module.id || moduleIndex} style={{ padding: '0.6rem', border: '1px solid var(--border)', borderRadius: '8px' }}><strong>{module.title || `Module ${moduleIndex + 1}`}</strong>{module.description ? <div style={{ whiteSpace: 'pre-wrap', marginTop: '0.2rem' }}>{module.description}</div> : null}<div style={{ display: 'grid', gap: '0.35rem', marginTop: '0.4rem' }}>{(Array.isArray(module.materials) ? module.materials : []).map((material, materialIndex) => <div key={material.id || materialIndex} style={{ padding: '0.45rem', background: 'var(--accent-soft)', borderRadius: '8px' }}><strong>{material.title || `Material ${materialIndex + 1}`}</strong> · {formatEnumLabel(material.type || material.materialType)}{material.description ? <div style={{ whiteSpace: 'pre-wrap' }}>{material.description}</div> : null}{material.linkUrl || material.url ? <div style={{ overflowWrap: 'anywhere' }}>Recorded link: {material.linkUrl || material.url}</div> : null}{material.fileName ? <div>File: {material.fileName}</div> : null}</div>)}</div></div>) : <div style={{ color: 'var(--muted)' }}>No published curriculum currently returned.</div>}</div></details> : null}
+              </div>;
+            })}
+          </div>
+        </details>
+      ) : null}
+    </div>
+  );
+};
+
 const CopyableValue = ({ value, label, onCopy }) => {
   const text = value === null || value === undefined || value === '' ? '' : String(value);
   if (!text) return '—';
@@ -1303,6 +1435,25 @@ export default function TransactionsPage() {
         key: 'accountId',
         label: 'Account ID',
         render: (row) => row?.accountId ?? row?.account?.id ?? '—'
+      },
+      {
+        key: 'commerce',
+        label: 'Commerce order',
+        render: (row) => {
+          const commerce = row?.commerce;
+          if (!commerce) return '—';
+          const owner = commerce.storeOwnerAccount;
+          const merchant = commerce.merchantAccount;
+          const buyer = commerce.buyer;
+          return (
+            <div style={{ display: 'grid', gap: '0.12rem', minWidth: '220px' }}>
+              <strong>{commerce.orderReference || `Order ${commerce.orderId || '—'}`}</strong>
+              <span style={{ fontSize: '12px' }}>{commerce.store?.name || commerce.store?.slug || `Store ${commerce.store?.id || '—'}`} · {formatEnumLabel(commerce.orderStatus)}</span>
+              <span style={{ color: 'var(--muted)', fontSize: '11px' }}>Buyer: {buyer?.name || buyer?.email || (buyer?.guest ? 'Guest' : '—')}</span>
+              <span style={{ color: 'var(--muted)', fontSize: '11px' }}>Owner: {owner?.name || owner?.accountReference || owner?.accountId || '—'} · Merchant: {merchant?.name || merchant?.accountReference || merchant?.accountId || '—'}</span>
+            </div>
+          );
+        }
       },
       {
         key: 'actions',
@@ -2693,6 +2844,8 @@ export default function TransactionsPage() {
               </div>
             )}
 
+            <CommerceContextPanel commerce={selected?.commerce} formatDate={formatDateTime} formatMoney={formatMoneyWithCurrency} />
+
             <div className="card" style={{ padding: '1rem', display: 'grid', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
                 <div style={{ fontWeight: 800 }}>Revenue</div>
@@ -3443,6 +3596,8 @@ export default function TransactionsPage() {
                 { label: 'Webhook events', value: investigation?.webhookEventCount ?? (Array.isArray(investigation?.webhookEvents) ? investigation.webhookEvents.length : '—') }
               ]}
             />
+
+            <CommerceContextPanel commerce={investigation?.transaction?.commerce} formatDate={formatDateTime} formatMoney={formatMoneyWithCurrency} />
 
             <div className="card" style={{ padding: '1rem' }}>
               {investigation?.providerEventCount > 0 && !(Array.isArray(investigation?.timeline) && investigation.timeline.some((event) => normalizeEnumKey(event?.type) === 'PROVIDER_REQUEST')) && (

@@ -32,6 +32,7 @@ const navItems = [
   { href: '/dashboard/esim', labelKey: 'layout.nav.esimsProviders' },
   { href: '/dashboard/esim-products', labelKey: 'layout.nav.esimProducts' },
   { href: '/dashboard/businesses', labelKey: 'layout.nav.businesses', label: 'Businesses' },
+  { href: '/dashboard/businesses/customers', labelKey: 'layout.nav.businessToolsCustomers', label: 'Business Tools Customers', adminOnly: true },
   { href: '/dashboard/businesses/plans', labelKey: 'layout.nav.businessToolsPlans', label: 'Business Tools Plans' },
   { href: '/dashboard/businesses/migration', labelKey: 'layout.nav.businessToolsMigration', label: 'Business Tools Migration' },
   { href: '/dashboard/commerce/stores', labelKey: 'layout.nav.commerceStores', label: 'Commerce Stores' },
@@ -110,7 +111,7 @@ export default function DashboardLayout({ children }) {
     [adminGroups]
   );
   const renderedNavItems = useMemo(() => {
-    const baseItems = navItems.filter((item) => item.href !== '/dashboard/admins' || canSeeAdminsMenu);
+    const baseItems = navItems.filter((item) => (item.href !== '/dashboard/admins' && !item.adminOnly) || canSeeAdminsMenu);
     if (!showQaStubFailureModes) return baseItems;
     return [...baseItems, { href: '/dashboard/admin/stub-failure-modes', labelKey: 'layout.nav.stubFailureModes' }];
   }, [canSeeAdminsMenu, showQaStubFailureModes]);
