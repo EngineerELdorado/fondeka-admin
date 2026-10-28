@@ -23,6 +23,21 @@ const formatCurrency = (val) => {
   return num.toLocaleString(DISPLAY_LOCALE, { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
+const formatNativeCurrency = (value, currency) => {
+  if (value === null || value === undefined) return '—';
+  const number = Number(value);
+  if (!Number.isFinite(number)) return `${value} ${currency || ''}`.trim();
+  try {
+    return new Intl.NumberFormat(DISPLAY_LOCALE, {
+      style: 'currency',
+      currency: currency || 'USD',
+      maximumFractionDigits: 2
+    }).format(number);
+  } catch {
+    return `${number.toLocaleString(DISPLAY_LOCALE)} ${currency || ''}`.trim();
+  }
+};
+
 const formatPercentage = (val) => {
   if (val === null || val === undefined) return '—';
   const num = Number(val);
@@ -351,6 +366,19 @@ const formatCryptoHoldings = (list) =>
     balanceFiat: item.balanceFiat ?? '0'
   }));
 
+const formatFiatHoldings = (list) =>
+  (list || []).map((item, idx) => ({
+    id: item.currencyProductId ?? `${item.currency || 'currency'}-${idx}`,
+    currencyProductId: item.currencyProductId ?? '—',
+    currency: item.currency || '—',
+    displayName: item.displayName || item.currency || 'Currency',
+    logoUrl: item.logoUrl || null,
+    balance: item.balance ?? 0,
+    balanceFiat: item.balanceFiat ?? null,
+    walletCount: item.walletCount ?? 0,
+    usdValuationAvailable: item.usdValuationAvailable !== false && item.balanceFiat !== null && item.balanceFiat !== undefined
+  }));
+
 export default function DashboardPage() {
   const { t } = useLocale();
   const router = useRouter();
@@ -369,6 +397,7 @@ export default function DashboardPage() {
   const [billProviders, setBillProviders] = useState([]);
   const [countries, setCountries] = useState([]);
   const [showHoldings, setShowHoldings] = useState(false);
+  const [showFiatHoldings, setShowFiatHoldings] = useState(false);
   const [showCompletedBreakdown, setShowCompletedBreakdown] = useState(false);
   const [showRevenueBreakdown, setShowRevenueBreakdown] = useState(false);
   const [showSavingsBreakdown, setShowSavingsBreakdown] = useState(false);
@@ -558,6 +587,16 @@ export default function DashboardPage() {
   const metrics = data?.metrics || {};
   const timeseries = data?.timeseries || [];
   const holdings = data?.holdings || {};
+  const fiatHoldingsRows = useMemo(() => formatFiatHoldings(holdings.fiatHoldings), [holdings.fiatHoldings]);
+  const fiatValuationIncomplete = useMemo(() => fiatHoldingsRows.some((row) => !row.usdValuationAvailable), [fiatHoldingsRows]);
+  const fiatHoldingsChartData = useMemo(
+    () => fiatHoldingsRows
+      .filter((row) => row.usdValuationAvailable)
+      .map((row) => ({ ...row, chartLabel: `${row.currency} · ${row.displayName}`, amount: Number(row.balanceFiat) || 0 }))
+      .filter((row) => row.amount > 0)
+      .sort((a, b) => b.amount - a.amount),
+    [fiatHoldingsRows]
+  );
   const cryptoHoldingsRows = useMemo(() => formatCryptoHoldings(holdings.cryptoHoldings), [holdings.cryptoHoldings]);
   const cryptoHoldingsChartData = useMemo(
     () =>
@@ -791,7 +830,13 @@ export default function DashboardPage() {
   }, [stuckItemsModal?.action, stuckItemsModal?.status, stuckItemsPage, stuckItemsSize, fetchFundedStuckItems]);
 
   const kpiCards = [
-    { label: t('dashboard.fiatBalance'), value: formatCurrency(holdings.fiatBalanceTotal), sub: t('dashboard.acrossFiatAccounts'), tone: '#2563eb' },
+    {
+      label: t('dashboard.fiatBalance'),
+      value: formatCurrency(holdings.fiatBalanceTotal),
+      sub: fiatValuationIncomplete ? `${t('dashboard.acrossFiatAccounts')} · USD total incomplete` : t('dashboard.acrossFiatAccounts'),
+      tone: '#2563eb',
+      onClick: () => setShowFiatHoldings(true)
+    },
     {
       label: t('dashboard.cryptoBalanceUsd'),
       value: formatCurrency(holdings.cryptoBalanceFiat),
@@ -1900,6 +1945,70 @@ export default function DashboardPage() {
                 { label: 'Customer Funds Liability Incl. Accrued Savings Interest', amount: customerLiabilities.totalOwedToCustomersWithAccruedSavingsInterest }
               ]}
             />
+          </div>
+        </Modal>
+      )}
+
+      {showFiatHoldings && (
+        <Modal title="Fiat Wallet Holdings" onClose={() => setShowFiatHoldings(false)}>
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+              Current customer fiat-wallet balances for the active account filters. Native balances are shown in their recorded currencies and are never added across currencies. Date and transaction filters do not change this current-balance snapshot.
+            </div>
+            {fiatValuationIncomplete ? (
+              <div style={{ padding: '0.7rem', border: '1px solid #FDE68A', borderRadius: '10px', background: '#FFFBEB', color: '#92400E', fontWeight: 700 }}>
+                USD valuation is unavailable for one or more currencies. The fiat USD total includes only holdings with an available valuation and is incomplete.
+              </div>
+            ) : null}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.6rem' }}>
+              {[
+                { label: 'Available USD total', value: formatCurrency(holdings.fiatBalanceTotal) },
+                { label: 'Currency holdings', value: formatNumber(fiatHoldingsRows.length) },
+                { label: 'Contributing wallets', value: formatNumber(fiatHoldingsRows.reduce((total, row) => total + (Number(row.walletCount) || 0), 0)) }
+              ].map((item) => (
+                <div key={item.label} style={{ display: 'grid', gap: '0.15rem', padding: '0.6rem', border: '1px solid var(--border)', borderRadius: '10px' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{item.label}</div>
+                  <div style={{ fontWeight: 800, fontSize: '18px' }}>{item.value}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ height: 280, border: '1px solid var(--border)', borderRadius: '10px', padding: '0.75rem' }}>
+              {fiatHoldingsChartData.length === 0 ? (
+                <div style={{ color: 'var(--muted)' }}>No fiat holdings with an available positive USD valuation to chart.</div>
+              ) : (
+                <ResponsiveContainer>
+                  <BarChart data={fiatHoldingsChartData} margin={{ top: 10, right: 20, bottom: 20, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis dataKey="chartLabel" tick={{ fontSize: 12 }} />
+                    <YAxis tickFormatter={(value) => `$${Number(value).toLocaleString(DISPLAY_LOCALE)}`} width={80} />
+                    <Tooltip formatter={(value) => [formatCurrency(value), 'USD equivalent']} />
+                    <Bar dataKey="amount" fill="#2563eb" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+            <Table
+              columns={[
+                {
+                  key: 'displayName',
+                  label: 'Currency product',
+                  render: (row) => (
+                    <div>
+                      <strong>{row.displayName}</strong>
+                      <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{row.currency} · Product {row.currencyProductId}</div>
+                    </div>
+                  )
+                },
+                { key: 'balance', label: 'Native balance', render: (row) => formatNativeCurrency(row.balance, row.currency) },
+                { key: 'balanceFiat', label: 'USD equivalent', render: (row) => row.usdValuationAvailable ? formatCurrency(row.balanceFiat) : <span style={{ color: '#92400E', fontWeight: 700 }}>Unavailable</span> },
+                { key: 'walletCount', label: 'Wallets', render: (row) => formatNumber(row.walletCount) }
+              ]}
+              rows={fiatHoldingsRows}
+              emptyLabel="No fiat wallet holdings"
+            />
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Wallet counts include zero-balance wallets. Disabled currency products remain represented when customer wallets still exist. Sandbox wallets and migrated legacy account balances are excluded by the backend.
+            </div>
           </div>
         </Modal>
       )}
