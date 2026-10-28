@@ -38,17 +38,6 @@ const formatNativeCurrency = (value, currency) => {
   }
 };
 
-const formatNativeAmount = (value, currency) => {
-  if (value === null || value === undefined) return '—';
-  const raw = String(value);
-  const match = raw.match(/^(-?)(\d+)(?:\.(\d+))?$/);
-  if (!match) return `${raw} ${currency || ''}`.trim();
-  const [, sign, integer, fraction = ''] = match;
-  const groupedInteger = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  const trimmedFraction = fraction.replace(/0+$/, '');
-  return `${sign}${groupedInteger}${trimmedFraction ? `.${trimmedFraction}` : ''} ${currency || ''}`.trim();
-};
-
 const formatRoundedNativeAmount = (value, currency, maximumFractionDigits = 2) => {
   if (value === null || value === undefined) return '—';
   const number = Number(value);
@@ -613,31 +602,13 @@ export default function DashboardPage() {
   const holdings = data?.holdings || {};
   const fiatHoldingsRows = useMemo(() => formatFiatHoldings(holdings.fiatHoldings), [holdings.fiatHoldings]);
   const fiatValuationIncomplete = useMemo(() => fiatHoldingsRows.some((row) => !row.usdValuationAvailable), [fiatHoldingsRows]);
-  const fiatHoldingsChartData = useMemo(
-    () => fiatHoldingsRows
-      .filter((row) => row.usdValuationAvailable)
-      .map((row) => ({ ...row, chartLabel: `${row.currency} · ${row.displayName}`, amount: Number(row.balanceFiat) || 0 }))
-      .filter((row) => row.amount > 0)
-      .sort((a, b) => b.amount - a.amount),
-    [fiatHoldingsRows]
-  );
   const cryptoHoldingsRows = useMemo(() => formatCryptoHoldings(holdings.cryptoHoldings), [holdings.cryptoHoldings]);
-  const cryptoHoldingsChartData = useMemo(
-    () =>
-      cryptoHoldingsRows
-        .map((row) => ({
-          ...row,
-          chartLabel: [row.symbol || row.asset || 'Asset', row.network !== '—' ? row.network : null].filter(Boolean).join(' • '),
-          amount: Number(row.balanceFiat) || 0
-        }))
-        .filter((row) => row.amount > 0)
-        .sort((a, b) => b.amount - a.amount)
-        .slice(0, 12),
-    [cryptoHoldingsRows]
-  );
   const savingsAggregates = data?.savingsAggregates || {};
   const customerLiabilities = data?.customerLiabilities || {};
   const savingsByCurrency = Array.isArray(savingsAggregates.byCurrency) ? savingsAggregates.byCurrency : [];
+  const currentSavingsByCurrency = savingsByCurrency.filter((row) =>
+    hasNonZeroAmount(row.currentAllLiabilityWithAccruedInterest ?? row.currentAllLiability)
+  );
   const customerLiabilitiesByCurrency = Array.isArray(customerLiabilities.byCurrency) ? customerLiabilities.byCurrency : [];
   const activeLiabilityCurrencies = customerLiabilitiesByCurrency.filter((row) =>
     hasNonZeroAmount(row.totalOwedToCustomersWithAccruedSavingsInterest ?? row.totalOwedToCustomers)
@@ -2047,241 +2018,216 @@ export default function DashboardPage() {
 
       {showFiatHoldings && (
         <Modal title="Fiat Wallet Holdings" onClose={() => setShowFiatHoldings(false)}>
-          <div style={{ display: 'grid', gap: '0.75rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-              <div style={{ color: 'var(--muted)', fontSize: '13px', maxWidth: '680px' }}>
-                Current customer fiat-wallet balances loaded from <code>GET /admin-api/dashboard</code> for the active account filters. Native balances are shown in their recorded currencies and are never added across currencies. Date and transaction filters do not change this current-balance snapshot.
+          <div style={{ display: 'grid', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem', padding: '1rem', border: '1px solid var(--border)', borderRadius: '12px', background: 'var(--accent-soft)' }}>
+              <div>
+                <div style={{ color: 'var(--muted)', fontSize: '12px', fontWeight: 700 }}>AVAILABLE USD VALUE</div>
+                <div style={{ fontWeight: 900, fontSize: 'clamp(1.8rem, 4vw, 2.5rem)', lineHeight: 1.1, marginTop: '0.3rem' }}>{formatCurrency(holdings.fiatBalanceTotal)}</div>
+                <div style={{ color: 'var(--muted)', fontSize: '12px', marginTop: '0.4rem' }}>Current fiat-wallet snapshot for the active account filters</div>
               </div>
-              <button type="button" className="btn-neutral btn-sm" disabled={loading || refreshing} onClick={() => fetchDashboard()}>
-                {loading || refreshing ? 'Refreshing…' : 'Refresh holdings'}
-              </button>
+              <div style={{ alignSelf: 'center', paddingLeft: '0.75rem', borderLeft: '1px solid var(--border)' }}>
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Coverage</div>
+                <div style={{ fontWeight: 800, fontSize: '18px', marginTop: '0.15rem' }}>{formatNumber(fiatHoldingsRows.length)} currencies</div>
+                <div style={{ color: 'var(--muted)', fontSize: '12px', marginTop: '0.5rem' }}>
+                  {formatNumber(fiatHoldingsRows.reduce((total, row) => total + (Number(row.walletCount) || 0), 0))} contributing wallets
+                </div>
+              </div>
             </div>
             {fiatValuationIncomplete ? (
-              <div style={{ padding: '0.7rem', border: '1px solid #FDE68A', borderRadius: '10px', background: '#FFFBEB', color: '#92400E', fontWeight: 700 }}>
+              <div style={{ padding: '0.7rem', border: '1px solid var(--warning)', borderRadius: '10px', color: 'var(--warning)', fontWeight: 700 }}>
                 USD valuation is unavailable for one or more currencies. The fiat USD total includes only holdings with an available valuation and is incomplete.
               </div>
             ) : null}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.6rem' }}>
-              {[
-                { label: 'Available USD total', value: formatCurrency(holdings.fiatBalanceTotal) },
-                { label: 'Currency holdings', value: formatNumber(fiatHoldingsRows.length) },
-                { label: 'Contributing wallets', value: formatNumber(fiatHoldingsRows.reduce((total, row) => total + (Number(row.walletCount) || 0), 0)) }
-              ].map((item) => (
-                <div key={item.label} style={{ display: 'grid', gap: '0.15rem', padding: '0.6rem', border: '1px solid var(--border)', borderRadius: '10px' }}>
-                  <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{item.label}</div>
-                  <div style={{ fontWeight: 800, fontSize: '18px' }}>{item.value}</div>
+            <section style={{ display: 'grid', gap: '0.55rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div>
+                  <div style={{ fontWeight: 800 }}>Balance by currency</div>
+                  <div style={{ color: 'var(--muted)', fontSize: '12px', marginTop: '0.2rem' }}>Native balances stay separate. USD values use the configured currency-product rates.</div>
                 </div>
-              ))}
-            </div>
-            <div style={{ height: 280, border: '1px solid var(--border)', borderRadius: '10px', padding: '0.75rem' }}>
-              {fiatHoldingsChartData.length === 0 ? (
-                <div style={{ color: 'var(--muted)' }}>No fiat holdings with an available positive USD valuation to chart.</div>
+                <button type="button" className="btn-neutral btn-sm" disabled={loading || refreshing} onClick={() => fetchDashboard()}>
+                  {loading || refreshing ? 'Refreshing…' : 'Refresh holdings'}
+                </button>
+              </div>
+              {fiatHoldingsRows.length === 0 ? (
+                <div style={{ padding: '0.85rem', border: '1px solid var(--border)', borderRadius: '10px', color: 'var(--muted)' }}>No fiat wallet holdings.</div>
               ) : (
-                <ResponsiveContainer>
-                  <BarChart data={fiatHoldingsChartData} margin={{ top: 10, right: 20, bottom: 20, left: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                    <XAxis dataKey="chartLabel" tick={{ fontSize: 12 }} />
-                    <YAxis tickFormatter={(value) => `$${Number(value).toLocaleString(DISPLAY_LOCALE)}`} width={80} />
-                    <Tooltip formatter={(value) => [formatCurrency(value), 'USD equivalent']} />
-                    <Bar dataKey="amount" fill="#2563eb" radius={[6, 6, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-            <Table
-              columns={[
-                {
-                  key: 'displayName',
-                  label: 'Currency product',
-                  render: (row) => (
-                    <div>
-                      <strong>{row.displayName}</strong>
-                      <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{row.currency} · Product {row.currencyProductId}</div>
+                <div style={{ display: 'grid', gap: '0.55rem' }}>
+                  {fiatHoldingsRows.map((row) => (
+                    <div key={row.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 0.85rem', border: '1px solid var(--border)', borderRadius: '10px' }}>
+                      <div style={{ flex: '0 0 70px', fontWeight: 900, fontSize: '16px' }}>{row.currency}</div>
+                      <div style={{ flex: '1 1 260px' }}>
+                        <div style={{ color: 'var(--muted)', fontSize: '11px' }}>{row.displayName} · Product {row.currencyProductId}</div>
+                        <div style={{ fontWeight: 800, fontVariantNumeric: 'tabular-nums', marginTop: '0.1rem' }}>{formatNativeCurrency(row.balance, row.currency)}</div>
+                      </div>
+                      <div style={{ flex: '0 1 130px' }}>
+                        <div style={{ color: 'var(--muted)', fontSize: '11px' }}>Wallets</div>
+                        <div style={{ fontWeight: 700, marginTop: '0.1rem' }}>{formatNumber(row.walletCount)}</div>
+                      </div>
+                      <div style={{ flex: '0 1 170px', marginLeft: 'auto', textAlign: 'right' }}>
+                        <div style={{ color: 'var(--muted)', fontSize: '11px' }}>USD value</div>
+                        <div style={{ fontWeight: 900, marginTop: '0.1rem' }}>
+                          {row.usdValuationAvailable ? formatCurrency(row.balanceFiat) : <span style={{ color: 'var(--warning)' }}>Unavailable</span>}
+                        </div>
+                      </div>
                     </div>
-                  )
-                },
-                { key: 'balance', label: 'Native balance', render: (row) => formatNativeCurrency(row.balance, row.currency) },
-                { key: 'balanceFiat', label: 'USD equivalent', render: (row) => row.usdValuationAvailable ? formatCurrency(row.balanceFiat) : <span style={{ color: '#92400E', fontWeight: 700 }}>Unavailable</span> },
-                { key: 'walletCount', label: 'Wallets', render: (row) => formatNumber(row.walletCount) }
-              ]}
-              rows={fiatHoldingsRows}
-              emptyLabel="No fiat wallet holdings"
-            />
-            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-              Wallet counts include zero-balance wallets. Disabled currency products remain represented when customer wallets still exist. Sandbox wallets and migrated legacy account balances are excluded by the backend.
-            </div>
+                  ))}
+                </div>
+              )}
+              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Wallet counts include zero-balance wallets. Sandbox wallets and migrated legacy balances are excluded by the backend.</div>
+            </section>
           </div>
         </Modal>
       )}
 
       {showHoldings && (
         <Modal title="Crypto Holdings" onClose={() => setShowHoldings(false)}>
-          <div style={{ display: 'grid', gap: '0.75rem' }}>
-            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-              Current crypto balances converted to USD for the active dashboard filters.
+          <div style={{ display: 'grid', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem', padding: '1rem', border: '1px solid var(--border)', borderRadius: '12px', background: 'var(--accent-soft)' }}>
+              <div>
+                <div style={{ color: 'var(--muted)', fontSize: '12px', fontWeight: 700 }}>TOTAL USD VALUE</div>
+                <div style={{ fontWeight: 900, fontSize: 'clamp(1.8rem, 4vw, 2.5rem)', lineHeight: 1.1, marginTop: '0.3rem' }}>{formatCurrency(holdings.cryptoBalanceFiat)}</div>
+                <div style={{ color: 'var(--muted)', fontSize: '12px', marginTop: '0.4rem' }}>Current crypto snapshot for the active account filters</div>
+              </div>
+              <div style={{ alignSelf: 'center', paddingLeft: '0.75rem', borderLeft: '1px solid var(--border)' }}>
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Holdings</div>
+                <div style={{ fontWeight: 800, fontSize: '18px', marginTop: '0.15rem' }}>{formatNumber(cryptoHoldingsRows.length)} asset networks</div>
+                <div style={{ color: 'var(--muted)', fontSize: '12px', marginTop: '0.5rem' }}>Native quantities remain separate by asset and network</div>
+              </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.6rem' }}>
-              {[
-                { label: 'Crypto Balance USD', value: formatCurrency(holdings.cryptoBalanceFiat) },
-                { label: 'Holdings', value: formatNumber(cryptoHoldingsRows.length) }
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  style={{
-                    display: 'grid',
-                    gap: '0.15rem',
-                    padding: '0.6rem',
-                    border: '1px solid var(--border)',
-                    borderRadius: '10px'
-                  }}
-                >
-                  <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{item.label}</div>
-                  <div style={{ fontWeight: 800, fontSize: '18px' }}>{item.value}</div>
-                </div>
-              ))}
-            </div>
-            <div style={{ height: 280, border: '1px solid var(--border)', borderRadius: '10px', padding: '0.75rem' }}>
-              {cryptoHoldingsChartData.length === 0 ? (
-                <div style={{ color: 'var(--muted)' }}>No crypto holdings to chart.</div>
+            <section style={{ display: 'grid', gap: '0.55rem' }}>
+              <div>
+                <div style={{ fontWeight: 800 }}>Holdings by asset and network</div>
+                <div style={{ color: 'var(--muted)', fontSize: '12px', marginTop: '0.2rem' }}>Native quantities are rounded to six decimal places for display.</div>
+              </div>
+              {cryptoHoldingsRows.length === 0 ? (
+                <div style={{ padding: '0.85rem', border: '1px solid var(--border)', borderRadius: '10px', color: 'var(--muted)' }}>No crypto holdings.</div>
               ) : (
-                <ResponsiveContainer>
-                  <BarChart data={cryptoHoldingsChartData} margin={{ top: 10, right: 20, bottom: 20, left: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                    <XAxis dataKey="chartLabel" tick={{ fontSize: 12 }} />
-                    <YAxis tickFormatter={(value) => `$${Number(value).toLocaleString(DISPLAY_LOCALE)}`} width={80} />
-                    <Tooltip formatter={(value) => [formatCurrency(value), 'USD']} />
-                    <Bar dataKey="amount" fill="#0ea5e9" radius={[6, 6, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                <div style={{ display: 'grid', gap: '0.55rem' }}>
+                  {cryptoHoldingsRows.map((row) => (
+                    <div key={row.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 0.85rem', border: '1px solid var(--border)', borderRadius: '10px' }}>
+                      <div style={{ flex: '0 0 70px', fontWeight: 900, fontSize: '16px' }}>{row.symbol}</div>
+                      <div style={{ flex: '1 1 280px' }}>
+                        <div style={{ color: 'var(--muted)', fontSize: '11px' }}>{row.asset}</div>
+                        <div style={{ fontWeight: 800, fontVariantNumeric: 'tabular-nums', marginTop: '0.1rem' }}>{formatRoundedNativeAmount(row.balance, row.symbol, 6)}</div>
+                      </div>
+                      <div style={{ flex: '0 1 170px', marginLeft: 'auto', textAlign: 'right' }}>
+                        <div style={{ color: 'var(--muted)', fontSize: '11px' }}>USD value</div>
+                        <div style={{ fontWeight: 900, marginTop: '0.1rem' }}>{formatCurrency(row.balanceFiat)}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
-            </div>
-            <Table
-              columns={[
-                { key: 'asset', label: 'Asset / Network', render: (row) => row.asset || '—' },
-                { key: 'symbol', label: 'Symbol' },
-                { key: 'balance', label: 'Balance', render: (row) => formatNumber(row.balance) },
-                { key: 'balanceFiat', label: 'USD', render: (row) => formatCurrency(row.balanceFiat) }
-              ]}
-              rows={cryptoHoldingsRows}
-              emptyLabel="No crypto holdings"
-            />
+            </section>
           </div>
         </Modal>
       )}
 
       {showSavingsBreakdown && (
         <Modal title={t('dashboard.savingsAggregatesTitle')} onClose={() => setShowSavingsBreakdown(false)}>
-          <div style={{ display: 'grid', gap: '0.75rem' }}>
-            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-              {t('dashboard.savingsAggregatesHelp')}
-            </div>
-            <div style={{ display: 'grid', gap: '0.75rem' }}>
+          <div style={{ display: 'grid', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem', padding: '1rem', border: '1px solid var(--border)', borderRadius: '12px', background: 'var(--accent-soft)' }}>
               <div>
-                <div style={{ fontWeight: 800 }}>Native savings amounts by currency</div>
-                <div style={{ color: 'var(--muted)', fontSize: '12px', marginTop: '0.2rem' }}>
-                  Native amounts are kept in their recorded currencies and are never summed across currencies. Historical contributions can be larger than the amount currently held after withdrawals.
+                <div style={{ color: 'var(--muted)', fontSize: '12px', fontWeight: 700 }}>CURRENT LIABILITY, INCLUDING INTEREST</div>
+                <div style={{ fontWeight: 900, fontSize: 'clamp(1.8rem, 4vw, 2.5rem)', lineHeight: 1.1, marginTop: '0.3rem' }}>{formatCurrency(savingsAggregates.currentAllLiabilityWithAccruedInterest)}</div>
+                <div style={{ color: 'var(--muted)', fontSize: '12px', marginTop: '0.4rem' }}>Current savings principal, group treasury, and accrued personal-savings interest</div>
+              </div>
+              <div style={{ alignSelf: 'center', paddingLeft: '0.75rem', borderLeft: '1px solid var(--border)' }}>
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Current principal and treasury</div>
+                <div style={{ fontWeight: 800, fontSize: '18px', marginTop: '0.15rem' }}>{formatCurrency(savingsAggregates.currentAllLiability)}</div>
+                <div style={{ color: 'var(--muted)', fontSize: '12px', marginTop: '0.5rem' }}>+ {formatCurrency(savingsAggregates.allAccruedInterest)} accrued interest</div>
+              </div>
+            </div>
+
+            <section style={{ display: 'grid', gap: '0.55rem' }}>
+              <div style={{ fontWeight: 800 }}>Consolidated USD breakdown</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(165px, 1fr))', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
+                {[
+                  { label: 'Open savings', amount: savingsAggregates.currentOpenSavingsLiability },
+                  { label: 'Locked savings', amount: savingsAggregates.currentLockedSavingsLiability },
+                  { label: 'Likelemba treasury', amount: savingsAggregates.currentLikelembaLiability },
+                  { label: 'AVEC treasury', amount: savingsAggregates.currentAvecLiability },
+                  { label: 'Accrued interest', amount: savingsAggregates.allAccruedInterest }
+                ].map((item) => (
+                  <div key={item.label} style={{ padding: '0.8rem', borderRight: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
+                    <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{item.label}</div>
+                    <div style={{ fontWeight: 800, fontSize: '17px', marginTop: '0.25rem' }}>{formatCurrency(item.amount)}</div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section style={{ display: 'grid', gap: '0.55rem' }}>
+              <div>
+                <div style={{ fontWeight: 800 }}>Current liability by currency</div>
+                <div style={{ color: 'var(--muted)', fontSize: '12px', marginTop: '0.2rem' }}>Native amounts stay separate by currency and are rounded to two decimal places for display.</div>
+              </div>
+              {currentSavingsByCurrency.length === 0 ? (
+                <div style={{ padding: '0.85rem', border: '1px solid var(--border)', borderRadius: '10px', color: 'var(--muted)' }}>No current native-currency savings liability.</div>
+              ) : (
+                <div style={{ display: 'grid', gap: '0.55rem' }}>
+                  {currentSavingsByCurrency.map((row) => {
+                    const components = [
+                      { label: 'Open', value: row.currentOpenSavingsLiability },
+                      { label: 'Locked', value: row.currentLockedSavingsLiability },
+                      { label: 'Likelemba', value: row.currentLikelembaLiability },
+                      { label: 'AVEC', value: row.currentAvecLiability },
+                      { label: 'Interest', value: row.allAccruedInterest }
+                    ].filter((item) => hasNonZeroAmount(item.value));
+                    return (
+                      <div key={row.currency} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 0.85rem', border: '1px solid var(--border)', borderRadius: '10px' }}>
+                        <div style={{ flex: '0 0 70px', fontWeight: 900, fontSize: '16px' }}>{row.currency}</div>
+                        <div style={{ flex: '1 1 340px', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                          {components.map((item) => (
+                            <div key={item.label} style={{ minWidth: '105px' }}>
+                              <div style={{ color: 'var(--muted)', fontSize: '11px' }}>{item.label}</div>
+                              <div style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums', marginTop: '0.1rem' }}>{formatRoundedNativeAmount(item.value, row.currency, 2)}</div>
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{ flex: '0 1 190px', marginLeft: 'auto', textAlign: 'right' }}>
+                          <div style={{ color: 'var(--muted)', fontSize: '11px' }}>Total incl. interest</div>
+                          <div style={{ fontWeight: 900, fontVariantNumeric: 'tabular-nums', marginTop: '0.1rem' }}>{formatRoundedNativeAmount(row.currentAllLiabilityWithAccruedInterest, row.currency, 2)}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
+              )}
+            </section>
+
+            <details style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
+              <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Historical deposits and contributions</summary>
+              <div style={{ color: 'var(--muted)', fontSize: '12px', marginTop: '0.35rem' }}>Historical amounts can be larger than current liability after withdrawals.</div>
+              <div style={{ display: 'grid', gap: '0.55rem', marginTop: '0.65rem' }}>
+                {savingsByCurrency.map((row) => (
+                  <div key={row.currency} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.75rem', padding: '0.65rem 0.75rem', border: '1px solid var(--border)', borderRadius: '10px' }}>
+                    <div style={{ flex: '0 0 70px', fontWeight: 900 }}>{row.currency}</div>
+                    <div style={{ flex: '1 1 360px', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                      {[
+                        { label: 'Open', value: row.openSavings },
+                        { label: 'Locked', value: row.lockedSavings },
+                        { label: 'Likelemba', value: row.likelemba },
+                        { label: 'AVEC', value: row.avec }
+                      ].filter((item) => hasNonZeroAmount(item.value)).map((item) => (
+                        <div key={item.label} style={{ minWidth: '105px' }}>
+                          <div style={{ color: 'var(--muted)', fontSize: '11px' }}>{item.label}</div>
+                          <div style={{ fontWeight: 700, marginTop: '0.1rem' }}>{formatRoundedNativeAmount(item.value, row.currency, 2)}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ flex: '0 1 170px', marginLeft: 'auto', textAlign: 'right' }}>
+                      <div style={{ color: 'var(--muted)', fontSize: '11px' }}>Historical total</div>
+                      <div style={{ fontWeight: 900, marginTop: '0.1rem' }}>{formatRoundedNativeAmount(row.all, row.currency, 2)}</div>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div style={{ display: 'grid', gap: '0.5rem' }}>
-                <div style={{ fontWeight: 700 }}>Historical deposits and contributions</div>
-                <Table
-                  columns={[
-                    { key: 'currency', label: 'Currency', bold: true },
-                    { key: 'openSavings', label: 'Open savings', render: (row) => formatNativeAmount(row.openSavings, row.currency) },
-                    { key: 'lockedSavings', label: 'Locked savings', render: (row) => formatNativeAmount(row.lockedSavings, row.currency) },
-                    { key: 'likelemba', label: 'Likelemba', render: (row) => formatNativeAmount(row.likelemba, row.currency) },
-                    { key: 'avec', label: 'AVEC', render: (row) => formatNativeAmount(row.avec, row.currency) },
-                    { key: 'all', label: 'All', render: (row) => formatNativeAmount(row.all, row.currency), bold: true }
-                  ]}
-                  rows={savingsByCurrency}
-                  emptyLabel="No native-currency savings breakdown returned"
-                />
+              <div style={{ marginTop: '0.75rem', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '10px' }}>
+                <div style={{ color: 'var(--muted)', fontSize: '11px' }}>Consolidated historical USD total</div>
+                <div style={{ fontWeight: 900, fontSize: '18px', marginTop: '0.15rem' }}>{formatCurrency(savingsAggregates.all)}</div>
               </div>
-              <div style={{ display: 'grid', gap: '0.5rem' }}>
-                <div style={{ fontWeight: 700 }}>Current principal and treasury liability</div>
-                <Table
-                  columns={[
-                    { key: 'currency', label: 'Currency', bold: true },
-                    { key: 'currentOpenSavingsLiability', label: 'Open savings', render: (row) => formatNativeAmount(row.currentOpenSavingsLiability, row.currency) },
-                    { key: 'currentLockedSavingsLiability', label: 'Locked savings', render: (row) => formatNativeAmount(row.currentLockedSavingsLiability, row.currency) },
-                    { key: 'currentLikelembaLiability', label: 'Likelemba treasury', render: (row) => formatNativeAmount(row.currentLikelembaLiability, row.currency) },
-                    { key: 'currentAvecLiability', label: 'AVEC treasury', render: (row) => formatNativeAmount(row.currentAvecLiability, row.currency) },
-                    { key: 'currentAllLiability', label: 'Current total', render: (row) => formatNativeAmount(row.currentAllLiability, row.currency), bold: true }
-                  ]}
-                  rows={savingsByCurrency}
-                  emptyLabel="No native-currency savings breakdown returned"
-                />
-              </div>
-              <div style={{ display: 'grid', gap: '0.5rem' }}>
-                <div style={{ fontWeight: 700 }}>Accrued interest</div>
-                <Table
-                  columns={[
-                    { key: 'currency', label: 'Currency', bold: true },
-                    { key: 'openSavingsAccruedInterest', label: 'Open savings', render: (row) => formatNativeAmount(row.openSavingsAccruedInterest, row.currency) },
-                    { key: 'lockedSavingsAccruedInterest', label: 'Locked savings', render: (row) => formatNativeAmount(row.lockedSavingsAccruedInterest, row.currency) },
-                    { key: 'allAccruedInterest', label: 'All interest', render: (row) => formatNativeAmount(row.allAccruedInterest, row.currency) },
-                    {
-                      key: 'currentAllLiabilityWithAccruedInterest',
-                      label: 'Current liability incl. interest',
-                      render: (row) => formatNativeAmount(row.currentAllLiabilityWithAccruedInterest, row.currency),
-                      bold: true
-                    }
-                  ]}
-                  rows={savingsByCurrency}
-                  emptyLabel="No native-currency savings breakdown returned"
-                />
-              </div>
-            </div>
-            <div style={{ fontWeight: 800, paddingTop: '0.25rem' }}>Consolidated USD view</div>
-            <div style={{ display: 'grid', gap: '0.5rem' }}>
-              <div style={{ fontWeight: 800 }}>{t('dashboard.savingsHistoricalTitle')}</div>
-              <Table
-                columns={[
-                  { key: 'label', label: t('common.metric') },
-                  { key: 'amount', label: t('common.amount'), render: (row) => formatCurrency(row.amount) }
-                ]}
-                rows={[
-                  { label: t('dashboard.openSavingsDeposited'), amount: savingsAggregates.openSavings },
-                  { label: t('dashboard.lockedSavingsDeposited'), amount: savingsAggregates.lockedSavings },
-                  { label: t('dashboard.likelembaContributions'), amount: savingsAggregates.likelemba },
-                  { label: t('dashboard.avecContributions'), amount: savingsAggregates.avec },
-                  { label: t('common.all'), amount: savingsAggregates.all }
-                ]}
-              />
-            </div>
-            <div style={{ display: 'grid', gap: '0.5rem' }}>
-              <div style={{ fontWeight: 800 }}>{t('dashboard.currentSavingsLiability')}</div>
-              <Table
-                columns={[
-                  { key: 'label', label: t('common.metric') },
-                  { key: 'amount', label: t('common.amount'), render: (row) => formatCurrency(row.amount) }
-                ]}
-                rows={[
-                  { label: t('dashboard.openSavingsCurrentPrincipal'), amount: savingsAggregates.currentOpenSavingsLiability },
-                  { label: t('dashboard.lockedSavingsCurrentPrincipal'), amount: savingsAggregates.currentLockedSavingsLiability },
-                  { label: t('dashboard.likelembaCurrentTreasury'), amount: savingsAggregates.currentLikelembaLiability },
-                  { label: t('dashboard.avecCurrentTreasury'), amount: savingsAggregates.currentAvecLiability },
-                  { label: t('dashboard.currentTotalLiability'), amount: savingsAggregates.currentAllLiability }
-                ]}
-              />
-            </div>
-            <div style={{ display: 'grid', gap: '0.5rem' }}>
-              <div style={{ fontWeight: 800 }}>{t('dashboard.accruedInterest')}</div>
-              <Table
-                columns={[
-                  { key: 'label', label: t('common.metric') },
-                  { key: 'amount', label: t('common.amount'), render: (row) => formatCurrency(row.amount) }
-                ]}
-                rows={[
-                  { label: t('dashboard.openSavingsAccruedInterest'), amount: savingsAggregates.openSavingsAccruedInterest },
-                  { label: t('dashboard.lockedSavingsAccruedInterest'), amount: savingsAggregates.lockedSavingsAccruedInterest },
-                  { label: t('dashboard.likelembaAccruedInterest'), amount: savingsAggregates.likelembaAccruedInterest },
-                  { label: t('dashboard.avecAccruedInterest'), amount: savingsAggregates.avecAccruedInterest },
-                  { label: t('dashboard.allAccruedInterest'), amount: savingsAggregates.allAccruedInterest },
-                  { label: t('dashboard.currentLiabilityIncludingAccruedInterest'), amount: savingsAggregates.currentAllLiabilityWithAccruedInterest }
-                ]}
-              />
-            </div>
+            </details>
           </div>
         </Modal>
       )}
