@@ -16,9 +16,9 @@ const PRICE_SOURCES = ['BASE', 'COUNTRY', 'ACCOUNT'];
 const PAYMENT_METHOD_TYPES = ['BALANCE', 'MOBILE_MONEY', 'CRYPTO', 'BANK'];
 
 const emptyFilters = (tab) => ({
-  accountId: '', email: '', businessId: '', countryCode: '', q: '', payment: tab === 'subscribers' ? 'PAID' : 'ANY',
+  accountId: '', email: '', businessId: '', countryCode: '', q: '', payment: 'PAID',
   tool: '', coveredTool: '', planCode: '', entitlementStatus: '', grantSource: '', paymentRequired: '', recordValid: '',
-  grantedFrom: '', grantedBefore: '', expiresBefore: '', purchaseStatus: '', billingMode: '', priceSource: '', paymentMethodType: '',
+  grantedFrom: '', grantedBefore: '', expiresBefore: '', purchaseStatus: 'COMPLETED', billingMode: '', priceSource: '', paymentMethodType: '',
   purchaseId: '', paymentTransactionId: '', transactionReference: '', currency: '', minAmount: '', maxAmount: '',
   createdFrom: '', createdBefore: '', paidFrom: '', paidBefore: '', legacyStorePayment: '', sortBy: tab === 'subscribers' ? 'LAST_PAYMENT_AT' : 'CREATED_AT', direction: 'DESC'
 });
