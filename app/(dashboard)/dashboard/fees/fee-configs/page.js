@@ -108,9 +108,6 @@ const emptyState = {
 };
 
 const emptyPawapaySyncDraft = {
-  defaultOurFeePercentage: '2',
-  defaultOurFlatFee: '0',
-  feeApplicationMode: 'EXCLUSIVE',
   replaceExistingRows: true,
   feesJson: JSON.stringify([
     {
@@ -122,9 +119,7 @@ const emptyPawapaySyncDraft = {
       amountRangeCurrency: 'KES',
       providerFeePercentage: 1,
       providerFlatFee: 5,
-      providerFlatFeeCurrency: 'KES',
-      ourFeePercentage: 2,
-      ourFlatFee: 0
+      providerFlatFeeCurrency: 'KES'
     },
     {
       paymentMethodName: 'TIGO_PESA_TANZANIA',
@@ -197,10 +192,14 @@ const normalizeFeeContext = (value) => {
   return feeContextOptions.includes(normalized) ? normalized : '';
 };
 const normalizePawapayFeeRows = (fees) => fees.map((fee) => {
+  const providerFee = { ...(fee || {}) };
+  delete providerFee.ourFeePercentage;
+  delete providerFee.ourFlatFee;
+  delete providerFee.feeApplicationMode;
   const actionValue = String(fee?.action || '').trim().toUpperCase();
   const context = normalizeFeeContext(fee?.feeContext || actionValue);
   return {
-    ...fee,
+    ...providerFee,
     action: context ? null : (fee?.action ?? null),
     feeContext: context || null
   };
@@ -1028,22 +1027,9 @@ export default function FeeConfigsPage() {
       setError('Add at least one PawaPay fee row.');
       return;
     }
-    const defaultOurFeePercentage = Number(pawapaySyncDraft.defaultOurFeePercentage);
-    const defaultOurFlatFee = Number(pawapaySyncDraft.defaultOurFlatFee);
-    if (!Number.isFinite(defaultOurFeePercentage) || defaultOurFeePercentage < 0) {
-      setError('Default Fondeka fee percentage must be zero or positive.');
-      return;
-    }
-    if (!Number.isFinite(defaultOurFlatFee) || defaultOurFlatFee < 0) {
-      setError('Default Fondeka flat fee must be zero or positive.');
-      return;
-    }
     setPawapaySyncLoading(true);
     try {
       const result = await api.feeConfigs.syncPawapay({
-        defaultOurFeePercentage,
-        defaultOurFlatFee,
-        feeApplicationMode: pawapaySyncDraft.feeApplicationMode || 'EXCLUSIVE',
         replaceExistingRows: Boolean(pawapaySyncDraft.replaceExistingRows),
         fees: normalizePawapayFeeRows(fees)
       });
@@ -2198,7 +2184,7 @@ export default function FeeConfigsPage() {
         <Modal title="Sync PawaPay fees" onClose={() => (!pawapaySyncLoading ? setShowPawapaySync(false) : null)}>
           <div style={{ display: 'grid', gap: '0.9rem' }}>
             <div style={{ padding: '0.75rem', border: '1px solid #FDE68A', borderRadius: '10px', background: '#FFFBEB', color: '#92400E', fontSize: '13px', fontWeight: 700 }}>
-              PawaPay/MMO fees must be entered as provider/external fees and should use feeContext COLLECTION or PAYOUT, not transaction actions. Keep Fondeka internal fee at 2% unless business explicitly changes it. For Kenya M-Pesa tiers, use KES for amountRangeCurrency and providerFlatFeeCurrency.
+              This sync manages PawaPay/MMO provider fees only. Fondeka fees are configured separately with the provider batch-fee tools and are never changed by this sync. Use feeContext COLLECTION or PAYOUT, not transaction actions. For Kenya M-Pesa tiers, use KES for amountRangeCurrency and providerFlatFeeCurrency.
             </div>
             <div style={{ padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '10px', background: 'var(--panel, transparent)', color: 'var(--muted)', fontSize: '13px' }}>
               <div style={{ fontWeight: 800, color: 'var(--text)', marginBottom: '0.25rem' }}>Customer-paid provider charges</div>
@@ -2207,39 +2193,6 @@ export default function FeeConfigsPage() {
               </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="pawapayDefaultOurFeePercentage">Default Fondeka fee %</label>
-                <input
-                  id="pawapayDefaultOurFeePercentage"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={pawapaySyncDraft.defaultOurFeePercentage}
-                  onChange={(e) => setPawapaySyncDraft((p) => ({ ...p, defaultOurFeePercentage: e.target.value }))}
-                />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="pawapayDefaultOurFlatFee">Default Fondeka flat fee</label>
-                <input
-                  id="pawapayDefaultOurFlatFee"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={pawapaySyncDraft.defaultOurFlatFee}
-                  onChange={(e) => setPawapaySyncDraft((p) => ({ ...p, defaultOurFlatFee: e.target.value }))}
-                />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="pawapayFeeApplicationMode">Fee application mode</label>
-                <select
-                  id="pawapayFeeApplicationMode"
-                  value={pawapaySyncDraft.feeApplicationMode}
-                  onChange={(e) => setPawapaySyncDraft((p) => ({ ...p, feeApplicationMode: e.target.value }))}
-                >
-                  <option value="EXCLUSIVE">EXCLUSIVE</option>
-                  <option value="INCLUSIVE">INCLUSIVE</option>
-                </select>
-              </div>
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
                 <input
                   type="checkbox"
@@ -2259,7 +2212,7 @@ export default function FeeConfigsPage() {
                 style={{ fontFamily: 'monospace', minHeight: '280px' }}
               />
               <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-                Paste an array of normal fee rows or customer-paid provider charge rows. Customer-paid rows can include providerFeeConfigEnabled, customerPaidProviderFeeAmount/Currency/Percentage, chargedBy, includedInTotal, EN/FR messages, source, and sourceDate. If pasted rows use action COLLECTION or PAYOUT, the dashboard converts that to feeContext before sending.
+                Paste an array of PawaPay provider fee rows or customer-paid provider charge rows. Customer-paid rows can include providerFeeConfigEnabled, customerPaidProviderFeeAmount/Currency/Percentage, chargedBy, includedInTotal, EN/FR messages, source, and sourceDate. If pasted rows use action COLLECTION or PAYOUT, the dashboard converts that to feeContext before sending. Fondeka fee and fee-application fields are removed before submission.
               </div>
             </div>
             {pawapaySyncResult ? (
