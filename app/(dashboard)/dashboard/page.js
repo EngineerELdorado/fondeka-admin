@@ -38,6 +38,17 @@ const formatNativeCurrency = (value, currency) => {
   }
 };
 
+const formatNativeAmount = (value, currency) => {
+  if (value === null || value === undefined) return '—';
+  const raw = String(value);
+  const match = raw.match(/^(-?)(\d+)(?:\.(\d+))?$/);
+  if (!match) return `${raw} ${currency || ''}`.trim();
+  const [, sign, integer, fraction = ''] = match;
+  const groupedInteger = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  const trimmedFraction = fraction.replace(/0+$/, '');
+  return `${sign}${groupedInteger}${trimmedFraction ? `.${trimmedFraction}` : ''} ${currency || ''}`.trim();
+};
+
 const formatPercentage = (val) => {
   if (val === null || val === undefined) return '—';
   const num = Number(val);
@@ -613,6 +624,8 @@ export default function DashboardPage() {
   );
   const savingsAggregates = data?.savingsAggregates || {};
   const customerLiabilities = data?.customerLiabilities || {};
+  const savingsByCurrency = Array.isArray(savingsAggregates.byCurrency) ? savingsAggregates.byCurrency : [];
+  const customerLiabilitiesByCurrency = Array.isArray(customerLiabilities.byCurrency) ? customerLiabilities.byCurrency : [];
   const fundedStuckFundedCount = Number(fundedStuckReport?.fundedCount) || 0;
   const fundedStuckExecutingCount = Number(fundedStuckReport?.executingCount) || 0;
   const fundedStuckUnknownCount = Number(fundedStuckReport?.unknownCount) || 0;
@@ -1948,6 +1961,30 @@ export default function DashboardPage() {
                 { label: 'Customer Funds Liability Incl. Accrued Savings Interest', amount: customerLiabilities.totalOwedToCustomersWithAccruedSavingsInterest }
               ]}
             />
+            <div style={{ display: 'grid', gap: '0.5rem' }}>
+              <div style={{ fontWeight: 800 }}>Native amounts by currency</div>
+              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                These are native quantities, not USD equivalents. Currencies remain separate and must not be added together. The parent-level crypto balance above is already converted to USD and is not added again here.
+              </div>
+              <Table
+                columns={[
+                  { key: 'currency', label: 'Currency', bold: true },
+                  { key: 'walletFiatBalances', label: 'Fiat wallets', render: (row) => formatNativeAmount(row.walletFiatBalances, row.currency) },
+                  { key: 'cryptoBalances', label: 'Crypto balances', render: (row) => formatNativeAmount(row.cryptoBalances, row.currency) },
+                  { key: 'savingsLiability', label: 'Savings principal', render: (row) => formatNativeAmount(row.savingsLiability, row.currency) },
+                  { key: 'savingsAccruedInterest', label: 'Accrued interest', render: (row) => formatNativeAmount(row.savingsAccruedInterest, row.currency) },
+                  { key: 'totalOwedToCustomers', label: 'Total owed', render: (row) => formatNativeAmount(row.totalOwedToCustomers, row.currency), bold: true },
+                  {
+                    key: 'totalOwedToCustomersWithAccruedSavingsInterest',
+                    label: 'Total incl. interest',
+                    render: (row) => formatNativeAmount(row.totalOwedToCustomersWithAccruedSavingsInterest, row.currency),
+                    bold: true
+                  }
+                ]}
+                rows={customerLiabilitiesByCurrency}
+                emptyLabel="No native-currency liability breakdown returned"
+              />
+            </div>
           </div>
         </Modal>
       )}
@@ -2082,6 +2119,64 @@ export default function DashboardPage() {
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
               {t('dashboard.savingsAggregatesHelp')}
             </div>
+            <div style={{ display: 'grid', gap: '0.75rem' }}>
+              <div>
+                <div style={{ fontWeight: 800 }}>Native savings amounts by currency</div>
+                <div style={{ color: 'var(--muted)', fontSize: '12px', marginTop: '0.2rem' }}>
+                  Native amounts are kept in their recorded currencies and are never summed across currencies. Historical contributions can be larger than the amount currently held after withdrawals.
+                </div>
+              </div>
+              <div style={{ display: 'grid', gap: '0.5rem' }}>
+                <div style={{ fontWeight: 700 }}>Historical deposits and contributions</div>
+                <Table
+                  columns={[
+                    { key: 'currency', label: 'Currency', bold: true },
+                    { key: 'openSavings', label: 'Open savings', render: (row) => formatNativeAmount(row.openSavings, row.currency) },
+                    { key: 'lockedSavings', label: 'Locked savings', render: (row) => formatNativeAmount(row.lockedSavings, row.currency) },
+                    { key: 'likelemba', label: 'Likelemba', render: (row) => formatNativeAmount(row.likelemba, row.currency) },
+                    { key: 'avec', label: 'AVEC', render: (row) => formatNativeAmount(row.avec, row.currency) },
+                    { key: 'all', label: 'All', render: (row) => formatNativeAmount(row.all, row.currency), bold: true }
+                  ]}
+                  rows={savingsByCurrency}
+                  emptyLabel="No native-currency savings breakdown returned"
+                />
+              </div>
+              <div style={{ display: 'grid', gap: '0.5rem' }}>
+                <div style={{ fontWeight: 700 }}>Current principal and treasury liability</div>
+                <Table
+                  columns={[
+                    { key: 'currency', label: 'Currency', bold: true },
+                    { key: 'currentOpenSavingsLiability', label: 'Open savings', render: (row) => formatNativeAmount(row.currentOpenSavingsLiability, row.currency) },
+                    { key: 'currentLockedSavingsLiability', label: 'Locked savings', render: (row) => formatNativeAmount(row.currentLockedSavingsLiability, row.currency) },
+                    { key: 'currentLikelembaLiability', label: 'Likelemba treasury', render: (row) => formatNativeAmount(row.currentLikelembaLiability, row.currency) },
+                    { key: 'currentAvecLiability', label: 'AVEC treasury', render: (row) => formatNativeAmount(row.currentAvecLiability, row.currency) },
+                    { key: 'currentAllLiability', label: 'Current total', render: (row) => formatNativeAmount(row.currentAllLiability, row.currency), bold: true }
+                  ]}
+                  rows={savingsByCurrency}
+                  emptyLabel="No native-currency savings breakdown returned"
+                />
+              </div>
+              <div style={{ display: 'grid', gap: '0.5rem' }}>
+                <div style={{ fontWeight: 700 }}>Accrued interest</div>
+                <Table
+                  columns={[
+                    { key: 'currency', label: 'Currency', bold: true },
+                    { key: 'openSavingsAccruedInterest', label: 'Open savings', render: (row) => formatNativeAmount(row.openSavingsAccruedInterest, row.currency) },
+                    { key: 'lockedSavingsAccruedInterest', label: 'Locked savings', render: (row) => formatNativeAmount(row.lockedSavingsAccruedInterest, row.currency) },
+                    { key: 'allAccruedInterest', label: 'All interest', render: (row) => formatNativeAmount(row.allAccruedInterest, row.currency) },
+                    {
+                      key: 'currentAllLiabilityWithAccruedInterest',
+                      label: 'Current liability incl. interest',
+                      render: (row) => formatNativeAmount(row.currentAllLiabilityWithAccruedInterest, row.currency),
+                      bold: true
+                    }
+                  ]}
+                  rows={savingsByCurrency}
+                  emptyLabel="No native-currency savings breakdown returned"
+                />
+              </div>
+            </div>
+            <div style={{ fontWeight: 800, paddingTop: '0.25rem' }}>Consolidated USD view</div>
             <div style={{ display: 'grid', gap: '0.5rem' }}>
               <div style={{ fontWeight: 800 }}>{t('dashboard.savingsHistoricalTitle')}</div>
               <Table
