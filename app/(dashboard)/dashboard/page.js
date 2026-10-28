@@ -835,7 +835,10 @@ export default function DashboardPage() {
       value: formatCurrency(holdings.fiatBalanceTotal),
       sub: fiatValuationIncomplete ? `${t('dashboard.acrossFiatAccounts')} · USD total incomplete` : t('dashboard.acrossFiatAccounts'),
       tone: '#2563eb',
-      onClick: () => setShowFiatHoldings(true)
+      onClick: () => {
+        setShowFiatHoldings(true);
+        fetchDashboard();
+      }
     },
     {
       label: t('dashboard.cryptoBalanceUsd'),
@@ -1952,8 +1955,13 @@ export default function DashboardPage() {
       {showFiatHoldings && (
         <Modal title="Fiat Wallet Holdings" onClose={() => setShowFiatHoldings(false)}>
           <div style={{ display: 'grid', gap: '0.75rem' }}>
-            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-              Current customer fiat-wallet balances for the active account filters. Native balances are shown in their recorded currencies and are never added across currencies. Date and transaction filters do not change this current-balance snapshot.
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+              <div style={{ color: 'var(--muted)', fontSize: '13px', maxWidth: '680px' }}>
+                Current customer fiat-wallet balances loaded from <code>GET /admin-api/dashboard</code> for the active account filters. Native balances are shown in their recorded currencies and are never added across currencies. Date and transaction filters do not change this current-balance snapshot.
+              </div>
+              <button type="button" className="btn-neutral btn-sm" disabled={loading || refreshing} onClick={() => fetchDashboard()}>
+                {loading || refreshing ? 'Refreshing…' : 'Refresh holdings'}
+              </button>
             </div>
             {fiatValuationIncomplete ? (
               <div style={{ padding: '0.7rem', border: '1px solid #FDE68A', borderRadius: '10px', background: '#FFFBEB', color: '#92400E', fontWeight: 700 }}>
