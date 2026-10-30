@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { DataTable } from '@/components/DataTable';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { livePaymentMode, livePaymentSettingsAvailable } from '@/lib/business-live-payments';
 
 const OPERATIONAL_STATUSES = ['DRAFT', 'ACTIVE', 'SUSPENDED', 'CLOSED'];
 const KYB_STATUSES = ['NOT_SUBMITTED', 'PENDING', 'APPROVED', 'REJECTED', 'REQUIRES_INFORMATION'];
@@ -43,6 +44,16 @@ const StatusBadge = ({ value }) => {
       {formatStatus(value)}
     </span>
   );
+};
+
+const LivePaymentSummary = ({ business }) => {
+  const available = livePaymentSettingsAvailable(business);
+  return <div style={{ display: 'grid', gap: '0.1rem' }}>
+    <strong style={{ color: !available ? 'var(--muted)' : business.apiLivePaymentsEnabled ? '#15803d' : '#b45309' }}>
+      {available ? business.apiLivePaymentsEnabled ? 'Enabled for new payments' : 'Disabled for new payments' : 'Status unavailable'}
+    </strong>
+    <span style={{ color: 'var(--muted)', fontSize: '12px' }}>{available ? livePaymentMode(business) === 'inherit' ? 'Global default' : 'Business override' : 'Refresh to check'}</span>
+  </div>;
 };
 
 const Modal = ({ title, onClose, children }) => (
@@ -130,6 +141,7 @@ export default function BusinessesPage() {
     try {
       const response = await api.businesses.get(row.id);
       setDetails(response);
+      setRows((previous) => previous.map((business) => String(business.id) === String(response.id) ? response : business));
     } catch (err) {
       setError(err?.message || `Failed to load business ${row.id}.`);
     } finally {
@@ -213,6 +225,9 @@ export default function BusinessesPage() {
     },
     { key: 'status', label: 'Operational status', render: (row) => <StatusBadge value={row.status} /> },
     { key: 'kybStatus', label: 'KYB status', render: (row) => <StatusBadge value={row.kybStatus} /> },
+    {
+      key: 'apiLivePaymentsEnabled', label: 'LIVE API payments', render: (row) => <LivePaymentSummary business={row} />
+    },
     { key: 'countryCode', label: 'Country', render: (row) => row.countryCode || '—' },
     { key: 'defaultBusiness', label: 'Default', render: (row) => row.defaultBusiness ? 'Yes' : 'No' },
     { key: 'createdAt', label: 'Created', render: (row) => formatDateTime(row.createdAt) },
@@ -271,6 +286,7 @@ export default function BusinessesPage() {
           <Link href="/dashboard/businesses/migration" className="btn-neutral" style={{ textDecoration: 'none' }}>Migration console</Link>
           <Link href="/dashboard/payment-requests" className="btn-neutral" style={{ textDecoration: 'none' }}>Payment Requests</Link>
           <Link href="/dashboard/commerce/stores" className="btn-neutral" style={{ textDecoration: 'none' }}>Commerce stores</Link>
+          <button type="button" className="btn-neutral" disabled={loading} onClick={fetchRows}>{loading ? 'Refreshing…' : 'Refresh businesses'}</button>
         </div>
       </div>
 
@@ -341,6 +357,7 @@ export default function BusinessesPage() {
             { label: 'Registration number', value: details.registrationNumber },
             { label: 'Operational status', value: <StatusBadge value={details.status} /> },
             { label: 'KYB status', value: <StatusBadge value={details.kybStatus} /> },
+            { label: 'LIVE API payments', value: <LivePaymentSummary business={details} /> },
             { label: 'Default business', value: details.defaultBusiness ? 'Yes' : 'No' },
             { label: 'Created', value: formatDateTime(details.createdAt) },
             { label: 'Updated', value: formatDateTime(details.updatedAt) }

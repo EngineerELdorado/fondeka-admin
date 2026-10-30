@@ -4,6 +4,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useLocale } from '@/contexts/LocaleContext';
 import { api } from '@/lib/api';
+import BusinessApiLivePaymentsPanel from '@/components/BusinessApiLivePaymentsPanel';
 
 const LABELS = {
   trusted_device_enforcement: 'Enforce Trusted Device',
@@ -25,7 +26,7 @@ const LABELS = {
   'commerce.pos.enabled': 'Commerce POS',
   'business_tools.access.enforced': 'Business Tools access enforcement',
   'business_tools.pricing.per_tool': 'Business Tools per-tool pricing',
-  'business_api.live_payments.enabled': 'Allow live API payments',
+  'business_api.live_payments.enabled': 'Default for live API payments',
   'service.loans.enabled': 'Loans',
   'savings.enabled': 'Savings',
   'service.crypto.enabled': 'Crypto',
@@ -69,8 +70,6 @@ const CUSTOMER_SERVICE_ENABLED_KEY = 'customer_service.enabled';
 const BUSINESS_TOOLS_ENFORCEMENT_KEY = 'business_tools.access.enforced';
 const BUSINESS_TOOLS_PER_TOOL_KEY = 'business_tools.pricing.per_tool';
 const BUSINESS_API_LIVE_PAYMENTS_KEY = 'business_api.live_payments.enabled';
-const BUSINESS_API_LIVE_PAYMENTS_FALLBACK_EN = 'Live API payments are not available at the moment. Please use sandbox for testing.';
-const BUSINESS_API_LIVE_PAYMENTS_FALLBACK_FR = 'Les paiements API en mode réel ne sont pas disponibles pour le moment. Veuillez utiliser le mode sandbox pour vos tests.';
 const COMMERCE_ENABLED_KEY = 'commerce.enabled';
 const COMMERCE_SURFACE_FLAGS = [
   {
@@ -524,8 +523,6 @@ export default function FeatureFlagsPage() {
   const [ibanOverridePrefix, setIbanOverridePrefix] = useState('iban.application.enabled');
   const [ibanOverrideEnabled, setIbanOverrideEnabled] = useState(true);
   const [ibanOverrideSaving, setIbanOverrideSaving] = useState(false);
-  const [livePaymentsMessageEn, setLivePaymentsMessageEn] = useState('');
-  const [livePaymentsMessageFr, setLivePaymentsMessageFr] = useState('');
 
   const ibanOverrideCurrencyCode = ibanOverrideCurrency.trim().toUpperCase();
   const ibanOverrideKey = ibanOverrideCurrencyCode ? `${ibanOverridePrefix}.${ibanOverrideCurrencyCode}` : '';
@@ -670,19 +667,6 @@ export default function FeatureFlagsPage() {
 
   const interTransferFlag = useMemo(
     () => flags.find((flag) => String(flag.key) === INTER_TRANSFER_FLAG_KEY),
-    [flags]
-  );
-
-  const businessApiLivePaymentsFlag = useMemo(
-    () => flags.find((flag) => String(flag.key) === BUSINESS_API_LIVE_PAYMENTS_KEY) || {
-      key: BUSINESS_API_LIVE_PAYMENTS_KEY,
-      enabled: false,
-      disabledBehavior: 'BLOCK_REQUEST',
-      queuedProviderWorkMode: 'HOLD_ALL_PROVIDER_WORK',
-      disabledMessageEn: '',
-      disabledMessageFr: '',
-      isDefault: true
-    },
     [flags]
   );
 
@@ -847,15 +831,8 @@ export default function FeatureFlagsPage() {
     setLoading(true);
     setError(null);
     try {
-      const [res, livePaymentsResponse] = await Promise.all([
-        api.featureFlags.list(),
-        api.featureFlags.get(BUSINESS_API_LIVE_PAYMENTS_KEY)
-      ]);
-      const listedFlags = Array.isArray(res) ? res : [];
-      const list = [
-        livePaymentsResponse,
-        ...listedFlags.filter((flag) => String(flag?.key) !== BUSINESS_API_LIVE_PAYMENTS_KEY)
-      ].filter(Boolean).map((flag) => ({
+      const res = await api.featureFlags.list();
+      const list = (Array.isArray(res) ? res : []).map((flag) => ({
         ...flag,
         disabledBehavior: normalizeDisabledBehavior(flag?.disabledBehavior),
         queuedProviderWorkMode: normalizeQueuedProviderWorkMode(flag?.queuedProviderWorkMode, flag?.key),
@@ -927,11 +904,6 @@ export default function FeatureFlagsPage() {
   }, []);
 
   useEffect(() => {
-    setLivePaymentsMessageEn(businessApiLivePaymentsFlag.disabledMessageEn ?? '');
-    setLivePaymentsMessageFr(businessApiLivePaymentsFlag.disabledMessageFr ?? '');
-  }, [businessApiLivePaymentsFlag.disabledMessageEn, businessApiLivePaymentsFlag.disabledMessageFr]);
-
-  useEffect(() => {
     const loadCryptoProductNames = async () => {
       try {
         const res = await api.cryptoProducts.list(new URLSearchParams({ page: '0', size: '500' }));
@@ -996,45 +968,6 @@ export default function FeatureFlagsPage() {
     }
   };
 
-  const saveBusinessApiLivePayments = async ({ enabled, includeMessages = false }) => {
-    if (savingKey === BUSINESS_API_LIVE_PAYMENTS_KEY) return;
-    const currentEnabled = Boolean(businessApiLivePaymentsFlag.enabled);
-    if (enabled !== currentEnabled) {
-      const prompt = enabled
-        ? 'Allow new LIVE Business API collections and payouts? Sandbox remains available and all existing access, account, Business and route checks still apply.'
-        : 'Pause new LIVE Business API collections and payouts? Accepted payments will continue processing and sandbox will remain available.';
-      if (!window.confirm(prompt)) return;
-    }
-
-    const payload = { enabled: Boolean(enabled) };
-    if (includeMessages) {
-      payload.disabledMessageEn = livePaymentsMessageEn;
-      payload.disabledMessageFr = livePaymentsMessageFr;
-    }
-
-    setSavingKey(BUSINESS_API_LIVE_PAYMENTS_KEY);
-    setError(null);
-    setInfo(null);
-    try {
-      const res = await api.featureFlags.update(BUSINESS_API_LIVE_PAYMENTS_KEY, payload);
-      syncFlagInState(BUSINESS_API_LIVE_PAYMENTS_KEY, {
-        enabled: Boolean(res?.enabled),
-        disabledBehavior: res?.disabledBehavior ?? businessApiLivePaymentsFlag.disabledBehavior ?? 'BLOCK_REQUEST',
-        queuedProviderWorkMode: res?.queuedProviderWorkMode ?? businessApiLivePaymentsFlag.queuedProviderWorkMode ?? 'HOLD_ALL_PROVIDER_WORK',
-        clientPresentation: res?.clientPresentation ?? businessApiLivePaymentsFlag.clientPresentation,
-        disabledMessageEn: res?.disabledMessageEn ?? (includeMessages ? livePaymentsMessageEn : businessApiLivePaymentsFlag.disabledMessageEn) ?? '',
-        disabledMessageFr: res?.disabledMessageFr ?? (includeMessages ? livePaymentsMessageFr : businessApiLivePaymentsFlag.disabledMessageFr) ?? ''
-      });
-      setLivePaymentsMessageEn(res?.disabledMessageEn ?? (includeMessages ? livePaymentsMessageEn : businessApiLivePaymentsFlag.disabledMessageEn) ?? '');
-      setLivePaymentsMessageFr(res?.disabledMessageFr ?? (includeMessages ? livePaymentsMessageFr : businessApiLivePaymentsFlag.disabledMessageFr) ?? '');
-      setInfo(`Business API live payments saved: ${res?.enabled ? 'Live and sandbox' : 'Sandbox only'}.`);
-    } catch (err) {
-      setError(err?.message || 'Failed to update the Business API live-payment setting.');
-    } finally {
-      setSavingKey('');
-    }
-  };
-
   const handleConfirmDisable = async () => {
     if (!confirm?.key) return;
     const key = confirm.key;
@@ -1094,6 +1027,10 @@ export default function FeatureFlagsPage() {
 
   const handleCreateFlag = async () => {
     const key = draftKey.trim();
+    if (key === BUSINESS_API_LIVE_PAYMENTS_KEY) {
+      setError('Use the Default for live API payments control above to manage this flag.');
+      return;
+    }
     if (!key) {
       setError('Enter a feature flag key.');
       return;
@@ -1655,95 +1592,7 @@ export default function FeatureFlagsPage() {
         </div>
       )}
 
-      <CollapsibleSection
-        title="Business API live payments"
-        subtitle="Global acceptance control for new LIVE API collections and payouts."
-        borderColor="#7c3aed"
-        defaultOpen
-      >
-        <div style={{ display: 'grid', gap: '0.85rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <div style={{ display: 'grid', gap: '0.25rem' }}>
-              <div style={{ fontWeight: 800 }}>Allow live API payments</div>
-              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{BUSINESS_API_LIVE_PAYMENTS_KEY}</div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-              <span
-                style={{
-                  border: `1px solid ${businessApiLivePaymentsFlag.enabled ? 'rgba(22, 163, 74, 0.28)' : 'rgba(245, 158, 11, 0.38)'}`,
-                  background: businessApiLivePaymentsFlag.enabled ? 'rgba(22, 163, 74, 0.08)' : 'rgba(245, 158, 11, 0.1)',
-                  color: businessApiLivePaymentsFlag.enabled ? '#166534' : '#92400e',
-                  padding: '0.35rem 0.6rem',
-                  borderRadius: '999px',
-                  fontSize: '12px',
-                  fontWeight: 800
-                }}
-              >
-                {businessApiLivePaymentsFlag.enabled ? 'Live and sandbox' : 'Sandbox only'}
-              </span>
-              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
-                <input
-                  type="checkbox"
-                  checked={Boolean(businessApiLivePaymentsFlag.enabled)}
-                  disabled={loading || savingKey === BUSINESS_API_LIVE_PAYMENTS_KEY}
-                  onChange={(event) => void saveBusinessApiLivePayments({ enabled: event.target.checked })}
-                />
-                {businessApiLivePaymentsFlag.enabled ? 'Enabled' : 'Disabled'}
-              </label>
-            </div>
-          </div>
-
-          <div style={{ padding: '0.7rem', borderRadius: '10px', background: 'rgba(245, 158, 11, 0.1)', color: '#92400e', fontWeight: 700 }}>
-            Pauses new live API payments. Accepted payments continue processing. Sandbox remains available.
-          </div>
-          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-            This switch does not revoke credentials, cancel or refund accepted payments, or change Business Tools access, Business status, account restrictions, payment routes, customer-app payments or Commerce. It applies to new LIVE mobile-money and crypto collections and payouts only.
-          </div>
-
-          <details style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
-            <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Customize paused-payment messages</summary>
-            <div style={{ display: 'grid', gap: '0.7rem', marginTop: '0.75rem' }}>
-              <label style={{ display: 'grid', gap: '0.25rem' }}>
-                <span>Disabled message (English)</span>
-                <textarea
-                  rows={3}
-                  value={livePaymentsMessageEn}
-                  disabled={savingKey === BUSINESS_API_LIVE_PAYMENTS_KEY}
-                  placeholder={BUSINESS_API_LIVE_PAYMENTS_FALLBACK_EN}
-                  onChange={(event) => setLivePaymentsMessageEn(event.target.value)}
-                />
-              </label>
-              <label style={{ display: 'grid', gap: '0.25rem' }}>
-                <span>Disabled message (French)</span>
-                <textarea
-                  rows={3}
-                  value={livePaymentsMessageFr}
-                  disabled={savingKey === BUSINESS_API_LIVE_PAYMENTS_KEY}
-                  placeholder={BUSINESS_API_LIVE_PAYMENTS_FALLBACK_FR}
-                  onChange={(event) => setLivePaymentsMessageFr(event.target.value)}
-                />
-              </label>
-              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-                Blank values use the backend localized fallbacks. These messages are returned when a new LIVE payment is rejected.
-              </div>
-              <div>
-                <button
-                  type="button"
-                  className="btn-neutral"
-                  disabled={loading || savingKey === BUSINESS_API_LIVE_PAYMENTS_KEY}
-                  onClick={() => void saveBusinessApiLivePayments({ enabled: Boolean(businessApiLivePaymentsFlag.enabled), includeMessages: true })}
-                >
-                  {savingKey === BUSINESS_API_LIVE_PAYMENTS_KEY ? 'Saving…' : 'Save rejection messages'}
-                </button>
-              </div>
-            </div>
-          </details>
-
-          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-            This control is global only. Account/country overrides, queue behavior and client-presentation settings do not apply.
-          </div>
-        </div>
-      </CollapsibleSection>
+      <BusinessApiLivePaymentsPanel />
 
       <CollapsibleSection title={t('featureFlags.createUpdate')}>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1.2fr auto', gap: '0.65rem', alignItems: 'end' }}>
