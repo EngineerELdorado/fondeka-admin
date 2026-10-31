@@ -5,6 +5,7 @@ import { RegulatorRecord, PresentationLink as Link, RegulatorField } from '@/com
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { BusinessToolsPurchaseNoticePanel } from '@/components/BusinessToolsPurchaseNoticePanel';
 
 const normalizeGroups = (value) => Array.isArray(value)
   ? value.map((item) => String(item).trim().toUpperCase()).filter(Boolean)
@@ -45,6 +46,7 @@ export default function BusinessToolsPlansPage() {
   const [confirmation, setConfirmation] = useState(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [noticeSaving, setNoticeSaving] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
   const [conflict, setConflict] = useState(null);
@@ -124,6 +126,13 @@ export default function BusinessToolsPlansPage() {
     applyPlanToDraft(plans.find((plan) => plan.code === code));
   };
 
+  const applyNoticePlan = useCallback((updated, { mutation, previousVersion }) => {
+    setPlans((previous) => previous.map((plan) => plan.code === updated.code ? updated : plan));
+    // Advance an untouched pricing version only after our own notice mutation.
+    // A refresh must not rebase a stale pricing draft over someone else's price change.
+    if (mutation) setDraft((previous) => previous?.code === updated.code && previous.version === previousVersion ? { ...previous, version: updated.version } : previous);
+  }, []);
+
   const validatePlan = () => {
     if (!draft?.name.trim() || !draft?.nameFr.trim()) return 'English and French names are required.';
     if (!moneyIsValid(draft.amount)) return 'Price must be zero or more with no more than two decimal places.';
@@ -134,7 +143,7 @@ export default function BusinessToolsPlansPage() {
   };
 
   const requestPlanSave = async () => {
-    if (saving) return;
+    if (saving || noticeSaving) return;
     setPlanSaveError(null);
     const validationError = validatePlan();
     if (validationError) {
@@ -294,7 +303,7 @@ export default function BusinessToolsPlansPage() {
       <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
         <label style={{ display: 'grid', gap: '0.25rem', maxWidth: '460px' }}>
           <span>Plan</span>
-          <select value={selectedCode} onChange={(event) => selectPlan(event.target.value)} disabled={loading}>
+          <select aria-label="Plan" value={selectedCode} onChange={(event) => selectPlan(event.target.value)} disabled={loading || saving || noticeSaving}>
             {plans.map((plan) => <option key={plan.code} value={plan.code}>{plan.name || plan.code} · {plan.tool || 'BUNDLE'} ({plan.code})</option>)}
           </select>
         </label>
@@ -321,12 +330,14 @@ export default function BusinessToolsPlansPage() {
             </div> : null}
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
               <span><strong>{Number(draft.amount) === 0 ? (draft.active ? 'Free access' : 'Not configured') : formatMoney(draft.amount, draft.currency)}</strong> · {draft.tool} · Version {draft.version} · {draft.active ? 'Purchases enabled' : 'Purchases disabled'}</span>
-              {isSuperAdmin ? <button type="button" className="btn-primary" onClick={() => void requestPlanSave()} disabled={saving}>{saving ? 'Saving…' : 'Save plan'}</button> : <span style={{ color: 'var(--muted)' }}>Read only — Super Admin required to change pricing.</span>}
+              {isSuperAdmin ? <button type="button" className="btn-primary" onClick={() => void requestPlanSave()} disabled={saving || noticeSaving}>{saving ? 'Saving…' : 'Save plan'}</button> : <span style={{ color: 'var(--muted)' }}>Read only — Super Admin required to change pricing.</span>}
             </div>
             {planSaveError ? <div className="alert alert-error">{planSaveError}</div> : null}
           </>
         ) : null}
       </div>
+
+      {draft ? <BusinessToolsPurchaseNoticePanel key={selectedCode} plan={plans.find((plan) => plan.code === selectedCode) || draft} canManage={isSuperAdmin} busy={saving} onBusyChange={setNoticeSaving} onPlanSaved={applyNoticePlan} /> : null}
 
       {draft ? (
         <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
