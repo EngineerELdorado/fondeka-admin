@@ -4,13 +4,14 @@ import { isRegulatorRestrictedRecord } from '@/lib/regulator-presentation';
 
 import { PresentationSelect, NonRegulatorContent, PresentationLink as Link } from '@/components/RegulatorPresentation';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
+import { ReferralPromptPanel } from '@/components/ReferralPromptPanel';
 
 const statusOptions = ['', 'ACTIVE', 'DRAFT', 'PAUSED', 'ARCHIVED'];
 const moderationActions = ['approve', 'reject', 'reverse', 'reissue'];
-const auditPrefixOptions = ['REFERRAL_CAMPAIGN_', 'REFERRAL_REWARD_'];
+const auditPrefixOptions = ['REFERRAL_CAMPAIGN_', 'REFERRAL_PROMPT_', 'REFERRAL_REWARD_'];
 const rewardModeOptions = ['FIXED', 'REVENUE_SHARE', 'NET_AMOUNT_SHARE'];
 const referralActionOptions = [
   '',
@@ -59,6 +60,36 @@ const Modal = ({ title, onClose, children }) => (
     </div>
   </div>
 );
+
+function InvitationPopupModal({ campaign, busy, onClose, children }) {
+  const headingId = useId();
+  const surface = useRef(null), closeButton = useRef(null);
+  const state = useRef({ busy, onClose }); state.current = { busy, onClose };
+  useEffect(() => {
+    const trigger = document.activeElement;
+    closeButton.current?.focus();
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault(); event.stopPropagation();
+        if (!state.current.busy) state.current.onClose();
+      }
+      if (event.key === 'Tab') {
+        const controls = Array.from(surface.current?.querySelectorAll('button, a[href], input, select, textarea, [tabindex]') || []).filter((element) => !element.matches(':disabled') && element.tabIndex >= 0 && element.getClientRects().length);
+        if (!controls.length) { event.preventDefault(); surface.current?.focus(); }
+        else if (event.shiftKey && document.activeElement === controls[0]) { event.preventDefault(); controls.at(-1).focus(); }
+        else if (!event.shiftKey && document.activeElement === controls.at(-1)) { event.preventDefault(); controls[0].focus(); }
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => { document.removeEventListener('keydown', onKeyDown); if (trigger?.isConnected) trigger.focus(); };
+  }, []);
+  return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) onClose(); }}>
+    <div ref={surface} className="modal-surface" role="dialog" aria-modal="true" aria-labelledby={headingId} tabIndex={-1} style={{ minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}><h2 id={headingId} style={{ margin: 0, fontSize: '1.15rem', overflowWrap: 'anywhere' }}>{'Invitation popup · ' + campaign.name}</h2><button ref={closeButton} type="button" className="btn-neutral btn-sm" aria-label="Close invitation popup" disabled={busy} onClick={onClose}>×</button></div>
+      {children}
+    </div>
+  </div>;
+}
 
 const formatDateTime = (value) => {
   if (!value && value !== 0) return '—';
@@ -398,6 +429,8 @@ export default function ReferralCampaignsPage() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [showActivateConfirm, setShowActivateConfirm] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
+  const [promptCampaign, setPromptCampaign] = useState(null);
+  const [promptSaving, setPromptSaving] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
   const [analyticsFrom, setAnalyticsFrom] = useState(toInputDateTime(monthAgo));
@@ -1060,6 +1093,7 @@ export default function ReferralCampaignsPage() {
           <button type="button" className="btn-neutral btn-sm" onClick={() => openEdit(row)} disabled={actionLoading}>
             Edit
           </button>
+          <button type="button" className="btn-neutral btn-sm" onClick={() => setPromptCampaign(row)} disabled={actionLoading || promptSaving}>Invitation popup</button>
           {(row.status === 'DRAFT' || row.status === 'PAUSED') && (
             <button type="button" className="btn-success btn-sm" onClick={() => runStatusAction(row, 'activate')} disabled={actionLoading}>
               Activate
@@ -1905,6 +1939,13 @@ export default function ReferralCampaignsPage() {
           </div>
         </Modal>
       )}
+
+      {promptCampaign ? <InvitationPopupModal key={String(promptCampaign.id)} campaign={promptCampaign} busy={promptSaving} onClose={() => setPromptCampaign(null)}><ReferralPromptPanel campaignId={promptCampaign.id} onBusyChange={setPromptSaving} onSaved={(updated) => {
+        setRows((previous) => previous.map((row) => String(row.id) === String(updated.id) ? updated : row));
+        setRuleCampaigns((previous) => previous.map((row) => String(row.id) === String(updated.id) ? updated : row));
+        setSelected((previous) => String(previous?.id) === String(updated.id) ? updated : previous);
+        setPromptCampaign((previous) => String(previous?.id) === String(updated.id) ? updated : previous);
+      }} /></InvitationPopupModal> : null}
 
       {showForm && (
         <Modal title={`${selected?.id ? 'Edit' : 'Create'} referral campaign`} onClose={() => (!saving ? setShowForm(false) : null)}>

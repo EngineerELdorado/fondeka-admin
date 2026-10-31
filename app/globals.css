@@ -378,7 +378,8 @@ label {
 }
 
 .mobile-maintenance button:disabled,
-.business-tools-notices button:disabled {
+.business-tools-notices button:disabled,
+.referral-prompt-editor button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
