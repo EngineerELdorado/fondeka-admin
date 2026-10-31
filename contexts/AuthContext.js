@@ -210,3 +210,15 @@ export function useAuth() {
   if (!ctx) throw new Error('useAuth must be used inside AuthProvider');
   return ctx;
 }
+
+// Only use inside the layout's hidden, inert content while a profile refresh is
+// unresolved. Keeping the last presentation mounted preserves its geometry and
+// drafts without exposing it before the new profile has been checked.
+export function PreservedAdminPresentation({ blocked, children }) {
+  const auth = useAuth();
+  const cachedMode = auth.adminProfile?.enableRegulatorMode;
+  const value = useMemo(() => blocked && typeof cachedMode === 'boolean'
+    ? { ...auth, enableRegulatorMode: cachedMode }
+    : auth, [auth, blocked, cachedMode]);
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}

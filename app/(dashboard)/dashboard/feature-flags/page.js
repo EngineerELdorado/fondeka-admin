@@ -497,6 +497,7 @@ export default function FeatureFlagsPage() {
   }, [session]);
   const [allFlags, setFlags] = useState([]);
   const flags = useMemo(() => enableRegulatorMode === false ? allFlags : allFlags.filter((flag) => !isRegulatorRestrictedService(flag.key)), [allFlags, enableRegulatorMode]);
+  const regulatorModeFlag = flags.find((flag) => flag.key === REGULATOR_MODE_KEY);
   const [cryptoProductNamesById, setCryptoProductNamesById] = useState({});
   const [loading, setLoading] = useState(true);
   const [savingKey, setSavingKey] = useState('');
@@ -542,6 +543,18 @@ export default function FeatureFlagsPage() {
   const [ibanOverrideEnabled, setIbanOverrideEnabled] = useState(true);
   const [ibanOverrideSaving, setIbanOverrideSaving] = useState(false);
   const canEditOverrides = overrideDialog?.key !== REGULATOR_MODE_KEY || canManageRegulatorMode;
+  const canPresentFlag = (key) => enableRegulatorMode === false || !isRegulatorRestrictedService(key);
+
+  useEffect(() => {
+    if (enableRegulatorMode !== true) return;
+    // This page stays mounted across mode changes so open nonfinancial sections
+    // survive. Dismiss editors for services that have just become hidden.
+    setEditDialog((current) => isRegulatorRestrictedService(current?.key) ? null : current);
+    setOverrideDialog((current) => isRegulatorRestrictedService(current?.key) ? null : current);
+    setConfirm((current) => isRegulatorRestrictedService(current?.key) ? null : current);
+    setDeleteConfirm((current) => isRegulatorRestrictedService(current?.key) ? null : current);
+    setDraftKey((current) => isRegulatorRestrictedService(current) ? '' : current);
+  }, [enableRegulatorMode]);
 
   const showFlagError = async (err, fallback, key) => {
     if (key === REGULATOR_MODE_KEY && err?.status === 401) await refreshSession(true);
@@ -707,6 +720,7 @@ export default function FeatureFlagsPage() {
       flags.filter(
         (flag) =>
           !isHiddenFeatureFlag(flag.key) &&
+          flag.key !== REGULATOR_MODE_KEY &&
           String(flag.key) !== CRYPTO_COLLECTION_GATE_KEY &&
           String(flag.key) !== CRYPTO_COLLECTION_PUBLIC_ENDPOINTS_KEY &&
           String(flag.key) !== NOTIFICATION_PERMISSION_WELCOME_KEY &&
@@ -1455,6 +1469,87 @@ export default function FeatureFlagsPage() {
     }
   };
 
+  const renderFlag = (flag) => {
+    const label = formatResolvedLabel(flag.key);
+    const warning = WARNINGS[flag.key];
+    return (
+      <div key={flag.key} data-testid={flag.key === REGULATOR_MODE_KEY ? 'regulator-mode-flag' : undefined} style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontWeight: 700 }}>{label}</div>
+            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{flag.key}</div>
+            <FeatureFlagMeta flag={flag} />
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            {flag.key !== REGULATOR_MODE_KEY || canManageRegulatorMode ? <button
+              type="button"
+              onClick={() => openEditDialog(flag)}
+              disabled={savingKey === flag.key}
+              style={{
+                border: `1px solid var(--border)`,
+                background: 'var(--surface)',
+                padding: '0.45rem 0.7rem',
+                borderRadius: '10px',
+                cursor: 'pointer',
+                color: 'var(--text)'
+              }}
+            >
+              Edit
+            </button> : null}
+            <button
+              type="button"
+              onClick={() => openOverridesDialog(flag.key)}
+              disabled={savingKey === flag.key}
+              style={{
+                border: `1px solid var(--border)`,
+                background: 'var(--surface)',
+                padding: '0.45rem 0.7rem',
+                borderRadius: '10px',
+                cursor: 'pointer',
+                color: 'var(--text)'
+              }}
+            >
+              {t('featureFlags.overrides')}
+            </button>
+            {flag.key !== REGULATOR_MODE_KEY || canManageRegulatorMode ? <RegulatorField field={flag}><label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+              <input type="checkbox" aria-label={flag.key === REGULATOR_MODE_KEY ? 'Regulator mode global setting' : undefined} style={flag.key === REGULATOR_MODE_KEY ? { width: 'auto' } : undefined} checked={Boolean(flag.enabled)} onChange={() => handleToggle(flag.key)} disabled={loading || savingKey === flag.key} />
+              {flag.enabled ? t('featureFlags.enabled') : t('featureFlags.disabled')}
+            </label></RegulatorField> : null}
+            {flag.key !== REGULATOR_MODE_KEY ? <button
+              type="button"
+              onClick={() => setDeleteConfirm({ key: flag.key })}
+              disabled={savingKey === flag.key}
+              style={{
+                border: `1px solid var(--border)`,
+                background: 'var(--surface)',
+                padding: '0.45rem 0.7rem',
+                borderRadius: '10px',
+                cursor: 'pointer',
+                color: 'var(--text)'
+              }}
+            >
+              {t('featureFlags.delete')}
+            </button> : null}
+          </div>
+        </div>
+        {flag.key === REGULATOR_MODE_KEY ? <div style={{ display: 'grid', gap: '0.35rem', fontSize: '13px', color: 'var(--muted)' }}>
+          <strong data-testid="regulator-mode-global-status">Global setting: {flag.enabled ? 'Enabled' : 'Disabled'}{flag.isDefault ? ' (default)' : ''}</strong>
+          <div>{warning}</div>
+          <div>{REGULATOR_MODE_HELP}</div>
+          <div>Allow up to 30 seconds for other processes to refresh their caches, then refresh account data in the client.</div>
+          {!canManageRegulatorMode ? <div>Read only. An administrator can change Regulator mode.</div> : null}
+        </div> : null}
+        {flag.key !== REGULATOR_MODE_KEY && !flag.enabled && warning && <div style={{ color: '#b45309', fontWeight: 600 }}>{warning}</div>}
+        {flag.key === CUSTOMER_SERVICE_ENABLED_KEY && (
+          <div style={{ display: 'grid', gap: '0.25rem', color: 'var(--muted)', fontSize: '12px' }}>
+            <div>Default is enabled when the flag is missing or null.</div>
+            <div>Account overrides can hide the customer service FAB for specific users.</div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderCryptoSpreadSection = () => {
     if (!cryptoSpreadGlobalFlag) return null;
     return (
@@ -1630,7 +1725,15 @@ export default function FeatureFlagsPage() {
         </div>
       )}
 
-      <BusinessApiLivePaymentsPanel />
+      <CollapsibleSection title="Regulator mode" subtitle="Global presentation setting and customer overrides">
+        {loading ? <div role="status">Loading Regulator mode…</div> : regulatorModeFlag
+          ? renderFlag(regulatorModeFlag)
+          : <div role="alert">Regulator mode settings are unavailable. Refresh the feature flags to retry.</div>}
+      </CollapsibleSection>
+
+      <CollapsibleSection title="API LIVE payments" subtitle="Default for new LIVE API collections and payouts">
+        <BusinessApiLivePaymentsPanel />
+      </CollapsibleSection>
 
       <CollapsibleSection title={t('featureFlags.createUpdate')}>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1.2fr auto', gap: '0.65rem', alignItems: 'end' }}>
@@ -2648,86 +2751,7 @@ export default function FeatureFlagsPage() {
                     </Link>
                   </div>
                 )}
-                {group.flags.map((flag) => {
-                  const label = formatResolvedLabel(flag.key);
-                  const warning = WARNINGS[flag.key];
-                  return (
-                    <div key={flag.key} data-testid={flag.key === REGULATOR_MODE_KEY ? 'regulator-mode-flag' : undefined} style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                        <div>
-                          <div style={{ fontWeight: 700 }}>{label}</div>
-                          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{flag.key}</div>
-                          <FeatureFlagMeta flag={flag} />
-                        </div>
-                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                          {flag.key !== REGULATOR_MODE_KEY || canManageRegulatorMode ? <button
-                            type="button"
-                            onClick={() => openEditDialog(flag)}
-                            disabled={savingKey === flag.key}
-                            style={{
-                              border: `1px solid var(--border)`,
-                              background: 'var(--surface)',
-                              padding: '0.45rem 0.7rem',
-                              borderRadius: '10px',
-                              cursor: 'pointer',
-                              color: 'var(--text)'
-                            }}
-                          >
-                            Edit
-                          </button> : null}
-                          <button
-                            type="button"
-                            onClick={() => openOverridesDialog(flag.key)}
-                            disabled={savingKey === flag.key}
-                            style={{
-                              border: `1px solid var(--border)`,
-                              background: 'var(--surface)',
-                              padding: '0.45rem 0.7rem',
-                              borderRadius: '10px',
-                              cursor: 'pointer',
-                              color: 'var(--text)'
-                            }}
-                          >
-                            {t('featureFlags.overrides')}
-                          </button>
-                          {flag.key !== REGULATOR_MODE_KEY || canManageRegulatorMode ? <RegulatorField field={flag}><label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
-                            <input type="checkbox" aria-label={flag.key === REGULATOR_MODE_KEY ? 'Regulator mode global setting' : undefined} style={flag.key === REGULATOR_MODE_KEY ? { width: 'auto' } : undefined} checked={Boolean(flag.enabled)} onChange={() => handleToggle(flag.key)} disabled={loading || savingKey === flag.key} />
-                            {flag.enabled ? t('featureFlags.enabled') : t('featureFlags.disabled')}
-                          </label></RegulatorField> : null}
-                          {flag.key !== REGULATOR_MODE_KEY ? <button
-                            type="button"
-                            onClick={() => setDeleteConfirm({ key: flag.key })}
-                            disabled={savingKey === flag.key}
-                            style={{
-                              border: `1px solid var(--border)`,
-                              background: 'var(--surface)',
-                              padding: '0.45rem 0.7rem',
-                              borderRadius: '10px',
-                              cursor: 'pointer',
-                              color: 'var(--text)'
-                            }}
-                          >
-                            {t('featureFlags.delete')}
-                          </button> : null}
-                        </div>
-                      </div>
-                      {flag.key === REGULATOR_MODE_KEY ? <div style={{ display: 'grid', gap: '0.35rem', fontSize: '13px', color: 'var(--muted)' }}>
-                        <strong data-testid="regulator-mode-global-status">Global setting: {flag.enabled ? 'Enabled' : 'Disabled'}{flag.isDefault ? ' (default)' : ''}</strong>
-                        <div>{warning}</div>
-                        <div>{REGULATOR_MODE_HELP}</div>
-                        <div>Allow up to 30 seconds for other processes to refresh their caches, then refresh account data in the client.</div>
-                        {!canManageRegulatorMode ? <div>Read only. An administrator can change Regulator mode.</div> : null}
-                      </div> : null}
-                      {flag.key !== REGULATOR_MODE_KEY && !flag.enabled && warning && <div style={{ color: '#b45309', fontWeight: 600 }}>{warning}</div>}
-                      {flag.key === CUSTOMER_SERVICE_ENABLED_KEY && (
-                        <div style={{ display: 'grid', gap: '0.25rem', color: 'var(--muted)', fontSize: '12px' }}>
-                          <div>Default is enabled when the flag is missing or null.</div>
-                          <div>Account overrides can hide the customer service FAB for specific users.</div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                {group.flags.map(renderFlag)}
               </div>
             </CollapsibleSection>
             {SHOW_CRYPTO_SPREAD_SECTION && group.key === 'crypto' && renderCryptoSpreadSection()}
@@ -2806,7 +2830,7 @@ export default function FeatureFlagsPage() {
         )}
       </div>
 
-      {confirm && (
+      {confirm && canPresentFlag(confirm.key) && (
         <div className="modal-backdrop">
           <div className="modal-surface" style={{ width: 'min(520px, 92vw)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.25rem', borderBottom: '1px solid var(--border)' }}>
@@ -2839,7 +2863,7 @@ export default function FeatureFlagsPage() {
         </div>
       )}
 
-      {editDialog && (
+      {editDialog && canPresentFlag(editDialog.key) && (
         <div className="modal-backdrop">
           <div role="dialog" aria-modal="true" aria-label={editDialog.key === REGULATOR_MODE_KEY ? 'Regulator mode global setting' : 'Edit feature flag'} className="modal-surface" style={{ width: 'min(760px, 96vw)', display: 'grid', gap: '0.85rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.25rem', borderBottom: '1px solid var(--border)' }}>
@@ -2983,7 +3007,7 @@ export default function FeatureFlagsPage() {
         </div>
       )}
 
-      {overrideDialog && (
+      {overrideDialog && canPresentFlag(overrideDialog.key) && (
         <div className="modal-backdrop">
           <div role="dialog" aria-modal="true" aria-label={overrideDialog.key === REGULATOR_MODE_KEY ? 'Regulator mode overrides' : 'Feature flag overrides'} className="modal-surface" style={{ width: 'min(920px, 96vw)', display: 'grid', gap: '0.85rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.25rem', borderBottom: '1px solid var(--border)' }}>
@@ -3211,7 +3235,7 @@ export default function FeatureFlagsPage() {
         </div>
       )}
 
-      {deleteConfirm && (
+      {deleteConfirm && canPresentFlag(deleteConfirm.key) && (
         <div className="modal-backdrop">
           <div className="modal-surface" style={{ width: 'min(520px, 92vw)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.25rem', borderBottom: '1px solid var(--border)' }}>

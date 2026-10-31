@@ -21,7 +21,7 @@ const readOptions = (children, inheritedDisabled = false) => Children.toArray(ch
 const EMPTY = [];
 
 export const CatalogSelect = forwardRef(function CatalogSelect({ children, records = EMPTY, countries = EMPTY, kind = 'payment-method', value, onChange, id, name, multiple = false, disabled = false, loading = false, required = false, className = '', style, onBlur, 'aria-label': ariaLabel, 'aria-describedby': describedBy, ...rest }, ref) {
-  const { enableRegulatorMode } = useAuth();
+  const { enableRegulatorMode, adminProfileLoading, adminProfileError } = useAuth();
   const { locale: language } = useLocale();
   const locale = language === 'fr' ? 'fr' : 'en';
   const t = copy[locale];
@@ -78,6 +78,7 @@ export const CatalogSelect = forwardRef(function CatalogSelect({ children, recor
 
   useEffect(() => { if (disabled || loading) setOpen(false); }, [disabled, loading]);
   useEffect(() => { setOpen(false); }, [enableRegulatorMode]);
+  useEffect(() => { if (adminProfileLoading || adminProfileError) setOpen(false); }, [adminProfileLoading, adminProfileError]);
   useLayoutEffect(() => {
     if (!open) return undefined;
     const update = () => {
@@ -125,7 +126,7 @@ export const CatalogSelect = forwardRef(function CatalogSelect({ children, recor
       <span className="catalog-select__value" id={`${pickerId}-value`}><span>{loading ? t.loading : title}</span>{selectedEntries.length === 1 && selectedEntries[0].details?.length ? <small>{[selectedEntries[0].countries?.map((item) => item.label).join(', '), ...selectedEntries[0].details].filter(Boolean).join(' · ')}</small> : null}</span>
       <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 7.5 5 5 5-5" stroke="currentColor" strokeWidth="1.5" /></svg>
     </button>
-    {open && typeof enableRegulatorMode === 'boolean' && createPortal(<div id={`${pickerId}-dialog`} ref={panel} className="catalog-select__panel" role="dialog" aria-label={`${label} — ${locale === 'fr' ? 'sélection' : 'picker'}`} style={{ ...position, visibility: position ? 'visible' : 'hidden' }} onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); } }} onBlur={(event) => { if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget) && !trigger.current?.contains(event.relatedTarget)) close(false); }}>
+    {open && !adminProfileLoading && !adminProfileError && typeof enableRegulatorMode === 'boolean' && createPortal(<div id={`${pickerId}-dialog`} ref={panel} className="catalog-select__panel" role="dialog" aria-label={`${label} — ${locale === 'fr' ? 'sélection' : 'picker'}`} style={{ ...position, visibility: position ? 'visible' : 'hidden' }} onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); } }} onBlur={(event) => { if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget) && !trigger.current?.contains(event.relatedTarget)) close(false); }}>
       <div className="catalog-select__heading"><strong>{label}</strong><button type="button" className="catalog-select__icon" aria-label={t.close} onClick={() => close()}>×</button></div>
       <div className="catalog-select__search"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" strokeWidth="1.5"/><path d="m13 13 4 4" stroke="currentColor" strokeWidth="1.5"/></svg><input ref={search} role="combobox" aria-label={t.search} aria-controls={listId} aria-expanded="true" aria-autocomplete="list" aria-activedescendant={active ? `${listId}-${results.indexOf(active)}` : undefined} placeholder={t.search} value={query} autoComplete="off" onChange={(event) => { setQuery(event.target.value); setActiveValue(null); }} onKeyDown={onSearchKeyDown}/></div>
       <div className="catalog-select__filters"><select aria-label={t.country} value={country} onChange={(event) => { setCountry(event.target.value); setActiveValue(null); }}><option value="">{t.all}</option>{entries.some((option) => !option.countries.length) ? <option value="__global">{t.global}</option> : null}{countryOptions.map((item) => <option key={item.key} value={item.key}>{item.label}{item.code ? ` (${item.code})` : ''}</option>)}</select>{multiple ? <label><input type="checkbox" checked={selectedOnly} onChange={(event) => setSelectedOnly(event.target.checked)}/>{t.selectedOnly}</label> : null}</div>

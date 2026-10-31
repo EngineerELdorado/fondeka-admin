@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Suspense, useEffect, useMemo, useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { PreservedAdminPresentation, useAuth } from '@/contexts/AuthContext';
 import { useLocale } from '@/contexts/LocaleContext';
 import { RegulatorRouteBoundary } from '@/components/RegulatorPresentation';
 import { isRegulatorRestrictedRoute } from '@/lib/regulator-presentation';
@@ -186,6 +186,7 @@ export default function DashboardLayout({ children }) {
 
   const cachedProfileAvailable = adminProfile && typeof adminProfile.enableRegulatorMode === 'boolean';
   const presentationPending = adminProfileLoading || (!adminProfileError && typeof enableRegulatorMode !== 'boolean');
+  const presentationBlocked = presentationPending || Boolean(adminProfileError);
   const profileError = <div className="card" role="alert" style={{ margin: '1.5rem', display: 'grid', gap: '0.75rem' }}><strong>Dashboard presentation settings are unavailable.</strong><span>{adminProfileError?.message || 'Please refresh your admin profile.'}</span><div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}><button type="button" className="btn-primary" onClick={async () => { if (adminProfileError?.status === 401) await refreshSession(true); await refreshAdminProfile(); }}>Retry</button><button type="button" className="btn-neutral" onClick={logout}>Sign out</button></div></div>;
   if (!cachedProfileAvailable && presentationPending) {
     return <div className="card" role="status" style={{ margin: '1.5rem' }}>Loading dashboard presentation settings…</div>;
@@ -321,9 +322,18 @@ export default function DashboardLayout({ children }) {
           </div>
         </header>
         <main className="dashboard-main" style={{ padding: '1.25rem 1.5rem', flex: 1 }}>
-          {presentationPending ? <div className="card" role="status">Loading dashboard presentation settings…</div> : adminProfileError ? profileError : null}
-          <div hidden={presentationPending || Boolean(adminProfileError)} aria-hidden={presentationPending || Boolean(adminProfileError) || undefined}>
-            <Suspense fallback={<div className="card" role="status">Loading page…</div>}><RegulatorRouteBoundary key={String(adminProfile.enableRegulatorMode)}>{children}</RegulatorRouteBoundary></Suspense>
+          {presentationBlocked ? <div style={{ position: 'sticky', top: '84px', height: 0, display: 'flow-root', zIndex: 20 }}>
+            {presentationPending ? <div className="card" role="status">Loading dashboard presentation settings…</div> : profileError}
+          </div> : null}
+          <div style={{ visibility: presentationBlocked ? 'hidden' : undefined }} inert={presentationBlocked ? '' : undefined} aria-hidden={presentationBlocked || undefined}>
+            <PreservedAdminPresentation blocked={presentationBlocked}>
+              <Suspense fallback={<div className="card" role="status">Loading page…</div>}>
+                {/* Feature flags filters its own editors; preserve its expanded sections across mode changes. */}
+                <RegulatorRouteBoundary key={pathname === '/dashboard/feature-flags' ? 'feature-flags' : String(adminProfile.enableRegulatorMode)}>
+                  {children}
+                </RegulatorRouteBoundary>
+              </Suspense>
+            </PreservedAdminPresentation>
           </div>
         </main>
       </div>

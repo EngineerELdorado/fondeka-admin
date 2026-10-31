@@ -49,7 +49,7 @@ Run the policy and API contract regression checks with `npm test`. Run `npm run 
 
 ## Regulator mode
 
-In Feature flags, expand **Module flags** and find **Regulator mode** (`enableRegulatorMode`). Administrators can edit the global Boolean or open **Overrides** to enable or disable it for an account ID or an existing account's email. Email matching is case insensitive; email and account ID address the same stored override. Email requests URL-encode `+` and `@` and do not create accounts or target future signups. Assistants can inspect the global setting and explicit overrides.
+In Feature flags, expand **Regulator mode** (`enableRegulatorMode`). This section and **API LIVE payments** start collapsed. Administrators can edit the global Boolean or open **Overrides** to enable or disable it for an account ID or an existing account's email. Email matching is case insensitive; email and account ID address the same stored override. Email requests URL-encode `+` and `@` and do not create accounts or target future signups. Assistants can inspect the global setting and explicit overrides.
 
 The account details page also has a **Regulator mode** panel, directly below the account summary. It shows the resolved saved value, the global setting and whether an explicit override exists. Select **Follow global setting**, **Enable**, or **Disable**, then save. Following the global setting deletes the same stored override, including one created by email. The panel refreshes when the account is refreshed and supports its own refresh action; assistants have read-only access.
 
