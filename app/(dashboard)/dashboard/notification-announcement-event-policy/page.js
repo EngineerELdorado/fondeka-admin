@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
+import { PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
 import { api } from '@/lib/api';
 import { useToast } from '@/contexts/ToastContext';
 
@@ -167,7 +167,7 @@ export default function AnnouncementEventPolicyPage() {
             {filteredEvents.map((event) => {
               const checked = enabledSet.has(event);
               return (
-                <label
+                <RegulatorField field={event} key={event}><label
                   key={event}
                   style={{
                     display: 'grid',
@@ -203,7 +203,7 @@ export default function AnnouncementEventPolicyPage() {
                     onChange={(changeEvent) => toggleEvent(event, changeEvent.target.checked)}
                     disabled={saving}
                   />
-                </label>
+                </label></RegulatorField>
               );
             })}
           </div>

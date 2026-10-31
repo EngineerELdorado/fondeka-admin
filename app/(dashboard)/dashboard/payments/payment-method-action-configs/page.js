@@ -1,7 +1,12 @@
 'use client';
 
+import { PresentationSelect, NonRegulatorContent, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
+
+import { regulatorVisibleFields, isRegulatorRestrictedRecord } from '@/lib/regulator-presentation';
+
+import { useAuth } from '@/contexts/AuthContext';
+
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
@@ -213,9 +218,8 @@ const Modal = ({ title, onClose, children }) => (
   </div>
 );
 
-const DetailGrid = ({ rows }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
-    {rows.map((row) => (
+const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+    {regulatorVisibleFields(rows, enableRegulatorMode).map((row) => (
       <div
         key={row.label}
         style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px' }}
@@ -224,8 +228,7 @@ const DetailGrid = ({ rows }) => (
         <div style={{ fontWeight: 700 }}>{row.value ?? '—'}</div>
       </div>
     ))}
-  </div>
-);
+  </div>); };
 
 const MultiSelect = ({ label, options, values, onChange, helperText }) => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
@@ -244,7 +247,7 @@ const MultiSelect = ({ label, options, values, onChange, helperText }) => (
       }}
     >
       {options.map((option) => (
-        <label key={option} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '13px' }}>
+        <RegulatorField field={option} key={option}><label key={option} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '13px' }}>
           <input
             type="checkbox"
             checked={values.includes(option)}
@@ -258,7 +261,7 @@ const MultiSelect = ({ label, options, values, onChange, helperText }) => (
             }}
           />
           <span>{option}</span>
-        </label>
+        </label></RegulatorField>
       ))}
     </div>
     {helperText ? <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{helperText}</div> : null}
@@ -518,12 +521,12 @@ export default function PaymentMethodActionConfigsPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="action">Action</label>
-          <select id="action" value={draft.action} onChange={(e) => setDraft((p) => ({ ...p, action: e.target.value }))}>
+          <PresentationSelect id="action" value={draft.action} onChange={(e) => setDraft((p) => ({ ...p, action: e.target.value }))}>
             <option value="">Global (all actions)</option>
             {actionOptions.map((action) => (
-              <option key={action} value={action}>{action}</option>
+              <option data-regulator-restricted={isRegulatorRestrictedRecord(action)} key={action} value={action}>{action}</option>
             ))}
-          </select>
+          </PresentationSelect>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="countryCode">Country Code</label>
@@ -565,7 +568,7 @@ export default function PaymentMethodActionConfigsPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.75rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="showCountrySelectorForCollection">Show country selector for collection</label>
-          <select
+          <PresentationSelect
             id="showCountrySelectorForCollection"
             value={draft.showCountrySelectorForCollection}
             onChange={(e) => setDraft((p) => ({ ...p, showCountrySelectorForCollection: e.target.value }))}
@@ -573,12 +576,12 @@ export default function PaymentMethodActionConfigsPage() {
             <option value="">Unset - backend default (hide)</option>
             <option value="true">Force show</option>
             <option value="false">Force hide</option>
-          </select>
+          </PresentationSelect>
           <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Unset sends null and lets broader/default rules apply.</div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="showCountrySelectorForPayout">Show country selector for payout</label>
-          <select
+          <PresentationSelect
             id="showCountrySelectorForPayout"
             value={draft.showCountrySelectorForPayout}
             onChange={(e) => setDraft((p) => ({ ...p, showCountrySelectorForPayout: e.target.value }))}
@@ -586,12 +589,12 @@ export default function PaymentMethodActionConfigsPage() {
             <option value="">Unset - backend default (show)</option>
             <option value="true">Force show</option>
             <option value="false">Force hide</option>
-          </select>
+          </PresentationSelect>
           <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Unset sends null and lets broader/default rules apply.</div>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <NonRegulatorContent><div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="allowLocalMobileMoneyForUsdWallet">Allow local mobile money for USD wallet</label>
-          <select
+          <PresentationSelect
             id="allowLocalMobileMoneyForUsdWallet"
             value={draft.allowLocalMobileMoneyForUsdWallet}
             onChange={(e) => setDraft((p) => ({ ...p, allowLocalMobileMoneyForUsdWallet: e.target.value }))}
@@ -599,14 +602,14 @@ export default function PaymentMethodActionConfigsPage() {
             <option value="">Default - enabled</option>
             <option value="true">Enabled</option>
             <option value="false">Disabled</option>
-          </select>
+          </PresentationSelect>
           <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
             Applies to USD wallet FUND_WALLET and WITHDRAW_FROM_WALLET mobile money lookups. Disabled hides local mobile money when USD rails exist.
           </div>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        </div></NonRegulatorContent>
+        <NonRegulatorContent><div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="allowAdditionalFiatWallets">Allow additional fiat wallets</label>
-          <select
+          <PresentationSelect
             id="allowAdditionalFiatWallets"
             value={draft.allowAdditionalFiatWallets}
             onChange={(e) => setDraft((p) => ({ ...p, allowAdditionalFiatWallets: e.target.value }))}
@@ -614,11 +617,11 @@ export default function PaymentMethodActionConfigsPage() {
             <option value="">Automatic - backend behavior</option>
             <option value="true">Enabled</option>
             <option value="false">Disabled</option>
-          </select>
+          </PresentationSelect>
           <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
             Enabled lets clients show expanded fiat wallet balance methods. Disabled restricts clients to the active/default wallet balance method.
           </div>
-        </div>
+        </div></NonRegulatorContent>
       </div>
       {typeConflicts.length ? (
         <div style={{ color: 'var(--danger)', fontSize: '12px' }}>
@@ -717,13 +720,13 @@ export default function PaymentMethodActionConfigsPage() {
         </div>
         <div>
           <label htmlFor="arrangeBy">Arrange by</label>
-          <select id="arrangeBy" value={arrangeBy} onChange={(e) => setArrangeBy(e.target.value)}>
+          <PresentationSelect id="arrangeBy" value={arrangeBy} onChange={(e) => setArrangeBy(e.target.value)}>
             <option value="rank">Rank</option>
             <option value="action">Action</option>
             <option value="country">Country</option>
             <option value="scope">Scope</option>
             <option value="active">Active</option>
-          </select>
+          </PresentationSelect>
         </div>
         <button type="button" className="btn-neutral" onClick={fetchRows} disabled={loading || (viewMode === 'account' && !selectedAccountId)}>Refresh</button>
         <button type="button" className="btn-primary" onClick={openCreate} disabled={viewMode === 'account' && !selectedAccountId}>Add rule</button>
@@ -734,7 +737,7 @@ export default function PaymentMethodActionConfigsPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0.75rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="selectedAccountId">Account</label>
-              <select
+              <PresentationSelect
                 id="selectedAccountId"
                 value={selectedAccountId}
                 onChange={(e) => {
@@ -744,12 +747,12 @@ export default function PaymentMethodActionConfigsPage() {
               >
                 <option value="">Select account</option>
                 {accounts.map((account) => (
-                  <option key={account.id || account.accountId} value={account.id || account.accountId}>
+                  <option data-regulator-restricted={isRegulatorRestrictedRecord(account)} key={account.id || account.accountId} value={account.id || account.accountId}>
                     #{account.id || account.accountId}
                     {account.username ? ` - ${account.username}` : account.fullName ? ` - ${account.fullName}` : ''}
                   </option>
                 ))}
-              </select>
+              </PresentationSelect>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="selectedAccountIdManual">Or Account ID (manual)</label>
@@ -793,16 +796,16 @@ export default function PaymentMethodActionConfigsPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="filterAction">Action</label>
-            <select
+            <PresentationSelect
               id="filterAction"
               value={filters.action}
               onChange={(e) => setFilters((p) => ({ ...p, action: e.target.value }))}
             >
               <option value="">All actions</option>
               {actionOptions.map((action) => (
-                <option key={action} value={action}>{action}</option>
+                <option data-regulator-restricted={isRegulatorRestrictedRecord(action)} key={action} value={action}>{action}</option>
               ))}
-            </select>
+            </PresentationSelect>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="filterCountry">Country Code</label>
@@ -815,7 +818,7 @@ export default function PaymentMethodActionConfigsPage() {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="filterActive">Active</label>
-            <select
+            <PresentationSelect
               id="filterActive"
               value={filters.active}
               onChange={(e) => setFilters((p) => ({ ...p, active: e.target.value }))}
@@ -823,7 +826,7 @@ export default function PaymentMethodActionConfigsPage() {
               <option value="">All</option>
               <option value="true">Yes</option>
               <option value="false">No</option>
-            </select>
+            </PresentationSelect>
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.5rem' }}>
             <button type="button" className="btn-neutral" onClick={applyFilters}>Apply</button>

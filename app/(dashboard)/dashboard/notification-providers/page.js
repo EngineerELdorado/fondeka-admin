@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
+import { PresentationLink as Link } from '@/components/RegulatorPresentation';
 import { api } from '@/lib/api';
 import { useToast } from '@/contexts/ToastContext';
 

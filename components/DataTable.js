@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { isRegulatorRestrictedRecord, regulatorVisibleFields } from '@/lib/regulator-presentation';
 
 const resolveAccountId = (row) => {
   if (!row || typeof row !== 'object') return null;
@@ -25,7 +26,7 @@ const normalizeGroups = (value) => {
 
 export function DataTable({
   columns,
-  rows,
+  rows: suppliedRows,
   emptyLabel = 'No data to display.',
   compactEmptyState = false,
   showIndex = true,
@@ -40,7 +41,8 @@ export function DataTable({
   showAccountQuickNav = true,
   rowStyle
 }) {
-  const { session } = useAuth();
+  const { session, enableRegulatorMode } = useAuth();
+  const rows = useMemo(() => enableRegulatorMode === false ? suppliedRows : suppliedRows.filter((row) => !isRegulatorRestrictedRecord(row)), [suppliedRows, enableRegulatorMode]);
   const isServerPagination = typeof onPageChange === 'function';
   const [localPage, setLocalPage] = useState(0);
   const page = isServerPagination ? Math.max(0, Number(controlledPage) || 0) : localPage;
@@ -58,7 +60,7 @@ export function DataTable({
   }, [accessTokenPayload, idTokenPayload]);
   const canSeeTotals = adminGroups.includes('SUPER_ADMIN') || adminGroups.includes('ADMIN');
 
-  const visibleCols = useMemo(() => columns.filter((col) => col.key !== 'id'), [columns]);
+  const visibleCols = useMemo(() => regulatorVisibleFields(columns, enableRegulatorMode).filter((col) => col.key !== 'id'), [columns, enableRegulatorMode]);
   const isEmpty = rows.length === 0;
   const shouldCompactEmptyState = compactEmptyState && isEmpty;
   const hasAccountLikeColumn = useMemo(

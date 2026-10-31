@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { PresentationLink as Link } from '@/components/RegulatorPresentation';
 
 export default function RetiredCommerceStoreCreationFeePage() {
   return (

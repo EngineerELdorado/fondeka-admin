@@ -1,7 +1,10 @@
 'use client';
 
+import { isRegulatorRestrictedRecord } from '@/lib/regulator-presentation';
+
+import { RegulatorRecord, PresentationSelect, NonRegulatorContent, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
+
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { api } from '@/lib/api';
 import { useToast } from '@/contexts/ToastContext';
 
@@ -370,29 +373,29 @@ export default function WhatsappTemplateCatalogPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
           <label style={{ display: 'grid', gap: '0.35rem' }}>
             <span>Target type</span>
-            <select value={form.targetType} onChange={(e) => updateForm({ targetType: e.target.value })}>
-              {TARGET_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
-            </select>
+            <PresentationSelect value={form.targetType} onChange={(e) => updateForm({ targetType: e.target.value })}>
+              {TARGET_TYPES.map((type) => <option data-regulator-restricted={isRegulatorRestrictedRecord(type)} key={type} value={type}>{type}</option>)}
+            </PresentationSelect>
           </label>
-          <label style={{ display: 'grid', gap: '0.35rem' }}>
+          <NonRegulatorContent><label style={{ display: 'grid', gap: '0.35rem' }}>
             <span>Target key</span>
             <input value={form.targetKey} onChange={(e) => updateForm({ targetKey: e.target.value.toUpperCase() })} placeholder="FUND_WALLET" />
-          </label>
+          </label></NonRegulatorContent>
           <label style={{ display: 'grid', gap: '0.35rem' }}>
             <span>Language</span>
-            <select value={form.languageCode} onChange={(e) => updateForm({ languageCode: e.target.value })}>
-              {LANGUAGE_OPTIONS.map((code) => <option key={code} value={code}>{code}</option>)}
-            </select>
+            <PresentationSelect value={form.languageCode} onChange={(e) => updateForm({ languageCode: e.target.value })}>
+              {LANGUAGE_OPTIONS.map((code) => <option data-regulator-restricted={isRegulatorRestrictedRecord(code)} key={code} value={code}>{code}</option>)}
+            </PresentationSelect>
           </label>
-          <label style={{ display: 'grid', gap: '0.35rem' }}>
+          <NonRegulatorContent><label style={{ display: 'grid', gap: '0.35rem' }}>
             <span>Template name</span>
             <input value={form.templateName} onChange={(e) => updateForm({ templateName: e.target.value })} placeholder="fondeka_action_fund_wallet" />
-          </label>
+          </label></NonRegulatorContent>
           <label style={{ display: 'grid', gap: '0.35rem' }}>
             <span>Meta category</span>
-            <select value={form.metaCategory} onChange={(e) => updateForm({ metaCategory: e.target.value })}>
-              {META_CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
-            </select>
+            <PresentationSelect value={form.metaCategory} onChange={(e) => updateForm({ metaCategory: e.target.value })}>
+              {META_CATEGORIES.map((category) => <option data-regulator-restricted={isRegulatorRestrictedRecord(category)} key={category} value={category}>{category}</option>)}
+            </PresentationSelect>
           </label>
           <label style={{ display: 'inline-flex', gap: '0.5rem', alignItems: 'center', alignSelf: 'end', minHeight: '42px' }}>
             <input type="checkbox" checked={form.active} onChange={(e) => updateForm({ active: e.target.checked })} />
@@ -446,25 +449,25 @@ export default function WhatsappTemplateCatalogPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
           <label style={{ display: 'grid', gap: '0.35rem' }}>
             <span>Target type</span>
-            <select value={targetTypeFilter} onChange={(e) => setTargetTypeFilter(e.target.value)}>
+            <PresentationSelect value={targetTypeFilter} onChange={(e) => setTargetTypeFilter(e.target.value)}>
               <option value="">All</option>
-              {TARGET_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
-            </select>
+              {TARGET_TYPES.map((type) => <option data-regulator-restricted={isRegulatorRestrictedRecord(type)} key={type} value={type}>{type}</option>)}
+            </PresentationSelect>
           </label>
           <label style={{ display: 'grid', gap: '0.35rem' }}>
             <span>Language</span>
-            <select value={languageFilter} onChange={(e) => setLanguageFilter(e.target.value)}>
+            <PresentationSelect value={languageFilter} onChange={(e) => setLanguageFilter(e.target.value)}>
               <option value="">All</option>
-              {LANGUAGE_OPTIONS.map((code) => <option key={code} value={code}>{code}</option>)}
-            </select>
+              {LANGUAGE_OPTIONS.map((code) => <option data-regulator-restricted={isRegulatorRestrictedRecord(code)} key={code} value={code}>{code}</option>)}
+            </PresentationSelect>
           </label>
           <label style={{ display: 'grid', gap: '0.35rem' }}>
             <span>Active</span>
-            <select value={activeFilter} onChange={(e) => setActiveFilter(e.target.value)}>
+            <PresentationSelect value={activeFilter} onChange={(e) => setActiveFilter(e.target.value)}>
               <option value="ALL">All</option>
               <option value="ACTIVE">Active</option>
               <option value="INACTIVE">Inactive</option>
-            </select>
+            </PresentationSelect>
           </label>
           <label style={{ display: 'grid', gap: '0.35rem' }}>
             <span>Search</span>
@@ -534,13 +537,13 @@ export default function WhatsappTemplateCatalogPage() {
                 />
               </th>
               {['Template', 'Target', 'Language', 'Category', 'Meta sync', 'Active', 'Notes', 'Actions'].map((header) => (
-                <th key={header} style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '1px solid var(--border)' }}>{header}</th>
+                <RegulatorField field={header} key={header}><th key={header} style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '1px solid var(--border)' }}>{header}</th></RegulatorField>
               ))}
             </tr>
           </thead>
           <tbody>
             {filteredRows.map((row) => (
-              <tr key={row.id || `${row.targetType}-${row.targetKey}-${row.languageCode}-${row.templateName}`}>
+              <RegulatorRecord record={row} key={row.id || `${row.targetType}-${row.targetKey}-${row.languageCode}-${row.templateName}`}><tr key={row.id || `${row.targetType}-${row.targetKey}-${row.languageCode}-${row.templateName}`}>
                 <td style={{ padding: '0.75rem', verticalAlign: 'top' }}>
                   <input
                     type="checkbox"
@@ -608,7 +611,7 @@ export default function WhatsappTemplateCatalogPage() {
                     </button>
                   </div>
                 </td>
-              </tr>
+              </tr></RegulatorRecord>
             ))}
             {filteredRows.length === 0 ? (
               <tr>
@@ -658,22 +661,22 @@ export default function WhatsappTemplateCatalogPage() {
             </div>
             <div>
               <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Body text</div>
-              <pre style={{ margin: 0, whiteSpace: 'pre-wrap', font: 'inherit', background: 'color-mix(in srgb, var(--surface) 86%, var(--accent-soft) 14%)', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.75rem' }}>
+              <NonRegulatorContent><pre style={{ margin: 0, whiteSpace: 'pre-wrap', font: 'inherit', background: 'color-mix(in srgb, var(--surface) 86%, var(--accent-soft) 14%)', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.75rem' }}>
                 {detailModal.bodyText || '—'}
-              </pre>
+              </pre></NonRegulatorContent>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.75rem' }}>
               <div>
                 <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Body parameter keys</div>
-                <pre style={{ margin: 0, whiteSpace: 'pre-wrap', maxHeight: '180px', overflow: 'auto' }}>{formatJsonString(detailModal.bodyParameterKeysJson) || '—'}</pre>
+                <NonRegulatorContent><pre style={{ margin: 0, whiteSpace: 'pre-wrap', maxHeight: '180px', overflow: 'auto' }}>{formatJsonString(detailModal.bodyParameterKeysJson) || '—'}</pre></NonRegulatorContent>
               </div>
               <div>
                 <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Variable types</div>
-                <pre style={{ margin: 0, whiteSpace: 'pre-wrap', maxHeight: '180px', overflow: 'auto' }}>{formatJsonString(detailModal.variableTypesJson) || '—'}</pre>
+                <NonRegulatorContent><pre style={{ margin: 0, whiteSpace: 'pre-wrap', maxHeight: '180px', overflow: 'auto' }}>{formatJsonString(detailModal.variableTypesJson) || '—'}</pre></NonRegulatorContent>
               </div>
               <div>
                 <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Sample values</div>
-                <pre style={{ margin: 0, whiteSpace: 'pre-wrap', maxHeight: '180px', overflow: 'auto' }}>{formatJsonString(detailModal.sampleValuesJson) || '—'}</pre>
+                <NonRegulatorContent><pre style={{ margin: 0, whiteSpace: 'pre-wrap', maxHeight: '180px', overflow: 'auto' }}>{formatJsonString(detailModal.sampleValuesJson) || '—'}</pre></NonRegulatorContent>
               </div>
             </div>
             {detailModal.adminNotes ? (
@@ -695,9 +698,9 @@ export default function WhatsappTemplateCatalogPage() {
                 Close
               </button>
             </div>
-            <pre style={{ margin: 0, whiteSpace: 'pre-wrap', overflowX: 'auto', background: 'color-mix(in srgb, var(--surface) 86%, var(--accent-soft) 14%)', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.75rem' }}>
+            <NonRegulatorContent><pre style={{ margin: 0, whiteSpace: 'pre-wrap', overflowX: 'auto', background: 'color-mix(in srgb, var(--surface) 86%, var(--accent-soft) 14%)', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.75rem' }}>
               {formatJsonString(metaResponseModal.response) || String(metaResponseModal.response || '')}
-            </pre>
+            </pre></NonRegulatorContent>
             <div className="modal-actions">
               <button type="button" className="btn-neutral" onClick={() => copyText('Meta response', metaResponseModal.response)}>
                 Copy response
@@ -729,13 +732,13 @@ export default function WhatsappTemplateCatalogPage() {
                 <thead>
                   <tr>
                     {['Result', 'Operation', 'Meta template ID', 'Status', 'Catalog item', 'Response'].map((header) => (
-                      <th key={header} style={{ textAlign: 'left', padding: '0.65rem', borderBottom: '1px solid var(--border)' }}>{header}</th>
+                      <RegulatorField field={header} key={header}><th key={header} style={{ textAlign: 'left', padding: '0.65rem', borderBottom: '1px solid var(--border)' }}>{header}</th></RegulatorField>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {(Array.isArray(batchResultModal.results) ? batchResultModal.results : []).map((result, index) => (
-                    <tr key={`${result?.catalogItem?.id || result?.metaTemplateId || index}`}>
+                    <RegulatorRecord record={result} key={`${result?.catalogItem?.id || result?.metaTemplateId || index}`}><tr key={`${result?.catalogItem?.id || result?.metaTemplateId || index}`}>
                       <td style={{ padding: '0.65rem', verticalAlign: 'top', color: result?.success ? '#15803d' : '#b91c1c', fontWeight: 800 }}>
                         {result?.success ? 'Success' : 'Failed'}
                       </td>
@@ -749,11 +752,11 @@ export default function WhatsappTemplateCatalogPage() {
                         </div>
                       </td>
                       <td style={{ padding: '0.65rem', verticalAlign: 'top', minWidth: '260px' }}>
-                        <pre style={{ margin: 0, whiteSpace: 'pre-wrap', maxHeight: '180px', overflow: 'auto' }}>
+                        <NonRegulatorContent><pre style={{ margin: 0, whiteSpace: 'pre-wrap', maxHeight: '180px', overflow: 'auto' }}>
                           {formatJsonString(result?.responseBody || result?.catalogItem?.metaLastSyncResponse) || '—'}
-                        </pre>
+                        </pre></NonRegulatorContent>
                       </td>
-                    </tr>
+                    </tr></RegulatorRecord>
                   ))}
                   {!(Array.isArray(batchResultModal.results) && batchResultModal.results.length) ? (
                     <tr>

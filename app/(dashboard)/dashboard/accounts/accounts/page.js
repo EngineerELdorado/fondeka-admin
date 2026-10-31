@@ -1,7 +1,14 @@
 'use client';
 
+
+import { CatalogSelect } from '@/components/CatalogSelect';
+import { RegulatorRecord, PresentationSelect, NonRegulatorContent, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
+
+import { regulatorVisibleFields, isRegulatorRestrictedRecord } from '@/lib/regulator-presentation';
+
+import { useAuth } from '@/contexts/AuthContext';
+
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { DataTable } from '@/components/DataTable';
 import { useLocale } from '@/contexts/LocaleContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -130,16 +137,14 @@ const Modal = ({ title, onClose, children }) => (
   </div>
 );
 
-const DetailGrid = ({ rows }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
-    {rows.map((row) => (
+const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+    {regulatorVisibleFields(rows, enableRegulatorMode).map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
         <div style={{ fontWeight: 700 }}>{row.value ?? '—'}</div>
       </div>
     ))}
-  </div>
-);
+  </div>); };
 
 const FilterChip = ({ label, onClear }) => (
   <span
@@ -201,6 +206,7 @@ const ReferralBadge = ({ referred }) => (
 );
 
 export default function AccountsListPage() {
+  const { enableRegulatorMode } = useAuth();
   const { t } = useLocale();
   const { pushToast } = useToast();
   const [rows, setRows] = useState([]);
@@ -463,7 +469,7 @@ export default function AccountsListPage() {
   useEffect(() => {
     const fetchPmps = async () => {
       try {
-        const res = await api.paymentMethodPaymentProviders.list(new URLSearchParams({ page: '0', size: '200' }));
+        const res = await api.paymentMethodPaymentProviders.options(new URLSearchParams({ page: '0', size: '200' }));
         const list = Array.isArray(res) ? res : res?.content || [];
         setPmps(list);
       } catch {
@@ -721,7 +727,7 @@ export default function AccountsListPage() {
         setDetailTransactions(null);
       }
 
-      await loadCustomPricing(accountId);
+      if (enableRegulatorMode === false) await loadCustomPricing(accountId);
       await loadKycCap(fresh?.kycLevel ?? selected?.kycLevel);
       await loadFeeConfigs(accountId);
     } catch (err) {
@@ -879,7 +885,7 @@ export default function AccountsListPage() {
       const actionLabel = debitAction === 'WITHDRAW_FROM_WALLET' ? 'Withdraw from wallet' : 'Manual adjustment';
       const referenceLabel = res?.reference ? ` (ref ${res.reference})` : '';
       setInfo(
-        <span>
+        <NonRegulatorContent><span>
           Wallet debited ({actionLabel}): {res?.amount ?? amountNum}
           {referenceLabel}
           {res?.transactionId ? (
@@ -890,7 +896,7 @@ export default function AccountsListPage() {
               </Link>
             </>
           ) : null}
-        </span>
+        </span></NonRegulatorContent>
       );
       pushToast({
         tone: 'success',
@@ -1179,34 +1185,34 @@ export default function AccountsListPage() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="countryId">Country</label>
-                <select id="countryId" value={filters.countryId} onChange={(e) => setFilters((p) => ({ ...p, countryId: e.target.value }))}>
+                <PresentationSelect id="countryId" value={filters.countryId} onChange={(e) => setFilters((p) => ({ ...p, countryId: e.target.value }))}>
                   <option value="">All</option>
                   {countries.map((c) => (
-                    <option key={c.id} value={c.id}>
+                    <option data-regulator-restricted={isRegulatorRestrictedRecord(c)} key={c.id} value={c.id}>
                       {c.name} ({c.alpha2Code})
                     </option>
                   ))}
-                </select>
+                </PresentationSelect>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="blacklisted">{t('accounts.blacklistedFilter')}</label>
-                <select id="blacklisted" value={filters.blacklisted} onChange={(e) => setFilters((p) => ({ ...p, blacklisted: e.target.value }))}>
+                <PresentationSelect id="blacklisted" value={filters.blacklisted} onChange={(e) => setFilters((p) => ({ ...p, blacklisted: e.target.value }))}>
                   <option value="">{t('common.all')}</option>
                   <option value="true">{t('accounts.onlyBlacklisted')}</option>
                   <option value="false">{t('accounts.onlyNotBlacklisted')}</option>
-                </select>
+                </PresentationSelect>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="invitedThroughReferral">Referral</label>
-                <select id="invitedThroughReferral" value={filters.invitedThroughReferral} onChange={(e) => setFilters((p) => ({ ...p, invitedThroughReferral: e.target.value }))}>
+                <PresentationSelect id="invitedThroughReferral" value={filters.invitedThroughReferral} onChange={(e) => setFilters((p) => ({ ...p, invitedThroughReferral: e.target.value }))}>
                   <option value="">{t('common.all')}</option>
                   <option value="true">Referred only</option>
                   <option value="false">Direct only</option>
-                </select>
+                </PresentationSelect>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <NonRegulatorContent><div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="hasWalletBalance">{t('accounts.hasFiatWalletBalance')}</label>
-                <select
+                <PresentationSelect
                   id="hasWalletBalance"
                   value={filters.hasWalletBalance}
                   onChange={(e) => setFilters((p) => ({ ...p, hasWalletBalance: e.target.value }))}
@@ -1214,11 +1220,11 @@ export default function AccountsListPage() {
                   <option value="">{t('common.all')}</option>
                   <option value="true">{t('accounts.yesPositive')}</option>
                   <option value="false">{t('accounts.noNonPositive')}</option>
-                </select>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                </PresentationSelect>
+              </div></NonRegulatorContent>
+              <NonRegulatorContent><div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="hasCryptoWalletBalance">{t('accounts.hasCryptoWalletBalance')}</label>
-                <select
+                <PresentationSelect
                   id="hasCryptoWalletBalance"
                   value={filters.hasCryptoWalletBalance}
                   onChange={(e) => setFilters((p) => ({ ...p, hasCryptoWalletBalance: e.target.value }))}
@@ -1226,8 +1232,8 @@ export default function AccountsListPage() {
                   <option value="">{t('common.all')}</option>
                   <option value="true">{t('accounts.yesPositive')}</option>
                   <option value="false">{t('accounts.noCryptoPositive')}</option>
-                </select>
-              </div>
+                </PresentationSelect>
+              </div></NonRegulatorContent>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -1240,9 +1246,9 @@ export default function AccountsListPage() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="sortBy">{t('accounts.sortBy')}</label>
-                <select id="sortBy" value={sort.sortBy} onChange={(e) => setSort((prev) => ({ ...prev, sortBy: e.target.value }))}>
+                <PresentationSelect id="sortBy" value={sort.sortBy} onChange={(e) => setSort((prev) => ({ ...prev, sortBy: e.target.value }))}>
                   {sortByOptions.map((option) => (
-                    <option key={option} value={option}>
+                    <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option} value={option}>
                       {{
                         created_at: t('accounts.mostRecent'),
                         wallet_balance: t('accounts.walletBalance'),
@@ -1251,17 +1257,17 @@ export default function AccountsListPage() {
                       }[option]}
                     </option>
                   ))}
-                </select>
+                </PresentationSelect>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="sortDir">{t('accounts.order')}</label>
-                <select id="sortDir" value={sort.sortDir} onChange={(e) => setSort((prev) => ({ ...prev, sortDir: e.target.value }))}>
+                <PresentationSelect id="sortDir" value={sort.sortDir} onChange={(e) => setSort((prev) => ({ ...prev, sortDir: e.target.value }))}>
                   {sortDirOptions.map((option) => (
-                    <option key={option} value={option}>
+                    <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option} value={option}>
                       {{ desc: t('accounts.descending'), asc: t('accounts.ascending') }[option]}
                     </option>
                   ))}
-                </select>
+                </PresentationSelect>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.5rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -1354,7 +1360,7 @@ export default function AccountsListPage() {
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-              <button
+              <NonRegulatorContent><button
                 type="button"
                 onClick={() => {
                   setCreditError(null);
@@ -1367,8 +1373,8 @@ export default function AccountsListPage() {
                 className="btn-success"
               >
                 {t('accounts.creditWallet')}
-              </button>
-              <button
+              </button></NonRegulatorContent>
+              <NonRegulatorContent><button
                 type="button"
                 onClick={() => {
                   setDebitError(null);
@@ -1381,7 +1387,7 @@ export default function AccountsListPage() {
                 className="btn-danger"
               >
                 {t('accounts.debitWallet')}
-              </button>
+              </button></NonRegulatorContent>
               <button
                 type="button"
                 onClick={() => {
@@ -1482,7 +1488,7 @@ export default function AccountsListPage() {
               ]}
             />
 
-            <div className="card" style={{ padding: '1rem' }}>
+            <NonRegulatorContent><div className="card" style={{ padding: '1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
                   <div style={{ fontWeight: 800 }}>{t('accounts.customKycCaps')}</div>
@@ -1572,9 +1578,9 @@ export default function AccountsListPage() {
                         <thead>
                           <tr>
                             {[t('accounts.limit'), t('accounts.baseKyc'), t('accounts.overrideCustom'), t('accounts.effective')].map((label) => (
-                              <th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                              <RegulatorField field={label} key={label}><th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
                                 {label}
-                              </th>
+                              </th></RegulatorField>
                             ))}
                           </tr>
                         </thead>
@@ -1623,12 +1629,12 @@ export default function AccountsListPage() {
                             };
 
                             return rows.map((row) => (
-                              <tr key={row.label} style={{ borderBottom: '1px solid var(--border)' }}>
+                              <RegulatorRecord record={row} key={row.label}><tr key={row.label} style={{ borderBottom: '1px solid var(--border)' }}>
                                 <td style={{ padding: '0.5rem', fontWeight: 700 }}>{row.label}</td>
                                 <td style={{ padding: '0.5rem' }}>{fmt(row.base)}</td>
                                 <td style={{ padding: '0.5rem' }}>{fmt(row.override, { empty: t('accounts.none') })}</td>
                                 <td style={{ padding: '0.5rem' }}>{fmt(row.effective)}</td>
-                              </tr>
+                              </tr></RegulatorRecord>
                             ));
                           })()}
                         </tbody>
@@ -1648,7 +1654,7 @@ export default function AccountsListPage() {
 
                 {pricingError && <div style={{ marginTop: '0.6rem', color: '#b91c1c', fontWeight: 700 }}>{pricingError}</div>}
               </div>
-            </div>
+            </div></NonRegulatorContent>
 
             <div className="card" style={{ padding: '1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
@@ -1678,15 +1684,15 @@ export default function AccountsListPage() {
                       <thead>
                         <tr>
                             {[t('common.action'), t('common.service'), 'PMPP', t('common.country'), t('accounts.providerFeePct'), t('accounts.providerFeeFlat'), t('accounts.ourFeePct'), t('accounts.ourFeeFlat'), t('accounts.feeMode'), t('common.updated'), ''].map((h) => (
-                            <th key={h} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                            <RegulatorField field={h} key={h}><th key={h} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
                               {h}
-                            </th>
+                            </th></RegulatorField>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
                         {feeConfigs.map((fee) => (
-                          <tr key={fee.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                          <RegulatorRecord record={fee} key={fee.id}><tr key={fee.id} style={{ borderBottom: '1px solid var(--border)' }}>
                             <td style={{ padding: '0.45rem' }}>{fee.action}</td>
                             <td style={{ padding: '0.45rem' }}>{fee.service || '—'}</td>
                             <td style={{ padding: '0.45rem' }}>
@@ -1721,7 +1727,7 @@ export default function AccountsListPage() {
                                 {t('featureFlags.delete')}
                               </button>
                             </td>
-                          </tr>
+                          </tr></RegulatorRecord>
                         ))}
                       </tbody>
                     </table>
@@ -1738,15 +1744,15 @@ export default function AccountsListPage() {
                     <thead>
                       <tr>
                         {[t('common.created'), t('accounts.reference'), t('common.status'), t('common.service'), t('common.action'), t('common.amount')].map((label) => (
-                          <th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid #e5e7eb', color: '#6b7280' }}>
+                          <RegulatorField field={label} key={label}><th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid #e5e7eb', color: '#6b7280' }}>
                             {label}
-                          </th>
+                          </th></RegulatorField>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {txView.map((txn) => (
-                        <tr key={txn.transactionId || txn.id || txn.reference} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <RegulatorRecord record={txn} key={txn.transactionId || txn.id || txn.reference}><tr key={txn.transactionId || txn.id || txn.reference} style={{ borderBottom: '1px solid #f1f5f9' }}>
                           <td style={{ padding: '0.5rem' }}>{formatDateTime(txn.createdAt)}</td>
                           <td style={{ padding: '0.5rem' }}>{txn.reference}</td>
                           <td style={{ padding: '0.5rem' }}>{renderStatusBadge(txn.status)}</td>
@@ -1755,7 +1761,7 @@ export default function AccountsListPage() {
                           <td style={{ padding: '0.5rem' }}>
                             {txn.amount} {txn.currency || ''}
                           </td>
-                        </tr>
+                        </tr></RegulatorRecord>
                       ))}
                     </tbody>
                   </table>
@@ -1765,30 +1771,30 @@ export default function AccountsListPage() {
 
             {fiatWallets.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <div style={{ fontWeight: 700 }}>Fiat wallets</div>
-                <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                <NonRegulatorContent><div style={{ fontWeight: 700 }}>Fiat wallets</div></NonRegulatorContent>
+                <NonRegulatorContent><div style={{ color: 'var(--muted)', fontSize: '13px' }}>
                   Full fiat wallet balances from `fiatWallets`. The legacy balance above remains the USD wallet balance for backward compatibility.
-                </div>
+                </div></NonRegulatorContent>
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr>
                         {['ID', 'Currency', 'Name', 'Balance', 'Enabled', 'Legacy backed', 'Actions'].map((label) => (
-                          <th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid #e5e7eb', color: '#6b7280' }}>
+                          <RegulatorField field={label} key={label}><th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid #e5e7eb', color: '#6b7280' }}>
                             {label}
-                          </th>
+                          </th></RegulatorField>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {fiatWallets.map((wallet) => (
-                        <tr key={`${wallet.id || wallet.currency}-${wallet.currency}`} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <RegulatorRecord record={wallet} key={`${wallet.id || wallet.currency}-${wallet.currency}`}><tr key={`${wallet.id || wallet.currency}-${wallet.currency}`} style={{ borderBottom: '1px solid #f1f5f9' }}>
                           <td style={{ padding: '0.5rem' }}>{wallet.id ?? '—'}</td>
                           <td style={{ padding: '0.5rem' }}><Badge>{wallet.currency}</Badge></td>
                           <td style={{ padding: '0.5rem' }}>{wallet.displayName || '—'}</td>
-                          <td style={{ padding: '0.5rem', fontWeight: 800 }}>{formatWalletAmount(wallet.balance, wallet.currency)}</td>
-                          <td style={{ padding: '0.5rem' }}>{wallet.walletEnabled ? 'Yes' : 'No'}</td>
-                          <td style={{ padding: '0.5rem' }}>{wallet.legacyBalanceBacked ? 'Yes' : 'No'}</td>
+                          <RegulatorField field="balance"><td style={{ padding: '0.5rem', fontWeight: 800 }}>{formatWalletAmount(wallet.balance, wallet.currency)}</td></RegulatorField>
+                          <RegulatorField field="walletEnabled"><td style={{ padding: '0.5rem' }}>{wallet.walletEnabled ? 'Yes' : 'No'}</td></RegulatorField>
+                          <RegulatorField field="legacyBalanceBacked"><td style={{ padding: '0.5rem' }}>{wallet.legacyBalanceBacked ? 'Yes' : 'No'}</td></RegulatorField>
                           <td style={{ padding: '0.5rem' }}>
                             {wallet.id ? (
                               <Link href={`/dashboard/accounts/balance-activities?fiatWalletId=${encodeURIComponent(wallet.id)}`} className="btn-neutral">
@@ -1796,7 +1802,7 @@ export default function AccountsListPage() {
                               </Link>
                             ) : '—'}
                           </td>
-                        </tr>
+                        </tr></RegulatorRecord>
                       ))}
                     </tbody>
                   </table>
@@ -1806,7 +1812,7 @@ export default function AccountsListPage() {
 
             {selected?.cryptoWallets?.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <div style={{ fontWeight: 700 }}>{t('accounts.cryptoWallets')}</div>
+                <NonRegulatorContent><div style={{ fontWeight: 700 }}>{t('accounts.cryptoWallets')}</div></NonRegulatorContent>
                 {(() => {
                   const totals = (selected?.cryptoWallets || []).reduce((acc, w) => {
                     if (!w || w.balance === undefined || w.balance === null || !w.currency) return acc;
@@ -1833,27 +1839,27 @@ export default function AccountsListPage() {
                     <thead>
                       <tr>
                         {['ID', t('accounts.product'), t('accounts.network'), t('accounts.balance')].map((label) => (
-                          <th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid #e5e7eb', color: '#6b7280' }}>
+                          <RegulatorField field={label} key={label}><th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid #e5e7eb', color: '#6b7280' }}>
                             {label}
-                          </th>
+                          </th></RegulatorField>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {selected.cryptoWallets.map((wallet) => (
-                        <tr key={wallet.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <RegulatorRecord record={wallet} key={wallet.id}><tr key={wallet.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                           <td style={{ padding: '0.5rem' }}>{wallet.id}</td>
                           <td style={{ padding: '0.5rem' }}>{wallet.productName}</td>
                           <td style={{ padding: '0.5rem' }}>
                             <Badge>{wallet.networkDisplayName || wallet.networkName || 'Network'}</Badge>
                           </td>
-                          <td style={{ padding: '0.5rem' }}>
+                          <RegulatorField field="balance"><td style={{ padding: '0.5rem' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                               <span>{wallet.balance}</span>
                               {wallet.currency && <Badge>{wallet.currency}</Badge>}
                             </div>
-                          </td>
-                        </tr>
+                          </td></RegulatorField>
+                        </tr></RegulatorRecord>
                       ))}
                     </tbody>
                   </table>
@@ -1913,7 +1919,7 @@ export default function AccountsListPage() {
       )}
 
       {showCredit && (
-        <Modal title={t('accounts.creditWallet')} onClose={() => (!creditLoading ? setShowCredit(false) : null)}>
+        <NonRegulatorContent><Modal title={t('accounts.creditWallet')} onClose={() => (!creditLoading ? setShowCredit(false) : null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ color: 'var(--muted)' }}>
               {t('accounts.creditingAccount', { account: accountView?.accountReference || selected?.accountReference || selected?.id })}
@@ -1921,10 +1927,10 @@ export default function AccountsListPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="creditAction">{t('common.action')}</label>
-                <select id="creditAction" value={creditAction} onChange={(e) => setCreditAction(e.target.value)}>
+                <PresentationSelect id="creditAction" value={creditAction} onChange={(e) => setCreditAction(e.target.value)}>
                   <option value="MANUAL_ADJUSTMENT">{t('accounts.manualAdjustment')}</option>
                   <option value="BONUS">{t('accounts.bonus')}</option>
-                </select>
+                </PresentationSelect>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="creditAmount">{t('accounts.amountLabel')}</label>
@@ -1940,12 +1946,12 @@ export default function AccountsListPage() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="creditCurrency">Wallet currency</label>
-                <select id="creditCurrency" value={creditCurrency} onChange={(e) => setCreditCurrency(e.target.value)}>
+                <PresentationSelect id="creditCurrency" value={creditCurrency} onChange={(e) => setCreditCurrency(e.target.value)}>
                   <option value="">Select wallet currency</option>
                   {walletCurrencyOptions.map((code) => (
-                    <option key={code} value={code}>{code}</option>
+                    <option data-regulator-restricted={isRegulatorRestrictedRecord(code)} key={code} value={code}>{code}</option>
                   ))}
-                </select>
+                </PresentationSelect>
                 <span style={{ color: 'var(--muted)', fontSize: '12px' }}>This selects the fiat wallet to credit.</span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -1963,11 +1969,11 @@ export default function AccountsListPage() {
               </button>
             </div>
           </div>
-        </Modal>
+        </Modal></NonRegulatorContent>
       )}
 
       {showDebit && (
-        <Modal title={t('accounts.debitWallet')} onClose={() => (!debitLoading ? setShowDebit(false) : null)}>
+        <NonRegulatorContent><Modal title={t('accounts.debitWallet')} onClose={() => (!debitLoading ? setShowDebit(false) : null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ color: 'var(--muted)' }}>
               {t('accounts.debitingAccount', { account: accountView?.accountReference || selected?.accountReference || selected?.id })}
@@ -1975,10 +1981,10 @@ export default function AccountsListPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="debitAction">{t('common.action')}</label>
-                <select id="debitAction" value={debitAction} onChange={(e) => setDebitAction(e.target.value)}>
+                <PresentationSelect id="debitAction" value={debitAction} onChange={(e) => setDebitAction(e.target.value)}>
                   <option value="MANUAL_ADJUSTMENT">{t('accounts.manualAdjustment')}</option>
                   <option value="WITHDRAW_FROM_WALLET">Withdraw from wallet</option>
-                </select>
+                </PresentationSelect>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="debitAmount">{t('accounts.amountLabel')}</label>
@@ -1994,12 +2000,12 @@ export default function AccountsListPage() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="debitCurrency">Wallet currency</label>
-                <select id="debitCurrency" value={debitCurrency} onChange={(e) => setDebitCurrency(e.target.value)}>
+                <PresentationSelect id="debitCurrency" value={debitCurrency} onChange={(e) => setDebitCurrency(e.target.value)}>
                   <option value="">Select wallet currency</option>
                   {walletCurrencyOptions.map((code) => (
-                    <option key={code} value={code}>{code}</option>
+                    <option data-regulator-restricted={isRegulatorRestrictedRecord(code)} key={code} value={code}>{code}</option>
                   ))}
-                </select>
+                </PresentationSelect>
                 <span style={{ color: 'var(--muted)', fontSize: '12px' }}>This selects the fiat wallet to debit.</span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -2017,7 +2023,7 @@ export default function AccountsListPage() {
               </button>
             </div>
           </div>
-        </Modal>
+        </Modal></NonRegulatorContent>
       )}
 
       {showFeeForm && (
@@ -2033,47 +2039,47 @@ export default function AccountsListPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="feeService">{t('common.service')}</label>
-                <select id="feeService" value={feeService} onChange={(e) => setFeeService(e.target.value)}>
+                <PresentationSelect id="feeService" value={feeService} onChange={(e) => setFeeService(e.target.value)}>
                   <option value="">{t('accounts.noneOption')}</option>
                   {['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'COMMERCE', 'PAYMENT_REQUEST', 'E_SIM', 'AIRTIME_AND_DATA', 'OTHER'].map((svc) => (
-                    <option key={svc} value={svc}>
+                    <option data-regulator-restricted={isRegulatorRestrictedRecord(svc)} key={svc} value={svc}>
                       {svc}
                     </option>
                   ))}
-                </select>
+                </PresentationSelect>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="feeAction">{t('common.action')} *</label>
-                <select id="feeAction" value={feeAction} onChange={(e) => setFeeAction(e.target.value)}>
+                <PresentationSelect id="feeAction" value={feeAction} onChange={(e) => setFeeAction(e.target.value)}>
                   <option value="">{t('accounts.selectAction')}</option>
                   {actionOptions.map((act) => (
-                    <option key={act} value={act}>
+                    <option data-regulator-restricted={isRegulatorRestrictedRecord(act)} key={act} value={act}>
                       {act}
                     </option>
                   ))}
-                </select>
+                </PresentationSelect>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="feePmpId">{t('common.paymentMethod')} / {t('common.paymentProvider')}</label>
-                <select id="feePmpId" value={feePmpId} onChange={(e) => setFeePmpId(e.target.value)}>
+                <CatalogSelect kind="payment-route" records={pmps} countries={countries} id="feePmpId" value={feePmpId} onChange={(e) => setFeePmpId(e.target.value)}>
                   <option value="">{t('accounts.accountWide')}</option>
                   {pmps.map((p) => (
-                    <option key={p.id} value={p.id}>
+                    <option data-regulator-restricted={isRegulatorRestrictedRecord(p)} key={p.id} value={p.id}>
                       {paymentMethodRouteAdminLabel(p) + ' → ' + (p.paymentProviderName || 'Provider')}
                     </option>
                   ))}
-                </select>
+                </CatalogSelect>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="feeCountryId">{t('accounts.countryOptional')}</label>
-                <select id="feeCountryId" value={feeCountryId} onChange={(e) => setFeeCountryId(e.target.value)}>
+                <PresentationSelect id="feeCountryId" value={feeCountryId} onChange={(e) => setFeeCountryId(e.target.value)}>
                   <option value="">{t('common.any')}</option>
                   {countries.map((c) => (
-                    <option key={c.id} value={c.id}>
+                    <option data-regulator-restricted={isRegulatorRestrictedRecord(c)} key={c.id} value={c.id}>
                       {c.name} {c.alpha2Code ? `(${c.alpha2Code})` : ''}
                     </option>
                   ))}
-                </select>
+                </PresentationSelect>
               </div>
             </div>
 
@@ -2096,11 +2102,11 @@ export default function AccountsListPage() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="feeApplicationMode">{t('accounts.feeChargingMode')}</label>
-                <select id="feeApplicationMode" value={feeApplicationMode} onChange={(e) => setFeeApplicationMode(e.target.value)}>
+                <PresentationSelect id="feeApplicationMode" value={feeApplicationMode} onChange={(e) => setFeeApplicationMode(e.target.value)}>
                   <option value="">{t('accounts.useInheritedDefault')}</option>
                   <option value="EXCLUSIVE">{t('accounts.senderPays')} (EXCLUSIVE)</option>
                   <option value="INCLUSIVE">{t('accounts.recipientPays')} (INCLUSIVE)</option>
-                </select>
+                </PresentationSelect>
                 <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
                   {t('accounts.feeHelp1')}
                 </div>
@@ -2132,7 +2138,7 @@ export default function AccountsListPage() {
       )}
 
       {showPricingForm && (
-        <Modal title={customPricing ? t('accounts.editCustomKycCapsTitle') : t('accounts.addCustomKycCapsTitle')} onClose={() => (!pricingSaving ? setShowPricingForm(false) : null)}>
+        <NonRegulatorContent><Modal title={customPricing ? t('accounts.editCustomKycCapsTitle') : t('accounts.addCustomKycCapsTitle')} onClose={() => (!pricingSaving ? setShowPricingForm(false) : null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -2192,7 +2198,7 @@ export default function AccountsListPage() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="pricingTransactionsEligible">Transactions count toward loan eligibility</label>
-                <select
+                <PresentationSelect
                   id="pricingTransactionsEligible"
                   value={pricingTransactionsEligible}
                   onChange={(e) => setPricingTransactionsEligible(e.target.value)}
@@ -2200,28 +2206,28 @@ export default function AccountsListPage() {
                   <option value="">Use global default</option>
                   <option value="true">Yes</option>
                   <option value="false">No</option>
-                </select>
+                </PresentationSelect>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="pricingBridgecardRegistrationMode">Bridgecard cardholder registration mode</label>
-                <select
+                <PresentationSelect
                   id="pricingBridgecardRegistrationMode"
                   value={pricingBridgecardRegistrationMode}
                   onChange={(e) => setPricingBridgecardRegistrationMode(e.target.value)}
                 >
                   {bridgecardRegistrationModeOptions.map((option) => (
-                    <option key={option.value || 'GLOBAL'} value={option.value}>
+                    <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option.value || 'GLOBAL'} value={option.value}>
                       {option.label}
                     </option>
                   ))}
-                </select>
+                </PresentationSelect>
                 <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
                   Choose how Bridgecard should register this specific user as a cardholder. Leave as Use global setting unless this user needs a different flow. Async registration allows Bridgecard manual review through callback. Synchronous registration attempts immediate verification and continues card ordering if successful.
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="pricingPaymentRequestSettlementMode">Payment request wallet settlement</label>
-                <select
+                <PresentationSelect
                   id="pricingPaymentRequestSettlementMode"
                   value={pricingPaymentRequestSettlementMode}
                   onChange={(e) => setPricingPaymentRequestSettlementMode(e.target.value)}
@@ -2229,7 +2235,7 @@ export default function AccountsListPage() {
                   <option value="">Use global policy</option>
                   <option value="REQUEST_CURRENCY">Request currency</option>
                   <option value="PAYER_CURRENCY">Payer currency</option>
-                </select>
+                </PresentationSelect>
                 <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
                   Account override for wallet-funded payment request settlement currency.
                 </div>
@@ -2248,11 +2254,11 @@ export default function AccountsListPage() {
               </button>
             </div>
           </div>
-        </Modal>
+        </Modal></NonRegulatorContent>
       )}
 
       {showPricingRemove && (
-        <Modal title="Remove custom KYC caps" onClose={() => (!pricingRemoving ? setShowPricingRemove(false) : null)}>
+        <NonRegulatorContent><Modal title="Remove custom KYC caps" onClose={() => (!pricingRemoving ? setShowPricingRemove(false) : null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ fontWeight: 700 }}>
               Remove custom KYC caps for account <span style={{ fontWeight: 900 }}>{accountView?.accountReference || selected?.accountReference || selected?.id}</span>?
@@ -2270,7 +2276,7 @@ export default function AccountsListPage() {
               </button>
             </div>
           </div>
-        </Modal>
+        </Modal></NonRegulatorContent>
       )}
     </div>
   );

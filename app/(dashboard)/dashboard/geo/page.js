@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { PresentationLink as Link } from '@/components/RegulatorPresentation';
 
 const sections = [
   { href: '/dashboard/geo/countries', title: 'Countries', blurb: 'Manage country codes and names.' },

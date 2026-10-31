@@ -1,7 +1,12 @@
 'use client';
 
+import { PresentationSelect, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
+
+import { regulatorVisibleFields, isRegulatorRestrictedRecord } from '@/lib/regulator-presentation';
+
+import { useAuth } from '@/contexts/AuthContext';
+
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
@@ -208,16 +213,14 @@ const Modal = ({ title, onClose, children }) => (
   </div>
 );
 
-const DetailGrid = ({ rows }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
-    {rows.map((row) => (
+const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+    {regulatorVisibleFields(rows, enableRegulatorMode).map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
         <div style={{ fontWeight: 700 }}>{row.value ?? '—'}</div>
       </div>
     ))}
-  </div>
-);
+  </div>); };
 
 const WARNING_ERROR_CODE = 'WARNING_MESSAGE';
 
@@ -885,14 +888,14 @@ export default function PaymentMethodsPage() {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="countryId">Country</label>
-        <select id="countryId" value={draft.countryId} onChange={(e) => setDraft((p) => ({ ...p, countryId: e.target.value }))}>
+        <PresentationSelect id="countryId" value={draft.countryId} onChange={(e) => setDraft((p) => ({ ...p, countryId: e.target.value }))}>
           <option value="">GLOBAL</option>
           {countries.map((c) => (
-            <option key={c.id} value={c.id}>
+            <option data-regulator-restricted={isRegulatorRestrictedRecord(c)} key={c.id} value={c.id}>
               {c.name} ({c.alpha2Code || c.alpha3Code || c.id})
             </option>
           ))}
-        </select>
+        </PresentationSelect>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="currency">Currency</label>
@@ -1022,7 +1025,7 @@ export default function PaymentMethodsPage() {
           { key: 'allowingPayout', label: 'Allow payout', value: draft.allowingPayout },
           { key: 'defaultForFees', label: 'Default for fees', value: draft.defaultForFees }
         ].map((item) => (
-          <label
+          <RegulatorField field={item} key={item.key}><label
             key={item.key}
             style={{
               display: 'inline-flex',
@@ -1043,7 +1046,7 @@ export default function PaymentMethodsPage() {
               style={{ width: '18px', height: '18px' }}
             />
             <span>{item.label}</span>
-          </label>
+          </label></RegulatorField>
         ))}
       </div>
     </div>
@@ -1075,12 +1078,12 @@ export default function PaymentMethodsPage() {
         </div>
         <div>
           <label htmlFor="arrangeBy">Arrange by</label>
-          <select id="arrangeBy" value={arrangeBy} onChange={(e) => setArrangeBy(e.target.value)}>
+          <PresentationSelect id="arrangeBy" value={arrangeBy} onChange={(e) => setArrangeBy(e.target.value)}>
             <option value="id">Default</option>
             <option value="country">Country</option>
             <option value="type">Type</option>
             <option value="active">Active</option>
-          </select>
+          </PresentationSelect>
         </div>
         <button type="button" onClick={fetchRows} disabled={loading} className="btn-primary">
           {loading ? 'Loading…' : 'Refresh'}
@@ -1114,12 +1117,12 @@ export default function PaymentMethodsPage() {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="filter-name">Name</label>
-            <select id="filter-name" value={filters.name} onChange={(e) => setFilterValue('name', e.target.value)}>
+            <PresentationSelect id="filter-name" value={filters.name} onChange={(e) => setFilterValue('name', e.target.value)}>
               <option value="">Any</option>
               {paymentMethodNameOptions.map((name) => (
-                <option key={name} value={name}>{name}</option>
+                <option data-regulator-restricted={isRegulatorRestrictedRecord(name)} key={name} value={name}>{name}</option>
               ))}
-            </select>
+            </PresentationSelect>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="filter-names">Names</label>
@@ -1127,57 +1130,57 @@ export default function PaymentMethodsPage() {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="filter-type">Type</label>
-            <select id="filter-type" value={filters.type} onChange={(e) => setFilterValue('type', e.target.value)}>
+            <PresentationSelect id="filter-type" value={filters.type} onChange={(e) => setFilterValue('type', e.target.value)}>
               <option value="">Any</option>
               {paymentMethodTypeOptions.map((type) => (
-                <option key={type} value={type}>{type}</option>
+                <option data-regulator-restricted={isRegulatorRestrictedRecord(type)} key={type} value={type}>{type}</option>
               ))}
-            </select>
+            </PresentationSelect>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="filter-country-code">Country</label>
-            <select id="filter-country-code" value={filters.countryCode} onChange={(e) => setFilterValue('countryCode', e.target.value)}>
+            <PresentationSelect id="filter-country-code" value={filters.countryCode} onChange={(e) => setFilterValue('countryCode', e.target.value)}>
               <option value="">Any</option>
               {countries.map((country) => {
                 const code = country.alpha2Code || country.alpha3Code || '';
                 if (!code) return null;
                 return (
-                  <option key={country.id || code} value={code}>
+                  <option data-regulator-restricted={isRegulatorRestrictedRecord(country)} key={country.id || code} value={code}>
                     {country.name} ({country.alpha2Code || country.alpha3Code})
                   </option>
                 );
               })}
-            </select>
+            </PresentationSelect>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="filter-active">Active</label>
-            <select id="filter-active" value={filters.active} onChange={(e) => setFilterValue('active', e.target.value)}>
-              {booleanFilterOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
+            <PresentationSelect id="filter-active" value={filters.active} onChange={(e) => setFilterValue('active', e.target.value)}>
+              {booleanFilterOptions.map((option) => <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option.value} value={option.value}>{option.label}</option>)}
+            </PresentationSelect>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="filter-allowing-collection">Allowing collection</label>
-            <select id="filter-allowing-collection" value={filters.allowingCollection} onChange={(e) => setFilterValue('allowingCollection', e.target.value)}>
-              {booleanFilterOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
+            <PresentationSelect id="filter-allowing-collection" value={filters.allowingCollection} onChange={(e) => setFilterValue('allowingCollection', e.target.value)}>
+              {booleanFilterOptions.map((option) => <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option.value} value={option.value}>{option.label}</option>)}
+            </PresentationSelect>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="filter-allowing-payout">Allowing payout</label>
-            <select id="filter-allowing-payout" value={filters.allowingPayout} onChange={(e) => setFilterValue('allowingPayout', e.target.value)}>
-              {booleanFilterOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
+            <PresentationSelect id="filter-allowing-payout" value={filters.allowingPayout} onChange={(e) => setFilterValue('allowingPayout', e.target.value)}>
+              {booleanFilterOptions.map((option) => <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option.value} value={option.value}>{option.label}</option>)}
+            </PresentationSelect>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="filter-default-for-fees">Default for fees</label>
-            <select id="filter-default-for-fees" value={filters.defaultForFees} onChange={(e) => setFilterValue('defaultForFees', e.target.value)}>
-              {booleanFilterOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
+            <PresentationSelect id="filter-default-for-fees" value={filters.defaultForFees} onChange={(e) => setFilterValue('defaultForFees', e.target.value)}>
+              {booleanFilterOptions.map((option) => <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option.value} value={option.value}>{option.label}</option>)}
+            </PresentationSelect>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="filter-universal">Universal</label>
-            <select id="filter-universal" value={filters.universal} onChange={(e) => setFilterValue('universal', e.target.value)}>
-              {booleanFilterOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
+            <PresentationSelect id="filter-universal" value={filters.universal} onChange={(e) => setFilterValue('universal', e.target.value)}>
+              {booleanFilterOptions.map((option) => <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option.value} value={option.value}>{option.label}</option>)}
+            </PresentationSelect>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="filter-min-rank">Min rank</label>
@@ -1193,15 +1196,15 @@ export default function PaymentMethodsPage() {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="filter-bank-instructions">Has bank instructions</label>
-            <select id="filter-bank-instructions" value={filters.hasBankInstructions} onChange={(e) => setFilterValue('hasBankInstructions', e.target.value)}>
-              {booleanFilterOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
+            <PresentationSelect id="filter-bank-instructions" value={filters.hasBankInstructions} onChange={(e) => setFilterValue('hasBankInstructions', e.target.value)}>
+              {booleanFilterOptions.map((option) => <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option.value} value={option.value}>{option.label}</option>)}
+            </PresentationSelect>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="filter-disabled-message">Has collection disabled message</label>
-            <select id="filter-disabled-message" value={filters.hasCollectionDisabledMessage} onChange={(e) => setFilterValue('hasCollectionDisabledMessage', e.target.value)}>
-              {booleanFilterOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
+            <PresentationSelect id="filter-disabled-message" value={filters.hasCollectionDisabledMessage} onChange={(e) => setFilterValue('hasCollectionDisabledMessage', e.target.value)}>
+              {booleanFilterOptions.map((option) => <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option.value} value={option.value}>{option.label}</option>)}
+            </PresentationSelect>
           </div>
             </div>
           </>

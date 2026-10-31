@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { PresentationLink as Link } from '@/components/RegulatorPresentation';
 import { api } from '@/lib/api';
 
 export default function KycDefaultLevelsPage() {

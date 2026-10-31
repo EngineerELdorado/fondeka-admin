@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
+import { PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
 import { api } from '@/lib/api';
 import { useToast } from '@/contexts/ToastContext';
 
@@ -122,7 +122,7 @@ export default function PaymentRequestSettlementOptionsPage() {
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minWidth: '220px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <RegulatorField field={row}><label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <input
                     type="checkbox"
                     checked={row.allowCustomSettlement}
@@ -132,8 +132,8 @@ export default function PaymentRequestSettlementOptionsPage() {
                   <span style={{ fontSize: '12px', color: 'var(--muted)' }}>
                     {isSaving ? 'Saving…' : row.allowCustomSettlement ? 'Custom allowed' : 'Custom blocked'}
                   </span>
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                </label></RegulatorField>
+                <RegulatorField field={row}><label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <input
                     type="checkbox"
                     checked={row.allowAutoApproveOnCreate}
@@ -143,7 +143,7 @@ export default function PaymentRequestSettlementOptionsPage() {
                   <span style={{ fontSize: '12px', color: 'var(--muted)' }}>
                     {row.allowAutoApproveOnCreate ? 'Auto-approve on create' : 'Manual approval required'}
                   </span>
-                </label>
+                </label></RegulatorField>
               </div>
             </div>
           );

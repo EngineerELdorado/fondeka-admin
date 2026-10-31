@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { PresentationLink as Link } from '@/components/RegulatorPresentation';
 
 const sections = [
   { href: '/dashboard/fees/fee-configs', title: 'Fee Configs', blurb: 'Fees per action and provider/method.' }

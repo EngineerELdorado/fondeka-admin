@@ -1,7 +1,10 @@
 'use client';
 
+import { isRegulatorRestrictedRecord } from '@/lib/regulator-presentation';
+
+import { PresentationSelect, PresentationLink as Link } from '@/components/RegulatorPresentation';
+
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
@@ -489,18 +492,18 @@ export default function AnnouncementsPage() {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="severity">Severity</label>
-        <select
+        <PresentationSelect
           id="severity"
           value={draft.severity}
           onChange={(e) => setDraft((p) => ({ ...p, severity: e.target.value }))}
         >
           <option value="">Select severity</option>
           {severityOptions.map((option) => (
-            <option key={option} value={option}>
+            <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option} value={option}>
               {option}
             </option>
           ))}
-        </select>
+        </PresentationSelect>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="startAt">Start at (UTC)</label>
@@ -584,11 +587,11 @@ export default function AnnouncementsPage() {
               ].map(([field, label]) => (
                 <label key={field} style={{ display: 'grid', gap: '0.25rem' }}>
                   <span>{label}</span>
-                  <select value={draft[field]} onChange={(e) => setDraft((p) => ({ ...p, [field]: e.target.value }))}>
+                  <PresentationSelect value={draft[field]} onChange={(e) => setDraft((p) => ({ ...p, [field]: e.target.value }))}>
                     {triStateOptions.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
+                      <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option.value} value={option.value}>{option.label}</option>
                     ))}
-                  </select>
+                  </PresentationSelect>
                 </label>
               ))}
             </div>

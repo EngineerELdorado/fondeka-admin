@@ -1,5 +1,7 @@
 'use client';
 
+import { NonRegulatorContent } from '@/components/RegulatorPresentation';
+
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 
@@ -203,7 +205,7 @@ export default function AccountPhoneVerificationPolicyPage() {
         </div>
       </div>
 
-      <div className="card" style={{ display: 'grid', gap: '0.9rem' }}>
+      <NonRegulatorContent><div className="card" style={{ display: 'grid', gap: '0.9rem' }}>
         <div style={{ display: 'grid', gap: '0.25rem' }}>
           <div style={{ fontWeight: 800 }}>Verification delivery and cost</div>
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
@@ -245,7 +247,7 @@ export default function AccountPhoneVerificationPolicyPage() {
             : 'Off: use WhatsApp only; failed WhatsApp delivery follows the normal notification retry process.'}
           onChange={(value) => setField('smsFallbackEnabled', value)}
         />
-      </div>
+      </div></NonRegulatorContent>
 
       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
         <button type="button" className="btn-neutral" onClick={() => loadPolicy()} disabled={disabled}>

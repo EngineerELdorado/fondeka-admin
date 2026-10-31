@@ -1,7 +1,11 @@
 'use client';
 
+import { regulatorVisibleFields } from '@/lib/regulator-presentation';
+
+import { useAuth } from '@/contexts/AuthContext';
+
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
+import { PresentationLink as Link } from '@/components/RegulatorPresentation';
 import { DataTable } from '@/components/DataTable';
 import { api } from '@/lib/api';
 
@@ -46,16 +50,14 @@ const Modal = ({ title, onClose, children }) => (
   </div>
 );
 
-const DetailGrid = ({ rows }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
-    {rows.map((row) => (
+const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+    {regulatorVisibleFields(rows, enableRegulatorMode).map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
         <div style={{ fontWeight: 700, overflowWrap: 'anywhere' }}>{row.value ?? '—'}</div>
       </div>
     ))}
-  </div>
-);
+  </div>); };
 
 const formatDateTime = (value) => {
   if (!value) return '—';

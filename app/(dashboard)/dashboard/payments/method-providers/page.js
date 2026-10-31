@@ -1,7 +1,14 @@
 'use client';
 
+
+import { CatalogSelect } from '@/components/CatalogSelect';
+import { PresentationSelect, PresentationLink as Link } from '@/components/RegulatorPresentation';
+
+import { regulatorVisibleFields, isRegulatorRestrictedRecord } from '@/lib/regulator-presentation';
+
+import { useAuth } from '@/contexts/AuthContext';
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
@@ -166,16 +173,14 @@ const Modal = ({ title, onClose, children }) => (
   </div>
 );
 
-const DetailGrid = ({ rows }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
-    {rows.map((row) => (
+const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+    {regulatorVisibleFields(rows, enableRegulatorMode).map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
         <div style={{ fontWeight: 700 }}>{row.value ?? '—'}</div>
       </div>
     ))}
-  </div>
-);
+  </div>); };
 
 export default function MethodProvidersPage() {
   const [rows, setRows] = useState([]);
@@ -228,7 +233,7 @@ export default function MethodProvidersPage() {
     const fetchOptions = async () => {
       try {
         const [pmRes, provRes] = await Promise.all([
-          api.paymentMethods.list(new URLSearchParams({ page: '0', size: '100' })),
+          api.paymentMethods.options(new URLSearchParams({ page: '0', size: '100' })),
           api.paymentProviders.list(new URLSearchParams({ page: '0', size: '100' }))
         ]);
         const pmList = Array.isArray(pmRes) ? pmRes : pmRes?.content || [];
@@ -443,33 +448,33 @@ export default function MethodProvidersPage() {
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="paymentMethodId">Payment Method</label>
-        <select
+        <CatalogSelect kind="payment-method" records={methods}
           id="paymentMethodId"
           value={draft.paymentMethodId}
           onChange={(e) => setDraft((p) => ({ ...p, paymentMethodId: e.target.value }))}
         >
           <option value="">Select method</option>
           {methods.map((m) => (
-            <option key={m.id} value={m.id}>
+            <option data-regulator-restricted={isRegulatorRestrictedRecord(m)} key={m.id} value={m.id}>
               {paymentMethodAdminLabel(m)}
             </option>
           ))}
-        </select>
+        </CatalogSelect>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="paymentProviderId">Payment Provider</label>
-        <select
+        <PresentationSelect
           id="paymentProviderId"
           value={draft.paymentProviderId}
           onChange={(e) => setDraft((p) => ({ ...p, paymentProviderId: e.target.value }))}
         >
           <option value="">Select provider</option>
           {providers.map((prov) => (
-            <option key={prov.id} value={prov.id}>
+            <option data-regulator-restricted={isRegulatorRestrictedRecord(prov)} key={prov.id} value={prov.id}>
               {prov.name || prov.displayName || prov.id}
             </option>
           ))}
-        </select>
+        </PresentationSelect>
       </div>
       <div style={{ gridColumn: '1 / -1', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.65rem', display: 'grid', gap: '0.25rem' }}>
         <div style={{ fontWeight: 800 }}>Inherited provider payout policy</div>
@@ -491,7 +496,7 @@ export default function MethodProvidersPage() {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="action">Action</label>
-        <select
+        <PresentationSelect
           id="action"
           value={draft.action}
           onChange={(e) => {
@@ -501,15 +506,15 @@ export default function MethodProvidersPage() {
         >
           <option value="">Default (rank-based)</option>
           {actionOptions.map((action) => (
-            <option key={action} value={action}>
+            <option data-regulator-restricted={isRegulatorRestrictedRecord(action)} key={action} value={action}>
               {action}
             </option>
           ))}
-        </select>
+        </PresentationSelect>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="context">Context</label>
-        <select
+        <PresentationSelect
           id="context"
           value={draft.context}
           disabled={Boolean(draft.action)}
@@ -517,11 +522,11 @@ export default function MethodProvidersPage() {
         >
           <option value="">Default (none)</option>
           {contextOptions.map((context) => (
-            <option key={context} value={context}>
+            <option data-regulator-restricted={isRegulatorRestrictedRecord(context)} key={context} value={context}>
               {context}
             </option>
           ))}
-        </select>
+        </PresentationSelect>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="providerCode">Provider code</label>
@@ -577,65 +582,65 @@ export default function MethodProvidersPage() {
 
     if (filter.type === 'paymentMethod') {
       return (
-        <select id={`filter-${filter.key}`} value={value} onChange={(e) => onChange(e.target.value)}>
+        <CatalogSelect kind="payment-method" records={methods} id={`filter-${filter.key}`} value={value} onChange={(e) => onChange(e.target.value)}>
           <option value="">All methods</option>
           {methods.map((method) => (
-            <option key={method.id} value={method.id}>
+            <option data-regulator-restricted={isRegulatorRestrictedRecord(method)} key={method.id} value={method.id}>
               {paymentMethodAdminLabel(method)}
             </option>
           ))}
-        </select>
+        </CatalogSelect>
       );
     }
 
     if (filter.type === 'paymentProvider') {
       return (
-        <select id={`filter-${filter.key}`} value={value} onChange={(e) => onChange(e.target.value)}>
+        <PresentationSelect id={`filter-${filter.key}`} value={value} onChange={(e) => onChange(e.target.value)}>
           <option value="">All providers</option>
           {providers.map((provider) => (
-            <option key={provider.id} value={provider.id}>
+            <option data-regulator-restricted={isRegulatorRestrictedRecord(provider)} key={provider.id} value={provider.id}>
               {provider.name || provider.displayName || provider.id}
             </option>
           ))}
-        </select>
+        </PresentationSelect>
       );
     }
 
     if (filter.type === 'boolean') {
       return (
-        <select id={`filter-${filter.key}`} value={value} onChange={(e) => onChange(e.target.value)}>
+        <PresentationSelect id={`filter-${filter.key}`} value={value} onChange={(e) => onChange(e.target.value)}>
           {booleanOptions.map((option) => (
-            <option key={option.value} value={option.value}>
+            <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option.value} value={option.value}>
               {option.label}
             </option>
           ))}
-        </select>
+        </PresentationSelect>
       );
     }
 
     if (filter.type === 'action') {
       return (
-        <select id={`filter-${filter.key}`} value={value} onChange={(e) => onChange(e.target.value)}>
+        <PresentationSelect id={`filter-${filter.key}`} value={value} onChange={(e) => onChange(e.target.value)}>
           <option value="">All actions</option>
           {actionOptions.map((action) => (
-            <option key={action} value={action}>
+            <option data-regulator-restricted={isRegulatorRestrictedRecord(action)} key={action} value={action}>
               {action}
             </option>
           ))}
-        </select>
+        </PresentationSelect>
       );
     }
 
     if (filter.type === 'context') {
       return (
-        <select id={`filter-${filter.key}`} value={value} onChange={(e) => onChange(e.target.value)}>
+        <PresentationSelect id={`filter-${filter.key}`} value={value} onChange={(e) => onChange(e.target.value)}>
           <option value="">All contexts</option>
           {contextOptions.map((context) => (
-            <option key={context} value={context}>
+            <option data-regulator-restricted={isRegulatorRestrictedRecord(context)} key={context} value={context}>
               {context}
             </option>
           ))}
-        </select>
+        </PresentationSelect>
       );
     }
 
@@ -677,7 +682,7 @@ export default function MethodProvidersPage() {
         </div>
         <div>
           <label htmlFor="arrangeBy">Arrange by</label>
-          <select id="arrangeBy" value={arrangeBy} onChange={(e) => setArrangeBy(e.target.value)}>
+          <PresentationSelect id="arrangeBy" value={arrangeBy} onChange={(e) => setArrangeBy(e.target.value)}>
             <option value="id">Default</option>
             <option value="method">Payment Method</option>
             <option value="provider">Payment Provider</option>
@@ -685,7 +690,7 @@ export default function MethodProvidersPage() {
             <option value="action">Action</option>
             <option value="context">Context</option>
             <option value="country">Country</option>
-          </select>
+          </PresentationSelect>
         </div>
         <button type="button" onClick={fetchRows} disabled={loading} className="btn-primary">
           {loading ? 'Loading…' : 'Refresh'}

@@ -1,7 +1,8 @@
 'use client';
 
+import { RegulatorRecord, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
+
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { api } from '@/lib/api';
 
 const statusOptions = ['TRUSTED', 'PENDING_REPLACEMENT', 'REVOKED', 'REJECTED'];
@@ -654,7 +655,7 @@ export default function TrustedDevicesPage() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.6rem' }}>
                 {recoveryFactorOptions.map((factor) => (
-                  <label
+                  <RegulatorField field={factor} key={factor}><label
                     key={factor}
                     style={{
                       display: 'flex',
@@ -675,7 +676,7 @@ export default function TrustedDevicesPage() {
                       {factor}
                     </span>
                     <span style={{ color: 'var(--muted)', fontSize: '12px' }}>{recoveryFactorHelperText[factor]}</span>
-                  </label>
+                  </label></RegulatorField>
                 ))}
               </div>
             </div>
@@ -915,7 +916,7 @@ export default function TrustedDevicesPage() {
               const latest = group.parentDevice;
               return (
                 <Fragment key={group.key}>
-                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                  <RegulatorRecord record={group}><tr style={{ borderBottom: '1px solid var(--border)' }}>
                     <td className="data-table__cell" style={{ padding: '0.75rem' }}>
                       <button type="button" className="btn-neutral btn-sm" onClick={() => toggleGroup(group.key)}>
                         {isExpanded ? 'Hide' : 'Show'}
@@ -948,9 +949,9 @@ export default function TrustedDevicesPage() {
                     <td className="data-table__cell" style={{ padding: '0.75rem' }}>
                       {renderDeviceActions(latest)}
                     </td>
-                  </tr>
+                  </tr></RegulatorRecord>
                   {isExpanded && (
-                    <tr>
+                    <RegulatorRecord record={group}><tr>
                       <td colSpan={10} style={{ padding: '0.75rem', background: 'var(--card-subtle)' }}>
                         {group.otherDevices.length === 0 ? (
                           <div style={{ color: 'var(--muted)' }}>No other devices for this account.</div>
@@ -958,7 +959,7 @@ export default function TrustedDevicesPage() {
                           <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
                             <tbody>
                               {group.otherDevices.map((device) => (
-                                <tr key={device.deviceId} style={{ borderBottom: '1px solid var(--border)' }}>
+                                <RegulatorRecord record={device} key={device.deviceId}><tr key={device.deviceId} style={{ borderBottom: '1px solid var(--border)' }}>
                                   <td className="data-table__cell" style={{ padding: '0.75rem' }}>
                                     <span
                                       aria-hidden="true"
@@ -1003,13 +1004,13 @@ export default function TrustedDevicesPage() {
                                   <td className="data-table__cell" style={{ padding: '0.75rem' }}>
                                     {renderDeviceActions(device)}
                                   </td>
-                                </tr>
+                                </tr></RegulatorRecord>
                               ))}
                             </tbody>
                           </table>
                         )}
                       </td>
-                    </tr>
+                    </tr></RegulatorRecord>
                   )}
                 </Fragment>
               );

@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node --test scripts/business-live-payments.test.cjs",
+    "test": "node --test scripts/*.test.cjs",
     "lint": "next lint"
   },
   "dependencies": {

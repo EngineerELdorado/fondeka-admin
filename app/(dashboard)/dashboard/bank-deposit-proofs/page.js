@@ -1,5 +1,7 @@
 'use client';
 
+
+import { CatalogSelect } from '@/components/CatalogSelect';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
@@ -124,7 +126,7 @@ export default function BankDepositProofsPage() {
 
   const fetchPaymentMethods = async () => {
     try {
-      const res = await api.paymentMethods.list(new URLSearchParams({ page: '0', size: '200' }));
+      const res = await api.paymentMethods.options(new URLSearchParams({ page: '0', size: '200' }));
       const list = Array.isArray(res) ? res : res?.content || [];
       setPaymentMethods(list || []);
     } catch (err) {
@@ -350,14 +352,14 @@ export default function BankDepositProofsPage() {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="paymentMethodId">Payment method</label>
-        <select id="paymentMethodId" value={draft.paymentMethodId} onChange={(e) => setDraft((p) => ({ ...p, paymentMethodId: e.target.value }))}>
+        <CatalogSelect kind="payment-method" records={bankMethods} id="paymentMethodId" value={draft.paymentMethodId} onChange={(e) => setDraft((p) => ({ ...p, paymentMethodId: e.target.value }))}>
           <option value="">Select BANK method</option>
           {bankMethods.map((pm) => (
             <option key={pm.id} value={pm.id}>
               {paymentMethodAdminLabel(pm)}
             </option>
           ))}
-        </select>
+        </CatalogSelect>
         {bankMethods.length === 0 && (
           <span style={{ color: 'var(--muted)', fontSize: '12px' }}>
             No bank payment methods available.

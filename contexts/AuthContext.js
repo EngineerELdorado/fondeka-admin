@@ -6,8 +6,9 @@ import {
   signOut,
   confirmSignIn
 } from 'aws-amplify/auth';
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/api';
+import { adminPresentationReady } from '@/lib/regulator-presentation';
 
 const AuthContext = createContext(undefined);
 const FORBIDDEN_LOGOUT_EVENT = 'fondeka:auth-forbidden';
@@ -17,6 +18,64 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(false);
   const [initialized, setInitialized] = useState(false);
 
+  const [adminProfile, setAdminProfile] = useState(null);
+  const [adminProfileLoading, setAdminProfileLoading] = useState(false);
+  const [adminProfileError, setAdminProfileError] = useState(null);
+  const [profileToken, setProfileToken] = useState(null);
+  const [profileIdentity, setProfileIdentity] = useState(null);
+  const profileVersion = useRef(0);
+  const accessToken = session?.tokens?.accessToken?.toString() || null;
+  const identity = session?.tokens?.accessToken?.payload?.sub || session?.tokens?.idToken?.payload?.sub || accessToken;
+
+  const clearAdminProfile = useCallback(() => {
+    profileVersion.current += 1;
+    setAdminProfile(null);
+    setAdminProfileLoading(false);
+    setAdminProfileError(null);
+    setProfileToken(null);
+    setProfileIdentity(null);
+  }, []);
+
+  const refreshAdminProfile = useCallback(async () => {
+    if (!accessToken) {
+      clearAdminProfile();
+      return null;
+    }
+    const version = ++profileVersion.current;
+    setAdminProfileLoading(true);
+    setAdminProfileError(null);
+    try {
+      const profile = await api.admins.me();
+      if (!adminPresentationReady(profile)) throw new Error('Admin presentation settings are unavailable. Please refresh your profile.');
+      if (version === profileVersion.current) {
+        setAdminProfile(profile);
+        setProfileToken(accessToken);
+        setProfileIdentity(identity);
+      }
+      return profile;
+    } catch (err) {
+      if (version === profileVersion.current) {
+        setAdminProfileError(err);
+        setProfileToken(accessToken);
+      }
+      return null;
+    } finally {
+      if (version === profileVersion.current) setAdminProfileLoading(false);
+    }
+  }, [accessToken, identity, clearAdminProfile]);
+
+  useEffect(() => {
+    void refreshAdminProfile();
+    return () => { profileVersion.current += 1; };
+  }, [refreshAdminProfile]);
+
+  useEffect(() => {
+    if (!accessToken) return undefined;
+    const onFocus = () => { void refreshAdminProfile(); };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [accessToken, refreshAdminProfile]);
+
   const refreshSession = useCallback(async (forceRefresh = false) => {
     setLoading(true);
     try {
@@ -24,6 +83,7 @@ export function AuthProvider({ children }) {
       setSession(result);
       api.setAuthToken(result?.tokens?.accessToken?.toString() || null);
     } catch (err) {
+      clearAdminProfile();
       setSession(null);
       api.setAuthToken(null);
       console.error('Failed to refresh auth session', err);
@@ -31,7 +91,7 @@ export function AuthProvider({ children }) {
       setLoading(false);
       setInitialized(true);
     }
-  }, []);
+  }, [clearAdminProfile]);
 
   useEffect(() => {
     refreshSession();
@@ -54,6 +114,7 @@ export function AuthProvider({ children }) {
       } catch {
         // ignore, best-effort reset
       }
+      clearAdminProfile();
       setSession(null);
       api.setAuthToken(null);
 
@@ -70,7 +131,7 @@ export function AuthProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [clearAdminProfile]);
 
   const confirmEmailCode = useCallback(async (code) => {
     setLoading(true);
@@ -99,9 +160,10 @@ export function AuthProvider({ children }) {
     } catch {
       // Best-effort sign out; still clear local auth state below.
     }
+    clearAdminProfile();
     setSession(null);
     api.setAuthToken(null);
-  }, []);
+  }, [clearAdminProfile]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -116,11 +178,20 @@ export function AuthProvider({ children }) {
     return Boolean(session?.tokens?.accessToken?.toString());
   }, [session]);
 
+  const currentProfile = profileIdentity === identity ? adminProfile : null;
+  const currentProfileError = profileToken === accessToken ? adminProfileError : null;
+  const profileLoading = isAuthenticated && (adminProfileLoading || profileToken !== accessToken || (!currentProfile && !currentProfileError));
+
   const value = {
     isAuthenticated,
     loading,
     initialized,
     session,
+    adminProfile: currentProfile,
+    enableRegulatorMode: !profileLoading && !currentProfileError && adminPresentationReady(currentProfile) ? currentProfile.enableRegulatorMode : null,
+    adminProfileLoading: profileLoading,
+    adminProfileError: currentProfileError,
+    refreshAdminProfile,
     requestEmailCode,
     confirmEmailCode,
     logout,

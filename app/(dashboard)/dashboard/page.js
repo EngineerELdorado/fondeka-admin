@@ -1,9 +1,13 @@
 'use client';
 
+
+import { CatalogSelect } from '@/components/CatalogSelect';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 import { useRouter } from 'next/navigation';
 import { useLocale } from '@/contexts/LocaleContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { RegulatorOverview } from '@/components/RegulatorOverview';
 import { api } from '@/lib/api';
 import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
 
@@ -393,6 +397,7 @@ const formatFiatHoldings = (list) =>
   }));
 
 export default function DashboardPage() {
+  const { enableRegulatorMode } = useAuth();
   const { t } = useLocale();
   const router = useRouter();
   const [filters, setFilters] = useState(initialFilters);
@@ -576,9 +581,9 @@ export default function DashboardPage() {
     const fetchOptions = async () => {
       try {
         const [pmRes, provRes, billProductRes, billProviderRes, countryRes] = await Promise.all([
-          api.paymentMethods.list(new URLSearchParams({ page: '0', size: '200' })),
+          api.paymentMethods.options(new URLSearchParams({ page: '0', size: '200' })),
           api.paymentProviders.list(new URLSearchParams({ page: '0', size: '200' })),
-          api.billProducts.list(new URLSearchParams({ page: '0', size: '200' })),
+          api.billProducts.options(new URLSearchParams({ page: '0', size: '200' })),
           api.billProviders.list(new URLSearchParams({ page: '0', size: '200' })),
           api.countries.list(new URLSearchParams({ page: '0', size: '200' }))
         ]);
@@ -979,6 +984,8 @@ export default function DashboardPage() {
     { key: 'activeAccounts', label: t('dashboard.activeAccounts') }
   ];
 
+  if (enableRegulatorMode === true) return <RegulatorOverview metrics={metrics} loading={loading} error={error} onRefresh={() => fetchDashboard()} />;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div className="card" style={{ display: 'grid', gap: '0.9rem' }}>
@@ -1119,14 +1126,14 @@ export default function DashboardPage() {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   <label htmlFor="paymentMethodId" style={{ color: 'var(--muted)', fontSize: '12px' }}>{t('common.paymentMethod')}</label>
-                  <select id="paymentMethodId" value={filters.paymentMethodId} onChange={(e) => setFilters((p) => ({ ...p, paymentMethodId: e.target.value }))}>
+                  <CatalogSelect kind="payment-method" records={paymentMethods} countries={countries} id="paymentMethodId" value={filters.paymentMethodId} onChange={(e) => setFilters((p) => ({ ...p, paymentMethodId: e.target.value }))}>
                     <option value="">{t('common.any')}</option>
                     {paymentMethods.map((pm) => (
                       <option key={pm.id} value={pm.id}>
                         {paymentMethodAdminLabel(pm)}
                       </option>
                     ))}
-                  </select>
+                  </CatalogSelect>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   <label htmlFor="paymentProviderId" style={{ color: 'var(--muted)', fontSize: '12px' }}>{t('common.paymentProvider')}</label>
@@ -1141,14 +1148,14 @@ export default function DashboardPage() {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   <label htmlFor="billProductId" style={{ color: 'var(--muted)', fontSize: '12px' }}>{t('common.billProduct')}</label>
-                  <select id="billProductId" value={filters.billProductId} onChange={(e) => setFilters((p) => ({ ...p, billProductId: e.target.value }))}>
+                  <CatalogSelect kind="bill-product" records={billProducts} countries={countries} id="billProductId" value={filters.billProductId} onChange={(e) => setFilters((p) => ({ ...p, billProductId: e.target.value }))}>
                     <option value="">{t('common.any')}</option>
                     {billProducts.map((product) => (
                       <option key={product.id} value={product.id}>
                         {product.displayName || product.code || product.id}
                       </option>
                     ))}
-                  </select>
+                  </CatalogSelect>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   <label htmlFor="billProviderId" style={{ color: 'var(--muted)', fontSize: '12px' }}>{t('common.billProvider')}</label>

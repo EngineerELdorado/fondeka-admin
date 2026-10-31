@@ -1,7 +1,12 @@
 'use client';
 
+import { RegulatorRecord, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
+
+import { regulatorVisibleFields } from '@/lib/regulator-presentation';
+
+import { useAuth } from '@/contexts/AuthContext';
+
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
@@ -278,16 +283,14 @@ const Modal = ({ title, onClose, children }) => (
   </div>
 );
 
-const DetailGrid = ({ rows }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
-    {rows.map((row) => (
+const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+    {regulatorVisibleFields(rows, enableRegulatorMode).map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
         <div style={{ fontWeight: 700, wordBreak: 'break-word' }}>{row.value ?? '—'}</div>
       </div>
     ))}
-  </div>
-);
+  </div>); };
 
 export default function CardProductProvidersPage() {
   const [rows, setRows] = useState([]);
@@ -803,7 +806,7 @@ export default function CardProductProvidersPage() {
         {(options || []).length > 0 ? (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.4rem' }}>
             {options.map((option) => (
-              <label
+              <RegulatorField field={option} key={option.code}><label
                 key={option.code}
                 style={{
                   display: 'flex',
@@ -823,7 +826,7 @@ export default function CardProductProvidersPage() {
                   <span style={{ fontWeight: 700 }}>{option.label || option.code}</span>
                   <span style={{ color: 'var(--muted)', fontSize: '12px', wordBreak: 'break-word' }}>{option.code}</span>
                 </span>
-              </label>
+              </label></RegulatorField>
             ))}
           </div>
         ) : (
@@ -1521,15 +1524,15 @@ export default function CardProductProvidersPage() {
                     <thead>
                       <tr>
                         {['Target', 'Override', 'Updated', ''].map((header) => (
-                          <th key={header} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                          <RegulatorField field={header} key={header}><th key={header} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
                             {header}
-                          </th>
+                          </th></RegulatorField>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {statusOverrides.map((override) => (
-                        <tr key={override.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <RegulatorRecord record={override} key={override.id}><tr key={override.id} style={{ borderBottom: '1px solid var(--border)' }}>
                           <td style={{ padding: '0.45rem' }}>{override.email ? `Email: ${override.email}` : `Account: #${override.accountId || '—'}`}</td>
                           <td style={{ padding: '0.45rem' }}>{override.active ? 'Exposed' : 'Hidden'}</td>
                           <td style={{ padding: '0.45rem' }}>{override.updatedAt || override.createdAt || '—'}</td>
@@ -1541,7 +1544,7 @@ export default function CardProductProvidersPage() {
                               Delete
                             </button>
                           </td>
-                        </tr>
+                        </tr></RegulatorRecord>
                       ))}
                     </tbody>
                   </table>

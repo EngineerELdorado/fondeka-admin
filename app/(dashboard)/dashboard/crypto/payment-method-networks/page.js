@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
+import { CatalogSelect } from '@/components/CatalogSelect';
 
 const emptyState = { paymentMethodId: '', cryptoNetworkId: '', rank: '', active: true };
 
@@ -79,7 +80,7 @@ export default function PaymentMethodCryptoNetworksPage() {
     const fetchOptions = async () => {
       try {
         const [pmRes, netRes] = await Promise.all([
-          api.paymentMethods.list(new URLSearchParams({ page: '0', size: '100' })),
+          api.paymentMethods.options(),
           api.cryptoNetworks.list(new URLSearchParams({ page: '0', size: '100' }))
         ]);
         const pmList = Array.isArray(pmRes) ? pmRes : pmRes?.content || [];
@@ -237,8 +238,11 @@ export default function PaymentMethodCryptoNetworksPage() {
   const renderForm = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="paymentMethodId">Payment method ID</label>
-        <input id="paymentMethodId" type="number" value={draft.paymentMethodId} onChange={(e) => setDraft((p) => ({ ...p, paymentMethodId: e.target.value }))} />
+        <label htmlFor="paymentMethodId">Payment method</label>
+        <CatalogSelect id="paymentMethodId" records={methods} value={draft.paymentMethodId} onChange={(e) => setDraft((p) => ({ ...p, paymentMethodId: e.target.value }))}>
+          <option value="">Select payment method</option>
+          {methods.map((method) => <option key={method.id} value={method.id}>{paymentMethodAdminLabel(method)}</option>)}
+        </CatalogSelect>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="cryptoNetworkId">Crypto network ID</label>

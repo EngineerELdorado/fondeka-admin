@@ -1,7 +1,8 @@
 'use client';
 
+import { RegulatorRecord, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
+
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { api } from '@/lib/api';
 
 const FIELD_OPTIONS = [
@@ -90,13 +91,13 @@ const RankingEditor = ({ title, subtitle, rows, onChange, disabled }) => {
           <thead>
             <tr style={{ textAlign: 'left', color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
               {['Order', 'Enabled', 'Field', 'Direction', 'Actions'].map((label) => (
-                <th key={label} style={{ padding: '0.45rem' }}>{label}</th>
+                <RegulatorField field={label} key={label}><th key={label} style={{ padding: '0.45rem' }}>{label}</th></RegulatorField>
               ))}
             </tr>
           </thead>
           <tbody>
             {rows.map((row, index) => (
-              <tr key={`${row.field}-${index}`} style={{ borderBottom: '1px solid var(--border)' }}>
+              <RegulatorRecord record={row} key={`${row.field}-${index}`}><tr key={`${row.field}-${index}`} style={{ borderBottom: '1px solid var(--border)' }}>
                 <td style={{ padding: '0.45rem', fontWeight: 800 }}>{index + 1}</td>
                 <td style={{ padding: '0.45rem' }}>
                   <input
@@ -134,7 +135,7 @@ const RankingEditor = ({ title, subtitle, rows, onChange, disabled }) => {
                     </button>
                   </div>
                 </td>
-              </tr>
+              </tr></RegulatorRecord>
             ))}
           </tbody>
         </table>

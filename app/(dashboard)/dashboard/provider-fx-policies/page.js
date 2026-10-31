@@ -1,7 +1,12 @@
 'use client';
 
+import { PresentationSelect, PresentationLink as Link } from '@/components/RegulatorPresentation';
+
+import { regulatorVisibleFields, isRegulatorRestrictedRecord } from '@/lib/regulator-presentation';
+
+import { useAuth } from '@/contexts/AuthContext';
+
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
@@ -122,16 +127,14 @@ const Modal = ({ title, onClose, children }) => (
   </div>
 );
 
-const DetailGrid = ({ rows }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
-    {rows.map((row) => (
+const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+    {regulatorVisibleFields(rows, enableRegulatorMode).map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: '1px solid var(--border)', borderRadius: '10px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
         <div style={{ fontWeight: 700, wordBreak: 'break-word' }}>{row.value ?? '—'}</div>
       </div>
     ))}
-  </div>
-);
+  </div>); };
 
 export default function ProviderFxPoliciesPage() {
   const [rows, setRows] = useState([]);
@@ -305,10 +308,10 @@ export default function ProviderFxPoliciesPage() {
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="service">Service</label>
-        <select id="service" value={draft.service} onChange={(e) => setDraft((p) => ({ ...p, service: e.target.value }))}>
+        <PresentationSelect id="service" value={draft.service} onChange={(e) => setDraft((p) => ({ ...p, service: e.target.value }))}>
           <option value="">Select service</option>
-          {serviceOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-        </select>
+          {serviceOptions.map((option) => <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option} value={option}>{option}</option>)}
+        </PresentationSelect>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="action">Action</label>
@@ -361,13 +364,13 @@ export default function ProviderFxPoliciesPage() {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="rateSource">Rate source</label>
-        <select
+        <PresentationSelect
           id="rateSource"
           value={draft.rateSource}
           onChange={(e) => setDraft((p) => ({ ...p, rateSource: e.target.value, providerFxRate: e.target.value === 'PROVIDER_RATE' ? p.providerFxRate : '' }))}
         >
-          {rateSourceOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-        </select>
+          {rateSourceOptions.map((option) => <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option} value={option}>{option}</option>)}
+        </PresentationSelect>
       </div>
       {draft.rateSource === 'PROVIDER_RATE' ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>

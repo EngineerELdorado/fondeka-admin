@@ -1,7 +1,12 @@
 'use client';
 
+import { PresentationSelect, NonRegulatorContent, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
+
+import { regulatorVisibleFields, isRegulatorRestrictedRecord } from '@/lib/regulator-presentation';
+
+import { useAuth } from '@/contexts/AuthContext';
+
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
@@ -156,16 +161,14 @@ const Modal = ({ title, onClose, children }) => (
   </div>
 );
 
-const DetailGrid = ({ rows }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
-    {rows.map((row) => (
+const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+    {regulatorVisibleFields(rows, enableRegulatorMode).map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
         <div style={{ fontWeight: 700 }}>{row.value ?? '—'}</div>
       </div>
     ))}
-  </div>
-);
+  </div>); };
 
 export default function BillProductsPage() {
   const [rows, setRows] = useState([]);
@@ -451,19 +454,19 @@ export default function BillProductsPage() {
       return (
         <div key={field.key} style={{ display: 'grid', gap: '0.25rem' }}>
           <label htmlFor={inputId}>{field.label}</label>
-          <select id={inputId} value={value} onChange={(e) => update(e.target.value)} disabled={countriesLoading}>
+          <PresentationSelect id={inputId} value={value} onChange={(e) => update(e.target.value)} disabled={countriesLoading}>
             <option value="">Any</option>
             {countries.map((country) => {
               const code = country?.alpha2Code || country?.alpha3Code || country?.isoCode || country?.code || country?.countryCode || '';
               const name = country?.name || country?.displayName || code;
               if (!code) return null;
               return (
-                <option key={country?.id || code} value={code}>
+                <option data-regulator-restricted={isRegulatorRestrictedRecord(country)} key={country?.id || code} value={code}>
                   {name} ({code})
                 </option>
               );
             })}
-          </select>
+          </PresentationSelect>
           {countriesError && <div style={{ color: '#b91c1c', fontSize: '12px', fontWeight: 700 }}>{countriesError}</div>}
         </div>
       );
@@ -472,13 +475,13 @@ export default function BillProductsPage() {
       return (
         <div key={field.key} style={{ display: 'grid', gap: '0.25rem' }}>
           <label htmlFor={inputId}>{field.label}</label>
-          <select id={inputId} value={value} onChange={(e) => update(e.target.value)}>
+          <PresentationSelect id={inputId} value={value} onChange={(e) => update(e.target.value)}>
             {booleanFilterOptions.map((option) => (
-              <option key={option.value || 'any'} value={option.value}>
+              <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option.value || 'any'} value={option.value}>
                 {option.label}
               </option>
             ))}
-          </select>
+          </PresentationSelect>
         </div>
       );
     }
@@ -486,13 +489,13 @@ export default function BillProductsPage() {
       return (
         <div key={field.key} style={{ display: 'grid', gap: '0.25rem' }}>
           <label htmlFor={inputId}>{field.label}</label>
-          <select id={inputId} value={value} onChange={(e) => update(e.target.value)}>
+          <PresentationSelect id={inputId} value={value} onChange={(e) => update(e.target.value)}>
             {field.options.map((option) => (
-              <option key={option || 'any'} value={option}>
+              <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option || 'any'} value={option}>
                 {option || 'Any'}
               </option>
             ))}
-          </select>
+          </PresentationSelect>
         </div>
       );
     }
@@ -511,7 +514,7 @@ export default function BillProductsPage() {
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="name">Name</label>
-        <select
+        <PresentationSelect
           id="name"
           value={draft.name}
           onChange={(e) => {
@@ -528,15 +531,15 @@ export default function BillProductsPage() {
         >
           <option value="">Select name</option>
           {nameOptions.map((opt) => (
-            <option key={opt} value={opt}>
+            <option data-regulator-restricted={isRegulatorRestrictedRecord(opt)} key={opt} value={opt}>
               {opt}
             </option>
           ))}
-        </select>
+        </PresentationSelect>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="code">Code</label>
-        <select
+        <PresentationSelect
           id="code"
           value={draft.code}
           onChange={(e) => {
@@ -553,11 +556,11 @@ export default function BillProductsPage() {
         >
           <option value="">Select code</option>
           {codeOptions.map((opt) => (
-            <option key={opt} value={opt}>
+            <option data-regulator-restricted={isRegulatorRestrictedRecord(opt)} key={opt} value={opt}>
               {opt}
             </option>
           ))}
-        </select>
+        </PresentationSelect>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="displayName">Display name</label>
@@ -595,14 +598,14 @@ export default function BillProductsPage() {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="type">Type</label>
-        <select id="type" value={draft.type} onChange={(e) => setDraft((p) => ({ ...p, type: e.target.value }))}>
+        <PresentationSelect id="type" value={draft.type} onChange={(e) => setDraft((p) => ({ ...p, type: e.target.value }))}>
           <option value="">Select type</option>
           {typeOptions.map((opt) => (
-            <option key={opt} value={opt}>
+            <option data-regulator-restricted={isRegulatorRestrictedRecord(opt)} key={opt} value={opt}>
               {opt}
             </option>
           ))}
-        </select>
+        </PresentationSelect>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <input
@@ -624,18 +627,18 @@ export default function BillProductsPage() {
         <>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="giftCardUsageType">Gift card usage type</label>
-            <select
+            <PresentationSelect
               id="giftCardUsageType"
               value={draft.giftCardUsageType}
               onChange={(e) => setDraft((p) => ({ ...p, giftCardUsageType: e.target.value }))}
             >
               <option value="">Unset</option>
               {giftCardUsageTypeOptions.map((opt) => (
-                <option key={opt} value={opt}>
+                <option data-regulator-restricted={isRegulatorRestrictedRecord(opt)} key={opt} value={opt}>
                   {opt}
                 </option>
               ))}
-            </select>
+            </PresentationSelect>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <input
@@ -746,7 +749,7 @@ export default function BillProductsPage() {
           .map((c) => {
           const checked = draft.countryIds.includes(String(c.id)) || draft.countryIds.includes(Number(c.id));
           return (
-            <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', justifyContent: 'space-between' }}>
+            <RegulatorField field={c} key={c.id}><label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', justifyContent: 'space-between' }}>
               <span>
                 {c.name} {c.alpha2Code ? `(${c.alpha2Code})` : ''}
               </span>
@@ -763,7 +766,7 @@ export default function BillProductsPage() {
                   });
                 }}
               />
-            </label>
+            </label></RegulatorField>
           );
         })}
       </div>
@@ -799,7 +802,7 @@ export default function BillProductsPage() {
         </label>
       </div>
       <div style={{ gridColumn: '1 / -1', display: 'grid', gap: '0.35rem', padding: '0.8rem', border: '1px solid var(--border)', borderRadius: '12px', background: 'color-mix(in srgb, var(--surface) 96%, var(--accent-soft) 4%)' }}>
-        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+        <NonRegulatorContent><label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
           <input
             id="paymentsEligibleForLoanEligibility"
             type="checkbox"
@@ -807,10 +810,10 @@ export default function BillProductsPage() {
             onChange={(e) => setDraft((p) => ({ ...p, paymentsEligibleForLoanEligibility: e.target.checked }))}
           />
           <span>Payments count toward loan eligibility</span>
-        </label>
-        <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+        </label></NonRegulatorContent>
+        <NonRegulatorContent><div style={{ color: 'var(--muted)', fontSize: '12px' }}>
           If enabled, new bill-payment transactions for this product can contribute to customer loan eligibility.
-        </div>
+        </div></NonRegulatorContent>
         <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
           Turning this off affects future payments only. It does not change past transactions.
         </div>

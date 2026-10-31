@@ -1,5 +1,11 @@
 'use client';
 
+import { isRegulatorRestrictedRecord, isRegulatorRestrictedService } from '@/lib/regulator-presentation';
+
+import { RegulatorRecord, PresentationSelect, RegulatorField } from '@/components/RegulatorPresentation';
+
+import { useAuth } from '@/contexts/AuthContext';
+
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 
@@ -58,13 +64,15 @@ const isValidHttpUrl = (value) => {
   }
 };
 
-const compactKeySummary = (keys) => {
+const compactKeySummary = (keys, enabled = false) => {
+  keys = enabled === false ? keys : keys.filter((key) => !isRegulatorRestrictedService(key));
   if (!keys.length) return 'None';
   if (keys.length <= 3) return keys.join(', ');
   return `${keys.slice(0, 3).join(', ')} +${keys.length - 3} more`;
 };
 
 function GuideKeySelector({ keys, selectedKeys, onToggle, disabled, helperText }) {
+  const { enableRegulatorMode } = useAuth();
   if (keys.length === 0) {
     return <div style={{ color: 'var(--muted)' }}>No configured guide keys yet. Add registry entries first.</div>;
   }
@@ -73,7 +81,7 @@ function GuideKeySelector({ keys, selectedKeys, onToggle, disabled, helperText }
     <div style={{ display: 'grid', gap: '0.45rem' }}>
       <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{helperText}</div>
       <div style={{ fontSize: '13px', color: 'var(--muted)' }}>
-        Excluded: <span style={{ color: 'var(--text)', fontWeight: 700 }}>{compactKeySummary(selectedKeys)}</span>
+        Excluded: <span style={{ color: 'var(--text)', fontWeight: 700 }}>{compactKeySummary(selectedKeys, enableRegulatorMode)}</span>
       </div>
       <div
         style={{
@@ -88,7 +96,7 @@ function GuideKeySelector({ keys, selectedKeys, onToggle, disabled, helperText }
         {keys.map((key) => {
           const checked = selectedKeys.includes(key);
           return (
-            <label
+            <RegulatorField field={key} key={key}><label
               key={key}
               style={{
                 display: 'flex',
@@ -105,7 +113,7 @@ function GuideKeySelector({ keys, selectedKeys, onToggle, disabled, helperText }
                 onChange={(e) => onToggle(key, e.target.checked)}
                 disabled={disabled}
               />
-            </label>
+            </label></RegulatorField>
           );
         })}
       </div>
@@ -114,6 +122,7 @@ function GuideKeySelector({ keys, selectedKeys, onToggle, disabled, helperText }
 }
 
 export default function GuideVideosPage() {
+  const { enableRegulatorMode } = useAuth();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -397,7 +406,7 @@ export default function GuideVideosPage() {
               {settingsLoading
                 ? 'Loading current settings…'
                 : settingsEnabled
-                  ? `Enabled. Hidden keys: ${excludedKeys.length ? compactKeySummary(excludedKeys) : 'none'}.`
+                  ? `Enabled. Hidden keys: ${excludedKeys.length ? compactKeySummary(excludedKeys, enableRegulatorMode) : 'none'}.`
                   : 'Disabled globally for all users.'}
             </div>
           </div>
@@ -568,7 +577,7 @@ export default function GuideVideosPage() {
 
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           {suggestedKeys.map((key) => (
-            <button
+            <RegulatorField field={key} key={key}><button
               key={key}
               type="button"
               className="btn-neutral btn-sm"
@@ -580,7 +589,7 @@ export default function GuideVideosPage() {
               disabled={loading || saving}
             >
               Add {key}
-            </button>
+            </button></RegulatorField>
           ))}
         </div>
 
@@ -596,7 +605,7 @@ export default function GuideVideosPage() {
               const duplicateLocales = duplicateLocalesByRow[rowIndex] || new Set();
 
               return (
-                <div key={row.id} className="card" style={{ padding: '0.9rem', display: 'grid', gap: '0.75rem' }}>
+                <RegulatorRecord record={row} key={row.id}><div key={row.id} className="card" style={{ padding: '0.9rem', display: 'grid', gap: '0.75rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
                     <div style={{ display: 'grid', gap: '0.25rem', minWidth: '240px', flex: '1 1 260px' }}>
                       <label>Key</label>
@@ -644,18 +653,18 @@ export default function GuideVideosPage() {
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '720px' }}>
                       <thead>
-                        <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
-                          <th style={{ padding: '0.6rem' }}>Locale</th>
-                          <th style={{ padding: '0.6rem' }}>Video URL</th>
-                          <th style={{ padding: '0.6rem' }}>Actions</th>
-                        </tr>
+                        <RegulatorRecord record={row}><tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
+                          <RegulatorField field={row}><th style={{ padding: '0.6rem' }}>Locale</th></RegulatorField>
+                          <RegulatorField field={row}><th style={{ padding: '0.6rem' }}>Video URL</th></RegulatorField>
+                          <RegulatorField field={row}><th style={{ padding: '0.6rem' }}>Actions</th></RegulatorField>
+                        </tr></RegulatorRecord>
                       </thead>
                       <tbody>
                         {row.locales.map((entry, localeIndex) => {
                           const normalizedLocale = String(entry.locale || '').trim().toLowerCase();
                           const hasDuplicateLocale = normalizedLocale && duplicateLocales.has(normalizedLocale);
                           return (
-                            <tr key={entry.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                            <RegulatorRecord record={entry} key={entry.id}><tr key={entry.id} style={{ borderBottom: '1px solid var(--border)' }}>
                               <td style={{ padding: '0.6rem', verticalAlign: 'top' }}>
                                 <div style={{ display: 'grid', gap: '0.25rem' }}>
                                   <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 132px', gap: '0.35rem' }}>
@@ -664,20 +673,20 @@ export default function GuideVideosPage() {
                                       placeholder="Type locale, e.g. en"
                                       onChange={(e) => setRows((prev) => updateRowLocaleValue(prev, rowIndex, localeIndex, e.target.value.toLowerCase()))}
                                     />
-                                    <select
+                                    <PresentationSelect
                                       value={suggestedLocales.includes(normalizedLocale) ? normalizedLocale : ''}
                                       onChange={(e) => {
                                         if (!e.target.value) return;
                                         setRows((prev) => updateRowLocaleValue(prev, rowIndex, localeIndex, e.target.value));
                                       }}
                                     >
-                                      <option value="">Quick pick…</option>
+                                      <option data-regulator-restricted={isRegulatorRestrictedRecord(entry)} value="">Quick pick…</option>
                                       {suggestedLocales.map((locale) => (
-                                        <option key={locale} value={locale}>
+                                        <option data-regulator-restricted={isRegulatorRestrictedRecord(locale)} key={locale} value={locale}>
                                           {locale}
                                         </option>
                                       ))}
-                                    </select>
+                                    </PresentationSelect>
                                   </div>
                                   {hasDuplicateLocale ? <div style={{ color: '#b91c1c', fontSize: '12px' }}>Duplicate locale</div> : null}
                                 </div>
@@ -731,13 +740,13 @@ export default function GuideVideosPage() {
                                   Delete locale
                                 </button>
                               </td>
-                            </tr>
+                            </tr></RegulatorRecord>
                           );
                         })}
                       </tbody>
                     </table>
                   </div>
-                </div>
+                </div></RegulatorRecord>
               );
             })}
           </div>

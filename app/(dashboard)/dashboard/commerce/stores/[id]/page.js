@@ -1,7 +1,8 @@
 'use client';
 
+import { RegulatorRecord, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
+
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { DataTable } from '@/components/DataTable';
 import { api } from '@/lib/api';
@@ -372,16 +373,16 @@ export default function CommerceStorePosPage() {
             <div className="card" style={{ display: 'grid', gap: '0.65rem', overflowX: 'auto' }}>
               <div style={{ fontWeight: 800 }}>Top products</div>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead><tr>{['Product', 'Type', 'Quantity', 'Orders', 'Sales'].map((label) => <th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid var(--border)' }}>{label}</th>)}</tr></thead>
+                <thead><tr>{['Product', 'Type', 'Quantity', 'Orders', 'Sales'].map((label) => <RegulatorField field={label} key={label}><th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid var(--border)' }}>{label}</th></RegulatorField>)}</tr></thead>
                 <tbody>
                   {!report.topProducts?.length ? <tr><td colSpan={5} style={{ padding: '0.75rem', color: 'var(--muted)' }}>No product sales.</td></tr> : report.topProducts.map((product) => (
-                    <tr key={product.productId || product.productSlug}>
+                    <RegulatorRecord record={product} key={product.productId || product.productSlug}><tr key={product.productId || product.productSlug}>
                       <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border)' }}>{product.productName || product.productSlug || product.productId}</td>
                       <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border)' }}>{formatProductType(product.productType || product.type, locale)}</td>
                       <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border)' }}>{product.quantitySold ?? '—'}</td>
                       <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border)' }}>{product.orderCount ?? 0}</td>
                       <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border)' }}>{formatMoney(product.salesAmount, product.salesCurrency)}</td>
-                    </tr>
+                    </tr></RegulatorRecord>
                   ))}
                 </tbody>
               </table>
@@ -390,16 +391,16 @@ export default function CommerceStorePosPage() {
             <div className="card" style={{ display: 'grid', gap: '0.65rem', overflowX: 'auto' }}>
               <div style={{ fontWeight: 800 }}>Unpaid customers</div>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead><tr>{['Customer', 'Contact', 'Orders', 'Balance due', 'Earliest due'].map((label) => <th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid var(--border)' }}>{label}</th>)}</tr></thead>
+                <thead><tr>{['Customer', 'Contact', 'Orders', 'Balance due', 'Earliest due'].map((label) => <RegulatorField field={label} key={label}><th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid var(--border)' }}>{label}</th></RegulatorField>)}</tr></thead>
                 <tbody>
                   {!report.unpaidCustomers?.length ? <tr><td colSpan={5} style={{ padding: '0.75rem', color: 'var(--muted)' }}>No unpaid customers.</td></tr> : report.unpaidCustomers.map((customer, index) => (
-                    <tr key={customer.customerId || `${customer.buyerEmail}-${index}`}>
+                    <RegulatorRecord record={customer} key={customer.customerId || `${customer.buyerEmail}-${index}`}><tr key={customer.customerId || `${customer.buyerEmail}-${index}`}>
                       <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border)' }}>{customer.buyerName || (customer.customerId ? `Customer ${customer.customerId}` : 'Walk-in customer')}</td>
                       <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border)' }}>{customer.buyerEmail || customer.buyerPhone || '—'}</td>
                       <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border)' }}>{customer.orderCount ?? 0}</td>
-                      <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border)' }}>{formatMoney(customer.balanceDue, customer.balanceDueCurrency)}</td>
+                      <RegulatorField field="balanceDue"><td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border)' }}>{formatMoney(customer.balanceDue, customer.balanceDueCurrency)}</td></RegulatorField>
                       <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border)' }}>{customer.earliestPaymentDueDate || '—'}</td>
-                    </tr>
+                    </tr></RegulatorRecord>
                   ))}
                 </tbody>
               </table>

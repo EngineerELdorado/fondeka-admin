@@ -1,7 +1,8 @@
 'use client';
 
+import { RegulatorRecord, PresentationLink as Link } from '@/components/RegulatorPresentation';
+
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { api } from '@/lib/api';
 
 const asText = (value) => (value === undefined || value === null ? '' : String(value).trim());
@@ -169,7 +170,7 @@ export default function StubFailureModesPage() {
                   </tr>
                 ) : (
                   sharedModes.map((row, index) => (
-                    <tr key={`${row.mode}-${index}`}>
+                    <RegulatorRecord record={row} key={`${row.mode}-${index}`}><tr key={`${row.mode}-${index}`}>
                       <td style={{ padding: '0.6rem', borderBottom: '1px solid var(--border)', fontWeight: 700 }}>{row.mode}</td>
                       <td style={{ padding: '0.6rem', borderBottom: '1px solid var(--border)' }}>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem' }}>
@@ -183,7 +184,7 @@ export default function StubFailureModesPage() {
                         </div>
                       </td>
                       <td style={{ padding: '0.6rem', borderBottom: '1px solid var(--border)' }}>{row.expectedOutcome || '—'}</td>
-                    </tr>
+                    </tr></RegulatorRecord>
                   ))
                 )}
               </tbody>
@@ -213,7 +214,7 @@ export default function StubFailureModesPage() {
                   </tr>
                 ) : (
                   providers.map((row, index) => (
-                    <tr key={`${row.provider}-${index}`}>
+                    <RegulatorRecord record={row} key={`${row.provider}-${index}`}><tr key={`${row.provider}-${index}`}>
                       <td style={{ padding: '0.6rem', borderBottom: '1px solid var(--border)', fontWeight: 700 }}>{row.provider}</td>
                       <td style={{ padding: '0.6rem', borderBottom: '1px solid var(--border)' }}>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem' }}>
@@ -237,7 +238,7 @@ export default function StubFailureModesPage() {
                         </div>
                       </td>
                       <td style={{ padding: '0.6rem', borderBottom: '1px solid var(--border)' }}>{row.notes}</td>
-                    </tr>
+                    </tr></RegulatorRecord>
                   ))
                 )}
               </tbody>

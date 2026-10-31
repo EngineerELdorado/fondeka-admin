@@ -1,7 +1,12 @@
 'use client';
 
+import { RegulatorRecord, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
+
+import { regulatorVisibleFields } from '@/lib/regulator-presentation';
+
+import { useAuth } from '@/contexts/AuthContext';
+
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
@@ -165,16 +170,14 @@ const Badge = ({ children, tone = 'neutral' }) => {
   );
 };
 
-const DetailGrid = ({ rows }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
-    {rows.map((row) => (
+const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+    {regulatorVisibleFields(rows, enableRegulatorMode).map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
         <div style={{ fontWeight: 700 }}>{row.value ?? '—'}</div>
       </div>
     ))}
-  </div>
-);
+  </div>); };
 
 export default function PaymentRequestsPage() {
   const [rows, setRows] = useState([]);
@@ -649,14 +652,14 @@ export default function PaymentRequestsPage() {
                     />
                   </div>
                 )}
-                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                <RegulatorField field={field}><label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
                   <input
                     type="checkbox"
                     checked={Boolean(field?.required)}
                     onChange={(e) => updatePayerFieldRow(index, { required: e.target.checked })}
                   />
                   Required
-                </label>
+                </label></RegulatorField>
                 <button type="button" className="btn-danger btn-sm" onClick={() => removePayerFieldRow(index)}>
                   Remove
                 </button>
@@ -974,21 +977,21 @@ export default function PaymentRequestsPage() {
                     <thead>
                       <tr>
                         {['Key', 'Label', 'Required'].map((header) => (
-                          <th key={header} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                          <RegulatorField field={header} key={header}><th key={header} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
                             {header}
-                          </th>
+                          </th></RegulatorField>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {normalizePayerFields(selected).map((field, index) => (
-                        <tr key={`${field.key || field.label || 'field'}-${index}`} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <RegulatorRecord record={field} key={`${field.key || field.label || 'field'}-${index}`}><tr key={`${field.key || field.label || 'field'}-${index}`} style={{ borderBottom: '1px solid var(--border)' }}>
                           <td style={{ padding: '0.45rem' }}>
                             <code>{field.key || '—'}</code>
                           </td>
                           <td style={{ padding: '0.45rem' }}>{field.label || '—'}</td>
                           <td style={{ padding: '0.45rem' }}>{field.required ? 'Yes' : 'No'}</td>
-                        </tr>
+                        </tr></RegulatorRecord>
                       ))}
                     </tbody>
                   </table>

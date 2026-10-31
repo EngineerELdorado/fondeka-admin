@@ -1,7 +1,12 @@
 'use client';
 
+
+import { CatalogSelect } from '@/components/CatalogSelect';
+import { RegulatorRecord, PresentationSelect, NonRegulatorContent, PresentationLink as Link } from '@/components/RegulatorPresentation';
+
+import { regulatorVisibleFields, isRegulatorRestrictedRecord } from '@/lib/regulator-presentation';
+
 import { useEffect, useMemo, useRef, useState } from 'react';
-import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 import { useAuth } from '@/contexts/AuthContext';
@@ -82,16 +87,14 @@ const Modal = ({ title, onClose, children, zIndex }) => (
   </div>
 );
 
-const DetailGrid = ({ rows }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
-    {rows.map((row) => (
+const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+    {regulatorVisibleFields(rows, enableRegulatorMode).map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
         <div style={{ fontWeight: 700 }}>{row.value ?? '—'}</div>
       </div>
     ))}
-  </div>
-);
+  </div>); };
 
 const StatusBadge = ({ value }) => {
   if (!value) return '—';
@@ -386,7 +389,7 @@ export default function CardsPage() {
   useEffect(() => {
     const fetchPaymentMethods = async () => {
       try {
-        const res = await api.paymentMethods.list(new URLSearchParams({ page: '0', size: '200' }));
+        const res = await api.paymentMethods.options(new URLSearchParams({ page: '0', size: '200' }));
         const list = Array.isArray(res) ? res : res?.content || [];
         setPaymentMethods(list || []);
       } catch (err) {
@@ -861,13 +864,13 @@ export default function CardsPage() {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="status">Status</label>
-        <select id="status" value={draft.status} onChange={(e) => setDraft((p) => ({ ...p, status: e.target.value }))}>
+        <PresentationSelect id="status" value={draft.status} onChange={(e) => setDraft((p) => ({ ...p, status: e.target.value }))}>
           {statusOptions.map((st) => (
-            <option key={st} value={st}>
+            <option data-regulator-restricted={isRegulatorRestrictedRecord(st)} key={st} value={st}>
               {st}
             </option>
           ))}
-        </select>
+        </PresentationSelect>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="last4">Last 4</label>
@@ -931,22 +934,22 @@ export default function CardsPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="statusFilter">Status</label>
-                <select
+                <PresentationSelect
                   id="statusFilter"
                   value={filters.status}
                   onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value }))}
                 >
                   <option value="">All</option>
                   {statusOptions.map((st) => (
-                    <option key={st} value={st}>
+                    <option data-regulator-restricted={isRegulatorRestrictedRecord(st)} key={st} value={st}>
                       {st}
                     </option>
                   ))}
-                </select>
+                </PresentationSelect>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="issuedFilter">Issued</label>
-                <select
+                <PresentationSelect
                   id="issuedFilter"
                   value={filters.issued}
                   onChange={(e) => setFilters((p) => ({ ...p, issued: e.target.value }))}
@@ -954,7 +957,7 @@ export default function CardsPage() {
                   <option value="">All</option>
                   <option value="true">Yes</option>
                   <option value="false">No</option>
-                </select>
+                </PresentationSelect>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="internalReference">Internal reference</label>
@@ -1061,7 +1064,7 @@ export default function CardsPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="issueAccountMode">Account selector</label>
-                <select
+                <PresentationSelect
                   id="issueAccountMode"
                   value={issueDraft.accountMode}
                   onChange={(e) => setIssueDraft((p) => ({ ...p, accountMode: e.target.value }))}
@@ -1069,7 +1072,7 @@ export default function CardsPage() {
                   <option value="id">Account ID</option>
                   <option value="reference">Account reference</option>
                   <option value="email">Account email</option>
-                </select>
+                </PresentationSelect>
               </div>
               {issueDraft.accountMode === 'id' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -1084,9 +1087,9 @@ export default function CardsPage() {
                 </div>
               )}
               {issueDraft.accountMode === 'id' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <NonRegulatorContent><div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   <label htmlFor="issueFiatWalletId">Fiat wallet (optional)</label>
-                  <select
+                  <PresentationSelect
                     id="issueFiatWalletId"
                     value={issueDraft.fiatWalletId}
                     onChange={(e) => setIssueDraft((p) => ({ ...p, fiatWalletId: e.target.value }))}
@@ -1097,19 +1100,19 @@ export default function CardsPage() {
                       const walletId = fiatWalletIdOf(wallet);
                       if (!walletId) return null;
                       return (
-                        <option key={walletId} value={walletId}>
+                        <option data-regulator-restricted={isRegulatorRestrictedRecord(wallet)} key={walletId} value={walletId}>
                           {fiatWalletLabel(wallet)}
                         </option>
                       );
                     })}
-                  </select>
+                  </PresentationSelect>
                   <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
                     Used when charging the account balance for card issuance.
                   </div>
                   {issueFiatWalletsError && (
                     <div style={{ color: 'var(--danger)', fontSize: '12px' }}>{issueFiatWalletsError}</div>
                   )}
-                </div>
+                </div></NonRegulatorContent>
               )}
               {issueDraft.accountMode === 'reference' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -1302,18 +1305,18 @@ export default function CardsPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                     <label htmlFor="cardAdjustmentPaymentMethod">Payment method</label>
-                    <select
+                    <CatalogSelect kind="payment-method" records={paymentMethods}
                       id="cardAdjustmentPaymentMethod"
                       value={adjustmentDraft.paymentMethodId}
                       onChange={(e) => setAdjustmentDraft((prev) => ({ ...prev, paymentMethodId: e.target.value }))}
                     >
                       <option value="">Select payment method</option>
                       {paymentMethodOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
+                        <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option.value} value={option.value}>
                           {option.label}
                         </option>
                       ))}
-                    </select>
+                    </CatalogSelect>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                     <label htmlFor="cardAdjustmentAccountRef">Account ref</label>
@@ -1337,14 +1340,14 @@ export default function CardsPage() {
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                     <label htmlFor="cardAdjustmentFeeMode">Fee mode</label>
-                    <select
+                    <PresentationSelect
                       id="cardAdjustmentFeeMode"
                       value={adjustmentDraft.feeApplicationMode}
                       onChange={(e) => setAdjustmentDraft((prev) => ({ ...prev, feeApplicationMode: e.target.value }))}
                     >
                       <option value="EXCLUSIVE">EXCLUSIVE</option>
                       <option value="INCLUSIVE">INCLUSIVE</option>
-                    </select>
+                    </PresentationSelect>
                   </div>
                 </div>
 
@@ -1613,7 +1616,7 @@ export default function CardsPage() {
                           </tr>
                         ) : (
                           (providerTxData?.data?.transactions || providerTxData?.transactions || []).map((tx, idx) => (
-                            <tr key={tx?.id || tx?.transaction_id || idx} style={{ borderBottom: '1px solid var(--border)' }}>
+                            <RegulatorRecord record={tx} key={tx?.id || tx?.transaction_id || idx}><tr key={tx?.id || tx?.transaction_id || idx} style={{ borderBottom: '1px solid var(--border)' }}>
                               <td style={{ padding: '0.45rem' }}>
                                 {formatProviderDateTime(
                                   tx?.createdAt ||
@@ -1671,7 +1674,7 @@ export default function CardsPage() {
                                 <div>Provider: {tx?.providerTransactionReference || tx?.provider_transaction_reference || tx?.bridgecard_transaction_reference || '—'}</div>
                                 <div style={{ color: 'var(--muted)' }}>Client: {tx?.client_transaction_reference || '—'}</div>
                               </td>
-                            </tr>
+                            </tr></RegulatorRecord>
                           ))
                         )}
                       </tbody>

@@ -1,7 +1,8 @@
 'use client';
 
+import { NonRegulatorContent, PresentationLink as Link } from '@/components/RegulatorPresentation';
+
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 import { useToast } from '@/contexts/ToastContext';
@@ -550,7 +551,7 @@ export default function OutboxPage() {
             {payloadTarget.payloadTruncated ? (
               <div style={{ color: '#b45309', fontSize: '12px' }}>Payload truncated by API response.</div>
             ) : null}
-            <pre
+            <NonRegulatorContent><pre
               style={{
                 margin: 0,
                 maxHeight: '460px',
@@ -563,7 +564,7 @@ export default function OutboxPage() {
               }}
             >
               {toPrettyPayload(payloadTarget.payload) || '—'}
-            </pre>
+            </pre></NonRegulatorContent>
             <div className="modal-actions">
               <button type="button" className="btn-neutral" onClick={() => setPayloadTarget(null)}>
                 Close
@@ -618,7 +619,7 @@ export default function OutboxPage() {
                   </button>
                 </div>
               </div>
-              <pre
+              <NonRegulatorContent><pre
                 style={{
                   margin: 0,
                   maxHeight: '380px',
@@ -631,7 +632,7 @@ export default function OutboxPage() {
                 }}
               >
                 {detailPayload || '—'}
-              </pre>
+              </pre></NonRegulatorContent>
             </div>
           ) : (
             <div style={{ color: 'var(--muted)' }}>Select a row to view detail.</div>

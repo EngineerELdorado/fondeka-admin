@@ -1,7 +1,14 @@
 'use client';
 
+
+import { CatalogSelect } from '@/components/CatalogSelect';
+import { PresentationSelect, NonRegulatorContent, PresentationLink as Link } from '@/components/RegulatorPresentation';
+
+import { regulatorVisibleFields, isRegulatorRestrictedRecord } from '@/lib/regulator-presentation';
+
+import { useAuth } from '@/contexts/AuthContext';
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
@@ -143,9 +150,8 @@ const Modal = ({ title, onClose, children }) => (
   </div>
 );
 
-const DetailGrid = ({ rows }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
-    {rows.map((row) => (
+const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+    {regulatorVisibleFields(rows, enableRegulatorMode).map((row) => (
       <div
         key={row.label}
         style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px' }}
@@ -154,8 +160,7 @@ const DetailGrid = ({ rows }) => (
         <div style={{ fontWeight: 700 }}>{row.value ?? '—'}</div>
       </div>
     ))}
-  </div>
-);
+  </div>); };
 
 const FilterChip = ({ label, onClear }) => (
   <span
@@ -283,7 +288,7 @@ export default function EstimatedProcessingTimesPage() {
   useEffect(() => {
     const fetchBillProducts = async () => {
       try {
-        const res = await api.billProducts.list(new URLSearchParams({ page: '0', size: '500' }));
+        const res = await api.billProducts.options(new URLSearchParams({ page: '0', size: '500' }));
         setBillProducts(Array.isArray(res) ? res : res?.content || []);
       } catch {
         setBillProducts([]);
@@ -437,71 +442,71 @@ export default function EstimatedProcessingTimesPage() {
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="action">Action</label>
-        <select id="action" value={draft.action} onChange={(e) => setDraft((prev) => ({ ...prev, action: e.target.value }))}>
+        <PresentationSelect id="action" value={draft.action} onChange={(e) => setDraft((prev) => ({ ...prev, action: e.target.value }))}>
           <option value="">Select action</option>
           {actionOptions.map((action) => (
-            <option key={action} value={action}>{action}</option>
+            <option data-regulator-restricted={isRegulatorRestrictedRecord(action)} key={action} value={action}>{action}</option>
           ))}
-        </select>
+        </PresentationSelect>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="paymentMethodType">Payment method type</label>
-        <select
+        <PresentationSelect
           id="paymentMethodType"
           value={draft.paymentMethodType}
           onChange={(e) => setDraft((prev) => ({ ...prev, paymentMethodType: e.target.value }))}
         >
           <option value="">Any</option>
           {sortedPaymentMethodTypeOptions.map((type) => (
-            <option key={type} value={type}>{type}</option>
+            <option data-regulator-restricted={isRegulatorRestrictedRecord(type)} key={type} value={type}>{type}</option>
           ))}
-        </select>
+        </PresentationSelect>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="billProductId">Bill product</label>
-        <select
+        <CatalogSelect kind="bill-product" records={sortedBillProducts}
           id="billProductId"
           value={draft.billProductId}
           onChange={(e) => setDraft((prev) => ({ ...prev, billProductId: e.target.value }))}
         >
           <option value="">Generic estimate</option>
           {sortedBillProducts.map((product) => (
-            <option key={product.id} value={product.id}>{formatBillProductLabel(product)}</option>
+            <option data-regulator-restricted={isRegulatorRestrictedRecord(product)} key={product.id} value={product.id}>{formatBillProductLabel(product)}</option>
           ))}
-        </select>
+        </CatalogSelect>
         <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
           Select a product only when this estimate applies to one exact bill product. Product-specific configs win over generic action/provider/method configs.
         </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="paymentProviderName">Payment provider</label>
-        <select
+        <PresentationSelect
           id="paymentProviderName"
           value={draft.paymentProviderName}
           onChange={(e) => setDraft((prev) => ({ ...prev, paymentProviderName: e.target.value }))}
         >
           <option value="">Any</option>
           {sortedPaymentProviderNameOptions.map((name) => (
-            <option key={name} value={name}>{name}</option>
+            <option data-regulator-restricted={isRegulatorRestrictedRecord(name)} key={name} value={name}>{name}</option>
           ))}
-        </select>
+        </PresentationSelect>
         <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
           Leave empty to create a provider-agnostic fallback row.
         </div>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+      <NonRegulatorContent><div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="cryptoNetworkName">Crypto network</label>
-        <select
+        <PresentationSelect
           id="cryptoNetworkName"
           value={draft.cryptoNetworkName}
           onChange={(e) => setDraft((prev) => ({ ...prev, cryptoNetworkName: e.target.value }))}
         >
           <option value="">Any</option>
           {sortedCryptoNetworkNameOptions.map((name) => (
-            <option key={name} value={name}>{name}</option>
+            <option data-regulator-restricted={isRegulatorRestrictedRecord(name)} key={name} value={name}>{name}</option>
           ))}
-        </select>
-      </div>
+        </PresentationSelect>
+      </div></NonRegulatorContent>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="minSeconds">Min seconds</label>
         <input
@@ -596,72 +601,72 @@ export default function EstimatedProcessingTimesPage() {
             <div className="dashboard-filters-wide-grid">
           <div>
             <label htmlFor="filter-action">Action</label>
-            <select
+            <PresentationSelect
               id="filter-action"
               value={filters.action}
               onChange={(e) => setFilters((prev) => ({ ...prev, action: e.target.value }))}
             >
               <option value="">All</option>
               {actionOptions.map((action) => (
-                <option key={action} value={action}>{action}</option>
+                <option data-regulator-restricted={isRegulatorRestrictedRecord(action)} key={action} value={action}>{action}</option>
               ))}
-            </select>
+            </PresentationSelect>
           </div>
           <div>
             <label htmlFor="filter-method-type">Method type</label>
-            <select
+            <PresentationSelect
               id="filter-method-type"
               value={filters.paymentMethodType}
               onChange={(e) => setFilters((prev) => ({ ...prev, paymentMethodType: e.target.value }))}
             >
               <option value="">All</option>
           {sortedPaymentMethodTypeOptions.map((type) => (
-            <option key={type} value={type}>{type}</option>
+            <option data-regulator-restricted={isRegulatorRestrictedRecord(type)} key={type} value={type}>{type}</option>
           ))}
-        </select>
+        </PresentationSelect>
       </div>
           <div>
             <label htmlFor="filter-bill-product">Bill product</label>
-            <select
+            <CatalogSelect kind="bill-product" records={sortedBillProducts}
               id="filter-bill-product"
               value={filters.billProductId}
               onChange={(e) => setFilters((prev) => ({ ...prev, billProductId: e.target.value }))}
             >
               <option value="">All</option>
               {sortedBillProducts.map((product) => (
-                <option key={product.id} value={product.id}>{formatBillProductLabel(product)}</option>
+                <option data-regulator-restricted={isRegulatorRestrictedRecord(product)} key={product.id} value={product.id}>{formatBillProductLabel(product)}</option>
               ))}
-            </select>
+            </CatalogSelect>
           </div>
           <div>
             <label htmlFor="filter-provider">Provider</label>
-            <select
+            <PresentationSelect
               id="filter-provider"
               value={filters.paymentProviderName}
               onChange={(e) => setFilters((prev) => ({ ...prev, paymentProviderName: e.target.value }))}
             >
               <option value="">All</option>
           {sortedPaymentProviderNameOptions.map((name) => (
-            <option key={name} value={name}>{name}</option>
+            <option data-regulator-restricted={isRegulatorRestrictedRecord(name)} key={name} value={name}>{name}</option>
           ))}
-        </select>
+        </PresentationSelect>
       </div>
-          <div>
+          <NonRegulatorContent><div>
             <label htmlFor="filter-network">Crypto network</label>
-            <select
+            <PresentationSelect
               id="filter-network"
               value={filters.cryptoNetworkName}
               onChange={(e) => setFilters((prev) => ({ ...prev, cryptoNetworkName: e.target.value }))}
             >
               <option value="">All</option>
           {sortedCryptoNetworkNameOptions.map((name) => (
-            <option key={name} value={name}>{name}</option>
+            <option data-regulator-restricted={isRegulatorRestrictedRecord(name)} key={name} value={name}>{name}</option>
           ))}
-        </select>
-      </div>
+        </PresentationSelect>
+      </div></NonRegulatorContent>
           <div>
             <label htmlFor="filter-active">Active</label>
-            <select
+            <PresentationSelect
               id="filter-active"
               value={filters.active}
               onChange={(e) => setFilters((prev) => ({ ...prev, active: e.target.value }))}
@@ -669,7 +674,7 @@ export default function EstimatedProcessingTimesPage() {
               <option value="">All</option>
               <option value="true">Active</option>
               <option value="false">Inactive</option>
-            </select>
+            </PresentationSelect>
           </div>
           <div>
             <label htmlFor="page">Page</label>

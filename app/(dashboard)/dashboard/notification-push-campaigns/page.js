@@ -1,7 +1,14 @@
 'use client';
 
+
+import { CatalogSelect } from '@/components/CatalogSelect';
+import { isRegulatorRestrictedRecord, isRegulatorRestrictedService } from '@/lib/regulator-presentation';
+
+import { PresentationSelect, NonRegulatorContent, PresentationLink as Link } from '@/components/RegulatorPresentation';
+
+import { useAuth } from '@/contexts/AuthContext';
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { api } from '@/lib/api';
 import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
 
@@ -112,6 +119,7 @@ const toList = (res) => (Array.isArray(res) ? res : res?.content || []);
 const triStateToBoolean = (value) => (value === 'YES' ? true : value === 'NO' ? false : undefined);
 
 export default function NotificationPushCampaignsPage() {
+  const { enableRegulatorMode } = useAuth();
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [dataRows, setDataRows] = useState([emptyDataRow]);
@@ -176,9 +184,9 @@ export default function NotificationPushCampaignsPage() {
       try {
         const [countryRes, paymentMethodRes, paymentProviderRes, billProductRes] = await Promise.all([
           api.countries.list(new URLSearchParams({ page: '0', size: '400' })),
-          api.paymentMethods.list(new URLSearchParams({ page: '0', size: '200' })),
+          api.paymentMethods.options(new URLSearchParams({ page: '0', size: '200' })),
           api.paymentProviders.list(new URLSearchParams({ page: '0', size: '200' })),
-          api.billProducts.list(new URLSearchParams({ page: '0', size: '200' }))
+          api.billProducts.options(new URLSearchParams({ page: '0', size: '200' }))
         ]);
         if (!cancelled) {
           setCountries(toList(countryRes));
@@ -579,17 +587,17 @@ export default function NotificationPushCampaignsPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
                   <label style={{ display: 'grid', gap: '0.35rem' }}>
                     <span>Severity</span>
-                    <select
+                    <PresentationSelect
                       value={announcement.severity}
                       onChange={(e) => setAnnouncement((prev) => ({ ...prev, severity: e.target.value }))}
                     >
                       <option value="">Select severity</option>
                       {severityOptions.map((option) => (
-                        <option key={option} value={option}>
+                        <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option} value={option}>
                           {option}
                         </option>
                       ))}
-                    </select>
+                    </PresentationSelect>
                   </label>
                   <label style={{ display: 'grid', gap: '0.35rem' }}>
                     <span>Start date (UTC)</span>
@@ -676,7 +684,7 @@ export default function NotificationPushCampaignsPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.75rem' }}>
               <label style={{ display: 'grid', gap: '0.35rem' }}>
                 <span>Countries ({countryLoading ? 'loading...' : `${countries.length} available`})</span>
-                <select
+                <PresentationSelect
                   multiple
                   value={selectedCountryIds}
                   onChange={(e) => {
@@ -690,12 +698,12 @@ export default function NotificationPushCampaignsPage() {
                     const code = String(country.code || country.countryCode || '').toUpperCase();
                     const name = country.name || country.label || `Country ${id}`;
                     return (
-                      <option key={id} value={id}>
+                      <option data-regulator-restricted={isRegulatorRestrictedRecord(country)} key={id} value={id}>
                         {name} ({code || '—'}) • ID {id}
                       </option>
                     );
                   })}
-                </select>
+                </PresentationSelect>
               </label>
               <div style={{ display: 'grid', gap: '0.75rem' }}>
                 <label style={{ display: 'grid', gap: '0.35rem' }}>
@@ -708,29 +716,29 @@ export default function NotificationPushCampaignsPage() {
                 </label>
                 <label style={{ display: 'grid', gap: '0.35rem' }}>
                   <span>KYC status</span>
-                  <select
+                  <PresentationSelect
                     multiple
                     value={selectedKycStatuses}
                     onChange={(e) => setSelectedKycStatuses(Array.from(e.target.selectedOptions).map((opt) => opt.value))}
                     style={{ minHeight: '130px' }}
                   >
                     {kycStatusOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
+                      <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option.value} value={option.value}>
                         {option.label} ({option.value})
                       </option>
                     ))}
-                  </select>
+                  </PresentationSelect>
                   <span style={{ color: 'var(--muted)', fontSize: '12px' }}>
                     Leave empty to ignore KYC status. Not started / No KYC includes users with status NONE and users without any KYC record.
                   </span>
                 </label>
                 <label style={{ display: 'grid', gap: '0.35rem' }}>
                   <span>Has completed transactions</span>
-                  <select value={hasCompletedTransactions} onChange={(e) => setHasCompletedTransactions(e.target.value)}>
+                  <PresentationSelect value={hasCompletedTransactions} onChange={(e) => setHasCompletedTransactions(e.target.value)}>
                     <option value="ANY">Any</option>
                     <option value="YES">Yes</option>
                     <option value="NO">No (zero completed)</option>
-                  </select>
+                  </PresentationSelect>
                 </label>
               </div>
             </div>
@@ -776,16 +784,16 @@ export default function NotificationPushCampaignsPage() {
                       ['Has loan', hasLoans, setHasLoans],
                       ['Has eSIM', hasEsims, setHasEsims],
                       ['Has payment request', hasPaymentRequests, setHasPaymentRequests]
-                    ].map(([label, value, setter]) => (
+                    ].filter(([label]) => enableRegulatorMode === false || !isRegulatorRestrictedService(label)).map(([label, value, setter]) => (
                       <label key={label} style={{ display: 'grid', gap: '0.35rem' }}>
                         <span>{label}</span>
-                        <select value={value} onChange={(e) => setter(e.target.value)}>
+                        <PresentationSelect value={value} onChange={(e) => setter(e.target.value)}>
                           {triStateOptions.map((option) => (
-                            <option key={option.value} value={option.value}>
+                            <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option.value} value={option.value}>
                               {option.label}
                             </option>
                           ))}
-                        </select>
+                        </PresentationSelect>
                       </label>
                     ))}
                   </div>
@@ -816,78 +824,78 @@ export default function NotificationPushCampaignsPage() {
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
                     <label style={{ display: 'grid', gap: '0.35rem' }}>
                       <span>Bill products</span>
-                      <select
+                      <CatalogSelect kind="bill-product" records={billProducts} countries={countries}
                         multiple
                         value={selectedBillProductIds}
                         onChange={(e) => setSelectedBillProductIds(Array.from(e.target.selectedOptions).map((opt) => opt.value))}
                         style={{ minHeight: '130px' }}
                       >
                         {billProducts.map((product) => (
-                          <option key={product.id} value={String(product.id)}>
+                          <option data-regulator-restricted={isRegulatorRestrictedRecord(product)} key={product.id} value={String(product.id)}>
                             {(product.displayName || product.name || `Product ${product.id}`) + ` • ID ${product.id}`}
                           </option>
                         ))}
-                      </select>
+                      </CatalogSelect>
                     </label>
                     <label style={{ display: 'grid', gap: '0.35rem' }}>
                       <span>Payment methods</span>
-                      <select
+                      <CatalogSelect kind="payment-method" records={paymentMethods} countries={countries}
                         multiple
                         value={selectedPaymentMethodIds}
                         onChange={(e) => setSelectedPaymentMethodIds(Array.from(e.target.selectedOptions).map((opt) => opt.value))}
                         style={{ minHeight: '130px' }}
                       >
                         {paymentMethods.map((method) => (
-                          <option key={method.id} value={String(method.id)}>
+                          <option data-regulator-restricted={isRegulatorRestrictedRecord(method)} key={method.id} value={String(method.id)}>
                             {paymentMethodAdminLabel(method, `Method ${method.id}`) + ` • ID ${method.id}`}
                           </option>
                         ))}
-                      </select>
+                      </CatalogSelect>
                     </label>
                     <label style={{ display: 'grid', gap: '0.35rem' }}>
                       <span>Payment providers</span>
-                      <select
+                      <PresentationSelect
                         multiple
                         value={selectedPaymentProviderIds}
                         onChange={(e) => setSelectedPaymentProviderIds(Array.from(e.target.selectedOptions).map((opt) => opt.value))}
                         style={{ minHeight: '130px' }}
                       >
                         {paymentProviders.map((provider) => (
-                          <option key={provider.id} value={String(provider.id)}>
+                          <option data-regulator-restricted={isRegulatorRestrictedRecord(provider)} key={provider.id} value={String(provider.id)}>
                             {(provider.displayName || provider.name || `Provider ${provider.id}`) + ` • ID ${provider.id}`}
                           </option>
                         ))}
-                      </select>
+                      </PresentationSelect>
                     </label>
                     <label style={{ display: 'grid', gap: '0.35rem' }}>
                       <span>Services</span>
-                      <select
+                      <PresentationSelect
                         multiple
                         value={selectedTransactionServices}
                         onChange={(e) => setSelectedTransactionServices(Array.from(e.target.selectedOptions).map((opt) => opt.value))}
                         style={{ minHeight: '130px' }}
                       >
                         {serviceOptions.map((service) => (
-                          <option key={service} value={service}>
+                          <option data-regulator-restricted={isRegulatorRestrictedRecord(service)} key={service} value={service}>
                             {service}
                           </option>
                         ))}
-                      </select>
+                      </PresentationSelect>
                     </label>
                     <label style={{ display: 'grid', gap: '0.35rem' }}>
                       <span>Actions</span>
-                      <select
+                      <PresentationSelect
                         multiple
                         value={selectedTransactionActions}
                         onChange={(e) => setSelectedTransactionActions(Array.from(e.target.selectedOptions).map((opt) => opt.value))}
                         style={{ minHeight: '130px' }}
                       >
                         {actionOptions.map((action) => (
-                          <option key={action} value={action}>
+                          <option data-regulator-restricted={isRegulatorRestrictedRecord(action)} key={action} value={action}>
                             {action}
                           </option>
                         ))}
-                      </select>
+                      </PresentationSelect>
                     </label>
                   </div>
                 </div>
@@ -929,9 +937,9 @@ export default function NotificationPushCampaignsPage() {
 
           <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
             <div style={{ fontWeight: 800 }}>4. Preview</div>
-            <pre style={{ margin: 0, overflowX: 'auto', whiteSpace: 'pre-wrap', background: 'color-mix(in srgb, var(--surface) 86%, var(--accent-soft) 14%)', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.75rem', maxHeight: '260px' }}>
+            <NonRegulatorContent><pre style={{ margin: 0, overflowX: 'auto', whiteSpace: 'pre-wrap', background: 'color-mix(in srgb, var(--surface) 86%, var(--accent-soft) 14%)', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.75rem', maxHeight: '260px' }}>
               {JSON.stringify(payloadPreview, null, 2)}
-            </pre>
+            </pre></NonRegulatorContent>
             <button type="button" className="btn-primary" onClick={handleLaunchCampaign} disabled={launchLoading}>
               {launchLoading ? 'Launching...' : 'Launch campaign'}
             </button>

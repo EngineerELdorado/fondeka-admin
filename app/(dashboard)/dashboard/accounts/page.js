@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { PresentationLink as Link } from '@/components/RegulatorPresentation';
 
 const sections = [
   { href: '/dashboard/accounts/accounts', title: 'Accounts', blurb: 'Search and review accounts, run AML check.' },

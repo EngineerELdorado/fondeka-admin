@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { PresentationLink as Link } from '@/components/RegulatorPresentation';
 
 const sections = [
   { href: '/dashboard/bills/products', title: 'Bill Products', blurb: 'Catalog of billable products (code, name, rank, active).' },

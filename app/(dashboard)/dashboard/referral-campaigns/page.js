@@ -1,6 +1,9 @@
 'use client';
 
-import Link from 'next/link';
+import { isRegulatorRestrictedRecord } from '@/lib/regulator-presentation';
+
+import { PresentationSelect, NonRegulatorContent, PresentationLink as Link } from '@/components/RegulatorPresentation';
+
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
@@ -1444,13 +1447,13 @@ export default function ReferralCampaignsPage() {
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <div>
             <label htmlFor="status">Status</label>
-            <select id="status" value={status} onChange={(e) => { setStatus(e.target.value); setPage(0); }}>
+            <PresentationSelect id="status" value={status} onChange={(e) => { setStatus(e.target.value); setPage(0); }}>
               {statusOptions.map((item) => (
-                <option key={item || 'ALL'} value={item}>
+                <option data-regulator-restricted={isRegulatorRestrictedRecord(item)} key={item || 'ALL'} value={item}>
                   {item || 'ALL'}
                 </option>
               ))}
-            </select>
+            </PresentationSelect>
           </div>
           <div>
             <label htmlFor="size">Size</label>
@@ -1485,7 +1488,7 @@ export default function ReferralCampaignsPage() {
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ minWidth: '260px' }}>
             <label htmlFor="ruleCampaignId">Campaign</label>
-            <select
+            <PresentationSelect
               id="ruleCampaignId"
               value={selectedRuleCampaignId}
               onChange={(e) => setSelectedRuleCampaignId(e.target.value)}
@@ -1493,11 +1496,11 @@ export default function ReferralCampaignsPage() {
             >
               {!ruleCampaigns.length && <option value="">No campaigns</option>}
               {ruleCampaigns.map((item) => (
-                <option key={item.id} value={String(item.id)}>
+                <option data-regulator-restricted={isRegulatorRestrictedRecord(item)} key={item.id} value={String(item.id)}>
                   {item.name || `Campaign ${item.id}`} ({item.status || 'UNKNOWN'})
                 </option>
               ))}
-            </select>
+            </PresentationSelect>
           </div>
           <button type="button" className="btn-neutral" onClick={fetchRuleCampaigns} disabled={ruleCampaignLoading}>
             {ruleCampaignLoading ? 'Loading…' : 'Reload campaigns'}
@@ -1764,11 +1767,11 @@ export default function ReferralCampaignsPage() {
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <div>
             <label htmlFor="auditPrefix">Action prefix</label>
-            <select id="auditPrefix" value={auditPrefix} onChange={(e) => setAuditPrefix(e.target.value)}>
+            <PresentationSelect id="auditPrefix" value={auditPrefix} onChange={(e) => setAuditPrefix(e.target.value)}>
               {auditPrefixOptions.map((option) => (
-                <option key={option} value={option}>{option}</option>
+                <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option} value={option}>{option}</option>
               ))}
-            </select>
+            </PresentationSelect>
           </div>
           <button type="button" className="btn-primary" onClick={fetchAuditLogs} disabled={auditLoading}>
             {auditLoading ? 'Loading…' : 'Refresh audit logs'}
@@ -1809,17 +1812,17 @@ export default function ReferralCampaignsPage() {
               </div>
               <div>
                 <label htmlFor="accountRewardRuleAction">Action</label>
-                <select
+                <PresentationSelect
                   id="accountRewardRuleAction"
                   value={accountRewardRuleDraft.action}
                   onChange={(e) => setAccountRewardRuleDraft((prev) => ({ ...prev, action: e.target.value }))}
                 >
                   {referralActionOptions.map((action) => (
-                    <option key={action || 'default'} value={action}>
+                    <option data-regulator-restricted={isRegulatorRestrictedRecord(action)} key={action || 'default'} value={action}>
                       {action || 'Default for this inviter'}
                     </option>
                   ))}
-                </select>
+                </PresentationSelect>
               </div>
               <div>
                 <label htmlFor="accountRewardRulePct">Net amount share %</label>
@@ -2060,11 +2063,11 @@ export default function ReferralCampaignsPage() {
                 </div>
 
                 <div style={{ display: 'grid', gap: '0.35rem' }}>
-                  <div style={{ fontWeight: 700 }}>Settle rewards to wallet</div>
-                  <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                  <NonRegulatorContent><div style={{ fontWeight: 700 }}>Settle rewards to wallet</div></NonRegulatorContent>
+                  <NonRegulatorContent><div style={{ color: 'var(--muted)', fontSize: '12px' }}>
                     If ON, approved rewards are immediately credited to the inviter wallet as a BONUS transaction and marked ISSUED.
-                  </div>
-                  <label htmlFor="settleRewardsToWallet" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  </div></NonRegulatorContent>
+                  <NonRegulatorContent><label htmlFor="settleRewardsToWallet" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                     <input
                       id="settleRewardsToWallet"
                       type="checkbox"
@@ -2072,7 +2075,7 @@ export default function ReferralCampaignsPage() {
                       onChange={(e) => setDraft((p) => ({ ...p, settleRewardsToWallet: e.target.checked }))}
                     />
                     <span style={{ fontWeight: 700 }}>{draft.settleRewardsToWallet ? 'ON: Credit approved rewards to wallet' : 'OFF: Keep rewards as referral points'}</span>
-                  </label>
+                  </label></NonRegulatorContent>
                   <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
                     Pending rewards are not auto-settled. Existing campaigns default to OFF.
                   </div>
@@ -2130,7 +2133,7 @@ export default function ReferralCampaignsPage() {
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.75rem' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                       <label htmlFor="rewardMode">Reward mode</label>
-                      <select
+                      <PresentationSelect
                         id="rewardMode"
                         value={draft.rewardMode}
                         onChange={(e) => {
@@ -2139,9 +2142,9 @@ export default function ReferralCampaignsPage() {
                         }}
                       >
                         {rewardModeOptions.map((option) => (
-                          <option key={option} value={option}>{option}</option>
+                          <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option} value={option}>{option}</option>
                         ))}
-                      </select>
+                      </PresentationSelect>
                       {fieldErrors.rewardMode && <div style={{ color: '#b91c1c', fontSize: '12px' }}>{fieldErrors.rewardMode}</div>}
                     </div>
 
@@ -2304,7 +2307,7 @@ export default function ReferralCampaignsPage() {
                 {draft.rewardMode === 'REVENUE_SHARE' && <div><strong>Revenue share:</strong> {draft.revenueSharePct || 0}%</div>}
                 {draft.rewardMode === 'NET_AMOUNT_SHARE' && <div><strong>Net amount share:</strong> {draft.netAmountSharePct || 0}%</div>}
                 <div style={{ fontWeight: 700 }}>Payload preview</div>
-                <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '12px' }}>{payloadPreview}</pre>
+                <NonRegulatorContent><pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '12px' }}>{payloadPreview}</pre></NonRegulatorContent>
               </div>
             )}
 
@@ -2378,7 +2381,7 @@ export default function ReferralCampaignsPage() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="ruleRewardMode">Reward mode *</label>
-                <select
+                <PresentationSelect
                   id="ruleRewardMode"
                   value={ruleEditorDraft.rewardMode}
                   onChange={(e) => {
@@ -2392,9 +2395,9 @@ export default function ReferralCampaignsPage() {
                   }}
                 >
                   {rewardModeOptions.map((item) => (
-                    <option key={item} value={item}>{item}</option>
+                    <option data-regulator-restricted={isRegulatorRestrictedRecord(item)} key={item} value={item}>{item}</option>
                   ))}
-                </select>
+                </PresentationSelect>
                 {ruleEditorErrors.rewardMode && <div style={{ color: '#b91c1c', fontSize: '12px' }}>{ruleEditorErrors.rewardMode}</div>}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -2553,15 +2556,15 @@ export default function ReferralCampaignsPage() {
             <div><strong>Activation reward points:</strong> {selected.activationRewardPoints ?? '—'}</div>
             <div><strong>Passport bonus points:</strong> {selected.passportBonusPoints ?? '—'}</div>
             <div><strong>Mark suspicious as pending:</strong> {String(Boolean(selected.markSuspiciousAsPending))}</div>
-            <div><strong>Settle rewards to wallet:</strong> {String(Boolean(selected.settleRewardsToWallet))}</div>
+            <div><NonRegulatorContent><strong>Settle rewards to wallet:</strong></NonRegulatorContent> {String(Boolean(selected.settleRewardsToWallet))}</div>
             <div><strong>Eligibility rules:</strong></div>
-            <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '12px' }}>
+            <NonRegulatorContent><pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '12px' }}>
               {JSON.stringify(selected.eligibilityRules ?? {}, null, 2)}
-            </pre>
+            </pre></NonRegulatorContent>
             <div><strong>Milestone rules:</strong></div>
-            <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '12px' }}>
+            <NonRegulatorContent><pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '12px' }}>
               {JSON.stringify(selected.milestoneRules ?? {}, null, 2)}
-            </pre>
+            </pre></NonRegulatorContent>
           </div>
         </Modal>
       )}

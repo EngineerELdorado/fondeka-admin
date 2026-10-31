@@ -1,11 +1,19 @@
 'use client';
 
+
+import { CatalogSelect } from '@/components/CatalogSelect';
+import { RegulatorRecord, PresentationSelect, NonRegulatorContent, PresentationLink as Link, RegulatorField, RegulatorList } from '@/components/RegulatorPresentation';
+
+import { regulatorVisibleFields, isRegulatorRestrictedRecord } from '@/lib/regulator-presentation';
+
+import { useAuth } from '@/contexts/AuthContext';
+
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useToast } from '@/contexts/ToastContext';
 import { BusinessToolsAccountPanel } from '@/components/BusinessToolsAccountPanel';
+import { AccountRegulatorModePanel } from '@/components/AccountRegulatorModePanel';
 import COUNTRIES from '@/data/countries';
 import { paymentMethodAdminLabel, paymentMethodRouteAdminLabel } from '@/lib/payment-method-labels';
 
@@ -99,16 +107,14 @@ const Modal = ({ title, onClose, children }) => (
   </div>
 );
 
-const DetailGrid = ({ rows }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
-    {rows.map((row) => (
+const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+    {regulatorVisibleFields(rows, enableRegulatorMode).map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
         <div style={{ fontWeight: 700 }}>{row.value ?? '—'}</div>
       </div>
     ))}
-  </div>
-);
+  </div>); };
 
 const getCardHolderProviderProfiles = (holder) => {
   const profiles = holder?.providerProfiles || holder?.cardHolderProviderProfiles || holder?.cardProviderProfiles;
@@ -218,7 +224,7 @@ const MultiSelect = ({ label, options, values, onChange, helperText }) => (
       }}
     >
       {options.map((option) => (
-        <label key={option} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '13px' }}>
+        <RegulatorField field={option} key={option}><label key={option} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '13px' }}>
           <input
             type="checkbox"
             checked={values.includes(option)}
@@ -232,7 +238,7 @@ const MultiSelect = ({ label, options, values, onChange, helperText }) => (
             }}
           />
           <span>{option}</span>
-        </label>
+        </label></RegulatorField>
       ))}
     </div>
     {helperText ? <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{helperText}</div> : null}
@@ -719,6 +725,7 @@ const formatFeeAmountRange = (minAmount, maxAmount) => {
 };
 
 export default function AccountDetailPage() {
+  const { enableRegulatorMode } = useAuth();
   const params = useParams();
   const router = useRouter();
 const { pushToast } = useToast();
@@ -1100,21 +1107,21 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       await loadTrustedDevicePolicy(targetId);
       await loadRecovery(targetId);
       await loadRecoveryHistory(targetId);
-      await loadCustomPricing(targetId);
-      await loadLoanEligibility(targetId);
-      await loadEffectiveCaps(targetId);
+      if (enableRegulatorMode === false) await loadCustomPricing(targetId);
+      if (enableRegulatorMode === false) await loadLoanEligibility(targetId);
+      if (enableRegulatorMode === false) await loadEffectiveCaps(targetId);
       await loadFeeConfigs(targetId);
       await loadPaymentMethodActionConfigs(targetId);
       await loadBillProductOverrides(targetId);
       await loadProviderRouting(targetId);
       await loadCardPrices(targetId);
       await loadCardProviderStatusOverrides(targetId, acc);
-      await loadLoanRates(targetId);
-      await loadCryptoRates(targetId);
-      await loadCryptoLimits(targetId);
+      if (enableRegulatorMode === false) await loadLoanRates(targetId);
+      if (enableRegulatorMode === false) await loadCryptoRates(targetId);
+      if (enableRegulatorMode === false) await loadCryptoLimits(targetId);
       await loadPhoneVerificationOverride(targetId, acc);
       await loadEnhancedKycVerificationOverride(targetId, acc);
-      await loadWalletActionOverride(targetId);
+      if (enableRegulatorMode === false) await loadWalletActionOverride(targetId);
       await loadAccountRewardRules(targetId);
       await loadAccountReferralRewards(targetId);
     } catch (err) {
@@ -2906,8 +2913,8 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
     const fetchOptions = async () => {
       try {
         const [pmpRes, billProductsRes, countryRes, cardProductProvidersRes, loanProductsRes, cryptoProductsRes, cryptoNetworksRes] = await Promise.all([
-          api.paymentMethodPaymentProviders.list(new URLSearchParams({ page: '0', size: '200' })),
-          api.billProducts.list(new URLSearchParams({ page: '0', size: '500' })),
+          api.paymentMethodPaymentProviders.options(new URLSearchParams({ page: '0', size: '200' })),
+          api.billProducts.options(new URLSearchParams({ page: '0', size: '500' })),
           api.countries.list(new URLSearchParams({ page: '0', size: '200' })),
           api.cardProductCardProviders.list(new URLSearchParams({ page: '0', size: '200' })),
           api.loanProducts.list(new URLSearchParams({ page: '0', size: '200' })),
@@ -4047,13 +4054,13 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
 
   useEffect(() => {
     if (resolvedAccountId === null || resolvedAccountId === undefined) return;
-    loadDepositPromptFlagReference(resolvedAccountId);
-  }, [resolvedAccountId]);
+    if (enableRegulatorMode === false) loadDepositPromptFlagReference(resolvedAccountId);
+  }, [resolvedAccountId, enableRegulatorMode]);
 
   useEffect(() => {
     if (resolvedAccountId === null || resolvedAccountId === undefined) return;
-    loadLoanEligibility(resolvedAccountId);
-  }, [resolvedAccountId]);
+    if (enableRegulatorMode === false) loadLoanEligibility(resolvedAccountId);
+  }, [resolvedAccountId, enableRegulatorMode]);
 
   useEffect(() => {
     if (resolvedAccountId === null || resolvedAccountId === undefined) return;
@@ -4123,12 +4130,12 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           <button type="button" className="btn-neutral" onClick={openNotification}>
             Send notification
           </button>
-          <button type="button" className="btn-success" onClick={openCredit}>
+          <NonRegulatorContent><button type="button" className="btn-success" onClick={openCredit}>
             Credit wallet
-          </button>
-          <button type="button" className="btn-danger" onClick={openDebit}>
+          </button></NonRegulatorContent>
+          <NonRegulatorContent><button type="button" className="btn-danger" onClick={openDebit}>
             Debit wallet
-          </button>
+          </button></NonRegulatorContent>
           {accountView?.blacklisted ? (
             <button
               type="button"
@@ -4212,6 +4219,10 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           }
         ]}
       />
+
+      {account && resolvedAccountId !== null && resolvedAccountId !== undefined ? (
+        <AccountRegulatorModePanel accountId={resolvedAccountId} refreshKey={account} accountLoading={loading} />
+      ) : null}
 
       {resolvedAccountId !== null && resolvedAccountId !== undefined ? (
         <BusinessToolsAccountPanel accountId={resolvedAccountId} />
@@ -4405,7 +4416,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               <thead>
                 <tr style={{ textAlign: 'left', color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
                   {['Date', 'Campaign', 'Invitee', 'Event', 'Points', 'Status', 'Suspicious', 'Reason', 'Actions'].map((label) => (
-                    <th key={label} style={{ padding: '0.45rem' }}>{label}</th>
+                    <RegulatorField field={label} key={label}><th key={label} style={{ padding: '0.45rem' }}>{label}</th></RegulatorField>
                   ))}
                 </tr>
               </thead>
@@ -4414,7 +4425,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                   const rewardId = reward.id;
                   const canReverseReward = rewardId && String(reward.status || '').toUpperCase() === 'APPROVED';
                   return (
-                    <tr key={rewardId || `${reward.campaignId}-${reward.inviteeAccountId}-${reward.createdAt}`} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <RegulatorRecord record={reward} key={rewardId || `${reward.campaignId}-${reward.inviteeAccountId}-${reward.createdAt}`}><tr key={rewardId || `${reward.campaignId}-${reward.inviteeAccountId}-${reward.createdAt}`} style={{ borderBottom: '1px solid var(--border)' }}>
                       <td style={{ padding: '0.45rem' }}>{formatDateTime(reward.createdAt)}</td>
                       <td style={{ padding: '0.45rem' }}>{reward.campaignName || reward.campaignId || '—'}</td>
                       <td style={{ padding: '0.45rem' }}>
@@ -4442,7 +4453,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                           {referralRewardActionLoading === `reverse-${rewardId}` ? 'Reversing…' : 'Reverse'}
                         </button>
                       </td>
-                    </tr>
+                    </tr></RegulatorRecord>
                   );
                 })}
               </tbody>
@@ -4481,13 +4492,13 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                 <thead>
                   <tr style={{ textAlign: 'left', color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
                     {['Action', 'Percentage', 'Max tx', 'Min', 'Max', 'Enabled', 'Notes', 'Actions'].map((label) => (
-                      <th key={label} style={{ padding: '0.45rem' }}>{label}</th>
+                      <RegulatorField field={label} key={label}><th key={label} style={{ padding: '0.45rem' }}>{label}</th></RegulatorField>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {accountRewardRules.map((rule) => (
-                    <tr key={rule.id || `${rule.inviterAccountId}-${rule.action || 'default'}`} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <RegulatorRecord record={rule} key={rule.id || `${rule.inviterAccountId}-${rule.action || 'default'}`}><tr key={rule.id || `${rule.inviterAccountId}-${rule.action || 'default'}`} style={{ borderBottom: '1px solid var(--border)' }}>
                       <td style={{ padding: '0.45rem' }}>{rule.action || 'Default for this inviter'}</td>
                       <td style={{ padding: '0.45rem' }}>{rule.netAmountSharePct === null || rule.netAmountSharePct === undefined ? '—' : `${rule.netAmountSharePct}%`}</td>
                       <td style={{ padding: '0.45rem' }}>{rule.maxTransactions ?? '—'}</td>
@@ -4516,7 +4527,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                           </button>
                         </div>
                       </td>
-                    </tr>
+                    </tr></RegulatorRecord>
                   ))}
                 </tbody>
               </table>
@@ -4546,14 +4557,14 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'end' }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minWidth: '240px', flex: 1 }}>
             <span>Country (ISO alpha-2)</span>
-            <select value={countryCodeDraft} onChange={(e) => setCountryCodeDraft(e.target.value)}>
+            <PresentationSelect value={countryCodeDraft} onChange={(e) => setCountryCodeDraft(e.target.value)}>
               <option value="">Select country</option>
               {COUNTRIES.map((country) => (
-                <option key={country.cca2} value={country.cca2}>
+                <option data-regulator-restricted={isRegulatorRestrictedRecord(country)} key={country.cca2} value={country.cca2}>
                   {country.flag} {country.name} ({country.cca2})
                 </option>
               ))}
-            </select>
+            </PresentationSelect>
           </label>
           <button
             type="button"
@@ -4566,7 +4577,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         </div>
       </div>
 
-      <div className="card" style={{ padding: '1rem' }}>
+      <NonRegulatorContent><div className="card" style={{ padding: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
             <div style={{ fontWeight: 800 }}>Account Wallet Button Override</div>
@@ -4675,7 +4686,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                       />
                     </label>
                   </div>
-                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+                  <RegulatorField field={action}><label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
                     <input
                       type="checkbox"
                       checked={Boolean(walletActionOverrideDraft[action.showSubText])}
@@ -4683,7 +4694,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                       disabled={walletActionOverrideSaving || walletActionOverrideLoading}
                     />
                     Show subtitle
-                  </label>
+                  </label></RegulatorField>
                 </div>
               ))}
             </div>
@@ -4708,7 +4719,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             </div>
           </>
         )}
-      </div>
+      </div></NonRegulatorContent>
 
       <div className="card" style={{ padding: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
@@ -4956,9 +4967,9 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                 <summary style={{ cursor: 'pointer', color: 'var(--muted)', fontSize: '13px', fontWeight: 700 }}>
                   Additional device details
                 </summary>
-                <pre style={{ margin: '0.45rem 0 0', whiteSpace: 'pre-wrap', overflowX: 'auto', color: 'var(--text)', fontSize: '12px' }}>
+                <NonRegulatorContent><pre style={{ margin: '0.45rem 0 0', whiteSpace: 'pre-wrap', overflowX: 'auto', color: 'var(--text)', fontSize: '12px' }}>
                   {formatJsonFull(mobileDeviceDetails.raw)}
-                </pre>
+                </pre></NonRegulatorContent>
               </details>
             ) : null}
           </div>
@@ -5006,7 +5017,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         </div>
       </div>
 
-      <div className="card" style={{ padding: '1rem' }}>
+      <NonRegulatorContent><div className="card" style={{ padding: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
             <div style={{ fontWeight: 800 }}>Loan eligibility</div>
@@ -5083,7 +5094,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           )}
         </div>
         ) : null}
-      </div>
+      </div></NonRegulatorContent>
 
       <div className="card" style={{ padding: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
@@ -5199,7 +5210,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxWidth: '320px' }}>
             <label htmlFor="recoverySelfServiceEnabledOverride">Self-service recovery override</label>
-            <select
+            <PresentationSelect
               id="recoverySelfServiceEnabledOverride"
               value={trustedDevicePolicy.recoverySelfServiceEnabledOverride}
               onChange={(e) => setTrustedDevicePolicy((prev) => ({ ...prev, recoverySelfServiceEnabledOverride: e.target.value }))}
@@ -5208,7 +5219,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               <option value="GLOBAL">Use global policy</option>
               <option value="ENABLED">Enabled for this account</option>
               <option value="DISABLED">Disabled for this account</option>
-            </select>
+            </PresentationSelect>
             <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
               Use this override when a specific account should be allowed or blocked from in-app recovery regardless of the global policy.
             </div>
@@ -5435,9 +5446,9 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                             />
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                               <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>Metadata</div>
-                              <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '10px', background: 'var(--panel, transparent)' }}>
+                              <NonRegulatorContent><pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '10px', background: 'var(--panel, transparent)' }}>
                                 {formatJsonFull(item.metadata)}
-                              </pre>
+                              </pre></NonRegulatorContent>
                             </div>
                           </div>
                         )}
@@ -5451,7 +5462,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         )}
       </div>
 
-      <div className="card" style={{ padding: '1rem', ...fadeInStyle(!customPricingLoading) }}>
+      <NonRegulatorContent><div className="card" style={{ padding: '1rem', ...fadeInStyle(!customPricingLoading) }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
             <div style={{ fontWeight: 800 }}>Custom KYC Caps</div>
@@ -5715,9 +5726,9 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
 
           {pricingError && <div style={{ marginTop: '0.6rem', color: '#b91c1c', fontWeight: 700 }}>{pricingError}</div>}
         </div>
-      </div>
+      </div></NonRegulatorContent>
 
-      <div className="card" style={{ padding: '1rem', ...fadeInStyle(!customPricingLoading) }}>
+      <NonRegulatorContent><div className="card" style={{ padding: '1rem', ...fadeInStyle(!customPricingLoading) }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
             <div style={{ fontWeight: 800 }}>Crypto Provider Collection Limits</div>
@@ -5791,7 +5802,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             Clear override
           </button>
         </div>
-      </div>
+      </div></NonRegulatorContent>
 
       <div className="card" style={{ padding: '1rem', ...fadeInStyle(!feeConfigsLoading) }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
@@ -5824,19 +5835,19 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                 <thead>
                   <tr>
                           {['Action', 'Service', 'From', 'To', 'PMPP', 'Country', 'Provider %', 'Provider flat', 'Our %', 'Our flat', 'Amount range', 'Fee mode', 'Updated', ''].map((h) => (
-                      <th key={h} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                      <RegulatorField field={h} key={h}><th key={h} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
                         {h}
-                      </th>
+                      </th></RegulatorField>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {feeConfigs.map((fee) => (
-                    <tr key={fee.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <RegulatorRecord record={fee} key={fee.id}><tr key={fee.id} style={{ borderBottom: '1px solid var(--border)' }}>
                       <td style={{ padding: '0.45rem' }}>{fee.action}</td>
                       <td style={{ padding: '0.45rem' }}>{fee.service || '—'}</td>
-                      <td style={{ padding: '0.45rem' }}>{fee.fromCryptoProductId ? getCryptoProductLabel(fee.fromCryptoProductId) : '—'}</td>
-                      <td style={{ padding: '0.45rem' }}>{fee.toCryptoProductId ? getCryptoProductLabel(fee.toCryptoProductId) : '—'}</td>
+                      <RegulatorField field="fromCryptoProductId"><td style={{ padding: '0.45rem' }}>{fee.fromCryptoProductId ? getCryptoProductLabel(fee.fromCryptoProductId) : '—'}</td></RegulatorField>
+                      <RegulatorField field="toCryptoProductId"><td style={{ padding: '0.45rem' }}>{fee.toCryptoProductId ? getCryptoProductLabel(fee.toCryptoProductId) : '—'}</td></RegulatorField>
                       <td style={{ padding: '0.45rem' }}>
                         {fee.paymentMethodPaymentProviderId
                           ? (() => {
@@ -5870,7 +5881,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                           Delete
                         </button>
                       </td>
-                    </tr>
+                    </tr></RegulatorRecord>
                   ))}
                 </tbody>
               </table>
@@ -5928,24 +5939,24 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                 <thead>
                   <tr>
                     {['Action', 'Country', 'Rank', 'Active', 'Local MM for USD wallet', 'Include Types', 'Exclude Types', 'Include Names', 'Exclude Names', 'Updated', ''].map((h) => (
-                      <th key={h} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                      <RegulatorField field={h} key={h}><th key={h} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
                         {h}
-                      </th>
+                      </th></RegulatorField>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {paymentMethodActionConfigs.map((rule) => (
-                    <tr key={rule.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <RegulatorRecord record={rule} key={rule.id}><tr key={rule.id} style={{ borderBottom: '1px solid var(--border)' }}>
                       <td style={{ padding: '0.45rem' }}>{rule.action || '—'}</td>
                       <td style={{ padding: '0.45rem' }}>{rule.countryCode || '—'}</td>
                       <td style={{ padding: '0.45rem' }}>{rule.rank ?? 0}</td>
                       <td style={{ padding: '0.45rem' }}>{rule.active ? 'Yes' : 'No'}</td>
-                      <td style={{ padding: '0.45rem' }}>{formatAllowLocalMobileMoney(rule.allowLocalMobileMoneyForUsdWallet)}</td>
-                      <td style={{ padding: '0.45rem' }}>{Array.isArray(rule.includeTypes) && rule.includeTypes.length ? rule.includeTypes.join(', ') : '—'}</td>
-                      <td style={{ padding: '0.45rem' }}>{Array.isArray(rule.excludeTypes) && rule.excludeTypes.length ? rule.excludeTypes.join(', ') : '—'}</td>
-                      <td style={{ padding: '0.45rem' }}>{Array.isArray(rule.includeNames) && rule.includeNames.length ? rule.includeNames.join(', ') : '—'}</td>
-                      <td style={{ padding: '0.45rem' }}>{Array.isArray(rule.excludeNames) && rule.excludeNames.length ? rule.excludeNames.join(', ') : '—'}</td>
+                      <RegulatorField field="allowLocalMobileMoneyForUsdWallet"><td style={{ padding: '0.45rem' }}>{formatAllowLocalMobileMoney(rule.allowLocalMobileMoneyForUsdWallet)}</td></RegulatorField>
+                      <td style={{ padding: '0.45rem' }}>{Array.isArray(rule.includeTypes) && rule.includeTypes.length ? <RegulatorList values={rule.includeTypes} separator={', '} /> : '—'}</td>
+                      <td style={{ padding: '0.45rem' }}>{Array.isArray(rule.excludeTypes) && rule.excludeTypes.length ? <RegulatorList values={rule.excludeTypes} separator={', '} /> : '—'}</td>
+                      <td style={{ padding: '0.45rem' }}>{Array.isArray(rule.includeNames) && rule.includeNames.length ? <RegulatorList values={rule.includeNames} separator={', '} /> : '—'}</td>
+                      <td style={{ padding: '0.45rem' }}>{Array.isArray(rule.excludeNames) && rule.excludeNames.length ? <RegulatorList values={rule.excludeNames} separator={', '} /> : '—'}</td>
                       <td style={{ padding: '0.45rem' }}>{rule.updatedAt ? formatDateTime(rule.updatedAt) : '—'}</td>
                       <td style={{ padding: '0.45rem', display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                         <button type="button" className="btn-neutral btn-sm" onClick={() => openPaymentMethodActionForm(rule)}>
@@ -5955,7 +5966,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                           Delete
                         </button>
                       </td>
-                    </tr>
+                    </tr></RegulatorRecord>
                   ))}
                 </tbody>
               </table>
@@ -5992,9 +6003,9 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                 <thead>
                   <tr>
                     {['Bill product', 'Enabled', 'Note', 'Updated', ''].map((h) => (
-                      <th key={h} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                      <RegulatorField field={h} key={h}><th key={h} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
                         {h}
-                      </th>
+                      </th></RegulatorField>
                     ))}
                   </tr>
                 </thead>
@@ -6003,7 +6014,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                     const billProductId = override?.billProductId ?? override?.billProduct?.id ?? override?.productId ?? null;
                     const rowKey = override?.id ?? `${billProductId || 'unknown'}-${index}`;
                     return (
-                      <tr key={rowKey} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <RegulatorRecord record={override} key={rowKey}><tr key={rowKey} style={{ borderBottom: '1px solid var(--border)' }}>
                         <td style={{ padding: '0.45rem' }}>{getBillProductLabel(billProductId)}</td>
                         <td style={{ padding: '0.45rem' }}>
                           <Badge>{override?.enabled ? 'Enabled' : 'Disabled'}</Badge>
@@ -6018,7 +6029,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                             Remove
                           </button>
                         </td>
-                      </tr>
+                      </tr></RegulatorRecord>
                     );
                   })}
                 </tbody>
@@ -6054,7 +6065,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="providerRoutingFilterActive">Active</label>
-              <select
+              <PresentationSelect
                 id="providerRoutingFilterActive"
                 value={providerRoutingFilters.active}
                 onChange={(e) => setProviderRoutingFilters((prev) => ({ ...prev, active: e.target.value }))}
@@ -6062,36 +6073,36 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                 <option value="">All</option>
                 <option value="true">Active</option>
                 <option value="false">Inactive</option>
-              </select>
+              </PresentationSelect>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="providerRoutingFilterAction">Action</label>
-              <select
+              <PresentationSelect
                 id="providerRoutingFilterAction"
                 value={providerRoutingFilters.action}
                 onChange={(e) => setProviderRoutingFilters((prev) => ({ ...prev, action: e.target.value }))}
               >
                 {providerRoutingFilterActionOptions.map((option) => (
-                  <option key={option || 'all'} value={option}>
+                  <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option || 'all'} value={option}>
                     {option || 'All'}
                   </option>
                 ))}
-              </select>
+              </PresentationSelect>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="providerRoutingFilterContext">Context</label>
-              <select
+              <PresentationSelect
                 id="providerRoutingFilterContext"
                 value={providerRoutingFilters.context}
                 onChange={(e) => setProviderRoutingFilters((prev) => ({ ...prev, context: e.target.value }))}
               >
                 <option value="">All</option>
                 {providerRoutingContextOptions.map((option) => (
-                  <option key={option} value={option}>
+                  <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option} value={option}>
                     {option}
                   </option>
                 ))}
-              </select>
+              </PresentationSelect>
             </div>
           </div>
 
@@ -6107,9 +6118,9 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                 <thead>
                   <tr>
                     {['Payment method', 'Provider', 'Action', 'Context', 'Rank', 'Active', 'Updated', ''].map((h) => (
-                      <th key={h} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                      <RegulatorField field={h} key={h}><th key={h} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
                         {h}
-                      </th>
+                      </th></RegulatorField>
                     ))}
                   </tr>
                 </thead>
@@ -6119,7 +6130,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                     const methodName = paymentMethodAdminLabel(row, match ? paymentMethodRouteAdminLabel(match) : '—');
                     const providerName = row.providerName || row.paymentProviderName || match?.paymentProviderName || '—';
                     return (
-                      <tr key={row.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <RegulatorRecord record={row} key={row.id}><tr key={row.id} style={{ borderBottom: '1px solid var(--border)' }}>
                         <td style={{ padding: '0.45rem' }}>{methodName}</td>
                         <td style={{ padding: '0.45rem' }}>{providerName}</td>
                         <td style={{ padding: '0.45rem' }}>{row.action || '—'}</td>
@@ -6140,7 +6151,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                             Delete
                           </button>
                         </td>
-                      </tr>
+                      </tr></RegulatorRecord>
                     );
                   })}
                 </tbody>
@@ -6185,9 +6196,9 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                 <thead>
                   <tr>
                     {['Target', 'Product / Provider', 'Override', 'Updated', ''].map((h) => (
-                      <th key={h} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                      <RegulatorField field={h} key={h}><th key={h} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
                         {h}
-                      </th>
+                      </th></RegulatorField>
                     ))}
                   </tr>
                 </thead>
@@ -6196,7 +6207,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                     const match = cardProductCardProviders.find((c) => String(c.id) === String(override.cardProductCardProviderId));
                     const targetLabel = override.email ? `Email: ${override.email}` : `Account: #${override.accountId || resolvedAccountId}`;
                     return (
-                      <tr key={override.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <RegulatorRecord record={override} key={override.id}><tr key={override.id} style={{ borderBottom: '1px solid var(--border)' }}>
                         <td style={{ padding: '0.45rem' }}>{targetLabel}</td>
                         <td style={{ padding: '0.45rem' }}>{match ? cardProductProviderLabel(match) : override.cardProductCardProviderId}</td>
                         <td style={{ padding: '0.45rem' }}>
@@ -6211,7 +6222,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                             Delete
                           </button>
                         </td>
-                      </tr>
+                      </tr></RegulatorRecord>
                     );
                   })}
                 </tbody>
@@ -6254,15 +6265,15 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                 <thead>
                   <tr>
                     {['Product / Provider', 'Price', 'Updated', ''].map((h) => (
-                      <th key={h} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                      <RegulatorField field={h} key={h}><th key={h} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
                         {h}
-                      </th>
+                      </th></RegulatorField>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {cardPrices.map((override) => (
-                    <tr key={override.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <RegulatorRecord record={override} key={override.id}><tr key={override.id} style={{ borderBottom: '1px solid var(--border)' }}>
                       <td style={{ padding: '0.45rem' }}>
                         {(() => {
                           const match = cardProductCardProviders.find((c) => String(c.id) === String(override.cardProductCardProviderId));
@@ -6282,7 +6293,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                           Delete
                         </button>
                       </td>
-                    </tr>
+                    </tr></RegulatorRecord>
                   ))}
                 </tbody>
               </table>
@@ -6291,7 +6302,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         </div>
       </div>
 
-      <div className="card" style={{ padding: '1rem', ...fadeInStyle(!cryptoRatesLoading) }}>
+      <NonRegulatorContent><div className="card" style={{ padding: '1rem', ...fadeInStyle(!cryptoRatesLoading) }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
             <div style={{ fontWeight: 800 }}>Custom Crypto Rates</div>
@@ -6324,21 +6335,21 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                 <thead>
                   <tr>
                     {['Product', 'Ask', 'Bid', 'Updated', ''].map((h) => (
-                      <th key={h} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                      <RegulatorField field={h} key={h}><th key={h} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
                         {h}
-                      </th>
+                      </th></RegulatorField>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {cryptoRates.map((override) => (
-                    <tr key={override.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td style={{ padding: '0.45rem' }}>
+                    <RegulatorRecord record={override} key={override.id}><tr key={override.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <RegulatorField field="cryptoProductId"><td style={{ padding: '0.45rem' }}>
                         {(() => {
                           const match = cryptoProducts.find((p) => String(p.id) === String(override.cryptoProductId));
                           return match?.name || match?.displayName || match?.symbol || override.cryptoProductId;
                         })()}
-                      </td>
+                      </td></RegulatorField>
                       <td style={{ padding: '0.45rem' }}>
                         {override.ask === null || override.ask === undefined ? '—' : `${override.ask}%`}
                       </td>
@@ -6354,16 +6365,16 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                           Delete
                         </button>
                       </td>
-                    </tr>
+                    </tr></RegulatorRecord>
                   ))}
                 </tbody>
               </table>
             </div>
           )}
         </div>
-      </div>
+      </div></NonRegulatorContent>
 
-      <div className="card" style={{ padding: '1rem', ...fadeInStyle(!cryptoLimitsLoading) }}>
+      <NonRegulatorContent><div className="card" style={{ padding: '1rem', ...fadeInStyle(!cryptoLimitsLoading) }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
             <div style={{ fontWeight: 800 }}>Custom Crypto Limits</div>
@@ -6396,16 +6407,16 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                 <thead>
                   <tr>
                     {['Network', 'Buy (USD)', 'Sell (USD)', 'Send (USD)', 'Receive (USD)', 'Swap (USD)', 'Updated', ''].map((h) => (
-                      <th key={h} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                      <RegulatorField field={h} key={h}><th key={h} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
                         {h}
-                      </th>
+                      </th></RegulatorField>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {cryptoLimits.map((override) => (
-                    <tr key={override.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td style={{ padding: '0.45rem' }}>
+                    <RegulatorRecord record={override} key={override.id}><tr key={override.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <RegulatorField field="cryptoProductCryptoNetworkId"><td style={{ padding: '0.45rem' }}>
                         {(() => {
                           const match = cryptoNetworks.find((c) => String(c.id) === String(override.cryptoProductCryptoNetworkId));
                           if (match) {
@@ -6415,7 +6426,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                           }
                           return override.cryptoProductCryptoNetworkId;
                         })()}
-                      </td>
+                      </td></RegulatorField>
                       <td style={{ padding: '0.45rem' }}>{override.dailyBuyLimitUsd ?? '—'}</td>
                       <td style={{ padding: '0.45rem' }}>{override.dailySellLimitUsd ?? '—'}</td>
                       <td style={{ padding: '0.45rem' }}>{override.dailySendLimitUsd ?? '—'}</td>
@@ -6430,16 +6441,16 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                           Delete
                         </button>
                       </td>
-                    </tr>
+                    </tr></RegulatorRecord>
                   ))}
                 </tbody>
               </table>
             </div>
           )}
         </div>
-      </div>
+      </div></NonRegulatorContent>
 
-      <div className="card" style={{ padding: '1rem', ...fadeInStyle(!loanRatesLoading) }}>
+      <NonRegulatorContent><div className="card" style={{ padding: '1rem', ...fadeInStyle(!loanRatesLoading) }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
             <div style={{ fontWeight: 800 }}>Custom Loan Rates</div>
@@ -6472,21 +6483,21 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                 <thead>
                   <tr>
                     {['Loan product', 'Interest %', 'Updated', ''].map((h) => (
-                      <th key={h} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                      <RegulatorField field={h} key={h}><th key={h} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
                         {h}
-                      </th>
+                      </th></RegulatorField>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {loanRates.map((override) => (
-                    <tr key={override.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td style={{ padding: '0.45rem' }}>
+                    <RegulatorRecord record={override} key={override.id}><tr key={override.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <RegulatorField field="loanProductId"><td style={{ padding: '0.45rem' }}>
                         {(() => {
                           const match = loanProducts.find((l) => String(l.id) === String(override.loanProductId));
                           return match?.title || override.loanProductId;
                         })()}
-                      </td>
+                      </td></RegulatorField>
                       <td style={{ padding: '0.45rem' }}>{override.interestPercentage}</td>
                       <td style={{ padding: '0.45rem' }}>{override.updatedAt ? formatDateTime(override.updatedAt) : '—'}</td>
                       <td style={{ padding: '0.45rem', display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
@@ -6497,14 +6508,14 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                           Delete
                         </button>
                       </td>
-                    </tr>
+                    </tr></RegulatorRecord>
                   ))}
                 </tbody>
               </table>
             </div>
           )}
         </div>
-      </div>
+      </div></NonRegulatorContent>
 
       {txView?.length > 0 && (
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', ...fadeInStyle(!loading) }}>
@@ -6514,9 +6525,9 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               <thead>
                 <tr>
                   {['ID', 'Created', 'Reference', 'Action', 'Status', 'Amount', 'Method', 'Customer', 'Actions'].map((label) => (
-                    <th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid #e5e7eb', color: '#6b7280' }}>
+                    <RegulatorField field={label} key={label}><th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid #e5e7eb', color: '#6b7280' }}>
                       {label}
-                    </th>
+                    </th></RegulatorField>
                   ))}
                 </tr>
               </thead>
@@ -6524,7 +6535,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                 {txView.map((txn) => {
                   const transactionId = txn.transactionId || txn.id;
                   return (
-                    <tr key={transactionId || txn.reference} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <RegulatorRecord record={txn} key={transactionId || txn.reference}><tr key={transactionId || txn.reference} style={{ borderBottom: '1px solid #f1f5f9' }}>
                       <td style={{ padding: '0.5rem' }}>{transactionId ?? '—'}</td>
                       <td style={{ padding: '0.5rem' }}>{formatDateTime(txn.createdAt)}</td>
                       <td style={{ padding: '0.5rem' }}>{txn.reference || '—'}</td>
@@ -6546,7 +6557,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                           '—'
                         )}
                       </td>
-                    </tr>
+                    </tr></RegulatorRecord>
                   );
                 })}
               </tbody>
@@ -6634,15 +6645,15 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               <thead>
                 <tr>
                   {['Created', 'Category', 'Subject', 'Body', 'Data', 'Read', 'Archived'].map((label) => (
-                    <th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid #e5e7eb', color: '#6b7280' }}>
+                    <RegulatorField field={label} key={label}><th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid #e5e7eb', color: '#6b7280' }}>
                       {label}
-                    </th>
+                    </th></RegulatorField>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {notificationRows.map((note) => (
-                  <tr key={note.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                  <RegulatorRecord record={note} key={note.id}><tr key={note.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                     <td style={{ padding: '0.5rem' }}>{formatDateTime(note.createdAt)}</td>
                     <td style={{ padding: '0.5rem' }}>{note.category || '—'}</td>
                     <td style={{ padding: '0.5rem' }}>{note.subject || '—'}</td>
@@ -6678,7 +6689,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                     </td>
                     <td style={{ padding: '0.5rem' }}>{note.readAt ? formatDateTime(note.readAt) : 'Unread'}</td>
                     <td style={{ padding: '0.5rem' }}>{note.archivedAt ? formatDateTime(note.archivedAt) : '—'}</td>
-                  </tr>
+                  </tr></RegulatorRecord>
                 ))}
               </tbody>
             </table>
@@ -6687,7 +6698,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       </div>
 
       {fiatWallets.length > 0 && (
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', ...fadeInStyle(!loading) }}>
+        <NonRegulatorContent><div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', ...fadeInStyle(!loading) }}>
           <div style={{ fontWeight: 700 }}>Fiat wallets</div>
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
             Full fiat wallet balances from `fiatWallets`. The legacy balance above remains the USD wallet balance for backward compatibility.
@@ -6697,21 +6708,21 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               <thead>
                 <tr>
                   {['ID', 'Currency', 'Name', 'Balance', 'Enabled', 'Legacy backed', 'Actions'].map((label) => (
-                    <th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid #e5e7eb', color: '#6b7280' }}>
+                    <RegulatorField field={label} key={label}><th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid #e5e7eb', color: '#6b7280' }}>
                       {label}
-                    </th>
+                    </th></RegulatorField>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {fiatWallets.map((wallet) => (
-                  <tr key={`${wallet.id || wallet.currency}-${wallet.currency}`} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                  <RegulatorRecord record={wallet} key={`${wallet.id || wallet.currency}-${wallet.currency}`}><tr key={`${wallet.id || wallet.currency}-${wallet.currency}`} style={{ borderBottom: '1px solid #f1f5f9' }}>
                     <td style={{ padding: '0.5rem' }}>{wallet.id ?? '—'}</td>
                     <td style={{ padding: '0.5rem' }}><Badge>{wallet.currency}</Badge></td>
                     <td style={{ padding: '0.5rem' }}>{wallet.displayName || '—'}</td>
-                    <td style={{ padding: '0.5rem', fontWeight: 800 }}>{formatAmountWithCurrency(wallet.balance, wallet.currency)}</td>
-                    <td style={{ padding: '0.5rem' }}>{wallet.walletEnabled ? 'Yes' : 'No'}</td>
-                    <td style={{ padding: '0.5rem' }}>{wallet.legacyBalanceBacked ? 'Yes' : 'No'}</td>
+                    <RegulatorField field="balance"><td style={{ padding: '0.5rem', fontWeight: 800 }}>{formatAmountWithCurrency(wallet.balance, wallet.currency)}</td></RegulatorField>
+                    <RegulatorField field="walletEnabled"><td style={{ padding: '0.5rem' }}>{wallet.walletEnabled ? 'Yes' : 'No'}</td></RegulatorField>
+                    <RegulatorField field="legacyBalanceBacked"><td style={{ padding: '0.5rem' }}>{wallet.legacyBalanceBacked ? 'Yes' : 'No'}</td></RegulatorField>
                     <td style={{ padding: '0.5rem' }}>
                       {wallet.id ? (
                         <Link href={`/dashboard/accounts/balance-activities?fiatWalletId=${encodeURIComponent(wallet.id)}`} className="btn-neutral">
@@ -6719,16 +6730,16 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                         </Link>
                       ) : '—'}
                     </td>
-                  </tr>
+                  </tr></RegulatorRecord>
                 ))}
               </tbody>
             </table>
           </div>
-        </div>
+        </div></NonRegulatorContent>
       )}
 
       {cryptoWallets.length > 0 && (
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', ...fadeInStyle(!loading) }}>
+        <NonRegulatorContent><div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', ...fadeInStyle(!loading) }}>
           <div style={{ fontWeight: 700 }}>Crypto wallets</div>
           {(() => {
             const totals = cryptoWallets.reduce((acc, w) => {
@@ -6756,37 +6767,37 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               <thead>
                 <tr>
                   {['ID', 'Product', 'Network', 'Balance', 'Actions'].map((label) => (
-                    <th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid #e5e7eb', color: '#6b7280' }}>
+                    <RegulatorField field={label} key={label}><th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid #e5e7eb', color: '#6b7280' }}>
                       {label}
-                    </th>
+                    </th></RegulatorField>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {cryptoWallets.map((wallet) => (
-                  <tr key={wallet.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                  <RegulatorRecord record={wallet} key={wallet.id}><tr key={wallet.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                     <td style={{ padding: '0.5rem' }}>{wallet.id}</td>
                     <td style={{ padding: '0.5rem' }}>{wallet.productName}</td>
                     <td style={{ padding: '0.5rem' }}>
                       <Badge>{wallet.networkDisplayName || wallet.networkName || 'Network'}</Badge>
                     </td>
-                    <td style={{ padding: '0.5rem' }}>
+                    <RegulatorField field="balance"><td style={{ padding: '0.5rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                         <span>{wallet.balance}</span>
                         {wallet.currency && <Badge>{wallet.currency}</Badge>}
                       </div>
-                    </td>
+                    </td></RegulatorField>
                     <td style={{ padding: '0.5rem' }}>
                       <button type="button" className="btn-success btn-sm" onClick={() => openCryptoCredit(wallet)}>
                         Credit
                       </button>
                     </td>
-                  </tr>
+                  </tr></RegulatorRecord>
                 ))}
               </tbody>
             </table>
           </div>
-        </div>
+        </div></NonRegulatorContent>
       )}
 
       {notificationBodyModal && (
@@ -6808,15 +6819,15 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             {notificationDataModal.createdAt && (
               <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{formatDateTime(notificationDataModal.createdAt)}</div>
             )}
-            <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '13px' }}>
+            <NonRegulatorContent><pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '13px' }}>
               {formatJsonFull(notificationDataModal.data)}
-            </pre>
+            </pre></NonRegulatorContent>
           </div>
         </Modal>
       )}
 
       {showPricingForm && (
-        <Modal title={`${customPricing ? 'Edit' : 'Add'} custom KYC caps`} onClose={() => (!pricingSaving ? setShowPricingForm(false) : null)}>
+        <NonRegulatorContent><Modal title={`${customPricing ? 'Edit' : 'Add'} custom KYC caps`} onClose={() => (!pricingSaving ? setShowPricingForm(false) : null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
               Deposit prompt default: {globalDepositPromptStatus} • Account flag: {accountDepositPromptFeatureFlagStatus} • Default threshold:{' '}
@@ -6888,7 +6899,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="pricingShowDepositPromptOverride">Account Deposit Prompt Override</label>
-                <select
+                <PresentationSelect
                   id="pricingShowDepositPromptOverride"
                   value={pricingShowDepositPromptOverride}
                   onChange={(e) => setPricingShowDepositPromptOverride(e.target.value)}
@@ -6896,7 +6907,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                   <option value="GLOBAL">Use global default</option>
                   <option value="ENABLED">Force on</option>
                   <option value="DISABLED">Force off</option>
-                </select>
+                </PresentationSelect>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="pricingDepositPromptThresholdOverride">Account Deposit Prompt Threshold Override</label>
@@ -6912,24 +6923,24 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="pricingBridgecardRegistrationMode">Bridgecard cardholder registration mode</label>
-                <select
+                <PresentationSelect
                   id="pricingBridgecardRegistrationMode"
                   value={pricingBridgecardRegistrationMode}
                   onChange={(e) => setPricingBridgecardRegistrationMode(e.target.value)}
                 >
                   {bridgecardRegistrationModeOptions.map((option) => (
-                    <option key={option.value || 'GLOBAL'} value={option.value}>
+                    <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option.value || 'GLOBAL'} value={option.value}>
                       {option.label}
                     </option>
                   ))}
-                </select>
+                </PresentationSelect>
                 <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
                   Choose how Bridgecard should register this specific user as a cardholder. Leave as Use global setting unless this user needs a different flow. Async registration allows Bridgecard manual review through callback. Synchronous registration attempts immediate verification and continues card ordering if successful.
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="pricingPaymentRequestSettlementMode">Payment request wallet settlement</label>
-                <select
+                <PresentationSelect
                   id="pricingPaymentRequestSettlementMode"
                   value={pricingPaymentRequestSettlementMode}
                   onChange={(e) => setPricingPaymentRequestSettlementMode(e.target.value)}
@@ -6937,7 +6948,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                   <option value="">Use global policy</option>
                   <option value="REQUEST_CURRENCY">Request currency</option>
                   <option value="PAYER_CURRENCY">Payer currency</option>
-                </select>
+                </PresentationSelect>
                 <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
                   Account override for wallet-funded payment request settlement currency.
                 </div>
@@ -6957,11 +6968,11 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               </button>
             </div>
           </div>
-        </Modal>
+        </Modal></NonRegulatorContent>
       )}
 
       {showPricingRemove && (
-        <Modal title="Remove custom KYC caps" onClose={() => (!pricingRemoving ? setShowPricingRemove(false) : null)}>
+        <NonRegulatorContent><Modal title="Remove custom KYC caps" onClose={() => (!pricingRemoving ? setShowPricingRemove(false) : null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ fontWeight: 700 }}>
               Remove custom KYC caps for account <span style={{ fontWeight: 900 }}>{accountView?.accountReference || accountView?.id}</span>?
@@ -6979,7 +6990,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               </button>
             </div>
           </div>
-        </Modal>
+        </Modal></NonRegulatorContent>
       )}
 
       {confirmPrompt && (
@@ -7215,15 +7226,15 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       )}
 
       {showCredit && (
-        <Modal title="Credit wallet" onClose={() => (!creditLoading ? setShowCredit(false) : null)}>
+        <NonRegulatorContent><Modal title="Credit wallet" onClose={() => (!creditLoading ? setShowCredit(false) : null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="creditAction">Action</label>
-                <select id="creditAction" value={creditAction} onChange={(e) => setCreditAction(e.target.value)}>
+                <PresentationSelect id="creditAction" value={creditAction} onChange={(e) => setCreditAction(e.target.value)}>
                   <option value="MANUAL_ADJUSTMENT">Manual adjustment</option>
                   <option value="BONUS">Bonus</option>
-                </select>
+                </PresentationSelect>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="creditAmount">Amount</label>
@@ -7240,12 +7251,12 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="creditCurrency">Wallet currency</label>
-                <select id="creditCurrency" value={creditCurrency} onChange={(e) => setCreditCurrency(e.target.value)}>
+                <PresentationSelect id="creditCurrency" value={creditCurrency} onChange={(e) => setCreditCurrency(e.target.value)}>
                   <option value="">Select wallet currency</option>
                   {walletCurrencyOptions.map((code) => (
-                    <option key={code} value={code}>{code}</option>
+                    <option data-regulator-restricted={isRegulatorRestrictedRecord(code)} key={code} value={code}>{code}</option>
                   ))}
-                </select>
+                </PresentationSelect>
                 <div style={{ color: 'var(--muted)', fontSize: '12px' }}>This selects the fiat wallet to credit.</div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -7332,19 +7343,19 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               </button>
             </div>
           </div>
-        </Modal>
+        </Modal></NonRegulatorContent>
       )}
 
       {showDebit && (
-        <Modal title="Debit wallet" onClose={() => (!debitLoading ? setShowDebit(false) : null)}>
+        <NonRegulatorContent><Modal title="Debit wallet" onClose={() => (!debitLoading ? setShowDebit(false) : null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="debitAction">Action</label>
-                <select id="debitAction" value={debitAction} onChange={(e) => setDebitAction(e.target.value)}>
+                <PresentationSelect id="debitAction" value={debitAction} onChange={(e) => setDebitAction(e.target.value)}>
                   <option value="MANUAL_ADJUSTMENT">Manual adjustment</option>
                   <option value="WITHDRAW_FROM_WALLET">Withdraw from wallet</option>
-                </select>
+                </PresentationSelect>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="debitAmount">Amount</label>
@@ -7361,12 +7372,12 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="debitCurrency">Wallet currency</label>
-                <select id="debitCurrency" value={debitCurrency} onChange={(e) => setDebitCurrency(e.target.value)}>
+                <PresentationSelect id="debitCurrency" value={debitCurrency} onChange={(e) => setDebitCurrency(e.target.value)}>
                   <option value="">Select wallet currency</option>
                   {walletCurrencyOptions.map((code) => (
-                    <option key={code} value={code}>{code}</option>
+                    <option data-regulator-restricted={isRegulatorRestrictedRecord(code)} key={code} value={code}>{code}</option>
                   ))}
-                </select>
+                </PresentationSelect>
                 <div style={{ color: 'var(--muted)', fontSize: '12px' }}>This selects the fiat wallet to debit.</div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -7451,7 +7462,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               </button>
             </div>
           </div>
-        </Modal>
+        </Modal></NonRegulatorContent>
       )}
 
       {showAccountRewardRuleForm && (
@@ -7477,7 +7488,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="accountRewardRuleAction">Action</label>
-                <select
+                <PresentationSelect
                   id="accountRewardRuleAction"
                   value={accountRewardRuleDraft.action}
                   onChange={(e) => setAccountRewardRuleDraft((prev) => ({ ...prev, action: e.target.value }))}
@@ -7485,9 +7496,9 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                 >
                   <option value="">Default for this inviter</option>
                   {paymentMethodActionRuleOptions.map((action) => (
-                    <option key={action} value={action}>{action}</option>
+                    <option data-regulator-restricted={isRegulatorRestrictedRecord(action)} key={action} value={action}>{action}</option>
                   ))}
-                </select>
+                </PresentationSelect>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="accountRewardRulePct">Net amount share %</label>
@@ -7614,14 +7625,14 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
               <label style={{ display: 'grid', gap: '0.25rem' }}>
                 <span>Document code</span>
-                <select
+                <PresentationSelect
                   value={enhancedKycRequirementCodeOptions.includes(enhancedKycRequirementDraft.code) ? enhancedKycRequirementDraft.code : '__CUSTOM__'}
                   onChange={(e) => updateEnhancedKycRequirementDraft('code', e.target.value === '__CUSTOM__' ? '' : e.target.value)}
                   disabled={enhancedKycRequirementSaving}
                 >
-                  {enhancedKycRequirementCodeOptions.map((code) => <option key={code} value={code}>{code}</option>)}
+                  {enhancedKycRequirementCodeOptions.map((code) => <option data-regulator-restricted={isRegulatorRestrictedRecord(code)} key={code} value={code}>{code}</option>)}
                   <option value="__CUSTOM__">Custom code</option>
-                </select>
+                </PresentationSelect>
                 {!enhancedKycRequirementCodeOptions.includes(enhancedKycRequirementDraft.code) ? (
                   <input
                     value={enhancedKycRequirementDraft.code}
@@ -7737,7 +7748,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       )}
 
       {showCryptoCredit && (
-        <Modal title={`Credit crypto wallet ${cryptoCreditWallet?.id ?? ''}`} onClose={() => (!cryptoCreditLoading ? setShowCryptoCredit(false) : null)}>
+        <NonRegulatorContent><Modal title={`Credit crypto wallet ${cryptoCreditWallet?.id ?? ''}`} onClose={() => (!cryptoCreditLoading ? setShowCryptoCredit(false) : null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ color: 'var(--muted)' }}>
               Account ID: <span style={{ fontWeight: 700 }}>{resolvedAccountId ?? '—'}</span>
@@ -7746,10 +7757,10 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="cryptoCreditAction">Action</label>
-                <select id="cryptoCreditAction" value={cryptoCreditAction} onChange={(e) => setCryptoCreditAction(e.target.value)}>
+                <PresentationSelect id="cryptoCreditAction" value={cryptoCreditAction} onChange={(e) => setCryptoCreditAction(e.target.value)}>
                   <option value="MANUAL_ADJUSTMENT">Manual adjustment</option>
                   <option value="BONUS">Bonus</option>
-                </select>
+                </PresentationSelect>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="cryptoCreditAmount">Amount</label>
@@ -7783,7 +7794,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               </button>
             </div>
           </div>
-        </Modal>
+        </Modal></NonRegulatorContent>
       )}
 
       {showNotification && (
@@ -7812,7 +7823,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               </div>
               <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                 {['PUSH', 'EMAIL', 'SMS', 'WHATSAPP'].map((channel) => (
-                  <label key={channel} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
+                  <RegulatorField field={channel} key={channel}><label key={channel} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
                     <input
                       type="checkbox"
                       checked={notificationChannels.includes(channel)}
@@ -7824,7 +7835,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                       }}
                     />
                     {channel}
-                  </label>
+                  </label></RegulatorField>
                 ))}
               </div>
               {notificationChannels.includes('WHATSAPP') && (
@@ -7845,12 +7856,12 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
                     <label style={{ display: 'grid', gap: '0.25rem' }}>
                       <span>Severity</span>
-                      <select value={notificationAnnouncement.severity} onChange={(e) => setNotificationAnnouncement((prev) => ({ ...prev, severity: e.target.value }))}>
+                      <PresentationSelect value={notificationAnnouncement.severity} onChange={(e) => setNotificationAnnouncement((prev) => ({ ...prev, severity: e.target.value }))}>
                         <option value="">Select severity</option>
                         {notificationAnnouncementSeverityOptions.map((option) => (
-                          <option key={option} value={option}>{option}</option>
+                          <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option} value={option}>{option}</option>
                         ))}
-                      </select>
+                      </PresentationSelect>
                     </label>
                     <label style={{ display: 'grid', gap: '0.25rem' }}>
                       <span>Start at (UTC)</span>
@@ -7919,24 +7930,24 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
               This applies across fee-bearing flows, not only payouts. Older app versions also use this override when they send no explicit fee mode.
             </div>
-            <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+            <NonRegulatorContent><div style={{ color: 'var(--muted)', fontSize: '13px' }}>
               Account custom swap fees let you override pricing for a specific customer and a specific crypto pair. Pair-specific account rules take priority over global pair pricing and generic account-level swap pricing.
-            </div>
+            </div></NonRegulatorContent>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="feeService">Service</label>
-                <select id="feeService" value={feeService} onChange={(e) => setFeeService(e.target.value)}>
+                <PresentationSelect id="feeService" value={feeService} onChange={(e) => setFeeService(e.target.value)}>
                   <option value="">None</option>
                   {['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'COMMERCE', 'PAYMENT_REQUEST', 'E_SIM', 'AIRTIME_AND_DATA', 'OTHER'].map((svc) => (
-                    <option key={svc} value={svc}>
+                    <option data-regulator-restricted={isRegulatorRestrictedRecord(svc)} key={svc} value={svc}>
                       {svc}
                     </option>
                   ))}
-                </select>
+                </PresentationSelect>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="feeAction">Action *</label>
-                <select
+                <PresentationSelect
                   id="feeAction"
                   value={feeAction}
                   onChange={(e) => {
@@ -7949,59 +7960,59 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                 >
                   <option value="">Select action</option>
                   {actionOptions.map((act) => (
-                    <option key={act} value={act}>
+                    <option data-regulator-restricted={isRegulatorRestrictedRecord(act)} key={act} value={act}>
                       {act}
                     </option>
                   ))}
-                </select>
+                </PresentationSelect>
               </div>
               {String(feeAction || '').toUpperCase() === 'SWAP_CRYPTO' && (
                 <>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <NonRegulatorContent><div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                     <label htmlFor="feeFromCryptoProductId">From crypto</label>
-                    <select id="feeFromCryptoProductId" value={feeFromCryptoProductId} onChange={(e) => setFeeFromCryptoProductId(e.target.value)}>
+                    <PresentationSelect id="feeFromCryptoProductId" value={feeFromCryptoProductId} onChange={(e) => setFeeFromCryptoProductId(e.target.value)}>
                       <option value="">Select source crypto</option>
                       {cryptoProducts.map((cp) => (
-                        <option key={cp.id} value={cp.id}>
+                        <option data-regulator-restricted={isRegulatorRestrictedRecord(cp)} key={cp.id} value={cp.id}>
                           {cp.displayName || cp.name || cp.code || cp.id}
                         </option>
                       ))}
-                    </select>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    </PresentationSelect>
+                  </div></NonRegulatorContent>
+                  <NonRegulatorContent><div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                     <label htmlFor="feeToCryptoProductId">To crypto</label>
-                    <select id="feeToCryptoProductId" value={feeToCryptoProductId} onChange={(e) => setFeeToCryptoProductId(e.target.value)}>
+                    <PresentationSelect id="feeToCryptoProductId" value={feeToCryptoProductId} onChange={(e) => setFeeToCryptoProductId(e.target.value)}>
                       <option value="">Select destination crypto</option>
                       {cryptoProducts.map((cp) => (
-                        <option key={cp.id} value={cp.id}>
+                        <option data-regulator-restricted={isRegulatorRestrictedRecord(cp)} key={cp.id} value={cp.id}>
                           {cp.displayName || cp.name || cp.code || cp.id}
                         </option>
                       ))}
-                    </select>
-                  </div>
+                    </PresentationSelect>
+                  </div></NonRegulatorContent>
                 </>
               )}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="feePmpId">Payment method / provider</label>
-                <select id="feePmpId" value={feePmpId} onChange={(e) => setFeePmpId(e.target.value)}>
+                <CatalogSelect kind="payment-route" records={pmps} countries={countries} id="feePmpId" value={feePmpId} onChange={(e) => setFeePmpId(e.target.value)}>
                   <option value="">Account-wide</option>
                   {pmps.map((p) => (
-                    <option key={p.id} value={p.id}>
+                    <option data-regulator-restricted={isRegulatorRestrictedRecord(p)} key={p.id} value={p.id}>
                       {paymentMethodRouteAdminLabel(p) + ' → ' + (p.paymentProviderName || 'Provider')}
                     </option>
                   ))}
-                </select>
+                </CatalogSelect>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="feeCountryId">Country (optional)</label>
-                <select id="feeCountryId" value={feeCountryId} onChange={(e) => setFeeCountryId(e.target.value)}>
+                <PresentationSelect id="feeCountryId" value={feeCountryId} onChange={(e) => setFeeCountryId(e.target.value)}>
                   <option value="">Any</option>
                   {countries.map((c) => (
-                    <option key={c.id} value={c.id}>
+                    <option data-regulator-restricted={isRegulatorRestrictedRecord(c)} key={c.id} value={c.id}>
                       {c.name} {c.alpha2Code ? `(${c.alpha2Code})` : ''}
                     </option>
                   ))}
-                </select>
+                </PresentationSelect>
               </div>
             </div>
 
@@ -8032,11 +8043,11 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="feeApplicationMode">Account fee application override</label>
-                <select id="feeApplicationMode" value={feeApplicationMode} onChange={(e) => setFeeApplicationMode(e.target.value)}>
+                <PresentationSelect id="feeApplicationMode" value={feeApplicationMode} onChange={(e) => setFeeApplicationMode(e.target.value)}>
                   <option value="">Use inherited default</option>
                   <option value="EXCLUSIVE">Sender pays fees (EXCLUSIVE)</option>
                   <option value="INCLUSIVE">Recipient pays fees (INCLUSIVE)</option>
-                </select>
+                </PresentationSelect>
                 <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
                   Choose how fees apply for this action on this account.
                 </div>
@@ -8086,18 +8097,18 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="billProductOverrideId">Bill product *</label>
-                <select
+                <CatalogSelect kind="bill-product" records={billProducts} countries={countries}
                   id="billProductOverrideId"
                   value={billProductOverrideProductId}
                   onChange={(e) => setBillProductOverrideProductId(e.target.value)}
                 >
                   <option value="">Select</option>
                   {billProducts.map((product) => (
-                    <option key={product.id} value={product.id}>
+                    <option data-regulator-restricted={isRegulatorRestrictedRecord(product)} key={product.id} value={product.id}>
                       {getBillProductLabel(product.id)}
                     </option>
                   ))}
-                </select>
+                </CatalogSelect>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="billProductOverrideNote">Note (optional)</label>
@@ -8150,14 +8161,14 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="paymentMethodRuleAction">Action</label>
-                <select id="paymentMethodRuleAction" value={paymentMethodAction} onChange={(e) => setPaymentMethodAction(e.target.value)}>
+                <PresentationSelect id="paymentMethodRuleAction" value={paymentMethodAction} onChange={(e) => setPaymentMethodAction(e.target.value)}>
                   <option value="">Global (all actions)</option>
                   {paymentMethodActionRuleOptions.map((option) => (
-                    <option key={option} value={option}>
+                    <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option} value={option}>
                       {option}
                     </option>
                   ))}
-                </select>
+                </PresentationSelect>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="paymentMethodRuleCountry">Country code</label>
@@ -8211,9 +8222,9 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               </div>
             )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <NonRegulatorContent><div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="paymentMethodRuleAllowLocalMobileMoneyForUsdWallet">Allow local mobile money for USD wallet</label>
-              <select
+              <PresentationSelect
                 id="paymentMethodRuleAllowLocalMobileMoneyForUsdWallet"
                 value={paymentMethodAllowLocalMobileMoneyForUsdWallet}
                 onChange={(e) => setPaymentMethodAllowLocalMobileMoneyForUsdWallet(e.target.value)}
@@ -8221,11 +8232,11 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                 <option value="">Default - enabled</option>
                 <option value="true">Enabled</option>
                 <option value="false">Disabled</option>
-              </select>
+              </PresentationSelect>
               <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
                 Applies to USD wallet FUND_WALLET and WITHDRAW_FROM_WALLET mobile money lookups. Disabled hides local mobile money when USD rails exist.
               </div>
-            </div>
+            </div></NonRegulatorContent>
 
             <MultiSelect
               label="Include Names"
@@ -8282,48 +8293,48 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="providerRoutingPmpId">Payment method / provider *</label>
-                <select
+                <CatalogSelect kind="payment-route" records={pmps} countries={countries}
                   id="providerRoutingPmpId"
                   value={providerRoutingForm.paymentMethodPaymentProviderId}
                   onChange={(e) => setProviderRoutingForm((prev) => ({ ...prev, paymentMethodPaymentProviderId: e.target.value }))}
                 >
                   <option value="">Select</option>
                   {pmps.map((p) => (
-                    <option key={p.id} value={p.id}>
+                    <option data-regulator-restricted={isRegulatorRestrictedRecord(p)} key={p.id} value={p.id}>
                       {getPmpLabel(p.id)}
                     </option>
                   ))}
-                </select>
+                </CatalogSelect>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="providerRoutingAction">Action</label>
-                <select
+                <PresentationSelect
                   id="providerRoutingAction"
                   value={providerRoutingForm.action}
                   onChange={(e) => setProviderRoutingForm((prev) => ({ ...prev, action: e.target.value }))}
                 >
                   <option value="">Any action</option>
                   {paymentMethodActionRuleOptions.map((option) => (
-                    <option key={option} value={option}>
+                    <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option} value={option}>
                       {option}
                     </option>
                   ))}
-                </select>
+                </PresentationSelect>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="providerRoutingContext">Context</label>
-                <select
+                <PresentationSelect
                   id="providerRoutingContext"
                   value={providerRoutingForm.context}
                   onChange={(e) => setProviderRoutingForm((prev) => ({ ...prev, context: e.target.value }))}
                 >
                   <option value="">Any context</option>
                   {providerRoutingContextOptions.map((option) => (
-                    <option key={option} value={option}>
+                    <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option} value={option}>
                       {option}
                     </option>
                   ))}
-                </select>
+                </PresentationSelect>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="providerRoutingRank">Rank</label>
@@ -8390,18 +8401,18 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="cardPriceCpcpId">Product / Provider *</label>
-                <select
+                <PresentationSelect
                   id="cardPriceCpcpId"
                   value={cardPriceCpcpId}
                   onChange={(e) => setCardPriceCpcpId(e.target.value)}
                 >
                   <option value="">Select</option>
                   {cardProductCardProviders.map((c) => (
-                    <option key={c.id} value={c.id}>
+                    <option data-regulator-restricted={isRegulatorRestrictedRecord(c)} key={c.id} value={c.id}>
                       {(c.cardBrandName || c.productName || 'Product') + ' → ' + (c.cardProviderName || 'Provider')}
                     </option>
                   ))}
-                </select>
+                </PresentationSelect>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="cardPriceAmount">Price *</label>
@@ -8441,14 +8452,14 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="cardProviderStatusTargetType">Target *</label>
-                <select
+                <PresentationSelect
                   id="cardProviderStatusTargetType"
                   value={cardProviderStatusTargetType}
                   onChange={(e) => setCardProviderStatusTargetType(e.target.value)}
                 >
                   <option value="ACCOUNT">This account</option>
                   <option value="EMAIL">Email</option>
-                </select>
+                </PresentationSelect>
               </div>
               {cardProviderStatusTargetType === 'EMAIL' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -8464,18 +8475,18 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               )}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="cardProviderStatusCpcpId">Product / Provider *</label>
-                <select
+                <PresentationSelect
                   id="cardProviderStatusCpcpId"
                   value={cardProviderStatusCpcpId}
                   onChange={(e) => setCardProviderStatusCpcpId(e.target.value)}
                 >
                   <option value="">Select</option>
                   {cardProductCardProviders.map((c) => (
-                    <option key={c.id} value={c.id}>
+                    <option data-regulator-restricted={isRegulatorRestrictedRecord(c)} key={c.id} value={c.id}>
                       {cardProductProviderLabel(c)}
                     </option>
                   ))}
-                </select>
+                </PresentationSelect>
               </div>
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginTop: '1.45rem' }}>
                 <input
@@ -8568,7 +8579,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       )}
 
       {showDepositPromptBreakdown && (
-        <Modal title="Deposit prompt details" onClose={() => setShowDepositPromptBreakdown(false)}>
+        <NonRegulatorContent><Modal title="Deposit prompt details" onClose={() => setShowDepositPromptBreakdown(false)}>
           <div style={{ display: 'grid', gap: '0.85rem', marginTop: '0.75rem' }}>
             <DetailGrid
               rows={[
@@ -8583,24 +8594,24 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               ]}
             />
           </div>
-        </Modal>
+        </Modal></NonRegulatorContent>
       )}
 
       {showLoanRateForm && (
-        <Modal title={`${loanRateFormId ? 'Edit' : 'Add'} loan rate override`} onClose={() => (!loanRateSaving ? setShowLoanRateForm(false) : null)}>
+        <NonRegulatorContent><Modal title={`${loanRateFormId ? 'Edit' : 'Add'} loan rate override`} onClose={() => (!loanRateSaving ? setShowLoanRateForm(false) : null)}>
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             {loanRatesError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{loanRatesError}</div>}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="loanRateProductId">Loan product *</label>
-                <select id="loanRateProductId" value={loanRateProductId} onChange={(e) => setLoanRateProductId(e.target.value)}>
+                <PresentationSelect id="loanRateProductId" value={loanRateProductId} onChange={(e) => setLoanRateProductId(e.target.value)}>
                   <option value="">Select</option>
                   {loanProducts.map((lp) => (
-                    <option key={lp.id} value={lp.id}>
+                    <option data-regulator-restricted={isRegulatorRestrictedRecord(lp)} key={lp.id} value={lp.id}>
                       {lp.title || `Product ${lp.id}`} {lp.minAmount !== undefined && lp.maxAmount !== undefined ? `( $${lp.minAmount} - $${lp.maxAmount} )` : ''}
                     </option>
                   ))}
-                </select>
+                </PresentationSelect>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="loanRateInterest">Interest % *</label>
@@ -8634,28 +8645,28 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               </button>
             </div>
           </div>
-        </Modal>
+        </Modal></NonRegulatorContent>
       )}
 
       {showCryptoRateForm && (
-        <Modal title={`${cryptoRateFormId ? 'Edit' : 'Add'} crypto rate override`} onClose={() => (!cryptoRateSaving ? setShowCryptoRateForm(false) : null)}>
+        <NonRegulatorContent><Modal title={`${cryptoRateFormId ? 'Edit' : 'Add'} crypto rate override`} onClose={() => (!cryptoRateSaving ? setShowCryptoRateForm(false) : null)}>
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             {cryptoRatesError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{cryptoRatesError}</div>}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="cryptoRateProductId">Crypto product *</label>
-                <select
+                <PresentationSelect
                   id="cryptoRateProductId"
                   value={cryptoRateProductId}
                   onChange={(e) => setCryptoRateProductId(e.target.value)}
                 >
                   <option value="">Select</option>
                   {cryptoProducts.map((cp) => (
-                    <option key={cp.id} value={cp.id}>
+                    <option data-regulator-restricted={isRegulatorRestrictedRecord(cp)} key={cp.id} value={cp.id}>
                       {cp.name || cp.displayName || cp.symbol || `Product ${cp.id}`}
                     </option>
                   ))}
-                </select>
+                </PresentationSelect>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="cryptoRateAsk">Ask (%)</label>
@@ -8701,30 +8712,30 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               </button>
             </div>
           </div>
-        </Modal>
+        </Modal></NonRegulatorContent>
       )}
 
       {showCryptoLimitForm && (
-        <Modal title={`${cryptoLimitFormId ? 'Edit' : 'Add'} crypto limit override`} onClose={() => (!cryptoLimitSaving ? setShowCryptoLimitForm(false) : null)}>
+        <NonRegulatorContent><Modal title={`${cryptoLimitFormId ? 'Edit' : 'Add'} crypto limit override`} onClose={() => (!cryptoLimitSaving ? setShowCryptoLimitForm(false) : null)}>
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             {cryptoLimitsError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{cryptoLimitsError}</div>}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="cryptoLimitNetworkId">Network *</label>
-                <select
+                <PresentationSelect
                   id="cryptoLimitNetworkId"
                   value={cryptoLimitNetworkId}
                   onChange={(e) => setCryptoLimitNetworkId(e.target.value)}
                 >
                   <option value="">Select</option>
                   {cryptoNetworks.map((net) => (
-                    <option key={net.id} value={net.id}>
+                    <option data-regulator-restricted={isRegulatorRestrictedRecord(net)} key={net.id} value={net.id}>
                       {(net.cryptoProductName || net.cryptoProductDisplayName || net.cryptoProductSymbol || 'Product') +
                         ' • ' +
                         (net.cryptoNetworkName || net.cryptoNetworkDisplayName || 'Network')}
                     </option>
                   ))}
-                </select>
+                </PresentationSelect>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -8808,7 +8819,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               </button>
             </div>
           </div>
-        </Modal>
+        </Modal></NonRegulatorContent>
       )}
 
       {recoveryRejectModalOpen && (

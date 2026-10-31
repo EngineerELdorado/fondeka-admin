@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { PresentationLink as Link } from '@/components/RegulatorPresentation';
 
 const sections = [
   { href: '/dashboard/esim/esims', title: 'eSIMs', blurb: 'Manage eSIMs (ICCID, status, country, data).' },

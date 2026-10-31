@@ -1,5 +1,9 @@
 'use client';
 
+import { RegulatorList, RegulatorField } from '@/components/RegulatorPresentation';
+
+import { NonRegulatorContent } from '@/components/RegulatorPresentation';
+
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 
@@ -166,9 +170,9 @@ export default function CurrencyCircuitBreakerPage() {
       <div className="card" style={{ display: 'grid', gap: '0.35rem' }}>
         <div style={{ color: 'var(--muted)', fontSize: '12px', fontWeight: 700 }}>Operations / Circuit Breakers / Currency Transactions</div>
         <div style={{ fontSize: '20px', fontWeight: 800 }}>Non-USD transaction circuit breaker</div>
-        <div style={{ color: 'var(--muted)' }}>
+        <NonRegulatorContent><div style={{ color: 'var(--muted)' }}>
           Emergency kill switch for multi-currency transaction risk. Use it during FX, margin, wallet, or provider incidents.
-        </div>
+        </div></NonRegulatorContent>
       </div>
 
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
@@ -330,7 +334,7 @@ export default function CurrencyCircuitBreakerPage() {
                 </div>
                 <div style={{ display: 'grid', gap: '0.25rem' }}>
                   {filteredActionOptions.length ? filteredActionOptions.map((action) => (
-                    <label
+                    <RegulatorField field={action} key={action}><label
                       key={action}
                       style={{
                         display: 'inline-flex',
@@ -349,7 +353,7 @@ export default function CurrencyCircuitBreakerPage() {
                         style={{ width: 'auto' }}
                       />
                       <span style={{ fontSize: '13px', fontWeight: 700 }}>{action}</span>
-                    </label>
+                    </label></RegulatorField>
                   )) : (
                     <div style={{ color: 'var(--muted)', fontSize: '13px' }}>No actions match this search.</div>
                   )}
@@ -422,18 +426,18 @@ export default function CurrencyCircuitBreakerPage() {
           <div style={{ display: 'grid', gap: '0.45rem' }}>
             <div style={{ color: '#b91c1c', fontWeight: 800 }}>Blocked when enabled</div>
             <ul style={{ margin: 0, paddingLeft: '1.1rem', color: 'var(--muted)' }}>
-              <li>Loan applications in CDF, KES, XOF, and other non-USD fiat currencies.</li>
-              <li>Wallet deposits or withdrawals using non-USD fiat.</li>
-              <li>USD wallet payouts to non-USD mobile money.</li>
-              <li>Bill payment, airtime, eSIM, savings, card, payment request, or collection flows using non-USD fiat.</li>
+              <NonRegulatorContent><li>Loan applications in CDF, KES, XOF, and other non-USD fiat currencies.</li></NonRegulatorContent>
+              <NonRegulatorContent><li>Wallet deposits or withdrawals using non-USD fiat.</li></NonRegulatorContent>
+              <NonRegulatorContent><li>USD wallet payouts to non-USD mobile money.</li></NonRegulatorContent>
+              <NonRegulatorContent><li>Bill payment, airtime, eSIM, savings, card, payment request, or collection flows using non-USD fiat.</li></NonRegulatorContent>
               <li>Fiat conversion from USD to CDF, KES, or other non-USD fiat currencies.</li>
             </ul>
           </div>
           <div style={{ display: 'grid', gap: '0.45rem' }}>
             <div style={{ color: '#15803d', fontWeight: 800 }}>Allowed when enabled</div>
             <ul style={{ margin: 0, paddingLeft: '1.1rem', color: 'var(--muted)' }}>
-              <li>USD wallet transactions.</li>
-              <li>Crypto-only operations where no non-USD fiat is involved.</li>
+              <NonRegulatorContent><li>USD wallet transactions.</li></NonRegulatorContent>
+              <NonRegulatorContent><li>Crypto-only operations where no non-USD fiat is involved.</li></NonRegulatorContent>
               <li>Fiat conversion from CDF, KES, or other non-USD fiat currencies into USD.</li>
               <li>Non-USD transactions whose action is selected in the exception list.</li>
             </ul>
@@ -449,7 +453,7 @@ export default function CurrencyCircuitBreakerPage() {
         <div style={{ display: 'grid', gap: '0.35rem', color: 'var(--muted)', fontSize: '13px' }}>
           <div><strong style={{ color: 'var(--text)' }}>Config key:</strong> {config?.configKey || 'currency.non_usd_transactions_blocked'}</div>
           <div><strong style={{ color: 'var(--text)' }}>Allowed actions config key:</strong> {config?.allowedActionsConfigKey || 'currency.non_usd_transactions_allowed_actions'}</div>
-          <div><strong style={{ color: 'var(--text)' }}>Allowed actions:</strong> {currentAllowedActions.length ? currentAllowedActions.join(', ') : 'None'}</div>
+          <div><strong style={{ color: 'var(--text)' }}>Allowed actions:</strong> {currentAllowedActions.length ? <RegulatorList values={currentAllowedActions} /> : 'None'}</div>
           <div><strong style={{ color: 'var(--text)' }}>Message code:</strong> {config?.userMessageCode || 'currency.circuit_breaker.non_usd_blocked'}</div>
           <div><strong style={{ color: 'var(--text)' }}>User message:</strong> {userMessage}</div>
         </div>

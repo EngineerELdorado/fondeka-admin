@@ -2,9 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocale } from '@/contexts/LocaleContext';
+import { RegulatorRouteBoundary } from '@/components/RegulatorPresentation';
+import { isRegulatorRestrictedRoute } from '@/lib/regulator-presentation';
 
 const navItems = [
   { href: '/dashboard', labelKey: 'layout.nav.overview' },
@@ -70,6 +72,7 @@ const navItems = [
   { href: '/dashboard/registration-policy-config', labelKey: 'layout.nav.registrationPolicyConfig' },
   { href: '/dashboard/account-phone-verification-policy', labelKey: 'layout.nav.phoneVerificationPolicy' },
   { href: '/dashboard/app-version', labelKey: 'layout.nav.appVersion' },
+  { href: '/dashboard/mobile-maintenance', labelKey: 'layout.nav.mobileMaintenance', label: 'Mobile maintenance' },
   { href: '/dashboard/announcements', labelKey: 'layout.nav.announcements' },
   { href: '/dashboard/notification-providers', labelKey: 'layout.nav.notificationProviders' },
   { href: '/dashboard/notification-default-channels', labelKey: 'layout.nav.notificationDefaults' },
@@ -93,7 +96,7 @@ const navItems = [
 ];
 
 export default function DashboardLayout({ children }) {
-  const { isAuthenticated, loading, initialized, logout, refreshSession, session } = useAuth();
+  const { isAuthenticated, loading, initialized, logout, refreshSession, session, adminProfile, enableRegulatorMode, adminProfileLoading, adminProfileError, refreshAdminProfile } = useAuth();
   const { locale, setLocale, t } = useLocale();
   const router = useRouter();
   const pathname = usePathname();
@@ -111,10 +114,10 @@ export default function DashboardLayout({ children }) {
     [adminGroups]
   );
   const renderedNavItems = useMemo(() => {
-    const baseItems = navItems.filter((item) => (item.href !== '/dashboard/admins' && !item.adminOnly) || canSeeAdminsMenu);
+    const baseItems = navItems.filter((item) => ((item.href !== '/dashboard/admins' && !item.adminOnly) || canSeeAdminsMenu) && (enableRegulatorMode === false || !isRegulatorRestrictedRoute(item.href)));
     if (!showQaStubFailureModes) return baseItems;
     return [...baseItems, { href: '/dashboard/admin/stub-failure-modes', labelKey: 'layout.nav.stubFailureModes' }];
-  }, [canSeeAdminsMenu, showQaStubFailureModes]);
+  }, [canSeeAdminsMenu, showQaStubFailureModes, enableRegulatorMode]);
   const userLabel = useMemo(() => {
     const payload = idTokenPayload || accessTokenPayload;
     return (
@@ -179,6 +182,16 @@ export default function DashboardLayout({ children }) {
 
   if (!isAuthenticated) {
     return null;
+  }
+
+  const cachedProfileAvailable = adminProfile && typeof adminProfile.enableRegulatorMode === 'boolean';
+  const presentationPending = adminProfileLoading || (!adminProfileError && typeof enableRegulatorMode !== 'boolean');
+  const profileError = <div className="card" role="alert" style={{ margin: '1.5rem', display: 'grid', gap: '0.75rem' }}><strong>Dashboard presentation settings are unavailable.</strong><span>{adminProfileError?.message || 'Please refresh your admin profile.'}</span><div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}><button type="button" className="btn-primary" onClick={async () => { if (adminProfileError?.status === 401) await refreshSession(true); await refreshAdminProfile(); }}>Retry</button><button type="button" className="btn-neutral" onClick={logout}>Sign out</button></div></div>;
+  if (!cachedProfileAvailable && presentationPending) {
+    return <div className="card" role="status" style={{ margin: '1.5rem' }}>Loading dashboard presentation settings…</div>;
+  }
+  if (!cachedProfileAvailable && adminProfileError) {
+    return profileError;
   }
 
   return (
@@ -308,7 +321,10 @@ export default function DashboardLayout({ children }) {
           </div>
         </header>
         <main className="dashboard-main" style={{ padding: '1.25rem 1.5rem', flex: 1 }}>
-          {children}
+          {presentationPending ? <div className="card" role="status">Loading dashboard presentation settings…</div> : adminProfileError ? profileError : null}
+          <div hidden={presentationPending || Boolean(adminProfileError)} aria-hidden={presentationPending || Boolean(adminProfileError) || undefined}>
+            <Suspense fallback={<div className="card" role="status">Loading page…</div>}><RegulatorRouteBoundary key={String(adminProfile.enableRegulatorMode)}>{children}</RegulatorRouteBoundary></Suspense>
+          </div>
         </main>
       </div>
     </div>

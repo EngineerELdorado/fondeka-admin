@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { PresentationLink as Link } from '@/components/RegulatorPresentation';
 
 const sections = [
   { href: '/dashboard/payment-requests/requests', title: 'Payment Requests', blurb: 'Search, create, and manage payment requests.' },

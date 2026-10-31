@@ -1,7 +1,8 @@
 'use client';
 
+import { RegulatorRecord, PresentationLink as Link } from '@/components/RegulatorPresentation';
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { api } from '@/lib/api';
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -227,7 +228,7 @@ export default function NotificationPushCampaignHistoryPage() {
               const progress = calcProgress(row);
               const hasFailures = (Number(row.failedJobs) || 0) > 0;
               return (
-                <tr
+                <RegulatorRecord record={row} key={row.campaignId}><tr
                   key={row.campaignId}
                   onClick={() => {
                     setSelectedCampaign(row);
@@ -278,7 +279,7 @@ export default function NotificationPushCampaignHistoryPage() {
                       {row.completed ? 'Completed' : 'Running'}
                     </span>
                   </td>
-                </tr>
+                </tr></RegulatorRecord>
               );
             })}
           </tbody>

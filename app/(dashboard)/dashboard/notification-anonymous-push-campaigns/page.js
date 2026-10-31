@@ -1,7 +1,8 @@
 'use client';
 
+import { NonRegulatorContent, PresentationLink as Link } from '@/components/RegulatorPresentation';
+
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
 
@@ -324,9 +325,9 @@ export default function NotificationAnonymousPushCampaignsPage() {
 
       <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
         <div style={{ fontWeight: 800 }}>Preview</div>
-        <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '12px', background: '#0f172a', color: '#e2e8f0', padding: '0.85rem', borderRadius: '10px' }}>
+        <NonRegulatorContent><pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '12px', background: '#0f172a', color: '#e2e8f0', padding: '0.85rem', borderRadius: '10px' }}>
           {JSON.stringify(payloadPreview, null, 2)}
-        </pre>
+        </pre></NonRegulatorContent>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button type="button" className="btn-primary" onClick={handleLaunchCampaign} disabled={launchLoading}>
             {launchLoading ? 'Launching…' : 'Launch anonymous push campaign'}
@@ -337,9 +338,9 @@ export default function NotificationAnonymousPushCampaignsPage() {
       {createResult && (
         <div className="card" style={{ display: 'grid', gap: '0.5rem' }}>
           <div style={{ fontWeight: 800 }}>Launch result</div>
-          <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '12px', background: '#0f172a', color: '#e2e8f0', padding: '0.85rem', borderRadius: '10px' }}>
+          <NonRegulatorContent><pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '12px', background: '#0f172a', color: '#e2e8f0', padding: '0.85rem', borderRadius: '10px' }}>
             {JSON.stringify(createResult, null, 2)}
-          </pre>
+          </pre></NonRegulatorContent>
         </div>
       )}
     </div>

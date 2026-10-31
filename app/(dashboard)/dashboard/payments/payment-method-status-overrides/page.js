@@ -1,7 +1,13 @@
 'use client';
 
+
+import { CatalogSelect } from '@/components/CatalogSelect';
+import { regulatorVisibleFields } from '@/lib/regulator-presentation';
+
+import { useAuth } from '@/contexts/AuthContext';
+
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
+import { PresentationLink as Link } from '@/components/RegulatorPresentation';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
@@ -23,16 +29,14 @@ const Modal = ({ title, onClose, children }) => (
   </div>
 );
 
-const DetailGrid = ({ rows }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
-    {rows.map((row) => (
+const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+    {regulatorVisibleFields(rows, enableRegulatorMode).map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: '1px solid var(--border)', borderRadius: '10px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
         <div style={{ fontWeight: 700, overflowWrap: 'anywhere' }}>{row.value ?? '-'}</div>
       </div>
     ))}
-  </div>
-);
+  </div>); };
 
 const formatDateTime = (value) => {
   if (!value) return '-';
@@ -105,7 +109,7 @@ export default function PaymentMethodStatusOverridesPage() {
   useEffect(() => {
     const fetchPaymentMethods = async () => {
       try {
-        const res = await api.paymentMethods.list(new URLSearchParams({ page: '0', size: '300' }));
+        const res = await api.paymentMethods.options(new URLSearchParams({ page: '0', size: '300' }));
         const list = Array.isArray(res) ? res : res?.content || [];
         setPaymentMethods(list || []);
       } catch {
@@ -259,14 +263,14 @@ export default function PaymentMethodStatusOverridesPage() {
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="paymentMethodId">Payment method</label>
-        <select id="paymentMethodId" value={draft.paymentMethodId} onChange={(e) => setDraft((prev) => ({ ...prev, paymentMethodId: e.target.value }))}>
+        <CatalogSelect kind="payment-method" records={paymentMethods} id="paymentMethodId" value={draft.paymentMethodId} onChange={(e) => setDraft((prev) => ({ ...prev, paymentMethodId: e.target.value }))}>
           <option value="">Select method</option>
           {paymentMethods.map((method) => (
             <option key={method.id} value={method.id}>
               {paymentMethodAdminLabel(method)}
             </option>
           ))}
-        </select>
+        </CatalogSelect>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="accountId">Account ID</label>
@@ -317,14 +321,14 @@ export default function PaymentMethodStatusOverridesPage() {
       <div className="card" style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
         <div>
           <label htmlFor="filterPaymentMethodId">Payment method</label>
-          <select id="filterPaymentMethodId" value={filters.paymentMethodId} onChange={(e) => setFilters((prev) => ({ ...prev, paymentMethodId: e.target.value }))}>
+          <CatalogSelect kind="payment-method" records={paymentMethods} id="filterPaymentMethodId" value={filters.paymentMethodId} onChange={(e) => setFilters((prev) => ({ ...prev, paymentMethodId: e.target.value }))}>
             <option value="">All methods</option>
             {paymentMethods.map((method) => (
               <option key={method.id} value={method.id}>
                 {paymentMethodAdminLabel(method)}
               </option>
             ))}
-          </select>
+          </CatalogSelect>
         </div>
         <div>
           <label htmlFor="filterAccountId">Account ID</label>

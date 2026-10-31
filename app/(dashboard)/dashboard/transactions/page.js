@@ -1,7 +1,12 @@
 'use client';
 
+
+import { CatalogSelect } from '@/components/CatalogSelect';
+import { RegulatorRecord, PresentationSelect, NonRegulatorContent, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
+
+import { isRegulatorRestrictedRecord, regulatorVisibleFields } from '@/lib/regulator-presentation';
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { DataTable } from '@/components/DataTable';
 import { useAuth } from '@/contexts/AuthContext';
@@ -215,16 +220,14 @@ const Modal = ({ title, onClose, children }) => (
   </div>
 );
 
-const DetailGrid = ({ rows }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
-    {rows.map((row) => (
+const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+    {regulatorVisibleFields(rows, enableRegulatorMode).map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px', minWidth: 0 }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
         <div style={{ fontWeight: 700, minWidth: 0, overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{row.value ?? '—'}</div>
       </div>
     ))}
-  </div>
-);
+  </div>); };
 
 const commerceIdentityAccountId = (identity) => identity?.accountId ?? identity?.id ?? identity?.account?.id ?? null;
 
@@ -311,16 +314,16 @@ const CommerceContextPanel = ({ commerce, formatDate, formatMoney }) => {
             ]} />
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '920px' }}>
-                <thead><tr>{['Item', 'Type', 'Quantity', 'Original price', 'Normalized price', 'Description'].map((label) => <th key={label} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)' }}>{label}</th>)}</tr></thead>
+                <thead><tr>{['Item', 'Type', 'Quantity', 'Original price', 'Normalized price', 'Description'].map((label) => <RegulatorField field={label} key={label}><th key={label} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)' }}>{label}</th></RegulatorField>)}</tr></thead>
                 <tbody>{orderItems.length ? orderItems.map((item, index) => (
-                  <tr key={item.id || item.orderItemId || index} style={{ borderBottom: '1px solid var(--border)' }}>
+                  <RegulatorRecord record={item} key={item.id || item.orderItemId || index}><tr key={item.id || item.orderItemId || index} style={{ borderBottom: '1px solid var(--border)' }}>
                     <td style={{ padding: '0.45rem' }}><strong>{item.productName || item.name || `Item ${item.id || index + 1}`}</strong><div style={{ fontSize: '11px', color: 'var(--muted)' }}>Item {item.id || item.orderItemId || '—'} · Product {item.productId || '—'}</div></td>
                     <td style={{ padding: '0.45rem' }}>{formatEnumLabel(item.productType || item.type)}</td>
                     <td style={{ padding: '0.45rem' }}>{item.quantity ?? 1}</td>
                     <td style={{ padding: '0.45rem' }}>{formatMoney(item.originalPriceAmount ?? item.unitPriceAmount ?? item.priceAmount, item.originalPriceCurrency || item.unitPriceCurrency || item.priceCurrency || orderCurrency)}</td>
                     <td style={{ padding: '0.45rem' }}>{formatMoney(item.normalizedPriceAmount ?? item.normalizedUnitPriceAmount, item.normalizedPriceCurrency || orderCurrency)}</td>
                     <td style={{ padding: '0.45rem', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{item.productDescription || item.description || '—'}</td>
-                  </tr>
+                  </tr></RegulatorRecord>
                 )) : <tr><td colSpan={6} style={{ padding: '0.75rem', color: 'var(--muted)' }}>No order items returned.</td></tr>}</tbody>
               </table>
             </div>
@@ -347,7 +350,7 @@ const CommerceContextPanel = ({ commerce, formatDate, formatMoney }) => {
                   { label: 'Digital file', value: entry.digitalFileAttached ? entry.digitalFileName || 'Attached' : 'Not attached' },
                   { label: 'Fulfillment link', value: entry.fulfillmentLinkAttached ? <span style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{entry.fulfillmentUrl || 'Attached'}</span> : 'Not attached' }
                 ]} />
-                {entry.instructions ? <div><div style={{ color: 'var(--muted)', fontSize: '12px', textTransform: 'uppercase' }}>Seller instructions</div><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', margin: '0.25rem 0 0', fontFamily: 'inherit' }}>{String(entry.instructions)}</pre></div> : null}
+                {entry.instructions ? <div><div style={{ color: 'var(--muted)', fontSize: '12px', textTransform: 'uppercase' }}>Seller instructions</div><NonRegulatorContent><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', margin: '0.25rem 0 0', fontFamily: 'inherit' }}>{String(entry.instructions)}</pre></NonRegulatorContent></div> : null}
                 {training ? <details><summary style={{ cursor: 'pointer', fontWeight: 800 }}>Training curriculum ({training.publishedModuleCount ?? modules.length} modules, {training.publishedMaterialCount ?? modules.reduce((sum, module) => sum + (Array.isArray(module.materials) ? module.materials.length : 0), 0)} materials)</summary><div style={{ display: 'grid', gap: '0.5rem', marginTop: '0.55rem' }}><div style={{ color: 'var(--muted)', fontSize: '12px' }}>Curriculum source: {training.curriculumSource || 'CURRENT'} · Access account: {training.accessAccountId || '—'}. Current published curriculum is not a purchase-time version snapshot.</div>{modules.length ? modules.map((module, moduleIndex) => <div key={module.id || moduleIndex} style={{ padding: '0.6rem', border: '1px solid var(--border)', borderRadius: '8px' }}><strong>{module.title || `Module ${moduleIndex + 1}`}</strong>{module.description ? <div style={{ whiteSpace: 'pre-wrap', marginTop: '0.2rem' }}>{module.description}</div> : null}<div style={{ display: 'grid', gap: '0.35rem', marginTop: '0.4rem' }}>{(Array.isArray(module.materials) ? module.materials : []).map((material, materialIndex) => <div key={material.id || materialIndex} style={{ padding: '0.45rem', background: 'var(--accent-soft)', borderRadius: '8px' }}><strong>{material.title || `Material ${materialIndex + 1}`}</strong> · {formatEnumLabel(material.type || material.materialType)}{material.description ? <div style={{ whiteSpace: 'pre-wrap' }}>{material.description}</div> : null}{material.linkUrl || material.url ? <div style={{ overflowWrap: 'anywhere' }}>Recorded link: {material.linkUrl || material.url}</div> : null}{material.fileName ? <div>File: {material.fileName}</div> : null}</div>)}</div></div>) : <div style={{ color: 'var(--muted)' }}>No published curriculum currently returned.</div>}</div></details> : null}
               </div>;
             })}
@@ -690,7 +693,7 @@ const resolvePageContent = (res) => {
 export default function TransactionsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { session } = useAuth();
+  const { session, enableRegulatorMode } = useAuth();
   const { pushToast } = useToast();
   const adminRoles = useMemo(() => getAdminRoles(session), [session]);
   const isSuperAdmin = adminRoles.has('SUPER_ADMIN');
@@ -1199,10 +1202,10 @@ export default function TransactionsPage() {
     const fetchOptions = async () => {
       try {
         const [pmRes, provRes, pmpRes, billProductsRes, billProvidersRes] = await Promise.all([
-          api.paymentMethods.list(new URLSearchParams({ page: '0', size: '200' })),
+          api.paymentMethods.options(new URLSearchParams({ page: '0', size: '200' })),
           api.paymentProviders.list(new URLSearchParams({ page: '0', size: '200' })),
-          api.paymentMethodPaymentProviders.list(new URLSearchParams({ page: '0', size: '200' })),
-          api.billProducts.list(new URLSearchParams({ page: '0', size: '200' })),
+          api.paymentMethodPaymentProviders.options(new URLSearchParams({ page: '0', size: '200' })),
+          api.billProducts.options(new URLSearchParams({ page: '0', size: '200' })),
           api.billProviders.list(new URLSearchParams({ page: '0', size: '200' }))
         ]);
         const toList = (res) => (Array.isArray(res) ? res : res?.content || []);
@@ -1471,6 +1474,7 @@ export default function TransactionsPage() {
   );
 
   const openDetail = (row) => {
+    if (enableRegulatorMode !== false && isRegulatorRestrictedRecord(row)) { setError('This transaction is unavailable in the current dashboard presentation.'); return; }
     setSelected(row);
     setShowDetail(true);
     setInfo(null);
@@ -2456,7 +2460,7 @@ export default function TransactionsPage() {
                 Bank payouts (Equity DRC)
               </button>
               {manualRefundViewActive && <span style={{ fontSize: '12px', color: 'var(--muted)' }}>Showing needsManualRefund=true</span>}
-              {bankPayoutViewActive && <span style={{ fontSize: '12px', color: 'var(--muted)' }}>Showing FUNDED + WITHDRAW_FROM_WALLET + EQUITY_DRC</span>}
+              {bankPayoutViewActive && <NonRegulatorContent><span style={{ fontSize: '12px', color: 'var(--muted)' }}>Showing FUNDED + WITHDRAW_FROM_WALLET + EQUITY_DRC</span></NonRegulatorContent>}
             </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
@@ -2485,47 +2489,47 @@ export default function TransactionsPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="service">Service</label>
-            <select id="service" value={filters.service} onChange={(e) => setFilters((p) => ({ ...p, service: e.target.value }))}>
+            <PresentationSelect id="service" value={filters.service} onChange={(e) => setFilters((p) => ({ ...p, service: e.target.value }))}>
               <option value="">All</option>
               {serviceOptions.map((svc) => (
-                <option key={svc} value={svc}>
+                <option data-regulator-restricted={isRegulatorRestrictedRecord(svc)} key={svc} value={svc}>
                   {formatEnumLabel(svc, serviceLabels)}
                 </option>
               ))}
-            </select>
+            </PresentationSelect>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="action">Action</label>
-            <select id="action" value={filters.action} onChange={(e) => setFilters((p) => ({ ...p, action: e.target.value }))}>
+            <PresentationSelect id="action" value={filters.action} onChange={(e) => setFilters((p) => ({ ...p, action: e.target.value }))}>
               <option value="">All</option>
               {actionOptions.map((act) => (
-                <option key={act} value={act}>
+                <option data-regulator-restricted={isRegulatorRestrictedRecord(act)} key={act} value={act}>
                   {formatEnumLabel(act, actionLabels)}
                 </option>
               ))}
-            </select>
+            </PresentationSelect>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="balanceEffect">Effect</label>
-            <select id="balanceEffect" value={filters.balanceEffect} onChange={(e) => setFilters((p) => ({ ...p, balanceEffect: e.target.value }))}>
+            <PresentationSelect id="balanceEffect" value={filters.balanceEffect} onChange={(e) => setFilters((p) => ({ ...p, balanceEffect: e.target.value }))}>
               <option value="">Any</option>
               {balanceEffectOptions.map((be) => (
-                <option key={be} value={be}>
+                <option data-regulator-restricted={isRegulatorRestrictedRecord(be)} key={be} value={be}>
                   {be}
                 </option>
               ))}
-            </select>
+            </PresentationSelect>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="status">Status</label>
-            <select id="status" value={filters.status} onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value }))}>
+            <PresentationSelect id="status" value={filters.status} onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value }))}>
               <option value="">Any</option>
               {statusOptions.map((st) => (
-                <option key={st} value={st}>
+                <option data-regulator-restricted={isRegulatorRestrictedRecord(st)} key={st} value={st}>
                   {st}
                 </option>
               ))}
-            </select>
+            </PresentationSelect>
           </div>
         </div>
 
@@ -2541,74 +2545,74 @@ export default function TransactionsPage() {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="paymentMethodId">Payment method</label>
-            <select id="paymentMethodId" value={filters.paymentMethodId} onChange={(e) => setFilters((p) => ({ ...p, paymentMethodId: e.target.value }))}>
+            <CatalogSelect kind="payment-method" records={paymentMethods} id="paymentMethodId" value={filters.paymentMethodId} onChange={(e) => setFilters((p) => ({ ...p, paymentMethodId: e.target.value }))}>
               <option value="">Any</option>
               {paymentMethods.map((pm) => (
-                <option key={pm.id} value={pm.id}>
+                <option data-regulator-restricted={isRegulatorRestrictedRecord(pm)} key={pm.id} value={pm.id}>
                   {transactionPaymentMethodLabel(pm)}
                 </option>
               ))}
-            </select>
+            </CatalogSelect>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="paymentProviderId">Payment provider</label>
-            <select id="paymentProviderId" value={filters.paymentProviderId} onChange={(e) => setFilters((p) => ({ ...p, paymentProviderId: e.target.value }))}>
+            <PresentationSelect id="paymentProviderId" value={filters.paymentProviderId} onChange={(e) => setFilters((p) => ({ ...p, paymentProviderId: e.target.value }))}>
               <option value="">Any</option>
               {paymentProviders.map((prov) => (
-                <option key={prov.id} value={prov.id}>
+                <option data-regulator-restricted={isRegulatorRestrictedRecord(prov)} key={prov.id} value={prov.id}>
                   {prov.name || prov.displayName || prov.id}
                 </option>
               ))}
-            </select>
+            </PresentationSelect>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="paymentMethodPaymentProviderId">PMPP</label>
-            <select
+            <CatalogSelect kind="payment-route" records={pmps}
               id="paymentMethodPaymentProviderId"
               value={filters.paymentMethodPaymentProviderId}
               onChange={(e) => setFilters((p) => ({ ...p, paymentMethodPaymentProviderId: e.target.value }))}
             >
               <option value="">Any</option>
               {pmps.map((pmp) => (
-                <option key={pmp.id} value={pmp.id}>
+                <option data-regulator-restricted={isRegulatorRestrictedRecord(pmp)} key={pmp.id} value={pmp.id}>
                   {paymentMethodRouteAdminLabel(pmp) + ' → ' + (pmp.paymentProviderName || 'Provider')}
                 </option>
               ))}
-            </select>
+            </CatalogSelect>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="billProductId">Bill product</label>
-            <select id="billProductId" value={filters.billProductId} onChange={(e) => setFilters((p) => ({ ...p, billProductId: e.target.value }))}>
+            <CatalogSelect kind="bill-product" records={billProducts} id="billProductId" value={filters.billProductId} onChange={(e) => setFilters((p) => ({ ...p, billProductId: e.target.value }))}>
               <option value="">Any</option>
               {billProducts.map((product) => (
-                <option key={product.id} value={product.id}>
+                <option data-regulator-restricted={isRegulatorRestrictedRecord(product)} key={product.id} value={product.id}>
                   {product.name || product.displayName || product.code || product.id}
                 </option>
               ))}
-            </select>
+            </CatalogSelect>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="billProviderId">Bill provider</label>
-            <select id="billProviderId" value={filters.billProviderId} onChange={(e) => setFilters((p) => ({ ...p, billProviderId: e.target.value }))}>
+            <PresentationSelect id="billProviderId" value={filters.billProviderId} onChange={(e) => setFilters((p) => ({ ...p, billProviderId: e.target.value }))}>
               <option value="">Any</option>
               {billProviders.map((provider) => (
-                <option key={provider.id} value={provider.id}>
+                <option data-regulator-restricted={isRegulatorRestrictedRecord(provider)} key={provider.id} value={provider.id}>
                   {provider.name || provider.displayName || provider.id}
                 </option>
               ))}
-            </select>
+            </PresentationSelect>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="refunded">Refunded</label>
-            <select id="refunded" value={filters.refunded} onChange={(e) => setFilters((p) => ({ ...p, refunded: e.target.value }))}>
+            <PresentationSelect id="refunded" value={filters.refunded} onChange={(e) => setFilters((p) => ({ ...p, refunded: e.target.value }))}>
               <option value="">Any</option>
               <option value="true">Yes</option>
               <option value="false">No</option>
-            </select>
+            </PresentationSelect>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="needsManualRefund">Needs manual refund</label>
-            <select
+            <PresentationSelect
               id="needsManualRefund"
               value={filters.needsManualRefund}
               onChange={(e) => setFilters((p) => ({ ...p, needsManualRefund: e.target.value }))}
@@ -2616,7 +2620,7 @@ export default function TransactionsPage() {
               <option value="">Any</option>
               <option value="true">Yes</option>
               <option value="false">No</option>
-            </select>
+            </PresentationSelect>
           </div>
         </div>
 
@@ -2712,7 +2716,7 @@ export default function TransactionsPage() {
         canNext={canGoNext}
       />
 
-      {showDetail && (
+      {showDetail && (enableRegulatorMode === false || !isRegulatorRestrictedRecord(selected)) && (
         <Modal title={`Transaction ${selected?.reference || selected?.id}`} onClose={() => setShowDetail(false)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
             {detailLoading ? (
@@ -2779,23 +2783,23 @@ export default function TransactionsPage() {
                   ? [
                       {
                         label: 'Crypto destination address',
-                        value: <CopyableValue value={sendCryptoAddressValue} label="Crypto destination address" onCopy={copyToClipboard} />
+                        value: <NonRegulatorContent><CopyableValue value={sendCryptoAddressValue} label="Crypto destination address" onCopy={copyToClipboard} /></NonRegulatorContent>
                       },
                       {
                         label: 'Crypto amount',
                         value: (
-                          <CopyableValue
+                          <NonRegulatorContent><CopyableValue
                             value={cryptoOperationDetails?.cryptoAmount !== null && cryptoOperationDetails?.cryptoAmount !== undefined ? formatCryptoAmount(cryptoOperationDetails?.cryptoAmount) : ''}
                             label="Crypto amount"
                             onCopy={copyToClipboard}
-                          />
+                          /></NonRegulatorContent>
                         )
                       },
                       { label: 'Crypto asset', value: cryptoOperationDetails?.cryptoCurrency || '—' },
                       { label: 'Crypto network', value: cryptoOperationDetails?.network || '—' },
                       {
                         label: 'Crypto tx hash',
-                        value: <CopyableValue value={cryptoOperationDetails?.trxHash} label="Crypto tx hash" onCopy={copyToClipboard} />
+                        value: <NonRegulatorContent><CopyableValue value={cryptoOperationDetails?.trxHash} label="Crypto tx hash" onCopy={copyToClipboard} /></NonRegulatorContent>
                       }
                     ]
                   : []),
@@ -2849,9 +2853,9 @@ export default function TransactionsPage() {
             <div className="card" style={{ padding: '1rem', display: 'grid', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
                 <div style={{ fontWeight: 800 }}>Revenue</div>
-                <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                <NonRegulatorContent><div style={{ color: 'var(--muted)', fontSize: '13px' }}>
                   Uses top-level USD fields only: usdInternalFeeAmount + usdCommissionAmount + usdFxMarginAmount + usdLoanInterestRevenueAmount. The dashboard does not calculate loan interest locally.
-                </div>
+                </div></NonRegulatorContent>
               </div>
               <DetailGrid
                 rows={[
@@ -2885,13 +2889,13 @@ export default function TransactionsPage() {
                           <thead>
                             <tr style={{ color: 'var(--muted)', fontSize: '12px', textAlign: 'left' }}>
                               {['Leg', 'Flow', 'Provider', 'Source', 'Target', 'Raw rate', 'Applied rate', 'Margin', 'USD margin'].map((heading) => (
-                                <th key={heading} style={{ padding: '0.45rem', borderBottom: '1px solid var(--border)' }}>{heading}</th>
+                                <RegulatorField field={heading} key={heading}><th key={heading} style={{ padding: '0.45rem', borderBottom: '1px solid var(--border)' }}>{heading}</th></RegulatorField>
                               ))}
                             </tr>
                           </thead>
                           <tbody>
                             {selectedFxMarginLegs.map((leg, index) => (
-                              <tr key={`${leg?.leg || 'leg'}-${index}`} style={{ borderBottom: '1px solid var(--border)' }}>
+                              <RegulatorRecord record={leg} key={`${leg?.leg || 'leg'}-${index}`}><tr key={`${leg?.leg || 'leg'}-${index}`} style={{ borderBottom: '1px solid var(--border)' }}>
                                 <td style={{ padding: '0.45rem', fontWeight: 700 }}>{formatEnumLabel(leg?.leg)}</td>
                                 <td style={{ padding: '0.45rem' }}>{formatEnumLabel(leg?.flow)}</td>
                                 <td style={{ padding: '0.45rem' }}>{formatEnumLabel(leg?.provider)}</td>
@@ -2901,7 +2905,7 @@ export default function TransactionsPage() {
                                 <td style={{ padding: '0.45rem' }}>{leg?.effectiveRate ?? '—'}</td>
                                 <td style={{ padding: '0.45rem' }}>{formatMoneyWithCurrency(leg?.marginAmount, leg?.marginCurrency)}</td>
                                 <td style={{ padding: '0.45rem', fontWeight: 800 }}>{formatUsdAmount(leg?.usdMarginAmount)}</td>
-                              </tr>
+                              </tr></RegulatorRecord>
                             ))}
                           </tbody>
                         </table>
@@ -2927,7 +2931,7 @@ export default function TransactionsPage() {
             </div>
 
             {hasLoanEligibilitySnapshot && (
-              <div className="card" style={{ padding: '1rem' }}>
+              <NonRegulatorContent><div className="card" style={{ padding: '1rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
                   <div style={{ fontWeight: 800 }}>Loan eligibility snapshot</div>
                   <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
@@ -2979,7 +2983,7 @@ export default function TransactionsPage() {
                     ]}
                   />
                 </div>
-              </div>
+              </div></NonRegulatorContent>
             )}
 
             {normalizeEnumKey(selected?.action) === 'WITHDRAW_FROM_WALLET' && (
@@ -3015,9 +3019,9 @@ export default function TransactionsPage() {
                     ]}
                   />
                   {!bankPayoutMeta.eligible && (
-                    <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                    <NonRegulatorContent><div style={{ color: 'var(--muted)', fontSize: '13px' }}>
                       Requires status FUNDED, action WITHDRAW_FROM_WALLET, and payment method EQUITY_DRC (BANK).
-                    </div>
+                    </div></NonRegulatorContent>
                   )}
                 </div>
               </div>
@@ -3072,9 +3076,9 @@ export default function TransactionsPage() {
                   {forceCardOrderResult && (
                     <div style={{ display: 'grid', gap: '0.5rem' }}>
                       <div style={{ color: '#15803d', fontWeight: 700 }}>{forceCardOrderResponseMessage(forceCardOrderResult)}</div>
-                      <pre style={{ margin: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: '12px', color: 'var(--muted)' }}>
+                      <NonRegulatorContent><pre style={{ margin: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: '12px', color: 'var(--muted)' }}>
                         {formatWebhookPayload(forceCardOrderResult)}
-                      </pre>
+                      </pre></NonRegulatorContent>
                     </div>
                   )}
                 </div>
@@ -3117,9 +3121,9 @@ export default function TransactionsPage() {
                           ? 'Provider confirmed payment. Fulfillment has been triggered.'
                           : `Provider status: ${providerStatusValue(momoStatusResult)}.`}
                       </div>
-                      <pre style={{ margin: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: '12px', color: 'var(--muted)' }}>
+                      <NonRegulatorContent><pre style={{ margin: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: '12px', color: 'var(--muted)' }}>
                         {formatWebhookPayload(momoStatusResult)}
-                      </pre>
+                      </pre></NonRegulatorContent>
                     </div>
                   )}
                 </div>
@@ -3323,7 +3327,7 @@ export default function TransactionsPage() {
                       </div>
                       <details style={{ marginTop: '0.6rem' }}>
                         <summary style={{ cursor: 'pointer', color: 'var(--primary)', fontWeight: 600 }}>Payload</summary>
-                        <pre
+                        <NonRegulatorContent><pre
                           style={{
                             marginTop: '0.5rem',
                             background: 'var(--surface)',
@@ -3335,7 +3339,7 @@ export default function TransactionsPage() {
                           }}
                         >
                           {formatWebhookPayload(event.payload) || 'No payload.'}
-                        </pre>
+                        </pre></NonRegulatorContent>
                       </details>
                     </div>
                   ))}
@@ -3381,7 +3385,7 @@ export default function TransactionsPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                       <div style={{ fontWeight: 700 }}>Payload</div>
                       {receipt.payload ? (
-                        <pre
+                        <NonRegulatorContent><pre
                           style={{
                             background: '#f8fafc',
                             border: '1px solid var(--border)',
@@ -3392,7 +3396,7 @@ export default function TransactionsPage() {
                           }}
                         >
                           {JSON.stringify(receipt.payload, null, 2)}
-                        </pre>
+                        </pre></NonRegulatorContent>
                       ) : (
                         <div style={{ color: 'var(--muted)' }}>No payload</div>
                       )}
@@ -3427,9 +3431,9 @@ export default function TransactionsPage() {
                     <thead>
                       <tr>
                         {['Time', 'Action', 'Admin', 'Target'].map((label) => (
-                          <th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                          <RegulatorField field={label} key={label}><th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
                             {label}
-                          </th>
+                          </th></RegulatorField>
                         ))}
                       </tr>
                     </thead>
@@ -3445,7 +3449,7 @@ export default function TransactionsPage() {
                         const targetType = row.targetType || row.target_type;
                         const targetId = row.targetId || row.target_id;
                         return (
-                          <tr key={row.id || idx} style={{ borderTop: '1px solid var(--border)' }}>
+                          <RegulatorRecord record={row} key={row.id || idx}><tr key={row.id || idx} style={{ borderTop: '1px solid var(--border)' }}>
                             <td style={{ padding: '0.5rem' }}>{formatDateTime(row.createdAt || row.timestamp || row.time || row.loggedAt || row.updatedAt)}</td>
                             <td style={{ padding: '0.5rem', fontWeight: 600 }}>{row.action || '—'}</td>
                             <td style={{ padding: '0.5rem' }}>
@@ -3458,7 +3462,7 @@ export default function TransactionsPage() {
                             <td style={{ padding: '0.5rem' }}>
                               {targetType || targetId ? `${targetType || 'target'} ${targetId ?? ''}`.trim() : '—'}
                             </td>
-                          </tr>
+                          </tr></RegulatorRecord>
                         );
                       })}
                     </tbody>
@@ -3493,9 +3497,9 @@ export default function TransactionsPage() {
                       <thead>
                         <tr>
                           {['Time', 'Action', 'Admin', 'Target'].map((label) => (
-                            <th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
+                            <RegulatorField field={label} key={label}><th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
                               {label}
-                            </th>
+                            </th></RegulatorField>
                           ))}
                         </tr>
                       </thead>
@@ -3511,7 +3515,7 @@ export default function TransactionsPage() {
                           const targetType = row.targetType || row.target_type;
                           const targetId = row.targetId || row.target_id;
                           return (
-                            <tr key={row.id || idx} style={{ borderTop: '1px solid var(--border)' }}>
+                            <RegulatorRecord record={row} key={row.id || idx}><tr key={row.id || idx} style={{ borderTop: '1px solid var(--border)' }}>
                               <td style={{ padding: '0.5rem' }}>{formatDateTime(row.createdAt || row.timestamp || row.time || row.loggedAt || row.updatedAt)}</td>
                               <td style={{ padding: '0.5rem', fontWeight: 600 }}>{row.action || '—'}</td>
                               <td style={{ padding: '0.5rem' }}>
@@ -3524,7 +3528,7 @@ export default function TransactionsPage() {
                               <td style={{ padding: '0.5rem' }}>
                                 {targetType || targetId ? `${targetType || 'target'} ${targetId ?? ''}`.trim() : '—'}
                               </td>
-                            </tr>
+                            </tr></RegulatorRecord>
                           );
                         })}
                       </tbody>
@@ -3562,9 +3566,9 @@ export default function TransactionsPage() {
                 </button>
               )}
               {canRefundSelected && (
-                <button type="button" onClick={() => setShowRefund(true)} className="btn-danger">
+                <NonRegulatorContent><button type="button" onClick={() => setShowRefund(true)} className="btn-danger">
                   Refund to wallet
-                </button>
+                </button></NonRegulatorContent>
               )}
             </div>
           </div>
@@ -3761,25 +3765,25 @@ export default function TransactionsPage() {
                                     {payloadSections.map((section) => (
                                       <div key={section.label}>
                                         <div style={{ color: 'var(--muted)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: '0.25rem' }}>{section.label}</div>
-                                        <pre style={{ margin: 0, whiteSpace: 'pre-wrap', overflow: 'auto', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.7rem' }}>
+                                        <NonRegulatorContent><pre style={{ margin: 0, whiteSpace: 'pre-wrap', overflow: 'auto', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.7rem' }}>
                                           {formatWebhookPayload(section.value)}
-                                        </pre>
+                                        </pre></NonRegulatorContent>
                                       </div>
                                     ))}
                                     {hasError ? (
                                       <div>
                                         <div style={{ color: '#b91c1c', fontSize: '12px', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: '0.25rem' }}>Error</div>
-                                        <pre style={{ margin: 0, whiteSpace: 'pre-wrap', overflow: 'auto', border: '1px solid #fecaca', borderRadius: '8px', padding: '0.7rem' }}>
+                                        <NonRegulatorContent><pre style={{ margin: 0, whiteSpace: 'pre-wrap', overflow: 'auto', border: '1px solid #fecaca', borderRadius: '8px', padding: '0.7rem' }}>
                                           {formatWebhookPayload(item.error)}
-                                        </pre>
+                                        </pre></NonRegulatorContent>
                                       </div>
                                     ) : null}
                                     {hasLastError ? (
                                       <div>
                                         <div style={{ color: '#b91c1c', fontSize: '12px', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: '0.25rem' }}>Last error</div>
-                                        <pre style={{ margin: 0, whiteSpace: 'pre-wrap', overflow: 'auto', border: '1px solid #fecaca', borderRadius: '8px', padding: '0.7rem' }}>
+                                        <NonRegulatorContent><pre style={{ margin: 0, whiteSpace: 'pre-wrap', overflow: 'auto', border: '1px solid #fecaca', borderRadius: '8px', padding: '0.7rem' }}>
                                           {formatWebhookPayload(item.lastError)}
-                                        </pre>
+                                        </pre></NonRegulatorContent>
                                       </div>
                                     ) : null}
                                   </div>
@@ -3805,9 +3809,9 @@ export default function TransactionsPage() {
                 ].map(([label, value]) => (
                   <details key={label} style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '0.7rem' }}>
                     <summary style={{ cursor: 'pointer', fontWeight: 700 }}>{label}</summary>
-                    <pre style={{ margin: '0.6rem 0 0', whiteSpace: 'pre-wrap', overflow: 'auto', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.7rem' }}>
+                    <NonRegulatorContent><pre style={{ margin: '0.6rem 0 0', whiteSpace: 'pre-wrap', overflow: 'auto', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.7rem' }}>
                       {formatWebhookPayload(value || {})}
-                    </pre>
+                    </pre></NonRegulatorContent>
                   </details>
                 ))}
               </div>
@@ -3828,9 +3832,9 @@ export default function TransactionsPage() {
       {showPostWebhookRetry && (
         <Modal title="Retry post-webhook fulfillment" onClose={() => (!postWebhookLoading ? setShowPostWebhookRetry(false) : null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <div style={{ color: 'var(--muted)' }}>
+            <NonRegulatorContent><div style={{ color: 'var(--muted)' }}>
               Reruns post-funding fulfillment without re-charging or re-debiting the user. Supports external rails and internal balance/crypto funding for FUNDED, PROCESSING, EXECUTING, or MANUAL_INTERVENTION_REQUIRED transactions.
-            </div>
+            </div></NonRegulatorContent>
             {!selected?.needsManualRefund && normalizeEnumKey(selected?.status) !== 'MANUAL_INTERVENTION_REQUIRED' && (
               <div style={{ color: '#b45309', fontWeight: 700 }}>
                 This transaction is not flagged for manual intervention. Backend may require force=true for this status.
@@ -3903,14 +3907,14 @@ export default function TransactionsPage() {
             />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="statusChangeValue">New status</label>
-              <select id="statusChangeValue" value={statusChangeValue} onChange={(e) => setStatusChangeValue(e.target.value)}>
+              <PresentationSelect id="statusChangeValue" value={statusChangeValue} onChange={(e) => setStatusChangeValue(e.target.value)}>
                 <option value="">Select status</option>
                 {statusOptions.map((status) => (
-                  <option key={status} value={status}>
+                  <option data-regulator-restricted={isRegulatorRestrictedRecord(status)} key={status} value={status}>
                     {status}
                   </option>
                 ))}
-              </select>
+              </PresentationSelect>
             </div>
             {normalizedSelectedAction === 'PAY_TV_SUBSCRIPTION' && normalizeEnumKey(statusChangeValue) === 'COMPLETED' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -4063,9 +4067,9 @@ export default function TransactionsPage() {
           }}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <div style={{ color: 'var(--muted)' }}>
+            <NonRegulatorContent><div style={{ color: 'var(--muted)' }}>
               This stores the hash on the SEND_CRYPTO receipt and notifies the user that the transfer is already on-chain.
-            </div>
+            </div></NonRegulatorContent>
             <DetailGrid
               rows={[
                 { label: 'Transaction ID', value: selected?.transactionId || selected?.id },
@@ -4102,25 +4106,25 @@ export default function TransactionsPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="receiptType">Type</label>
-                <select id="receiptType" value={receiptType} onChange={(e) => setReceiptType(e.target.value)}>
+                <PresentationSelect id="receiptType" value={receiptType} onChange={(e) => setReceiptType(e.target.value)}>
                   <option value="">Infer from transaction</option>
                   {receiptTypes.map((type) => (
-                    <option key={type} value={type}>
+                    <option data-regulator-restricted={isRegulatorRestrictedRecord(type)} key={type} value={type}>
                       {type}
                     </option>
                   ))}
-                </select>
+                </PresentationSelect>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="receiptStatus">Status</label>
-                <select id="receiptStatus" value={receiptStatus} onChange={(e) => setReceiptStatus(e.target.value)}>
+                <PresentationSelect id="receiptStatus" value={receiptStatus} onChange={(e) => setReceiptStatus(e.target.value)}>
                   <option value="">Use transaction status</option>
                   {receiptStatusOptions.map((st) => (
-                    <option key={st} value={st}>
+                    <option data-regulator-restricted={isRegulatorRestrictedRecord(st)} key={st} value={st}>
                       {st}
                     </option>
                   ))}
-                </select>
+                </PresentationSelect>
               </div>
             </div>
 
@@ -4136,17 +4140,17 @@ export default function TransactionsPage() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="receiptTemplate">Payload template (optional)</label>
-              <select id="receiptTemplate" value={receiptTemplateKey} onChange={(e) => applyReceiptTemplate(e.target.value)}>
+              <PresentationSelect id="receiptTemplate" value={receiptTemplateKey} onChange={(e) => applyReceiptTemplate(e.target.value)}>
                 <option value="">Choose a template</option>
                 {Object.keys(receiptPayloadTemplates).map((key) => (
-                  <option key={key} value={key}>
+                  <option data-regulator-restricted={isRegulatorRestrictedRecord(key)} key={key} value={key}>
                     {key}
                   </option>
                 ))}
-              </select>
-              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              </PresentationSelect>
+              <NonRegulatorContent><div style={{ color: 'var(--muted)', fontSize: '12px' }}>
                 Prefill common payload shapes (gift card codes, bill tokens, crypto hashes, loan data, etc.).
-              </div>
+              </div></NonRegulatorContent>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -4254,9 +4258,9 @@ export default function TransactionsPage() {
       {showPawapayDepositRefund && (
         <Modal title="Refund via payment provider" onClose={() => (!pawapayDepositRefundLoading ? setShowPawapayDepositRefund(false) : null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <div style={{ color: 'var(--muted)' }}>
+            <NonRegulatorContent><div style={{ color: 'var(--muted)' }}>
               This refunds the original collected mobile money payment through the payment provider. It cancels the original transaction and does not create a wallet refund transaction.
-            </div>
+            </div></NonRegulatorContent>
 
             <DetailGrid
               rows={[
@@ -4294,7 +4298,7 @@ export default function TransactionsPage() {
       )}
 
       {showRefund && (
-        <Modal title="Refund to wallet" onClose={() => (!refundLoading ? setShowRefund(false) : null)}>
+        <NonRegulatorContent><Modal title="Refund to wallet" onClose={() => (!refundLoading ? setShowRefund(false) : null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ display: 'grid', gap: '0.35rem' }}>
               <div>
@@ -4323,7 +4327,7 @@ export default function TransactionsPage() {
               </button>
             </div>
           </div>
-        </Modal>
+        </Modal></NonRegulatorContent>
       )}
     </div>
   );

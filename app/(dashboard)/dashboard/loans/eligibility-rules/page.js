@@ -1,5 +1,7 @@
 'use client';
 
+
+import { CatalogSelect } from '@/components/CatalogSelect';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { DataTable } from '@/components/DataTable';
@@ -248,7 +250,7 @@ export default function LoanEligibilityRulesPage() {
   const loadOptions = async () => {
     try {
       const [billProductRes, paymentProviderRes] = await Promise.all([
-        api.billProducts.list(new URLSearchParams({ page: '0', size: '500' })),
+        api.billProducts.options(new URLSearchParams({ page: '0', size: '500' })),
         api.paymentProviders.list(new URLSearchParams({ page: '0', size: '500' }))
       ]);
       setBillProducts(toList(billProductRes));
@@ -560,12 +562,12 @@ export default function LoanEligibilityRulesPage() {
               {draft.scope === 'PRODUCT' ? (
                 <div style={{ display: 'grid', gap: '0.25rem' }}>
                   <label htmlFor="rule-billProductId">Bill Product</label>
-                  <select id="rule-billProductId" value={draft.billProductId} onChange={(e) => setDraft((prev) => ({ ...prev, billProductId: e.target.value }))}>
+                  <CatalogSelect kind="bill-product" records={billProducts} id="rule-billProductId" value={draft.billProductId} onChange={(e) => setDraft((prev) => ({ ...prev, billProductId: e.target.value }))}>
                     <option value="">Select product</option>
                     {billProducts.map((item) => (
                       <option key={item.id} value={item.id}>{item.displayName || item.name || `Product ${item.id}`}</option>
                     ))}
-                  </select>
+                  </CatalogSelect>
                 </div>
               ) : null}
               {draft.scope === 'SERVICE' ? (
@@ -633,12 +635,12 @@ export default function LoanEligibilityRulesPage() {
               </div>
               <div style={{ display: 'grid', gap: '0.25rem' }}>
                 <label htmlFor="preview-billProductId">Bill Product</label>
-                <select id="preview-billProductId" value={previewDraft.billProductId} onChange={(e) => setPreviewDraft((prev) => ({ ...prev, billProductId: e.target.value }))}>
+                <CatalogSelect kind="bill-product" records={billProducts} id="preview-billProductId" value={previewDraft.billProductId} onChange={(e) => setPreviewDraft((prev) => ({ ...prev, billProductId: e.target.value }))}>
                   <option value="">Any</option>
                   {billProducts.map((item) => (
                     <option key={item.id} value={item.id}>{item.displayName || item.name || `Product ${item.id}`}</option>
                   ))}
-                </select>
+                </CatalogSelect>
               </div>
               <div style={{ display: 'grid', gap: '0.25rem' }}>
                 <label htmlFor="preview-paymentProviderId">Payment Provider</label>

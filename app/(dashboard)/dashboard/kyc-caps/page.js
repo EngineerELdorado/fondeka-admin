@@ -1,7 +1,12 @@
 'use client';
 
+import { NonRegulatorContent, PresentationLink as Link } from '@/components/RegulatorPresentation';
+
+import { regulatorVisibleFields } from '@/lib/regulator-presentation';
+
+import { useAuth } from '@/contexts/AuthContext';
+
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
@@ -45,16 +50,14 @@ const Modal = ({ title, onClose, children }) => (
   </div>
 );
 
-const DetailGrid = ({ rows }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
-    {rows.map((row) => (
+const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+    {regulatorVisibleFields(rows, enableRegulatorMode).map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
         <div style={{ fontWeight: 700 }}>{row.value ?? '—'}</div>
       </div>
     ))}
-  </div>
-);
+  </div>); };
 
 const FilterChip = ({ label, onClear }) => (
   <span
@@ -297,10 +300,10 @@ export default function KycCapsPage() {
         <label htmlFor="levelDescription">Level description</label>
         <input id="levelDescription" value={draft.levelDescription} onChange={(e) => setDraft((p) => ({ ...p, levelDescription: e.target.value }))} />
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+      <NonRegulatorContent><div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="maxLoanAmount">Max loan</label>
         <input id="maxLoanAmount" type="number" min={0} value={draft.maxLoanAmount} onChange={(e) => setDraft((p) => ({ ...p, maxLoanAmount: e.target.value }))} />
-      </div>
+      </div></NonRegulatorContent>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="maxCollectionAmount">Max collection</label>
         <input id="maxCollectionAmount" type="number" min={0} value={draft.maxCollectionAmount} onChange={(e) => setDraft((p) => ({ ...p, maxCollectionAmount: e.target.value }))} />
@@ -317,7 +320,7 @@ export default function KycCapsPage() {
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <div style={{ fontWeight: 800, fontSize: '20px' }}>KYC Caps</div>
-          <div style={{ color: 'var(--muted)' }}>Manage per-level caps for loans, collections, and payouts.</div>
+          <NonRegulatorContent><div style={{ color: 'var(--muted)' }}>Manage per-level caps for loans, collections, and payouts.</div></NonRegulatorContent>
         </div>
         <Link href="/dashboard" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
           ← Dashboard
@@ -365,14 +368,14 @@ export default function KycCapsPage() {
                 <label htmlFor="maxCap">Max cap</label>
                 <input id="maxCap" type="number" min={0} value={filters.maxCap} onChange={(e) => setFilters((p) => ({ ...p, maxCap: e.target.value }))} />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <NonRegulatorContent><div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="minLoan">Min loan</label>
                 <input id="minLoan" type="number" min={0} value={filters.minLoan} onChange={(e) => setFilters((p) => ({ ...p, minLoan: e.target.value }))} />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              </div></NonRegulatorContent>
+              <NonRegulatorContent><div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="maxLoan">Max loan</label>
                 <input id="maxLoan" type="number" min={0} value={filters.maxLoan} onChange={(e) => setFilters((p) => ({ ...p, maxLoan: e.target.value }))} />
-              </div>
+              </div></NonRegulatorContent>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>

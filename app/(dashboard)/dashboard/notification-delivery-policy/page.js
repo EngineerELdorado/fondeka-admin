@@ -1,7 +1,10 @@
 'use client';
 
+import { isRegulatorRestrictedRecord } from '@/lib/regulator-presentation';
+
+import { PresentationSelect, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
+
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { api } from '@/lib/api';
 import { useToast } from '@/contexts/ToastContext';
 
@@ -193,7 +196,7 @@ function MultiSelect({ id, label, value, options, disabled, onChange, minHeight 
   return (
     <label style={{ display: 'grid', gap: '0.35rem' }}>
       <span>{label}</span>
-      <select
+      <PresentationSelect
         id={id}
         multiple
         value={value}
@@ -202,11 +205,11 @@ function MultiSelect({ id, label, value, options, disabled, onChange, minHeight 
         style={{ minHeight }}
       >
         {options.map((option) => (
-          <option key={option} value={option}>
+          <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option} value={option}>
             {option}
           </option>
         ))}
-      </select>
+      </PresentationSelect>
     </label>
   );
 }
@@ -301,7 +304,7 @@ export default function NotificationDeliveryPolicyPage() {
       <div className="card" style={{ display: 'grid', gap: '1rem' }}>
         <div style={{ display: 'grid', gap: '0.35rem', maxWidth: '420px' }}>
           <label htmlFor="secondaryDeliveryMode">Secondary delivery mode</label>
-          <select
+          <PresentationSelect
             id="secondaryDeliveryMode"
             value={policy.secondaryDeliveryMode}
             onChange={(e) => {
@@ -312,11 +315,11 @@ export default function NotificationDeliveryPolicyPage() {
             disabled={loading || saving}
           >
             {SECONDARY_DELIVERY_MODE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
+              <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option.value} value={option.value}>
                 {option.label}
               </option>
             ))}
-          </select>
+          </PresentationSelect>
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
             Default is Email only. Push is controlled by the channel rule below and existing backend/provider guardrails.
           </div>
@@ -343,7 +346,7 @@ export default function NotificationDeliveryPolicyPage() {
                   {rule.enabled ? 'Channel allowed by this policy' : 'Channel disabled by this policy'}
                 </div>
               </div>
-              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.55rem', fontWeight: 700 }}>
+              <RegulatorField field={rule}><label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.55rem', fontWeight: 700 }}>
                 <input
                   type="checkbox"
                   checked={rule.enabled}
@@ -351,7 +354,7 @@ export default function NotificationDeliveryPolicyPage() {
                   disabled={loading || saving}
                 />
                 Enabled
-              </label>
+              </label></RegulatorField>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.75rem' }}>

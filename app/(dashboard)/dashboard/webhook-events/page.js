@@ -1,7 +1,8 @@
 'use client';
 
+import { NonRegulatorContent, PresentationLink as Link } from '@/components/RegulatorPresentation';
+
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 import { useToast } from '@/contexts/ToastContext';
@@ -538,7 +539,7 @@ export default function WebhookEventsPage() {
               {detailLoading ? (
                 <div style={{ color: 'var(--muted)' }}>Loading payload...</div>
               ) : detailPayload ? (
-                <pre
+                <NonRegulatorContent><pre
                   style={{
                     maxHeight: '360px',
                     overflow: 'auto',
@@ -550,7 +551,7 @@ export default function WebhookEventsPage() {
                   }}
                 >
                   {detailPayload}
-                </pre>
+                </pre></NonRegulatorContent>
               ) : (
                 <div style={{ color: 'var(--muted)' }}>No payload.</div>
               )}

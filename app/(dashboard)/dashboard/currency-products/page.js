@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 import COUNTRIES from '@/data/countries';
 import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
+import { CatalogSelect } from '@/components/CatalogSelect';
 
 const currencyOptions = ['USD', 'CDF', 'EUR', 'KES', 'UGX', 'GHS', 'XAF'];
 const rateProviderOptions = ['ADMIN', 'EXCHANGERATE_API', 'MANUAL', 'MAPLERAD'];
@@ -445,8 +446,8 @@ export default function CurrencyProductsPage() {
           actionConfigsRes
         ] = await Promise.all([
           api.currencyProducts.list(params),
-          api.paymentMethods.list(params),
-          api.billProducts.list(params),
+          api.paymentMethods.options(params),
+          api.billProducts.options(params),
           api.paymentProviders.list(params),
           api.feeConfigs.list(params),
           api.paymentMethodActionConfigs.list(params)
@@ -1231,10 +1232,14 @@ export default function CurrencyProductsPage() {
     </div>
   );
 
-  const renderPreviewSelect = (id, label, options, config = {}) => (
+  const renderPreviewSelect = (id, label, options, config = {}) => {
+    const kind = id === 'paymentMethodId' ? 'payment-method' : id === 'billProductId' ? 'bill-product' : null;
+    const Select = kind ? CatalogSelect : 'select';
+    return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
       <label htmlFor={id}>{label}</label>
-      <select
+      <Select
+        {...(kind ? { kind, records: options, loading: previewOptionsLoading } : {})}
         id={id}
         value={previewDraft[id]}
         disabled={config.disabled}
@@ -1250,9 +1255,10 @@ export default function CurrencyProductsPage() {
             </option>
           );
         })}
-      </select>
+      </Select>
     </div>
-  );
+    );
+  };
 
   const renderPreviewResult = () => {
     if (!previewResult) return null;

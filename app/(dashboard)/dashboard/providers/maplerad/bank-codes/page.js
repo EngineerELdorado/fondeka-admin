@@ -1,7 +1,8 @@
 'use client';
 
+import { RegulatorRecord, NonRegulatorContent, PresentationLink as Link } from '@/components/RegulatorPresentation';
+
 import { useMemo, useState } from 'react';
-import Link from 'next/link';
 import { api } from '@/lib/api';
 
 const defaultFilters = { country: 'KE', type: 'MOMO', context: 'PAYOUT' };
@@ -9,7 +10,7 @@ const defaultFilters = { country: 'KE', type: 'MOMO', context: 'PAYOUT' };
 const RawJson = ({ title, data }) => (
   <div className="card" style={{ display: 'grid', gap: '0.5rem' }}>
     <div style={{ fontWeight: 800 }}>{title}</div>
-    <pre
+    <NonRegulatorContent><pre
       style={{
         margin: 0,
         padding: '0.85rem',
@@ -24,7 +25,7 @@ const RawJson = ({ title, data }) => (
       }}
     >
       {data === null || data === undefined ? 'No response yet.' : JSON.stringify(data, null, 2)}
-    </pre>
+    </pre></NonRegulatorContent>
   </div>
 );
 
@@ -274,11 +275,11 @@ export default function MapleradBankCodesPage() {
               </tr>
             )}
             {bankCodes.map((bankCode, index) => (
-              <tr key={`${bankCode.code || index}-${bankCode.country || ''}`} style={{ borderBottom: '1px solid var(--border)' }}>
+              <RegulatorRecord record={bankCode} key={`${bankCode.code || index}-${bankCode.country || ''}`}><tr key={`${bankCode.code || index}-${bankCode.country || ''}`} style={{ borderBottom: '1px solid var(--border)' }}>
                 <td style={{ padding: '0.75rem', fontWeight: 700 }}>{bankCode.code || '-'}</td>
                 <td style={{ padding: '0.75rem' }}>{bankCode.name || '-'}</td>
                 <td style={{ padding: '0.75rem' }}>{bankCode.country || '-'}</td>
-              </tr>
+              </tr></RegulatorRecord>
             ))}
           </tbody>
         </table>
@@ -308,14 +309,14 @@ export default function MapleradBankCodesPage() {
                   </tr>
                 )}
                 {updatedRoutes.map((route, index) => (
-                  <tr key={`${route.routeId || index}-${route.paymentMethod || ''}`} style={{ borderBottom: '1px solid var(--border)' }}>
+                  <RegulatorRecord record={route} key={`${route.routeId || index}-${route.paymentMethod || ''}`}><tr key={`${route.routeId || index}-${route.paymentMethod || ''}`} style={{ borderBottom: '1px solid var(--border)' }}>
                     <td style={{ padding: '0.75rem', fontWeight: 700 }}>{route.paymentMethod || '-'}</td>
                     <td style={{ padding: '0.75rem' }}>{route.routeId || '-'}</td>
                     <td style={{ padding: '0.75rem' }}>{route.previousProviderCode || '—'}</td>
                     <td style={{ padding: '0.75rem' }}>{route.providerCode || '—'}</td>
                     <td style={{ padding: '0.75rem' }}>{route.changed ? 'Yes' : 'No'}</td>
                     <td style={{ padding: '0.75rem' }}>{route.dryRun ? 'Yes' : 'No'}</td>
-                  </tr>
+                  </tr></RegulatorRecord>
                 ))}
               </tbody>
             </table>
@@ -340,11 +341,11 @@ export default function MapleradBankCodesPage() {
                   </tr>
                 )}
                 {unmatchedRoutes.map((route, index) => (
-                  <tr key={`${route.providerCode || index}-${route.paymentMethod || ''}`} style={{ borderBottom: '1px solid var(--border)' }}>
+                  <RegulatorRecord record={route} key={`${route.providerCode || index}-${route.paymentMethod || ''}`}><tr key={`${route.providerCode || index}-${route.paymentMethod || ''}`} style={{ borderBottom: '1px solid var(--border)' }}>
                     <td style={{ padding: '0.75rem', fontWeight: 700 }}>{route.paymentMethod || route.name || '-'}</td>
                     <td style={{ padding: '0.75rem' }}>{route.providerCode || route.code || '—'}</td>
                     <td style={{ padding: '0.75rem' }}>{route.reason || route.message || 'No matching local MAPLERAD route'}</td>
-                  </tr>
+                  </tr></RegulatorRecord>
                 ))}
               </tbody>
             </table>

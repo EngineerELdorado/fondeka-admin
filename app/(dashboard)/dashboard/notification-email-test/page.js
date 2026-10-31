@@ -1,7 +1,8 @@
 'use client';
 
+import { NonRegulatorContent, PresentationLink as Link } from '@/components/RegulatorPresentation';
+
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { api } from '@/lib/api';
 
 const emptyKeyItem = { label: '', value: '' };
@@ -334,15 +335,15 @@ export default function NotificationEmailTestPage() {
 
       <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
         <div style={{ fontWeight: 800 }}>Payload preview</div>
-        <pre style={{ margin: 0, background: 'var(--muted-bg, #f3f4f6)', padding: '0.75rem', borderRadius: '10px', overflowX: 'auto' }}>
+        <NonRegulatorContent><pre style={{ margin: 0, background: 'var(--muted-bg, #f3f4f6)', padding: '0.75rem', borderRadius: '10px', overflowX: 'auto' }}>
           {JSON.stringify(payloadPreview, null, 2)}
-        </pre>
+        </pre></NonRegulatorContent>
         {result && (
           <>
             <div style={{ fontWeight: 800 }}>Response</div>
-            <pre style={{ margin: 0, background: 'var(--muted-bg, #f3f4f6)', padding: '0.75rem', borderRadius: '10px', overflowX: 'auto' }}>
+            <NonRegulatorContent><pre style={{ margin: 0, background: 'var(--muted-bg, #f3f4f6)', padding: '0.75rem', borderRadius: '10px', overflowX: 'auto' }}>
               {JSON.stringify(result, null, 2)}
-            </pre>
+            </pre></NonRegulatorContent>
           </>
         )}
       </div>

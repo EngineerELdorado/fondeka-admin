@@ -1,7 +1,10 @@
 'use client';
 
+import { PresentationSelect, NonRegulatorContent, PresentationLink as Link } from '@/components/RegulatorPresentation';
+
+import { regulatorVisibleFields, isRegulatorRestrictedRecord } from '@/lib/regulator-presentation';
+
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 import { useAuth } from '@/contexts/AuthContext';
@@ -52,16 +55,14 @@ const Modal = ({ title, onClose, children }) => (
   </div>
 );
 
-const DetailGrid = ({ rows }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
-    {rows.map((row) => (
+const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+    {regulatorVisibleFields(rows, enableRegulatorMode).map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
         <div style={{ fontWeight: 700 }}>{row.value ?? '—'}</div>
       </div>
     ))}
-  </div>
-);
+  </div>); };
 
 const normalizeProviderName = (value) => String(value || '').trim().toUpperCase();
 
@@ -373,7 +374,6 @@ export default function CardHoldersPage() {
     }
     loadIssueFiatWallets(accountId);
   }, [showIssue, issueDraft.accountMode, issueDraft.accountId]); // eslint-disable-line react-hooks/exhaustive-deps
-
 
   const openReconcile = async (row) => {
     if (!row?.id) return;
@@ -782,17 +782,17 @@ export default function CardHoldersPage() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="reconcileStatus">Status *</label>
-              <select id="reconcileStatus" value={reconcileDraft.status} onChange={(e) => setReconcileDraft((p) => ({ ...p, status: e.target.value }))}>
+              <PresentationSelect id="reconcileStatus" value={reconcileDraft.status} onChange={(e) => setReconcileDraft((p) => ({ ...p, status: e.target.value }))}>
                 {cardStatusOptions.map((status) => (
-                  <option key={status} value={status}>
+                  <option data-regulator-restricted={isRegulatorRestrictedRecord(status)} key={status} value={status}>
                     {status}
                   </option>
                 ))}
-              </select>
+              </PresentationSelect>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="reconcileMapping">Product/provider mapping *</label>
-              <select
+              <PresentationSelect
                 id="reconcileMapping"
                 value={reconcileDraft.cardProductCardProviderId}
                 onChange={(e) => setReconcileDraft((p) => ({ ...p, cardProductCardProviderId: e.target.value }))}
@@ -800,11 +800,11 @@ export default function CardHoldersPage() {
               >
                 <option value="">{mappingLoading ? 'Loading mappings…' : 'Select mapping'}</option>
                 {mappingOptions.map((mapping) => (
-                  <option key={mapping.id} value={mapping.id}>
+                  <option data-regulator-restricted={isRegulatorRestrictedRecord(mapping)} key={mapping.id} value={mapping.id}>
                     {mappingOptionLabel(mapping)}
                   </option>
                 ))}
-              </select>
+              </PresentationSelect>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <input
@@ -835,11 +835,11 @@ export default function CardHoldersPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="issueAccountMode">Account selector</label>
-              <select id="issueAccountMode" value={issueDraft.accountMode} onChange={(e) => setIssueDraft((p) => ({ ...p, accountMode: e.target.value }))}>
+              <PresentationSelect id="issueAccountMode" value={issueDraft.accountMode} onChange={(e) => setIssueDraft((p) => ({ ...p, accountMode: e.target.value }))}>
                 <option value="id">Account ID</option>
                 <option value="reference">Account reference</option>
                 <option value="email">Account email</option>
-              </select>
+              </PresentationSelect>
             </div>
             {issueDraft.accountMode === 'id' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -848,9 +848,9 @@ export default function CardHoldersPage() {
               </div>
             )}
             {issueDraft.accountMode === 'id' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <NonRegulatorContent><div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="issueFiatWalletId">Fiat wallet (optional)</label>
-                <select
+                <PresentationSelect
                   id="issueFiatWalletId"
                   value={issueDraft.fiatWalletId}
                   onChange={(e) => setIssueDraft((p) => ({ ...p, fiatWalletId: e.target.value }))}
@@ -861,19 +861,19 @@ export default function CardHoldersPage() {
                     const walletId = fiatWalletIdOf(wallet);
                     if (!walletId) return null;
                     return (
-                      <option key={walletId} value={walletId}>
+                      <option data-regulator-restricted={isRegulatorRestrictedRecord(wallet)} key={walletId} value={walletId}>
                         {fiatWalletLabel(wallet)}
                       </option>
                     );
                   })}
-                </select>
+                </PresentationSelect>
                 <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
                   Used when charging the account balance for card issuance.
                 </div>
                 {issueFiatWalletsError && (
                   <div style={{ color: 'var(--danger)', fontSize: '12px' }}>{issueFiatWalletsError}</div>
                 )}
-              </div>
+              </div></NonRegulatorContent>
             )}
             {issueDraft.accountMode === 'reference' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -889,7 +889,7 @@ export default function CardHoldersPage() {
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="issueMapping">Product/provider mapping (optional)</label>
-              <select
+              <PresentationSelect
                 id="issueMapping"
                 value={issueDraft.cardProductCardProviderId}
                 onChange={(e) => {
@@ -905,11 +905,11 @@ export default function CardHoldersPage() {
               >
                 <option value="">{mappingLoading ? 'Loading mappings…' : 'Select mapping'}</option>
                 {mappingOptions.map((mapping) => (
-                  <option key={mapping.id} value={mapping.id}>
+                  <option data-regulator-restricted={isRegulatorRestrictedRecord(mapping)} key={mapping.id} value={mapping.id}>
                     {mappingOptionLabel(mapping)}
                   </option>
                 ))}
-              </select>
+              </PresentationSelect>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="issueCardProductId">Card product ID</label>

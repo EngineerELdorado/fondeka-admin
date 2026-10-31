@@ -1,7 +1,13 @@
 'use client';
 
+
+import { CatalogSelect } from '@/components/CatalogSelect';
+import { regulatorVisibleFields } from '@/lib/regulator-presentation';
+
+import { useAuth } from '@/contexts/AuthContext';
+
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
+import { PresentationLink as Link } from '@/components/RegulatorPresentation';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
@@ -37,16 +43,14 @@ const ActiveBadge = ({ active }) => (
   </span>
 );
 
-const DetailGrid = ({ rows }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
-    {rows.map((row) => (
+const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+    {regulatorVisibleFields(rows, enableRegulatorMode).map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
         <div style={{ fontWeight: 700 }}>{row.value ?? '—'}</div>
       </div>
     ))}
-  </div>
-);
+  </div>); };
 
 const toPayload = (state) => ({
   billProductBillProviderId: Number(state.billProductBillProviderId) || 0,
@@ -117,7 +121,7 @@ export default function BillOffersPage() {
     const loadMappings = async () => {
       try {
         const [mappingRes, offerRes] = await Promise.all([
-          api.billProductBillProviders.list(new URLSearchParams({ page: '0', size: '200' })),
+          api.billProductBillProviders.options(new URLSearchParams({ page: '0', size: '200' })),
           api.billProductBillProviderOffers.list(new URLSearchParams({ page: '0', size: '500' }))
         ]);
         const mappingList = Array.isArray(mappingRes) ? mappingRes : mappingRes?.content || [];
@@ -293,7 +297,7 @@ export default function BillOffersPage() {
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="billProductBillProviderId">Product/Provider</label>
-        <select
+        <CatalogSelect kind="bill-route" records={mappings}
           id="billProductBillProviderId"
           value={draft.billProductBillProviderId}
           onChange={(e) => setDraft((p) => ({ ...p, billProductBillProviderId: e.target.value }))}
@@ -304,7 +308,7 @@ export default function BillOffersPage() {
               {(m.billProductName || 'Product')} / {(m.billProviderName || 'Provider')} {m.id ? `(#${m.id})` : ''}
             </option>
           ))}
-        </select>
+        </CatalogSelect>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="name">Name</label>

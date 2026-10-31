@@ -1,7 +1,14 @@
 'use client';
 
+
+import { CatalogSelect } from '@/components/CatalogSelect';
+import { RegulatorRecord, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
+
+import { regulatorVisibleFields } from '@/lib/regulator-presentation';
+
+import { useAuth } from '@/contexts/AuthContext';
+
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
@@ -79,16 +86,14 @@ const toPayload = (state) => ({
   reloadlyRequiresInvoice: state.reloadlyBillerId === '' ? null : Boolean(state.reloadlyRequiresInvoice)
 });
 
-const DetailGrid = ({ rows }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
-    {rows.map((row) => (
+const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+    {regulatorVisibleFields(rows, enableRegulatorMode).map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
         <div style={{ fontWeight: 700 }}>{row.value ?? '—'}</div>
       </div>
     ))}
-  </div>
-);
+  </div>); };
 
 const firstArray = (source, keys) => {
   if (!source || typeof source !== 'object') return [];
@@ -206,7 +211,7 @@ export default function BillProductProvidersPage() {
     const loadOptions = async () => {
       try {
         const [prodRes, provRes, profilesRes] = await Promise.all([
-          api.billProducts.list(new URLSearchParams({ page: '0', size: '200' })),
+          api.billProducts.options(new URLSearchParams({ page: '0', size: '200' })),
           api.billProviders.list(new URLSearchParams({ page: '0', size: '200' })),
           api.cegawebProfiles.list(new URLSearchParams({ page: '0', size: '200' }))
         ]);
@@ -630,7 +635,7 @@ export default function BillProductProvidersPage() {
       setInfo(`Gift-card seed complete: ${createdProducts} product(s) created, ${createdMappings} mapping(s) created. NETFLIX, SPOTIFY, APP_STORE, GOOGLE_PLAY, AIRBNB, and UBER are ready on RELOADLY.`);
       await fetchRows();
       const [prodRes, provRes] = await Promise.all([
-        api.billProducts.list(new URLSearchParams({ page: '0', size: '200' })),
+        api.billProducts.options(new URLSearchParams({ page: '0', size: '200' })),
         api.billProviders.list(new URLSearchParams({ page: '0', size: '200' }))
       ]);
       setProducts(Array.isArray(prodRes) ? prodRes : prodRes?.content || []);
@@ -729,14 +734,14 @@ export default function BillProductProvidersPage() {
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="billProductId">Bill Product</label>
-        <select id="billProductId" value={draft.billProductId} onChange={(e) => setDraft((prev) => ({ ...prev, billProductId: e.target.value }))}>
+        <CatalogSelect kind="bill-product" records={products} id="billProductId" value={draft.billProductId} onChange={(e) => setDraft((prev) => ({ ...prev, billProductId: e.target.value }))}>
           <option value="">Select product</option>
           {products.map((p) => (
             <option key={p.id} value={p.id}>
               {p.displayName || p.name || p.id}
             </option>
           ))}
-        </select>
+        </CatalogSelect>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="billProviderId">Bill Provider</label>
@@ -861,7 +866,7 @@ export default function BillProductProvidersPage() {
           <thead>
             <tr>
               {columns.map((col) => (
-                <th key={col.key} style={{ textAlign: 'left', padding: '0.65rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)', fontSize: '12px' }}>{col.label}</th>
+                <RegulatorField field={col} key={col.key}><th key={col.key} style={{ textAlign: 'left', padding: '0.65rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)', fontSize: '12px' }}>{col.label}</th></RegulatorField>
               ))}
             </tr>
           </thead>
@@ -872,13 +877,13 @@ export default function BillProductProvidersPage() {
               </tr>
             )}
             {items.map((item, index) => (
-              <tr key={`${title}-${item?.externalReference || item?.offerExternalReference || item?.optionExternalReference || index}`} style={{ borderBottom: '1px solid var(--border)' }}>
+              <RegulatorRecord record={item} key={`${title}-${item?.externalReference || item?.offerExternalReference || item?.optionExternalReference || index}`}><tr key={`${title}-${item?.externalReference || item?.offerExternalReference || item?.optionExternalReference || index}`} style={{ borderBottom: '1px solid var(--border)' }}>
                 {columns.map((col) => (
                   <td key={col.key} style={{ padding: '0.65rem', verticalAlign: 'top', fontSize: '13px' }}>
                     {col.render ? col.render(item) : formatNullable(item?.[col.key])}
                   </td>
                 ))}
-              </tr>
+              </tr></RegulatorRecord>
             ))}
           </tbody>
         </table>
@@ -1159,7 +1164,7 @@ export default function BillProductProvidersPage() {
                 ['updatePrices', 'Update prices'],
                 ['replaceOfferOptionLinks', 'Replace offer-option links']
               ].map(([key, label]) => (
-                <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text)', margin: 0 }}>
+                <RegulatorField field={key} key={key}><label key={key} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text)', margin: 0 }}>
                   <input
                     type="checkbox"
                     checked={Boolean(cegawebCatalogDraft[key])}
@@ -1167,7 +1172,7 @@ export default function BillProductProvidersPage() {
                     style={{ width: 'auto' }}
                   />
                   {label}
-                </label>
+                </label></RegulatorField>
               ))}
             </div>
 

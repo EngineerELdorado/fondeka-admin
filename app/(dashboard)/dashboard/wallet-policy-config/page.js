@@ -1,5 +1,7 @@
 'use client';
 
+
+import { CatalogSelect } from '@/components/CatalogSelect';
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
@@ -453,7 +455,7 @@ export default function WalletPolicyConfigPage() {
         api.walletPolicyConfig.get(),
         api.cryptoProducts.list(params),
         api.cryptoNetworks.list(params),
-        api.paymentMethods.list(params),
+        api.paymentMethods.options(params),
         api.currencyProducts.list(params)
       ]);
       setCryptoProducts(normalizeList(cryptoProductsRes));
@@ -1819,7 +1821,7 @@ export default function WalletPolicyConfigPage() {
 
                     <div style={{ display: 'grid', gap: '0.25rem' }}>
                       <label htmlFor={`collectionSourceRiskRules-method-${ruleIndex}`}>Exact payment method</label>
-                      <select
+                      <CatalogSelect kind="payment-method" records={paymentMethods}
                         id={`collectionSourceRiskRules-method-${ruleIndex}`}
                         value={rule.paymentMethodId}
                         onChange={(e) => {
@@ -1837,7 +1839,7 @@ export default function WalletPolicyConfigPage() {
                             {option.label}
                           </option>
                         ))}
-                      </select>
+                      </CatalogSelect>
                       <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
                         If set, this rule becomes the most specific match for that method.
                       </div>

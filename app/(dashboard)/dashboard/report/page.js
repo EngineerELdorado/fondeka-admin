@@ -1,5 +1,7 @@
 'use client';
 
+import { NonRegulatorContent } from '@/components/RegulatorPresentation';
+
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { StatCard } from '@/components/StatCard';
@@ -58,9 +60,9 @@ export default function ReportPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
         <StatCard title="Accounts" value={report?.totalAccounts ?? '—'} />
-        <StatCard title="Loans" value={report?.totalLoans ?? '—'} />
-        <StatCard title="Approved loans" value={report?.totalApprovedLoans ?? '—'} />
-        <StatCard title="Rejected loans" value={report?.totalRejectedLoans ?? '—'} />
+        <NonRegulatorContent><StatCard title="Loans" value={report?.totalLoans ?? '—'} /></NonRegulatorContent>
+        <NonRegulatorContent><StatCard title="Approved loans" value={report?.totalApprovedLoans ?? '—'} /></NonRegulatorContent>
+        <NonRegulatorContent><StatCard title="Rejected loans" value={report?.totalRejectedLoans ?? '—'} /></NonRegulatorContent>
         <StatCard title="Transactions" value={report?.totalTransactions ?? '—'} />
         <StatCard title="Pending KYC" value={report?.totalPendingKyc ?? '—'} />
       </div>

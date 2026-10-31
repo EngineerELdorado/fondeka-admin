@@ -1,5 +1,9 @@
 'use client';
 
+import { isRegulatorRestrictedRecord } from '@/lib/regulator-presentation';
+
+import { RegulatorRecord, PresentationSelect, NonRegulatorContent, PresentationLink } from '@/components/RegulatorPresentation';
+
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 
@@ -195,6 +199,7 @@ export default function AppVersionPage() {
       <div>
         <div style={{ fontSize: '22px', fontWeight: 800 }}>App Version</div>
         <div style={{ color: 'var(--muted)' }}>Update backend app version and mobile force-update thresholds.</div>
+        <PresentationLink href="/dashboard/mobile-maintenance" style={{ display: 'inline-block', marginTop: '0.5rem' }}>Manage mobile maintenance</PresentationLink>
       </div>
 
       {error && (
@@ -261,9 +266,9 @@ export default function AppVersionPage() {
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         <div style={{ fontWeight: 800 }}>Service version rules</div>
-        <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+        <NonRegulatorContent><div style={{ color: 'var(--muted)', fontSize: '13px' }}>
           Set minimum versions per service. LENDING and CRYPTO are pre-seeded to 1.1.
-        </div>
+        </div></NonRegulatorContent>
 
         {rulesError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{rulesError}</div>}
         {rulesInfo && <div style={{ color: '#15803d', fontWeight: 700 }}>{rulesInfo}</div>}
@@ -271,14 +276,14 @@ export default function AppVersionPage() {
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'end' }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minWidth: '220px' }}>
             <span>Service</span>
-            <select value={ruleService} onChange={(e) => setRuleService(e.target.value)}>
+            <PresentationSelect value={ruleService} onChange={(e) => setRuleService(e.target.value)}>
               <option value="">Select service</option>
               {serviceOptions.map((service) => (
-                <option key={service} value={service}>
+                <option data-regulator-restricted={isRegulatorRestrictedRecord(service)} key={service} value={service}>
                   {service}
                 </option>
               ))}
-            </select>
+            </PresentationSelect>
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minWidth: '160px' }}>
             <span>Min version</span>
@@ -316,7 +321,7 @@ export default function AppVersionPage() {
                 </tr>
               ) : (
                 rules.map((rule) => (
-                  <tr key={rule.service}>
+                  <RegulatorRecord record={rule} key={rule.service}><tr key={rule.service}>
                     <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border)' }}>{rule.service}</td>
                     <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border)' }}>{rule.minVersion || '—'}</td>
                     <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border)' }}>
@@ -334,7 +339,7 @@ export default function AppVersionPage() {
                         </button>
                       </div>
                     </td>
-                  </tr>
+                  </tr></RegulatorRecord>
                 ))
               )}
             </tbody>

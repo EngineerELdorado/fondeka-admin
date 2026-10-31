@@ -1,7 +1,12 @@
 'use client';
 
+import { PresentationSelect, NonRegulatorContent, PresentationLink as Link } from '@/components/RegulatorPresentation';
+
+import { regulatorVisibleFields, isRegulatorRestrictedRecord } from '@/lib/regulator-presentation';
+
+import { useAuth } from '@/contexts/AuthContext';
+
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
@@ -97,16 +102,14 @@ const Modal = ({ title, onClose, children, surfaceStyle = null }) => (
   </div>
 );
 
-const DetailGrid = ({ rows }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.6rem' }}>
-    {rows.map((row) => (
+const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.6rem' }}>
+    {regulatorVisibleFields(rows, enableRegulatorMode).map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: '1px solid var(--border)', borderRadius: '10px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
         <div style={{ fontWeight: 700, overflowWrap: 'anywhere', whiteSpace: row.pre ? 'pre-wrap' : 'normal' }}>{row.value ?? '—'}</div>
       </div>
     ))}
-  </div>
-);
+  </div>); };
 
 const DocumentLink = ({ label, value, contentType, onOpen }) => {
   if (!value) return null;
@@ -419,10 +422,10 @@ export default function EnhancedKycVerificationsPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="status">Status</label>
-                <select id="status" value={filters.status} onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value }))}>
+                <PresentationSelect id="status" value={filters.status} onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value }))}>
                   <option value="">All</option>
-                  {statusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
-                </select>
+                  {statusOptions.map((status) => <option data-regulator-restricted={isRegulatorRestrictedRecord(status)} key={status} value={status}>{status}</option>)}
+                </PresentationSelect>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="page">Page</label>
@@ -492,7 +495,7 @@ export default function EnhancedKycVerificationsPage() {
             </div>
             <details className="card" style={{ padding: '0.75rem' }}>
               <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Raw response</summary>
-              <pre style={{ margin: '0.75rem 0 0', whiteSpace: 'pre-wrap', overflow: 'auto' }}>{formatJson(selected)}</pre>
+              <NonRegulatorContent><pre style={{ margin: '0.75rem 0 0', whiteSpace: 'pre-wrap', overflow: 'auto' }}>{formatJson(selected)}</pre></NonRegulatorContent>
             </details>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
               {String(selected?.status || '').toUpperCase() === 'PENDING' ? <button type="button" className="btn-danger" onClick={() => openDelete(selected)}>Delete</button> : null}
@@ -513,10 +516,10 @@ export default function EnhancedKycVerificationsPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="targetType">Create by</label>
-                <select id="targetType" value={createDraft.targetType} onChange={(e) => setCreateDraft((p) => ({ ...p, targetType: e.target.value }))}>
+                <PresentationSelect id="targetType" value={createDraft.targetType} onChange={(e) => setCreateDraft((p) => ({ ...p, targetType: e.target.value }))}>
                   <option value="accountId">Account ID</option>
                   <option value="email">Email</option>
-                </select>
+                </PresentationSelect>
               </div>
               {createDraft.targetType === 'email' ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -637,9 +640,9 @@ export default function EnhancedKycVerificationsPage() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="reviewStatus">Status</label>
-              <select id="reviewStatus" value={reviewDraft.status} onChange={(e) => setReviewDraft((p) => ({ ...p, status: e.target.value }))}>
-                {reviewStatusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
-              </select>
+              <PresentationSelect id="reviewStatus" value={reviewDraft.status} onChange={(e) => setReviewDraft((p) => ({ ...p, status: e.target.value }))}>
+                {reviewStatusOptions.map((status) => <option data-regulator-restricted={isRegulatorRestrictedRecord(status)} key={status} value={status}>{status}</option>)}
+              </PresentationSelect>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="reviewNote">Review note</label>

@@ -1,7 +1,10 @@
 'use client';
 
+import { isRegulatorRestrictedRecord } from '@/lib/regulator-presentation';
+
+import { PresentationSelect, PresentationLink as Link } from '@/components/RegulatorPresentation';
+
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
@@ -168,10 +171,10 @@ export default function ProviderCoveragePage() {
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="context">Context</label>
-          <select id="context" value={filters.context} onChange={(e) => setFilters((p) => ({ ...p, context: e.target.value }))}>
+          <PresentationSelect id="context" value={filters.context} onChange={(e) => setFilters((p) => ({ ...p, context: e.target.value }))}>
             <option value="">Any</option>
-            {CONTEXTS.map((item) => <option key={item} value={item}>{item}</option>)}
-          </select>
+            {CONTEXTS.map((item) => <option data-regulator-restricted={isRegulatorRestrictedRecord(item)} key={item} value={item}>{item}</option>)}
+          </PresentationSelect>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button type="button" className="btn-primary" onClick={applyFilters} disabled={loading}>{loading ? 'Loading…' : 'Apply'}</button>

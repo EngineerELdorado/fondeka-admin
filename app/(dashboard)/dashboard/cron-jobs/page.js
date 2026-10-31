@@ -1,5 +1,7 @@
 'use client';
 
+import { NonRegulatorContent } from '@/components/RegulatorPresentation';
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DataTable } from '@/components/DataTable';
 import { api } from '@/lib/api';
@@ -157,9 +159,9 @@ export default function CronJobsPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
           <div style={{ fontWeight: 800, fontSize: '20px' }}>Cron Jobs</div>
           <div style={{ color: 'var(--muted)' }}>Monitor and control scheduled background jobs.</div>
-          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          <NonRegulatorContent><div style={{ color: 'var(--muted)', fontSize: '12px' }}>
             Catalog sync, wallet audit, and fiat FX refresh jobs are maintenance schedulers. Pause or unpause them here, and use the dedicated sync pages when you need an immediate manual refresh.
-          </div>
+          </div></NonRegulatorContent>
         </div>
         <button type="button" className="btn-neutral" onClick={fetchRows} disabled={loading}>
           {loading ? 'Refreshing…' : 'Refresh'}

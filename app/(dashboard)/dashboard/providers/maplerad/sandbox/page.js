@@ -1,7 +1,8 @@
 'use client';
 
+import { NonRegulatorContent, PresentationLink as Link } from '@/components/RegulatorPresentation';
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { api } from '@/lib/api';
 
 const defaultDraft = { currency: 'KES', amount: '1000' };
@@ -9,7 +10,7 @@ const defaultDraft = { currency: 'KES', amount: '1000' };
 const RawJson = ({ title, data }) => (
   <div className="card" style={{ display: 'grid', gap: '0.5rem' }}>
     <div style={{ fontWeight: 800 }}>{title}</div>
-    <pre
+    <NonRegulatorContent><pre
       style={{
         margin: 0,
         padding: '0.85rem',
@@ -24,7 +25,7 @@ const RawJson = ({ title, data }) => (
       }}
     >
       {data === null || data === undefined ? 'No response yet.' : JSON.stringify(data, null, 2)}
-    </pre>
+    </pre></NonRegulatorContent>
   </div>
 );
 
@@ -128,7 +129,7 @@ export default function MapleradSandboxPage() {
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <div style={{ fontWeight: 800, fontSize: '20px' }}>Providers &gt; Maplerad &gt; Sandbox</div>
-          <div style={{ color: 'var(--muted)' }}>Credit the Maplerad sandbox wallet and inspect provider currency responses for QA.</div>
+          <NonRegulatorContent><div style={{ color: 'var(--muted)' }}>Credit the Maplerad sandbox wallet and inspect provider currency responses for QA.</div></NonRegulatorContent>
         </div>
         <Link href="/dashboard" className="btn-neutral">
           {'<- Dashboard'}
@@ -154,7 +155,7 @@ export default function MapleradSandboxPage() {
         </div>
       </div>
 
-      <div className="card" style={{ display: 'grid', gap: '0.85rem' }}>
+      <NonRegulatorContent><div className="card" style={{ display: 'grid', gap: '0.85rem' }}>
         <div>
           <div style={{ fontWeight: 800 }}>Credit sandbox wallet</div>
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Amount must be a positive integer. Currency can be selected or typed as an uppercase ISO code.</div>
@@ -191,7 +192,7 @@ export default function MapleradSandboxPage() {
             {crediting ? 'Crediting...' : 'Credit sandbox wallet'}
           </button>
         </div>
-      </div>
+      </div></NonRegulatorContent>
 
       <RawJson title="Currencies provider response" data={currenciesResponse} />
       <RawJson title="Credit provider response" data={creditResponse} />

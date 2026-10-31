@@ -1,5 +1,7 @@
 'use client';
 
+
+import { CatalogSelect } from '@/components/CatalogSelect';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
@@ -80,7 +82,7 @@ export default function MethodCryptoNetworksPage() {
     const fetchOptions = async () => {
       try {
         const [pmRes, netRes] = await Promise.all([
-          api.paymentMethods.list(new URLSearchParams({ page: '0', size: '100' })),
+          api.paymentMethods.options(new URLSearchParams({ page: '0', size: '100' })),
           api.cryptoNetworks.list(new URLSearchParams({ page: '0', size: '100' }))
         ]);
         const pmList = Array.isArray(pmRes) ? pmRes : pmRes?.content || [];
@@ -196,7 +198,7 @@ export default function MethodCryptoNetworksPage() {
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="paymentMethodId">Payment Method</label>
-        <select
+        <CatalogSelect kind="payment-method" records={methods}
           id="paymentMethodId"
           value={draft.paymentMethodId}
           onChange={(e) => setDraft((p) => ({ ...p, paymentMethodId: e.target.value }))}
@@ -207,7 +209,7 @@ export default function MethodCryptoNetworksPage() {
               {paymentMethodAdminLabel(m)}
             </option>
           ))}
-        </select>
+        </CatalogSelect>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="cryptoNetworkId">Crypto Network</label>
