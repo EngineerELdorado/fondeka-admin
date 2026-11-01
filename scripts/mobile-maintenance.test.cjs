@@ -5,6 +5,37 @@ const { test } = require('node:test');
 const importFile = (name, tag = '') => import(`data:text/javascript;base64,${Buffer.from(readFileSync(path.join(__dirname, '..', name), 'utf8')).toString('base64')}#${tag}`);
 const helpers = importFile('lib/mobile-maintenance.js');
 
+test('saved backend rules normalize nullable optional fields and remain usable for disabling maintenance', async () => {
+  const { maintenancePolicyPayload, newMaintenanceRule } = await helpers;
+  const response = { enabled: true, rules: [{
+    ...newMaintenanceRule(),
+    targetAccountIds: null, audience: null, platforms: null,
+    appVersionAtLeast: null, appVersionLessThan: null, startAt: null, endAt: null,
+    includeMissingAppVersion: false
+  }] };
+  const saved = maintenancePolicyPayload(response, { draft: false });
+  assert.deepEqual(saved, { enabled: true, rules: [{ ...newMaintenanceRule(), includeMissingAppVersion: false }] });
+  assert.deepEqual(maintenancePolicyPayload({ ...saved, enabled: false }), { ...saved, enabled: false });
+});
+
+test('saved backend audiences omit unused nulls while preserving explicit false, zero and targeting', async () => {
+  const { maintenancePolicyPayload, newMaintenanceRule, MAINTENANCE_AUDIENCE_LISTS, MAINTENANCE_AUDIENCE_BOOLEANS, MAINTENANCE_AUDIENCE_COUNTS } = await helpers;
+  const audience = Object.fromEntries([...MAINTENANCE_AUDIENCE_LISTS, ...MAINTENANCE_AUDIENCE_BOOLEANS, ...MAINTENANCE_AUDIENCE_COUNTS, ['accountCreatedFrom'], ['accountCreatedTo']].map(([key]) => [key, null]));
+  Object.assign(audience, { countryCodes: ['RW'], hasCards: false, minCompletedTransactions: 0 });
+  const saved = maintenancePolicyPayload({ enabled: true, rules: [{ ...newMaintenanceRule(), targetAccountIds: [123], audience }] }, { draft: false });
+  assert.deepEqual(saved.rules[0].audience, { countryCodes: ['RW'], hasCards: false, minCompletedTransactions: 0 });
+  assert.deepEqual(saved.rules[0].targetAccountIds, [123]);
+  assert.deepEqual(maintenancePolicyPayload(saved), saved);
+});
+
+test('nullable response handling still rejects unknown selectors, invalid targeting and unavailable required state', async () => {
+  const { maintenancePolicyPayload, newMaintenanceRule } = await helpers;
+  const read = (rule) => maintenancePolicyPayload({ enabled: true, rules: [{ ...newMaintenanceRule(), ...rule }] }, { draft: false });
+  for (const rule of [{ enabled: null }, { targetAccountIds: [] }, { audience: {} }, { audience: { hasCards: null } }, { audience: { countryCodse: null } }, { unsupported: null }]) assert.throws(() => read(rule));
+  assert.throws(() => maintenancePolicyPayload({ enabled: null, rules: [] }, { draft: false }));
+  assert.throws(() => maintenancePolicyPayload({ enabled: true, rules: null }, { draft: false }));
+});
+
 test('maintenance preserves Unicode copy, explicit false ownership and every supported audience selector', async () => {
   const { maintenancePolicyPayload, newMaintenanceRule } = await helpers;
   const rule = {

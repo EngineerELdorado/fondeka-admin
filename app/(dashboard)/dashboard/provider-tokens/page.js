@@ -127,16 +127,24 @@ export default function ProviderTokensPage() {
     setInfo(null);
   };
 
-  const openEdit = (row) => {
-    setSelected(row);
-    setDraft({
-      providerName: row.providerName ?? '',
-      profileKey: row.profileKey ?? '',
-      token: row.token ?? ''
-    });
-    setShowEdit(true);
+  const openEdit = async (row) => {
+    setActionLoading(true);
     setError(null);
     setInfo(null);
+    try {
+      const data = await api.providerTokens.get(row.id);
+      setSelected(data);
+      setDraft({
+        providerName: data.providerName ?? '',
+        profileKey: data.profileKey ?? '',
+        token: data.token ?? ''
+      });
+      setShowEdit(true);
+    } catch (err) {
+      setError(err.message || `Failed to load token ${row.id}.`);
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const openDetail = async (row) => {
@@ -223,7 +231,6 @@ export default function ProviderTokensPage() {
       { key: 'id', label: 'ID' },
       { key: 'providerName', label: 'Provider name' },
       { key: 'profileKey', label: 'Profile key' },
-      { key: 'token', label: 'Token', render: (row) => maskToken(row.token) },
       { key: 'expiresAt', label: 'Expires at', render: (row) => formatDateTime(tokenExpiresAt(row)) },
       { key: 'updatedAt', label: 'Updated at', render: (row) => formatDateTime(row.updatedAt) },
       {

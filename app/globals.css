@@ -784,3 +784,56 @@ label {
     min-width: 480px;
   }
 }
+
+:is(.payout-failover, .recharge-failover), .failover-card { display: grid; gap: 1rem; min-width: 0; }
+:is(.payout-failover, .recharge-failover) h1 { margin: 0; font-size: 1.5rem; }
+:is(.payout-failover, .recharge-failover) h2 { margin: 0; font-size: 1.12rem; }
+:is(.payout-failover, .recharge-failover) h3, :is(.payout-failover, .recharge-failover) p { margin: 0; }
+:is(.payout-failover, .recharge-failover) small, :is(.payout-failover, .recharge-failover) p, .failover-field > small { color: var(--muted); }
+:is(.payout-failover, .recharge-failover) small { line-height: 1.5; }
+.failover-heading, .failover-actions { display: flex; gap: .65rem; align-items: center; flex-wrap: wrap; }
+.failover-heading { justify-content: space-between; align-items: flex-start; }
+.failover-heading > div:not(.failover-actions) { display: grid; gap: .4rem; }
+.failover-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: .8rem; }
+.failover-field { display: grid; gap: .35rem; min-width: 0; align-content: start; }
+.failover-field input, .failover-field select, .failover-field textarea { min-width: 0; width: 100%; }
+.failover-check { display: inline-flex; gap: .5rem; align-items: center; }
+.failover-check input { width: 18px; height: 18px; margin: 0; }
+.failover-rule-summary { display: grid; gap: .4rem; padding: .8rem; border: 1px solid var(--border); border-radius: 10px; overflow-wrap: anywhere; }
+.failover-issues { display: grid; gap: .65rem; margin: 0; padding-left: 1.2rem; }
+.failover-issues li { overflow-wrap: anywhere; }
+.failover-issues li > span { display: block; }
+:is(.payout-failover, .recharge-failover) pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .8rem; margin: 0; }
+:is(.payout-failover, .recharge-failover) button:disabled { opacity: .5; cursor: not-allowed; }
+.failover-table { overflow-x: auto; }
+.failover-table table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.failover-table th, .failover-table td { padding: .65rem; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+.failover-table td { overflow-wrap: anywhere; }
+.failover-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: .7rem; }
+.failover-metric { padding: .8rem; border: 1px solid var(--border); border-radius: 10px; display: grid; gap: .35rem; }
+.failover-metric strong { font-size: 1.4rem; }
+.failover-timeline { display: grid; gap: 1rem; margin: 0; padding-left: 1.3rem; }
+.failover-timeline li { min-width: 0; }
+.sandbox-history { display: grid; gap: 1rem; min-width: 0; }
+.sandbox-history .sandbox-card { display: grid; gap: .85rem; min-width: 0; }
+.sandbox-history h1, .sandbox-history h2, .sandbox-history p { margin: 0; }
+.sandbox-history h1 { font-size: 1.5rem; margin-top: .45rem; }
+.sandbox-history h2 { font-size: 1.1rem; }
+.sandbox-history small, .sandbox-history dt { color: var(--muted); }
+.sandbox-heading, .sandbox-actions { display: flex; align-items: center; gap: .65rem; flex-wrap: wrap; }
+.sandbox-heading { justify-content: space-between; }
+.sandbox-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: .85rem; }
+.sandbox-field, .sandbox-cell { display: grid; gap: .3rem; min-width: 0; }
+.sandbox-field > span { font-weight: 700; font-size: .85rem; }
+.sandbox-field input, .sandbox-field select { min-width: 0; width: 100%; }
+.sandbox-info { margin: 0; }
+.sandbox-info > div { padding: .7rem; border: 1px solid var(--border); border-radius: 10px; min-width: 0; }
+.sandbox-info dt { font-size: .8rem; margin-bottom: .35rem; }
+.sandbox-info dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.sandbox-cell, .sandbox-reference { overflow-wrap: anywhere; }
+.sandbox-environment, .sandbox-status { display: inline-flex; padding: .25rem .6rem; border-radius: 999px; font-weight: 800; font-size: .75rem; }
+.sandbox-environment { background: #eff6ff; color: #1d4ed8; }
+.sandbox-status { background: #f1f5f9; color: #475569; }
+.sandbox-status--completed { background: #ecfdf3; color: #15803d; }
+.sandbox-status--failed { background: #fef2f2; color: #b91c1c; }
+.sandbox-status--processing { background: #fff7ed; color: #b45309; }

@@ -8,8 +8,11 @@ import { PresentationSelect, NonRegulatorContent, PresentationLink as Link } fro
 
 import { useAuth } from '@/contexts/AuthContext';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/api';
+import { AnnouncementPopupFields } from '@/components/AnnouncementPopupFields';
+import { announcementPopupDraft, notificationAnnouncementPayload } from '@/lib/announcement-popup';
+
 import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
 
 const DEFAULT_ACCOUNT_PAGE_SIZE = 500;
@@ -75,19 +78,15 @@ const kycStatusValues = new Set(kycStatusOptions.map((option) => option.value));
 
 const emptyDataRow = { key: '', value: '' };
 const emptyAnnouncement = {
+  ...announcementPopupDraft(),
   enabled: false,
   severity: '',
   startAt: '',
   endAt: '',
   image: '',
   link: '',
-  downloadUpdate: false,
-  applyCampaignFilters: true,
-  appVersionAtLeast: '',
-  appVersionLessThan: '',
-  includeMissingAppVersion: false
+  downloadUpdate: false
 };
-const versionPattern = /^\d+(?:\.\d+)*$/;
 
 const toOptionalInteger = (value, { min = 0, label = 'Value' } = {}) => {
   const raw = String(value || '').trim();
@@ -107,13 +106,7 @@ const normalizeDataRows = (rows) =>
     }))
     .filter((row) => row.key && row.value);
 
-const toUtcInstant = (value) => {
-  const trimmed = String(value || '').trim();
-  if (!trimmed) return null;
-  if (/[zZ]|[+-]\d{2}:?\d{2}$/.test(trimmed)) return trimmed;
-  const withSeconds = trimmed.length === 16 ? `${trimmed}:00` : trimmed;
-  return `${withSeconds}Z`;
-};
+
 
 const toList = (res) => (Array.isArray(res) ? res : res?.content || []);
 const triStateToBoolean = (value) => (value === 'YES' ? true : value === 'NO' ? false : undefined);
@@ -161,6 +154,7 @@ export default function NotificationPushCampaignsPage() {
   const [accountCreatedTo, setAccountCreatedTo] = useState('');
 
   const [launchLoading, setLaunchLoading] = useState(false);
+  const launchLock = useRef(false);
   const [statusLoading, setStatusLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
@@ -323,25 +317,7 @@ export default function NotificationPushCampaignsPage() {
       const dataPairs = normalizeDataRows(dataRows);
       const data = dataPairs.length ? Object.fromEntries(dataPairs.map((row) => [row.key, row.value])) : undefined;
       const audience = buildAudiencePayload();
-      const appVersionAtLeast = String(announcement.appVersionAtLeast || '').trim();
-      const appVersionLessThan = String(announcement.appVersionLessThan || '').trim();
-      if (appVersionAtLeast && !versionPattern.test(appVersionAtLeast)) throw new Error('Announcement minimum app version must be numeric dotted, for example 2.0.0.');
-      if (appVersionLessThan && !versionPattern.test(appVersionLessThan)) throw new Error('Announcement maximum app version must be numeric dotted, for example 3.0.0.');
-      const announcementPayload = announcement.enabled
-        ? {
-            enabled: true,
-            ...(announcement.severity ? { severity: String(announcement.severity).trim() } : {}),
-            ...(toUtcInstant(announcement.startAt) ? { startAt: toUtcInstant(announcement.startAt) } : {}),
-            ...(toUtcInstant(announcement.endAt) ? { endAt: toUtcInstant(announcement.endAt) } : {}),
-            ...(announcement.image ? { image: String(announcement.image).trim() } : {}),
-            ...(announcement.link ? { link: String(announcement.link).trim() } : {}),
-            ...(announcement.downloadUpdate ? { downloadUpdate: true } : {}),
-            ...(announcement.applyCampaignFilters && audience ? { audience } : {}),
-            ...(appVersionAtLeast ? { appVersionAtLeast } : {}),
-            ...(appVersionLessThan ? { appVersionLessThan } : {}),
-            ...(announcement.includeMissingAppVersion ? { includeMissingAppVersion: true } : {})
-          }
-        : undefined;
+      const announcementPayload = notificationAnnouncementPayload(announcement, subject, message);
       return {
         subject: subject.trim(),
         message: message.trim(),
@@ -406,6 +382,8 @@ export default function NotificationPushCampaignsPage() {
   }, [campaignIdInput, pollingEnabled, campaignStatus?.completed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleLaunchCampaign = async () => {
+    if (launchLock.current) return;
+    launchLock.current = true;
     setLaunchLoading(true);
     setError(null);
     setInfo(null);
@@ -417,41 +395,7 @@ export default function NotificationPushCampaignsPage() {
       if (!messageValue) throw new Error('Message is required.');
       if (payloadPreview?.invalid) throw new Error(payloadPreview.invalid);
 
-      const dataPairs = normalizeDataRows(dataRows);
-      const data = dataPairs.length ? Object.fromEntries(dataPairs.map((row) => [row.key, row.value])) : undefined;
-      const audience = buildAudiencePayload();
-      const appVersionAtLeast = String(announcement.appVersionAtLeast || '').trim();
-      const appVersionLessThan = String(announcement.appVersionLessThan || '').trim();
-      if (appVersionAtLeast && !versionPattern.test(appVersionAtLeast)) throw new Error('Announcement minimum app version must be numeric dotted, for example 2.0.0.');
-      if (appVersionLessThan && !versionPattern.test(appVersionLessThan)) throw new Error('Announcement maximum app version must be numeric dotted, for example 3.0.0.');
-      const announcementPayload = announcement.enabled
-        ? {
-            enabled: true,
-            ...(announcement.severity ? { severity: String(announcement.severity).trim() } : {}),
-            ...(toUtcInstant(announcement.startAt) ? { startAt: toUtcInstant(announcement.startAt) } : {}),
-            ...(toUtcInstant(announcement.endAt) ? { endAt: toUtcInstant(announcement.endAt) } : {}),
-            ...(announcement.image ? { image: String(announcement.image).trim() } : {}),
-            ...(announcement.link ? { link: String(announcement.link).trim() } : {}),
-            ...(announcement.downloadUpdate ? { downloadUpdate: true } : {}),
-            ...(announcement.applyCampaignFilters && audience ? { audience } : {}),
-            ...(appVersionAtLeast ? { appVersionAtLeast } : {}),
-            ...(appVersionLessThan ? { appVersionLessThan } : {}),
-            ...(announcement.includeMissingAppVersion ? { includeMissingAppVersion: true } : {})
-          }
-        : undefined;
-      const payload = {
-        subject: subjectValue,
-        message: messageValue,
-        ...(data ? { data } : {}),
-        accountPageSize: toOptionalInteger(accountPageSize, { min: 1, label: 'Account page size' }) ?? DEFAULT_ACCOUNT_PAGE_SIZE,
-        batchSize: toOptionalInteger(batchSize, { min: 1, label: 'Batch size' }) ?? DEFAULT_BATCH_SIZE,
-        batchDelaySeconds: toOptionalInteger(batchDelaySeconds, { min: 0, label: 'Batch delay seconds' }) ?? DEFAULT_BATCH_DELAY_SECONDS,
-        initialDelaySeconds: toOptionalInteger(initialDelaySeconds, { min: 0, label: 'Initial delay seconds' }) ?? DEFAULT_INITIAL_DELAY_SECONDS,
-        ...(audience ? { audience } : {}),
-        ...(announcementPayload ? { announcement: announcementPayload } : {})
-      };
-
-      const res = await api.notifications.createPushCampaign(payload);
+      const res = await api.notifications.createPushCampaign(payloadPreview);
       setCreateResult(res || null);
       const nextCampaignId = String(res?.campaignId || '').trim();
       if (nextCampaignId) {
@@ -463,6 +407,7 @@ export default function NotificationPushCampaignsPage() {
     } catch (err) {
       setError(err?.message || 'Failed to launch campaign');
     } finally {
+      launchLock.current = false;
       setLaunchLoading(false);
     }
   };
@@ -493,7 +438,7 @@ export default function NotificationPushCampaignsPage() {
       </div>
 
       {error && (
-        <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>
+        <div role="alert" className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>
           {error}
         </div>
       )}
@@ -503,7 +448,7 @@ export default function NotificationPushCampaignsPage() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem' }}>
+      <fieldset disabled={launchLoading} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem' }}>
         <div style={{ display: 'grid', gap: '1rem' }}>
           <div className="card" style={{ display: 'grid', gap: '0.85rem' }}>
             <div style={{ fontWeight: 800 }}>1. Campaign content</div>
@@ -574,17 +519,19 @@ export default function NotificationPushCampaignsPage() {
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.55rem', fontWeight: 700 }}>
                 <input
                   type="checkbox"
+                  style={{ width: 'auto' }}
                   checked={announcement.enabled}
                   onChange={(e) => setAnnouncement((prev) => ({ ...prev, enabled: e.target.checked }))}
                 />
                 Also create announcement
               </label>
               <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-                Title and body come from the push subject and message. Use the fields below only for optional announcement metadata.
+                The announcement uses the push subject and message. Choose its format and optional primary action below.
               </div>
 
               {announcement.enabled && (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+                  <AnnouncementPopupFields draft={announcement} setDraft={setAnnouncement} />
                   <label style={{ display: 'grid', gap: '0.35rem' }}>
                     <span>Severity</span>
                     <PresentationSelect
@@ -624,7 +571,7 @@ export default function NotificationPushCampaignsPage() {
                     />
                   </label>
                   <label style={{ display: 'grid', gap: '0.35rem' }}>
-                    <span>Link</span>
+                    <span>Legacy link</span>
                     <input
                       value={announcement.link}
                       onChange={(e) => setAnnouncement((prev) => ({ ...prev, link: e.target.value }))}
@@ -639,38 +586,7 @@ export default function NotificationPushCampaignsPage() {
                     />
                     This announcement asks users to update the app
                   </label>
-                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.55rem', alignSelf: 'end', minHeight: '42px' }}>
-                    <input
-                      type="checkbox"
-                      checked={announcement.applyCampaignFilters}
-                      onChange={(e) => setAnnouncement((prev) => ({ ...prev, applyCampaignFilters: e.target.checked }))}
-                    />
-                    Apply campaign filters to announcement
-                  </label>
-                  <label style={{ display: 'grid', gap: '0.35rem' }}>
-                    <span>App version at least</span>
-                    <input
-                      value={announcement.appVersionAtLeast}
-                      onChange={(e) => setAnnouncement((prev) => ({ ...prev, appVersionAtLeast: e.target.value }))}
-                      placeholder="2.0.0"
-                    />
-                  </label>
-                  <label style={{ display: 'grid', gap: '0.35rem' }}>
-                    <span>App version less than</span>
-                    <input
-                      value={announcement.appVersionLessThan}
-                      onChange={(e) => setAnnouncement((prev) => ({ ...prev, appVersionLessThan: e.target.value }))}
-                      placeholder="3.0.0"
-                    />
-                  </label>
-                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.55rem', alignSelf: 'end', minHeight: '42px' }}>
-                    <input
-                      type="checkbox"
-                      checked={announcement.includeMissingAppVersion}
-                      onChange={(e) => setAnnouncement((prev) => ({ ...prev, includeMissingAppVersion: e.target.checked }))}
-                    />
-                    Include missing app version
-                  </label>
+                  <div style={{ gridColumn: '1 / -1', color: 'var(--muted)', fontSize: '12px' }}>This announcement retains the campaign audience. After publication, use Announcements to edit its app-version filters and other saved settings.</div>
                 </div>
               )}
             </div>
@@ -945,14 +861,14 @@ export default function NotificationPushCampaignsPage() {
             </button>
           </div>
         </div>
-      </div>
+      </div></fieldset>
 
       {createResult && (
         <div className="card" style={{ display: 'grid', gap: '0.55rem' }}>
           <div style={{ fontWeight: 800 }}>Campaign submitted</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
             <div><strong>Campaign ID:</strong> {createResult.campaignId || '—'}</div>
-            <div><strong>Announcement ID:</strong> {createResult.announcementId || '—'}</div>
+            <div><strong>Announcement ID:</strong> {createResult.announcementId ? <Link href={`/dashboard/announcements?announcementId=${encodeURIComponent(createResult.announcementId)}`}>#{createResult.announcementId} · Edit announcement</Link> : '—'}</div>
             <div><strong>Scanned:</strong> {createResult.scannedAccounts ?? '—'}</div>
             <div><strong>Enqueued:</strong> {createResult.enqueuedJobs ?? '—'}</div>
             <div><strong>Skipped:</strong> {createResult.skippedJobs ?? '—'}</div>

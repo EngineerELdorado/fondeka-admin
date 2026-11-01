@@ -7,6 +7,7 @@ import { PreservedAdminPresentation, useAuth } from '@/contexts/AuthContext';
 import { useLocale } from '@/contexts/LocaleContext';
 import { RegulatorRouteBoundary } from '@/components/RegulatorPresentation';
 import { isRegulatorRestrictedRoute } from '@/lib/regulator-presentation';
+import { canReadSandboxHistory } from '@/lib/business-api-sandbox';
 
 const navItems = [
   { href: '/dashboard', labelKey: 'layout.nav.overview' },
@@ -18,6 +19,7 @@ const navItems = [
   { href: '/dashboard/blacklist', labelKey: 'layout.nav.blacklist' },
   { href: '/dashboard/payments', labelKey: 'layout.nav.paymentMethods' },
   { href: '/dashboard/payments/provider-coverage', labelKey: 'layout.nav.paymentProviderCoverage', label: 'Provider Coverage Map' },
+  { href: '/dashboard/payout-failover', labelKey: 'layout.nav.payoutFailover', label: 'Payout failover', adminOnly: true },
   // Products cluster
   { href: '/dashboard/loans', labelKey: 'layout.nav.loansProducts' },
   { href: '/dashboard/savings', labelKey: 'layout.nav.savingsProducts' },
@@ -34,6 +36,7 @@ const navItems = [
   { href: '/dashboard/esim', labelKey: 'layout.nav.esimsProviders' },
   { href: '/dashboard/esim-products', labelKey: 'layout.nav.esimProducts' },
   { href: '/dashboard/businesses', labelKey: 'layout.nav.businesses', label: 'Businesses' },
+  { href: '/dashboard/business-api/sandbox-transactions', labelKey: 'layout.nav.businessApiSandbox', label: 'Business API sandbox history', sandboxReadOnly: true },
   { href: '/dashboard/businesses/customers', labelKey: 'layout.nav.businessToolsCustomers', label: 'Business Tools Customers', adminOnly: true },
   { href: '/dashboard/businesses/plans', labelKey: 'layout.nav.businessToolsPlans', label: 'Business Tools Plans' },
   { href: '/dashboard/businesses/migration', labelKey: 'layout.nav.businessToolsMigration', label: 'Business Tools Migration' },
@@ -43,6 +46,7 @@ const navItems = [
   { href: '/dashboard/commerce/settlement-policy', labelKey: 'layout.nav.commerceSettlementPolicy', label: 'Commerce Settlement Policy' },
   { href: '/dashboard/payment-requests', labelKey: 'layout.nav.paymentRequests' },
   { href: '/dashboard/recharge-catalog', labelKey: 'layout.nav.rechargeCatalog' },
+  { href: '/dashboard/recharge-failover', labelKey: 'layout.nav.rechargeFailover', label: 'Recharge failover', adminOnly: true },
   { href: '/dashboard/bills/utility-catalog', labelKey: 'layout.nav.utilityBillCatalog' },
   { href: '/dashboard/airtime-operator-feature-flag-overrides', labelKey: 'layout.nav.airtimeOperatorOverrides' },
   { href: '/dashboard/recharge-operator-availability-policies', labelKey: 'layout.nav.rechargeOperatorAvailability' },
@@ -106,18 +110,18 @@ export default function DashboardLayout({ children }) {
   const accessTokenPayload = session?.tokens?.accessToken?.payload || null;
   const idTokenPayload = session?.tokens?.idToken?.payload || null;
   const adminGroups = useMemo(() => {
-    const rawGroups = accessTokenPayload?.['cognito:groups'] || accessTokenPayload?.groups || idTokenPayload?.['cognito:groups'] || idTokenPayload?.groups;
-    return Array.isArray(rawGroups) ? rawGroups.map((group) => String(group).toUpperCase()) : [];
+    const rawGroups = [accessTokenPayload?.['cognito:groups'], accessTokenPayload?.groups, idTokenPayload?.['cognito:groups'], idTokenPayload?.groups];
+    return rawGroups.flatMap((value) => Array.isArray(value) ? value : typeof value === 'string' ? value.split(',') : []).map((group) => String(group).trim().toUpperCase());
   }, [accessTokenPayload, idTokenPayload]);
   const canSeeAdminsMenu = useMemo(
     () => adminGroups.includes('ADMIN') || adminGroups.includes('SUPER_ADMIN'),
     [adminGroups]
   );
   const renderedNavItems = useMemo(() => {
-    const baseItems = navItems.filter((item) => ((item.href !== '/dashboard/admins' && !item.adminOnly) || canSeeAdminsMenu) && (enableRegulatorMode === false || !isRegulatorRestrictedRoute(item.href)));
+    const baseItems = navItems.filter((item) => (!item.sandboxReadOnly || canReadSandboxHistory(session)) && ((item.href !== '/dashboard/admins' && !item.adminOnly) || canSeeAdminsMenu) && (enableRegulatorMode === false || !isRegulatorRestrictedRoute(item.href)));
     if (!showQaStubFailureModes) return baseItems;
     return [...baseItems, { href: '/dashboard/admin/stub-failure-modes', labelKey: 'layout.nav.stubFailureModes' }];
-  }, [canSeeAdminsMenu, showQaStubFailureModes, enableRegulatorMode]);
+  }, [canSeeAdminsMenu, showQaStubFailureModes, enableRegulatorMode, session]);
   const userLabel = useMemo(() => {
     const payload = idTokenPayload || accessTokenPayload;
     return (

@@ -1,8 +1,12 @@
 'use client';
 
 import { PresentationLink as Link } from '@/components/RegulatorPresentation';
+import { useAuth } from '@/contexts/AuthContext';
+import { failoverPermissions } from '@/lib/payout-failover';
 
 const sections = [
+  { href: '/dashboard/payout-failover', title: 'Payout failover', blurb: 'Publish guarded alternate-provider rules, preview eligibility and investigate attempts.', adminOnly: true },
+  { href: '/dashboard/recharge-failover', title: 'Recharge failover', blurb: 'Inspect and approve equivalent fixed airtime, data and bundle products, then monitor managed purchases.', adminOnly: true },
   { href: '/dashboard/payments/payment-methods', title: 'Payment Methods', blurb: 'Catalog of payment methods, display settings, currency badges, and availability.' },
   { href: '/dashboard/payments/payment-method-status-overrides', title: 'Method Status Overrides', blurb: 'Override payment method active state by account or email.' },
   { href: '/dashboard/payments/payment-providers', title: 'Payment Providers', blurb: 'Manage payment providers and ranking.' },
@@ -15,6 +19,8 @@ const sections = [
 ];
 
 export default function PaymentsHubPage() {
+  const { session } = useAuth();
+  const { canRead } = failoverPermissions(session);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -22,7 +28,7 @@ export default function PaymentsHubPage() {
         <div style={{ color: 'var(--muted)' }}>Friendly UIs for payment methods, providers and mappings.</div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
-        {sections.map((item) => (
+        {sections.filter((item) => !item.adminOnly || canRead).map((item) => (
           <Link
             key={item.href}
             href={item.href}

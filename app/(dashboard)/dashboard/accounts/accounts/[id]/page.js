@@ -8,11 +8,15 @@ import { regulatorVisibleFields, isRegulatorRestrictedRecord } from '@/lib/regul
 
 import { useAuth } from '@/contexts/AuthContext';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import { AnnouncementPopupFields } from '@/components/AnnouncementPopupFields';
+import { announcementPopupDraft, notificationAnnouncementPayload } from '@/lib/announcement-popup';
+
 import { useToast } from '@/contexts/ToastContext';
 import { BusinessToolsAccountPanel } from '@/components/BusinessToolsAccountPanel';
+import { SandboxHistoryLink } from '@/components/business-api-sandbox/Common';
 import { AccountRegulatorModePanel } from '@/components/AccountRegulatorModePanel';
 import COUNTRIES from '@/data/countries';
 import { paymentMethodAdminLabel, paymentMethodRouteAdminLabel } from '@/lib/payment-method-labels';
@@ -59,6 +63,7 @@ const emptyWalletActionOverrideDraft = {
   withdrawShowSubText: true
 };
 const emptyNotificationAnnouncement = {
+  ...announcementPopupDraft(),
   enabled: false,
   link: '',
   image: '',
@@ -85,17 +90,11 @@ const bridgecardRegistrationModeOptions = [
 ];
 const bridgecardRegistrationModeLabel = (value) =>
   bridgecardRegistrationModeOptions.find((option) => option.value === (value || ''))?.label || value || 'Use global setting';
-const toUtcInstant = (value) => {
-  const trimmed = String(value || '').trim();
-  if (!trimmed) return null;
-  if (/[zZ]|[+-]\d{2}:?\d{2}$/.test(trimmed)) return trimmed;
-  const withSeconds = trimmed.length === 16 ? `${trimmed}:00` : trimmed;
-  return `${withSeconds}Z`;
-};
+
 
 const Modal = ({ title, onClose, children }) => (
   <div className="modal-backdrop">
-    <div className="modal-surface">
+    <div className="modal-surface" role="dialog" aria-modal="true" aria-label={title}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ fontWeight: 800 }}>{title}</div>
         <button type="button" onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: '18px', cursor: 'pointer', color: 'var(--text)' }}>
@@ -1013,6 +1012,14 @@ const [notificationAnnouncement, setNotificationAnnouncement] = useState(emptyNo
 const [notificationError, setNotificationError] = useState(null);
 const [notificationLoading, setNotificationLoading] = useState(false);
 const [notificationResult, setNotificationResult] = useState(null);
+const notificationLock = useRef(false);
+const notificationScope = useRef(accountId);
+notificationScope.current = accountId;
+useEffect(() => {
+  setShowNotification(false);
+  setNotificationResult(null);
+  setNotificationError(null);
+}, [accountId]);
 const [loanEligibility, setLoanEligibility] = useState(null);
 const [loanEligibilityLoading, setLoanEligibilityLoading] = useState(false);
 const [loanEligibilityError, setLoanEligibilityError] = useState(null);
@@ -1980,6 +1987,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
   };
 
   const openNotification = () => {
+    if (notificationLock.current) return;
     setNotificationSubject('');
     setNotificationMessage('');
     setNotificationChannels(['PUSH']);
@@ -2788,6 +2796,8 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
   };
 
   const submitNotification = async () => {
+    if (notificationLock.current) return;
+    const scope = accountId;
     if (resolvedAccountId === null || resolvedAccountId === undefined) {
       setNotificationError('No account loaded');
       return;
@@ -2803,20 +2813,12 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       setNotificationError('Select at least one channel');
       return;
     }
+    notificationLock.current = true;
     setNotificationLoading(true);
     setNotificationError(null);
+    setNotificationResult(null);
     try {
-      const announcementPayload = notificationAnnouncement.enabled
-        ? {
-            enabled: true,
-            ...(notificationAnnouncement.link.trim() ? { link: notificationAnnouncement.link.trim() } : {}),
-            ...(notificationAnnouncement.image.trim() ? { image: notificationAnnouncement.image.trim() } : {}),
-            ...(notificationAnnouncement.severity ? { severity: notificationAnnouncement.severity } : {}),
-            downloadUpdate: Boolean(notificationAnnouncement.downloadUpdate),
-            ...(toUtcInstant(notificationAnnouncement.startAt) ? { startAt: toUtcInstant(notificationAnnouncement.startAt) } : {}),
-            ...(toUtcInstant(notificationAnnouncement.endAt) ? { endAt: toUtcInstant(notificationAnnouncement.endAt) } : {})
-          }
-        : undefined;
+      const announcementPayload = notificationAnnouncementPayload(notificationAnnouncement, subject, messageText);
       const res = await api.notifications.pushTest({
         accountId: resolvedAccountId,
         subject,
@@ -2824,6 +2826,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         channels: selectedChannels,
         ...(announcementPayload ? { announcement: announcementPayload } : {})
       });
+      if (notificationScope.current !== scope) return;
       const channelResults = Array.isArray(res?.channels) ? res.channels : [];
       const skippedWhatsApp = channelResults.find((entry) => entry?.channel === 'WHATSAPP' && entry?.attempted === false);
       if (res?.attempted) {
@@ -2841,10 +2844,12 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         setNotificationResult(res);
       }
     } catch (err) {
+      if (notificationScope.current !== scope) return;
       const message = err.message || 'Failed to send notification';
       setNotificationError(message);
       pushToast({ tone: 'error', message });
     } finally {
+      notificationLock.current = false;
       setNotificationLoading(false);
     }
   };
@@ -4127,6 +4132,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           <button type="button" className="btn-neutral" onClick={loadAccount} disabled={loading}>
             {loading ? 'Refreshing…' : 'Refresh'}
           </button>
+          {account && resolvedAccountId != null ? <SandboxHistoryLink accountId={resolvedAccountId} /> : null}
           <button type="button" className="btn-neutral" onClick={openNotification}>
             Send notification
           </button>
@@ -7800,7 +7806,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       {showNotification && (
         <Modal title="Send notification" onClose={() => (!notificationLoading ? setShowNotification(false) : null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <fieldset disabled={notificationLoading} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Select at least one channel.</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="notificationSubject">Subject</label>
@@ -7847,6 +7853,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                 <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
                   <input
                     type="checkbox"
+                    style={{ width: 'auto' }}
                     checked={notificationAnnouncement.enabled}
                     onChange={(e) => setNotificationAnnouncement((prev) => ({ ...prev, enabled: e.target.checked }))}
                   />
@@ -7854,6 +7861,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                 </label>
                 {notificationAnnouncement.enabled ? (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+                    <AnnouncementPopupFields draft={notificationAnnouncement} setDraft={setNotificationAnnouncement} />
                     <label style={{ display: 'grid', gap: '0.25rem' }}>
                       <span>Severity</span>
                       <PresentationSelect value={notificationAnnouncement.severity} onChange={(e) => setNotificationAnnouncement((prev) => ({ ...prev, severity: e.target.value }))}>
@@ -7872,7 +7880,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                       <input type="datetime-local" value={notificationAnnouncement.endAt} onChange={(e) => setNotificationAnnouncement((prev) => ({ ...prev, endAt: e.target.value }))} />
                     </label>
                     <label style={{ display: 'grid', gap: '0.25rem' }}>
-                      <span>Link</span>
+                      <span>Legacy link</span>
                       <input value={notificationAnnouncement.link} onChange={(e) => setNotificationAnnouncement((prev) => ({ ...prev, link: e.target.value }))} placeholder="https://fondeka.com/private" />
                     </label>
                     <label style={{ display: 'grid', gap: '0.25rem' }}>
@@ -7886,11 +7894,11 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                   </div>
                 ) : null}
               </div>
-            </div>
-            {notificationError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{notificationError}</div>}
+            </fieldset>
+            {notificationError && <div role="alert" style={{ color: '#b91c1c', fontWeight: 700 }}>{notificationError}</div>}
             {notificationResult?.announcementId ? (
               <div style={{ border: `1px solid var(--border)`, borderRadius: '12px', padding: '0.65rem', color: '#15803d', fontWeight: 700 }}>
-                Announcement created: #{notificationResult.announcementId}
+                Announcement created: <Link href={`/dashboard/announcements?announcementId=${encodeURIComponent(notificationResult.announcementId)}`}>#{notificationResult.announcementId} · Edit announcement</Link>
               </div>
             ) : null}
             {notificationResult?.channels?.length > 0 && (

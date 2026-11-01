@@ -2,13 +2,17 @@
 
 import { isRegulatorRestrictedRecord } from '@/lib/regulator-presentation';
 
-import { PresentationSelect, PresentationLink as Link } from '@/components/RegulatorPresentation';
+import { PresentationSelect, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
+import { announcementPopupDraft, announcementPopupPayload, announcementCopyPayload, announcementDateInput, announcementSchedulePayload } from '@/lib/announcement-popup';
+import { AnnouncementPopupFields } from '@/components/AnnouncementPopupFields';
 
 const emptyDraft = {
+  ...announcementPopupDraft(),
+  active: true,
   title: '',
   body: '',
   severity: '',
@@ -21,6 +25,9 @@ const emptyDraft = {
   appVersionAtLeast: '',
   appVersionLessThan: '',
   includeMissingAppVersion: false,
+  hasCryptoWallets: 'ANY',
+  kycStatuses: '',
+  transactionStatuses: '',
   hasCards: 'ANY',
   hasSavings: 'ANY',
   hasGroupSavings: 'ANY',
@@ -76,20 +83,8 @@ const formatCount = (value) => {
   return new Intl.NumberFormat('en-US').format(num);
 };
 
-const toDatetimeLocal = (value) => {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toISOString().slice(0, 16);
-};
+const toDatetimeLocal = announcementDateInput;
 
-const toUtcInstant = (value) => {
-  const trimmed = String(value || '').trim();
-  if (!trimmed) return null;
-  if (/[zZ]|[+-]\d{2}:?\d{2}$/.test(trimmed)) return trimmed;
-  const withSeconds = trimmed.length === 16 ? `${trimmed}:00` : trimmed;
-  return `${withSeconds}Z`;
-};
 const toCsvList = (value) =>
   String(value || '')
     .split(',')
@@ -102,7 +97,7 @@ const toCsvIntegerList = (value, label) =>
     return parsed;
   });
 const optionalInteger = (value, label) => {
-  const raw = String(value || '').trim();
+  const raw = String(value ?? '').trim();
   if (!raw) return undefined;
   const parsed = Number(raw);
   if (!Number.isInteger(parsed) || parsed < 0) throw new Error(`${label} must be a non-negative integer.`);
@@ -117,6 +112,7 @@ const parseInstant = (value) => {
 };
 
 const isActiveNow = (row) => {
+  if (row?.active === false) return false;
   const now = new Date();
   const startAt = parseInstant(row?.startAt);
   const endAt = parseInstant(row?.endAt);
@@ -172,12 +168,12 @@ const ActiveBadge = ({ active }) => (
   </span>
 );
 
-const Modal = ({ title, onClose, children }) => (
+const Modal = ({ title, onClose, busy, children }) => (
   <div className="modal-backdrop">
-    <div className="modal-surface">
+    <div className="modal-surface" role="dialog" aria-modal="true" aria-label={title}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ fontWeight: 800 }}>{title}</div>
-        <button type="button" onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: '18px', cursor: 'pointer', color: 'var(--text)' }}>
+        <button type="button" aria-label="Close announcement editor" disabled={busy} onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: '18px', cursor: 'pointer', color: 'var(--text)' }}>
           x
         </button>
       </div>
@@ -199,6 +195,11 @@ export default function AnnouncementsPage() {
   const [selected, setSelected] = useState(null);
   const [pageMeta, setPageMeta] = useState({ totalElements: null, totalPages: null });
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editId, setEditId] = useState(null);
+  const mutationLock = useRef(false);
+  const editGeneration = useRef(0);
 
   const fetchRows = async () => {
     setLoading(true);
@@ -224,15 +225,19 @@ export default function AnnouncementsPage() {
   }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (!info && !error) return;
+    if ((!info && !error) || showCreate || showEdit || confirmDelete) return;
     const t = setTimeout(() => {
       setInfo(null);
       setError(null);
     }, 3500);
     return () => clearTimeout(t);
-  }, [info, error]);
+  }, [info, error, showCreate, showEdit, confirmDelete]);
 
   const openCreate = () => {
+    if (mutationLock.current) return;
+    editGeneration.current += 1;
+    setEditLoading(false);
+    setShowEdit(false);
     setDraft(emptyDraft);
     setSelected(null);
     setShowCreate(true);
@@ -240,10 +245,12 @@ export default function AnnouncementsPage() {
     setInfo(null);
   };
 
-  const openEdit = (row) => {
+  const initializeDraft = (row) => {
     const audience = row?.audience || {};
     setSelected(row);
     setDraft({
+      ...announcementPopupDraft(row),
+      active: row?.active !== false,
       title: row?.title ?? '',
       body: row?.body ?? '',
       severity: row?.severity ?? '',
@@ -256,6 +263,9 @@ export default function AnnouncementsPage() {
       appVersionAtLeast: row?.appVersionAtLeast ?? '',
       appVersionLessThan: row?.appVersionLessThan ?? '',
       includeMissingAppVersion: Boolean(row?.includeMissingAppVersion),
+      hasCryptoWallets: audience.hasCryptoWallets === true ? 'YES' : audience.hasCryptoWallets === false ? 'NO' : 'ANY',
+      kycStatuses: Array.isArray(audience.kycStatuses) ? audience.kycStatuses.join(', ') : '',
+      transactionStatuses: Array.isArray(audience.transactionStatuses) ? audience.transactionStatuses.join(', ') : '',
       hasCards: audience.hasCards === true ? 'YES' : audience.hasCards === false ? 'NO' : 'ANY',
       hasSavings: audience.hasSavings === true ? 'YES' : audience.hasSavings === false ? 'NO' : 'ANY',
       hasGroupSavings: audience.hasGroupSavings === true ? 'YES' : audience.hasGroupSavings === false ? 'NO' : 'ANY',
@@ -279,14 +289,48 @@ export default function AnnouncementsPage() {
       transactionServices: Array.isArray(audience.transactionServices) ? audience.transactionServices.join(', ') : '',
       transactionActions: Array.isArray(audience.transactionActions) ? audience.transactionActions.join(', ') : ''
     });
+  };
+
+  const openEdit = async (row) => {
+    if (mutationLock.current) return;
+    const generation = ++editGeneration.current;
+    setEditId(row.id);
+    setSelected(null);
+    setDraft(emptyDraft);
+    setShowCreate(false);
     setShowEdit(true);
+    setEditLoading(true);
     setError(null);
     setInfo(null);
+    try {
+      const resource = await api.announcements.get(row.id);
+      if (generation !== editGeneration.current) return;
+      if (String(resource?.id) !== String(row.id) || typeof resource?.title !== 'string' || typeof resource?.body !== 'string') throw new Error('The announcement settings could not be loaded. Please refresh.');
+      initializeDraft(resource);
+    } catch (err) {
+      if (generation === editGeneration.current) setError(err.message || 'Failed to load announcement');
+    } finally {
+      if (generation === editGeneration.current) setEditLoading(false);
+    }
   };
+
+  const closeEditor = () => {
+    if (mutationLock.current) return;
+    editGeneration.current += 1;
+    setShowCreate(false);
+    setShowEdit(false);
+  };
+
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('announcementId');
+    if (id && /^[1-9]\d*$/.test(id)) openEdit({ id });
+    return () => { editGeneration.current += 1; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const buildAudiencePayload = () => {
     const audience = {};
     [
+      'hasCryptoWallets',
       'hasCards',
       'hasSavings',
       'hasGroupSavings',
@@ -321,6 +365,8 @@ export default function AnnouncementsPage() {
       if (values.length) audience[field] = values;
     });
     const textLists = [
+      'kycStatuses',
+      'transactionStatuses',
       'countryCodes',
       'deviceLanguages',
       'transactionServices',
@@ -330,6 +376,10 @@ export default function AnnouncementsPage() {
       const values = toCsvList(draft[field]);
       if (values.length) audience[field] = values;
     });
+    if (audience.lastTransactionOlderThanDays === 0) throw new Error('Last transaction older-than days must be positive.');
+    for (const [minimum, maximum] of [['minCompletedTransactions', 'maxCompletedTransactions'], ['minTransactionsThisMonth', 'maxTransactionsThisMonth'], ['accountCreatedFrom', 'accountCreatedTo']]) {
+      if (audience[minimum] != null && audience[maximum] != null && audience[minimum] > audience[maximum]) throw new Error('Audience minimum must not exceed maximum.');
+    }
     return Object.keys(audience).length ? audience : undefined;
   };
 
@@ -341,11 +391,11 @@ export default function AnnouncementsPage() {
     if (targetAccountIdRaw && (!Number.isInteger(targetAccountId) || targetAccountId <= 0)) throw new Error('Target account ID must be a positive integer.');
     const audience = buildAudiencePayload();
     return {
-      title: String(draft.title || '').trim(),
-      body: String(draft.body || '').trim(),
+      ...announcementPopupPayload(draft),
+      active: draft.active,
+      ...announcementCopyPayload(draft.title, draft.body),
       severity: draft.severity ? String(draft.severity).trim() : null,
-      startAt: toUtcInstant(draft.startAt),
-      endAt: toUtcInstant(draft.endAt),
+      ...announcementSchedulePayload(draft, selected || {}),
       link: draft.link ? String(draft.link).trim() : null,
       image: draft.image ? String(draft.image).trim() : null,
       downloadUpdate: Boolean(draft.downloadUpdate),
@@ -366,15 +416,20 @@ export default function AnnouncementsPage() {
     if (lessThan && !versionPattern.test(lessThan)) return 'Maximum app version must be a numeric dotted version, for example 3.0.0.';
     const targetAccountId = String(draft.targetAccountId || '').trim();
     if (targetAccountId && (!Number.isInteger(Number(targetAccountId)) || Number(targetAccountId) <= 0)) return 'Target account ID must be a positive integer.';
+    if (String(draft.title).length > 255) return 'Title must not exceed 255 characters.';
+    try { announcementCopyPayload(draft.title, draft.body); announcementPopupPayload(draft); announcementSchedulePayload(draft, selected || {}); } catch (err) { return err.message; }
     return null;
   };
 
   const handleCreate = async () => {
+    if (mutationLock.current) return;
     const validationError = validateDraft();
     if (validationError) {
       setError(validationError);
       return;
     }
+    mutationLock.current = true;
+    setSaving(true);
     setError(null);
     setInfo(null);
     try {
@@ -384,25 +439,34 @@ export default function AnnouncementsPage() {
       fetchRows();
     } catch (err) {
       setError(err.message || 'Failed to create announcement');
+    } finally {
+      mutationLock.current = false;
+      setSaving(false);
     }
   };
 
   const handleUpdate = async () => {
-    if (!selected?.id) return;
+    if (mutationLock.current || editLoading || !selected?.id) return;
     const validationError = validateDraft();
     if (validationError) {
       setError(validationError);
       return;
     }
+    mutationLock.current = true;
+    setSaving(true);
     setError(null);
     setInfo(null);
     try {
-      await api.announcements.update(selected.id, buildPayload());
+      const resource = await api.announcements.update(selected.id, buildPayload());
+      if (resource?.id) initializeDraft(resource);
       setInfo(`Announcement ${selected.id} updated.`);
       setShowEdit(false);
       fetchRows();
     } catch (err) {
       setError(err.message || 'Failed to update announcement');
+    } finally {
+      mutationLock.current = false;
+      setSaving(false);
     }
   };
 
@@ -421,8 +485,7 @@ export default function AnnouncementsPage() {
     }
   };
 
-  const columns = useMemo(
-    () => [
+  const columns = [
       {
         key: 'title',
         label: 'Title',
@@ -440,6 +503,11 @@ export default function AnnouncementsPage() {
           const text = String(row.body || '');
           return text.length > 120 ? `${text.slice(0, 120)}...` : text || '-';
         }
+      },
+      {
+        key: 'presentation',
+        label: 'Format / primary action',
+        render: (row) => row.presentation === 'POPUP' ? `Popup / ${row.cta?.type || 'NONE'}` : 'Current format'
       },
       {
         key: 'severity',
@@ -480,15 +548,18 @@ export default function AnnouncementsPage() {
           </div>
         )
       }
-    ],
-    []
-  );
+    ];
 
   const renderForm = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+      <AnnouncementPopupFields draft={draft} setDraft={setDraft} notification={false} />
+      <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.55rem' }}>
+        <input type="checkbox" style={{ width: 'auto' }} checked={draft.active} onChange={(e) => setDraft((p) => ({ ...p, active: e.target.checked }))} />
+        Active
+      </label>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="title">Title *</label>
-        <input id="title" value={draft.title} onChange={(e) => setDraft((p) => ({ ...p, title: e.target.value }))} placeholder="Maintenance notice" />
+        <label htmlFor="title">Title (English / default) *</label>
+        <input id="title" maxLength={255} value={draft.title} onChange={(e) => setDraft((p) => ({ ...p, title: e.target.value }))} placeholder="Maintenance notice" />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="severity">Severity</label>
@@ -526,7 +597,7 @@ export default function AnnouncementsPage() {
         <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Treated as UTC, not local time.</div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="link">Link</label>
+        <label htmlFor="link">Legacy link</label>
         <input id="link" value={draft.link} onChange={(e) => setDraft((p) => ({ ...p, link: e.target.value }))} placeholder="https://status.fondeka.com" />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -548,6 +619,7 @@ export default function AnnouncementsPage() {
       <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.55rem', alignSelf: 'end', minHeight: '42px' }}>
         <input
           type="checkbox"
+          style={{ width: 'auto' }}
           checked={draft.downloadUpdate}
           onChange={(e) => setDraft((p) => ({ ...p, downloadUpdate: e.target.checked }))}
         />
@@ -577,6 +649,7 @@ export default function AnnouncementsPage() {
           <div style={{ display: 'grid', gap: '0.75rem', marginTop: '0.65rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0.75rem' }}>
               {[
+                ['hasCryptoWallets', 'Has crypto wallets'],
                 ['hasCards', 'Has cards'],
                 ['hasSavings', 'Has savings'],
                 ['hasGroupSavings', 'Has group savings'],
@@ -585,14 +658,14 @@ export default function AnnouncementsPage() {
                 ['hasPaymentRequests', 'Has payment requests'],
                 ['hasCompletedTransactions', 'Has completed transactions']
               ].map(([field, label]) => (
-                <label key={field} style={{ display: 'grid', gap: '0.25rem' }}>
+                <RegulatorField key={field} field={field}><label style={{ display: 'grid', gap: '0.25rem' }}>
                   <span>{label}</span>
                   <PresentationSelect value={draft[field]} onChange={(e) => setDraft((p) => ({ ...p, [field]: e.target.value }))}>
                     {triStateOptions.map((option) => (
                       <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option.value} value={option.value}>{option.label}</option>
                     ))}
                   </PresentationSelect>
-                </label>
+                </label></RegulatorField>
               ))}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
@@ -621,6 +694,8 @@ export default function AnnouncementsPage() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
               {[
+                ['kycStatuses', 'KYC statuses'],
+                ['transactionStatuses', 'Transaction statuses'],
                 ['countryIds', 'Country IDs'],
                 ['countryCodes', 'Country codes'],
                 ['deviceLanguages', 'Device languages'],
@@ -640,7 +715,7 @@ export default function AnnouncementsPage() {
         </details>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', gridColumn: '1 / -1' }}>
-        <label htmlFor="body">Body *</label>
+        <label htmlFor="body">Message (English / default) *</label>
         <textarea
           id="body"
           rows={4}
@@ -649,7 +724,7 @@ export default function AnnouncementsPage() {
           placeholder="We will be unavailable from 2-4 AM UTC."
         />
         <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-          When enabled, the customer app resolves the announcement link to the platform store URL.
+          Plain text. Line breaks are preserved. Missing French copy falls back to the default copy.
         </div>
       </div>
     </div>
@@ -682,7 +757,7 @@ export default function AnnouncementsPage() {
         <button type="button" onClick={fetchRows} disabled={loading} className="btn-primary">
           {loading ? 'Loading...' : 'Refresh'}
         </button>
-        <button type="button" onClick={openCreate} className="btn-success">
+        <button type="button" onClick={openCreate} disabled={saving} className="btn-success">
           New announcement
         </button>
         <button type="button" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={!canPrev} className="btn-neutral">
@@ -716,28 +791,32 @@ export default function AnnouncementsPage() {
       />
 
       {showCreate && (
-        <Modal title="New announcement" onClose={() => setShowCreate(false)}>
-          {renderForm()}
+        <Modal title="New announcement" busy={saving} onClose={closeEditor}>
+          {error && <div role="alert" style={{ color: '#b91c1c' }}>{error}</div>}
+          <fieldset disabled={saving || editLoading || (showEdit && !selected)} style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>{renderForm()}</fieldset>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-            <button type="button" onClick={() => setShowCreate(false)} className="btn-neutral">
+            <button type="button" onClick={closeEditor} disabled={saving} className="btn-neutral">
               Cancel
             </button>
-            <button type="button" onClick={handleCreate} className="btn-success">
-              Create
+            <button type="button" onClick={handleCreate} disabled={saving} className="btn-success">
+              {saving ? 'Creating…' : 'Create'}
             </button>
           </div>
         </Modal>
       )}
 
       {showEdit && (
-        <Modal title={`Edit announcement ${selected?.id ?? ''}`} onClose={() => setShowEdit(false)}>
-          {renderForm()}
+        <Modal title={`Edit announcement ${editId ?? ''}`} busy={saving} onClose={closeEditor}>
+          {error && <div role="alert" style={{ color: '#b91c1c' }}>{error}</div>}
+          {editLoading && <div role="status">Loading saved announcement…</div>}
+          {!editLoading && !selected && <button type="button" className="btn-neutral" onClick={() => openEdit({ id: editId })}>Retry loading</button>}
+          <fieldset disabled={saving || editLoading || (showEdit && !selected)} style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>{renderForm()}</fieldset>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-            <button type="button" onClick={() => setShowEdit(false)} className="btn-neutral">
+            <button type="button" onClick={closeEditor} disabled={saving} className="btn-neutral">
               Cancel
             </button>
-            <button type="button" onClick={handleUpdate} className="btn-primary">
-              Save
+            <button type="button" onClick={handleUpdate} disabled={saving || editLoading || !selected} className="btn-primary">
+              {saving ? 'Saving…' : 'Save'}
             </button>
           </div>
         </Modal>

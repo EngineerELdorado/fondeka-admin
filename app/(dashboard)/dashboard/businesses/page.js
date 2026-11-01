@@ -8,6 +8,7 @@ import { DataTable } from '@/components/DataTable';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { livePaymentMode, livePaymentSettingsAvailable } from '@/lib/business-live-payments';
+import { SandboxHistoryLink } from '@/components/business-api-sandbox/Common';
 
 const OPERATIONAL_STATUSES = ['DRAFT', 'ACTIVE', 'SUSPENDED', 'CLOSED'];
 const KYB_STATUSES = ['NOT_SUBMITTED', 'PENDING', 'APPROVED', 'REJECTED', 'REQUIRES_INFORMATION'];
@@ -282,6 +283,7 @@ export default function BusinessesPage() {
           <strong>Compatibility phase:</strong> operational and KYB statuses are metadata only. They do not suspend owner accounts, disable stores, block payments, approve personal KYC, or trigger customer notifications.
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <SandboxHistoryLink />
           <Link href="/dashboard/businesses/plans" className="btn-neutral" style={{ textDecoration: 'none' }}>Business Tools plans</Link>
           <Link href="/dashboard/businesses/migration" className="btn-neutral" style={{ textDecoration: 'none' }}>Migration console</Link>
           <Link href="/dashboard/payment-requests" className="btn-neutral" style={{ textDecoration: 'none' }}>Payment Requests</Link>
