@@ -238,7 +238,7 @@ export default function CommerceSettlementPolicyPage() {
     <div style={{ display: 'grid', gap: '1rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontSize: '22px', fontWeight: 800 }}>Commerce Settlement Policy</div>
+          <div style={{ fontSize: 'var(--font-heading)', fontWeight: 800 }}>Commerce Settlement Policy</div>
           <div style={{ color: 'var(--muted)' }}>Control when online Commerce merchant proceeds become available.</div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>

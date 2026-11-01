@@ -130,7 +130,7 @@ export function SavingsPageHeader({ title, description, actions }) {
   return (
     <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
       <div style={{ display: 'grid', gap: '0.35rem' }}>
-        <div style={{ fontSize: '22px', fontWeight: 800 }}>{title}</div>
+        <div style={{ fontSize: 'var(--font-heading)', fontWeight: 800 }}>{title}</div>
         <div style={{ color: 'var(--muted)', maxWidth: '760px' }}>{description}</div>
       </div>
       {actions ? <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>{actions}</div> : null}

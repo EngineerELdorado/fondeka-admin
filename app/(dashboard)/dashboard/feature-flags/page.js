@@ -1710,7 +1710,7 @@ export default function FeatureFlagsPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div>
-        <div style={{ fontSize: '22px', fontWeight: 800 }}>{t('featureFlags.title')}</div>
+        <div style={{ fontSize: 'var(--font-heading)', fontWeight: 800 }}>{t('featureFlags.title')}</div>
         <div style={{ color: 'var(--muted)' }}>{t('featureFlags.description')}</div>
       </div>
 

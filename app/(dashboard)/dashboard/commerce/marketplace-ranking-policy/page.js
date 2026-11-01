@@ -211,7 +211,7 @@ export default function CommerceMarketplaceRankingPolicyPage() {
     <div style={{ display: 'grid', gap: '1rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontSize: '22px', fontWeight: 800 }}>Commerce Marketplace Ranking Policy</div>
+          <div style={{ fontSize: 'var(--font-heading)', fontWeight: 800 }}>Commerce Marketplace Ranking Policy</div>
           <div style={{ color: 'var(--muted)' }}>
             Configure public marketplace discovery ordering for products and stores.
           </div>

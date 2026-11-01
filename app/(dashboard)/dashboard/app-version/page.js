@@ -201,7 +201,7 @@ export default function AppVersionPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div>
-        <div style={{ fontSize: '22px', fontWeight: 800 }}>App Version</div>
+        <div style={{ fontSize: 'var(--font-heading)', fontWeight: 800 }}>App Version</div>
         <div style={{ color: 'var(--muted)' }}>Update backend app version and mobile force-update thresholds.</div>
         <PresentationLink href="/dashboard/mobile-maintenance" style={{ display: 'inline-block', marginTop: '0.5rem' }}>Manage mobile maintenance</PresentationLink>
       </div>

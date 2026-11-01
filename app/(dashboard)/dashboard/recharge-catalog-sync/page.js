@@ -60,7 +60,7 @@ const SummaryCard = ({ label, value, tone = 'default' }) => {
   return (
     <div className="card" style={{ borderColor: current.border, background: current.bg, display: 'grid', gap: '0.2rem' }}>
       <div style={{ color: 'var(--muted)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</div>
-      <div style={{ fontSize: '24px', fontWeight: 800 }}>{value}</div>
+      <div style={{ fontSize: 'var(--font-stat)', fontWeight: 800 }}>{value}</div>
     </div>
   );
 };

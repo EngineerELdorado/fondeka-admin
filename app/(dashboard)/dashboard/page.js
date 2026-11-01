@@ -133,17 +133,6 @@ const getCardTransactionsValue = (row, dashboardData) => {
 const CURRENCY_METRIC_KEYS = new Set(['loanDisbursedVolume', 'loansOutstanding', 'loansOutstandingLate', 'loansOutstandingCurrent', 'loanPaidBackVolume', 'fxMargin']);
 const formatMetricCardValue = (key, value) => (CURRENCY_METRIC_KEYS.has(key) ? formatCurrency(value) : formatNumber(value));
 
-const InlineStat = ({ value, percentage }) => {
-  const main = value ?? '—';
-  const percentLabel = formatPercentage(percentage);
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-      <span>{main}</span>
-      {percentLabel !== '—' && <span style={{ color: 'var(--muted)', fontSize: '12px' }}>({percentLabel})</span>}
-    </span>
-  );
-};
-
 const formatDateTime = (value) => {
   if (!value) return '—';
   const date = new Date(value);
@@ -994,7 +983,7 @@ export default function DashboardPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <div style={{ fontWeight: 900, fontSize: '22px' }}>{t('dashboard.performance')}</div>
+              <div style={{ fontWeight: 900, fontSize: 'var(--font-heading)' }}>{t('dashboard.performance')}</div>
               <div className="pill" style={{ background: 'var(--accent-soft)', color: 'var(--accent)', fontWeight: 900, fontSize: '13px' }}>
                 {dateLabel}
               </div>
@@ -1563,13 +1552,13 @@ export default function DashboardPage() {
               {
                 key: 'count',
                 label: 'Count',
-                render: (row) => <InlineStat value={formatNumber(row.count)} percentage={row.countPercentage} />,
+                render: (row) => formatNumber(row.count),
                 bold: true
               },
-              { key: 'volume', label: 'Volume', render: (row) => <InlineStat value={formatCurrency(row.volume)} percentage={row.volumePercentage} /> },
+              { key: 'volume', label: 'Volume', render: (row) => formatCurrency(row.volume) },
               { key: 'fxMargin', label: 'FX margin', render: (row) => formatCurrency(getFxMarginValue(row)) },
               { key: 'interestRevenue', label: 'Interest revenue', render: (row) => formatCurrency(getInterestRevenueValue(row)) },
-              { key: 'revenue', label: 'Revenue', render: (row) => <InlineStat value={formatCurrency(getRevenueValue(row))} percentage={row.revenuePercentage} /> },
+              { key: 'revenue', label: 'Revenue', render: (row) => formatCurrency(getRevenueValue(row)) },
               { key: 'referralCost', label: 'Referral cost', render: (row) => formatCurrency(getReferralCostValue(row)) },
               { key: 'netProfit', label: 'Net profit', render: (row) => formatCurrency(getNetProfitValue(row)) }
             ]}
@@ -1584,13 +1573,13 @@ export default function DashboardPage() {
               {
                 key: 'count',
                 label: 'Count',
-                render: (row) => <InlineStat value={formatNumber(row.count)} percentage={row.countPercentage} />,
+                render: (row) => formatNumber(row.count),
                 bold: true
               },
-              { key: 'volume', label: 'Volume', render: (row) => <InlineStat value={formatCurrency(row.volume)} percentage={row.volumePercentage} /> },
+              { key: 'volume', label: 'Volume', render: (row) => formatCurrency(row.volume) },
               { key: 'fxMargin', label: 'FX margin', render: (row) => formatCurrency(getFxMarginValue(row)) },
               { key: 'interestRevenue', label: 'Interest revenue', render: (row) => formatCurrency(getInterestRevenueValue(row)) },
-              { key: 'revenue', label: 'Revenue', render: (row) => <InlineStat value={formatCurrency(getRevenueValue(row))} percentage={row.revenuePercentage} /> },
+              { key: 'revenue', label: 'Revenue', render: (row) => formatCurrency(getRevenueValue(row)) },
               { key: 'referralCost', label: 'Referral cost', render: (row) => formatCurrency(getReferralCostValue(row)) },
               { key: 'netProfit', label: 'Net profit', render: (row) => formatCurrency(getNetProfitValue(row)) }
             ]}
@@ -1605,12 +1594,12 @@ export default function DashboardPage() {
               {
                 key: 'count',
                 label: 'Count',
-                render: (row) => <InlineStat value={formatNumber(row.count)} percentage={row.countPercentage} />,
+                render: (row) => formatNumber(row.count),
                 bold: true
               },
-              { key: 'volume', label: 'Volume', render: (row) => <InlineStat value={formatCurrency(row.volume)} percentage={row.volumePercentage} /> },
+              { key: 'volume', label: 'Volume', render: (row) => formatCurrency(row.volume) },
               { key: 'fxMargin', label: 'FX margin', render: (row) => formatCurrency(getFxMarginValue(row)) },
-              { key: 'revenue', label: 'Revenue', render: (row) => <InlineStat value={formatCurrency(getRevenueValue(row))} percentage={row.revenuePercentage} /> },
+              { key: 'revenue', label: 'Revenue', render: (row) => formatCurrency(getRevenueValue(row)) },
               { key: 'referralCost', label: 'Referral cost', render: (row) => formatCurrency(getReferralCostValue(row)) },
               { key: 'netProfit', label: 'Net profit', render: (row) => formatCurrency(getNetProfitValue(row)) }
             ]}
@@ -1625,10 +1614,10 @@ export default function DashboardPage() {
               {
                 key: 'count',
                 label: 'Count',
-                render: (row) => <InlineStat value={formatNumber(row.count)} percentage={row.countPercentage} />,
+                render: (row) => formatNumber(row.count),
                 bold: true
               },
-              { key: 'volume', label: 'Volume', render: (row) => <InlineStat value={formatCurrency(row.volume)} percentage={row.volumePercentage} /> },
+              { key: 'volume', label: 'Volume', render: (row) => formatCurrency(row.volume) },
               { key: 'fee', label: 'Our fees', render: (row) => formatCurrency(row.fee) },
               { key: 'commission', label: 'Commission', render: (row) => formatCurrency(row.commission) },
               { key: 'fxMargin', label: 'FX margin', render: (row) => formatCurrency(getFxMarginValue(row)) },
@@ -1636,7 +1625,7 @@ export default function DashboardPage() {
               {
                 key: 'revenue',
                 label: 'Total revenue',
-                render: (row) => <InlineStat value={formatCurrency(getRevenueValue(row))} percentage={row.revenuePercentage} />
+                render: (row) => formatCurrency(getRevenueValue(row))
               },
               { key: 'netProfit', label: 'Net profit', render: (row) => formatCurrency(getNetProfitValue(row)) }
             ]}
@@ -1651,10 +1640,10 @@ export default function DashboardPage() {
               {
                 key: 'count',
                 label: 'Count',
-                render: (row) => <InlineStat value={formatNumber(row.count)} percentage={row.countPercentage} />,
+                render: (row) => formatNumber(row.count),
                 bold: true
               },
-              { key: 'volume', label: 'Volume', render: (row) => <InlineStat value={formatCurrency(row.volume)} percentage={row.volumePercentage} /> },
+              { key: 'volume', label: 'Volume', render: (row) => formatCurrency(row.volume) },
               { key: 'fee', label: 'Our fees', render: (row) => formatCurrency(row.fee) },
               { key: 'commission', label: 'Commission', render: (row) => formatCurrency(row.commission) },
               { key: 'fxMargin', label: 'FX margin', render: (row) => formatCurrency(getFxMarginValue(row)) },
@@ -1662,7 +1651,7 @@ export default function DashboardPage() {
               {
                 key: 'revenue',
                 label: 'Total revenue',
-                render: (row) => <InlineStat value={formatCurrency(getRevenueValue(row))} percentage={row.revenuePercentage} />
+                render: (row) => formatCurrency(getRevenueValue(row))
               },
               { key: 'netProfit', label: 'Net profit', render: (row) => formatCurrency(getNetProfitValue(row)) }
             ]}
@@ -1677,12 +1666,12 @@ export default function DashboardPage() {
               {
                 key: 'count',
                 label: 'Count',
-                render: (row) => <InlineStat value={formatNumber(row.count)} percentage={row.countPercentage} />,
+                render: (row) => formatNumber(row.count),
                 bold: true
               },
-              { key: 'volume', label: 'Volume', render: (row) => <InlineStat value={formatCurrency(row.volume)} percentage={row.volumePercentage} /> },
+              { key: 'volume', label: 'Volume', render: (row) => formatCurrency(row.volume) },
               { key: 'fxMargin', label: 'FX margin', render: (row) => formatCurrency(getFxMarginValue(row)) },
-              { key: 'revenue', label: 'Revenue', render: (row) => <InlineStat value={formatCurrency(getRevenueValue(row))} percentage={row.revenuePercentage} /> },
+              { key: 'revenue', label: 'Revenue', render: (row) => formatCurrency(getRevenueValue(row)) },
               { key: 'referralCost', label: 'Referral cost', render: (row) => formatCurrency(getReferralCostValue(row)) },
               { key: 'netProfit', label: 'Net profit', render: (row) => formatCurrency(getNetProfitValue(row)) }
             ]}
@@ -1701,12 +1690,12 @@ export default function DashboardPage() {
               {
                 key: 'count',
                 label: 'Transactions',
-                render: (row) => <InlineStat value={formatNumber(row.count)} percentage={row.countPercentage} />,
+                render: (row) => formatNumber(row.count),
                 bold: true
               },
-              { key: 'volume', label: 'Volume', render: (row) => <InlineStat value={formatCurrency(row.volume)} percentage={row.volumePercentage} /> },
+              { key: 'volume', label: 'Volume', render: (row) => formatCurrency(row.volume) },
               { key: 'fxMargin', label: 'FX margin', render: (row) => formatCurrency(getFxMarginValue(row)) },
-              { key: 'revenue', label: 'Revenue', render: (row) => <InlineStat value={formatCurrency(getRevenueValue(row))} percentage={row.revenuePercentage} /> },
+              { key: 'revenue', label: 'Revenue', render: (row) => formatCurrency(getRevenueValue(row)) },
               { key: 'referralCost', label: 'Referral cost', render: (row) => formatCurrency(getReferralCostValue(row)) },
               { key: 'netProfit', label: 'Net profit', render: (row) => formatCurrency(getNetProfitValue(row)) }
             ]}
@@ -1722,12 +1711,12 @@ export default function DashboardPage() {
               {
                 key: 'count',
                 label: 'Count',
-                render: (row) => <InlineStat value={formatNumber(row.count)} percentage={row.countPercentage} />,
+                render: (row) => formatNumber(row.count),
                 bold: true
               },
-              { key: 'volume', label: 'Volume', render: (row) => <InlineStat value={formatCurrency(row.volume)} percentage={row.volumePercentage} /> },
+              { key: 'volume', label: 'Volume', render: (row) => formatCurrency(row.volume) },
               { key: 'fxMargin', label: 'FX margin', render: (row) => formatCurrency(getFxMarginValue(row)) },
-              { key: 'revenue', label: 'Revenue', render: (row) => <InlineStat value={formatCurrency(getRevenueValue(row))} percentage={row.revenuePercentage} /> },
+              { key: 'revenue', label: 'Revenue', render: (row) => formatCurrency(getRevenueValue(row)) },
               { key: 'referralCost', label: 'Referral cost', render: (row) => formatCurrency(getReferralCostValue(row)) },
               { key: 'netProfit', label: 'Net profit', render: (row) => formatCurrency(getNetProfitValue(row)) }
             ]}
@@ -2266,12 +2255,12 @@ export default function DashboardPage() {
                 {
                   label: 'Late outstanding',
                   value: formatCurrency(metrics?.loansOutstandingLate),
-                  sub: `Late open loans ${formatNumber(metrics?.loansOpenLate)} (${formatPercentage(metrics?.loansOpenLatePercentage)} of open) • Of disbursed principal ${formatPercentage(metrics?.loansOutstandingLatePercentage)}`
+                  sub: `Late open loans ${formatNumber(metrics?.loansOpenLate)} • Of disbursed principal ${formatPercentage(metrics?.loansOutstandingLatePercentage)}`
                 },
                 {
                   label: 'Current outstanding',
                   value: formatCurrency(metrics?.loansOutstandingCurrent),
-                  sub: `Current open loans ${formatNumber(metrics?.loansOpenCurrent)} (${formatPercentage(metrics?.loansOpenCurrentPercentage)} of open) • Of disbursed principal ${formatPercentage(metrics?.loansOutstandingCurrentPercentage)}`
+                  sub: `Current open loans ${formatNumber(metrics?.loansOpenCurrent)} • Of disbursed principal ${formatPercentage(metrics?.loansOutstandingCurrentPercentage)}`
                 }
               ].map((item) => (
                 <div

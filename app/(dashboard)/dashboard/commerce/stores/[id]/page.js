@@ -97,7 +97,7 @@ const queryFrom = (values) => {
 const MetricCard = ({ label, value, help }) => (
   <div className="card" style={{ display: 'grid', gap: '0.25rem', minWidth: 0 }}>
     <div style={{ color: 'var(--muted)', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }}>{label}</div>
-    <div style={{ fontSize: '22px', fontWeight: 800, overflowWrap: 'anywhere' }}>{value}</div>
+    <div style={{ fontSize: 'var(--font-heading)', fontWeight: 800, overflowWrap: 'anywhere' }}>{value}</div>
     {help ? <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{help}</div> : null}
   </div>
 );
@@ -314,7 +314,7 @@ export default function CommerceStorePosPage() {
     <div style={{ display: 'grid', gap: '1rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontSize: '22px', fontWeight: 800 }}>Store #{storeId} POS reporting</div>
+          <div style={{ fontSize: 'var(--font-heading)', fontWeight: 800 }}>Store #{storeId} POS reporting</div>
           <div style={{ color: 'var(--muted)' }}>Sales, POS orders, outstanding balances, products and registered customers.</div>
         </div>
         <Link href="/dashboard/commerce/stores" className="btn-neutral" style={{ textDecoration: 'none' }}>← Commerce stores</Link>

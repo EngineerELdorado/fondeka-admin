@@ -435,7 +435,7 @@ export default function CommerceStoresPage() {
     <div style={{ display: 'grid', gap: '1rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontSize: '22px', fontWeight: 800 }}>Commerce Stores</div>
+          <div style={{ fontSize: 'var(--font-heading)', fontWeight: 800 }}>Commerce Stores</div>
           <div style={{ color: 'var(--muted)' }}>Review stores and update their verification status.</div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
