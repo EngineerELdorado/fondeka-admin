@@ -1,5 +1,7 @@
 'use client';
 
+import ResponsiveTable from '@/components/ResponsiveTable';
+
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
@@ -49,7 +51,7 @@ const TypeCardSkeleton = () => (
 );
 
 const TypeCardSkeletonGrid = () => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.75rem' }}>
+  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '0.75rem' }}>
     {Array.from({ length: 6 }).map((_, index) => (
       <TypeCardSkeleton key={index} />
     ))}
@@ -387,7 +389,7 @@ export default function KycDocumentTypesPage() {
 
           {smileSyncError ? <div style={{ color: '#b91c1c', fontWeight: 700 }}>{smileSyncError}</div> : null}
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', alignItems: 'end' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem', alignItems: 'end' }}>
             <label style={{ display: 'grid', gap: '0.25rem' }}>
               <span>Country</span>
               <CountrySelect
@@ -432,7 +434,7 @@ export default function KycDocumentTypesPage() {
                 <span>Deactivated: <strong>{smileSyncPreview.deactivated ?? 0}</strong></span>
               </div>
               <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '760px' }}>
+                <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse', minWidth: '760px' }}>
                   <thead>
                     <tr style={{ textAlign: 'left', color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
                       {['Code', 'Name EN', 'Name FR', 'Requires back', 'Active', 'Rank', 'Exists', 'Changed'].map((label) => (
@@ -454,7 +456,7 @@ export default function KycDocumentTypesPage() {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </ResponsiveTable>
               </div>
             </div>
           ) : null}
@@ -463,7 +465,7 @@ export default function KycDocumentTypesPage() {
 
       <details className="card" style={{ display: 'grid', gap: '0.75rem' }}>
         <summary style={{ cursor: 'pointer', listStyle: 'none', fontWeight: 800 }}>Filters</summary>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.75rem', alignItems: 'end' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: '0.75rem', alignItems: 'end' }}>
           <label style={{ display: 'grid', gap: '0.25rem' }}>
             <span>Country</span>
             <CountrySelect
@@ -510,7 +512,7 @@ export default function KycDocumentTypesPage() {
 
       {showDetail && selected && (
         <Modal title={`Document type ${selected.id}`} onClose={() => setShowDetail(false)}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.6rem' }}>
             {[
               ['Scope', formatScope(selected)],
               ['Country ID', selected.countryId],
@@ -548,7 +550,7 @@ export default function KycDocumentTypesPage() {
 function DocumentTypeForm({ draft, updateDraft, saving }) {
   return (
     <div style={{ display: 'grid', gap: '0.75rem' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
         <label style={{ display: 'grid', gap: '0.25rem' }}>
           <span>Country</span>
           <CountrySelect
@@ -568,7 +570,7 @@ function DocumentTypeForm({ draft, updateDraft, saving }) {
         </label>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
         <label style={{ display: 'grid', gap: '0.25rem' }}>
           <span>Display name EN</span>
           <input value={draft.displayNameEn} onChange={(e) => updateDraft('displayNameEn', e.target.value)} disabled={saving} />

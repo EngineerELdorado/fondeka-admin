@@ -332,7 +332,7 @@ export default function UntrustedBorrowersPage() {
             <label htmlFor="size">Size</label>
             <input id="size" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: '260px', flex: 1 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: 'min(260px, 100%)', flex: 1 }}>
             <label htmlFor="emailFilter">Email filter (exact)</label>
             <input id="emailFilter" value={emailInput} placeholder="user@mail.com" onChange={(e) => setEmailInput(e.target.value)} />
           </div>
@@ -362,7 +362,7 @@ export default function UntrustedBorrowersPage() {
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'end', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: '260px', flex: 1 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: 'min(260px, 100%)', flex: 1 }}>
             <label htmlFor="removeEmail">Remove by email</label>
             <input id="removeEmail" value={removeEmailInput} placeholder="user@mail.com" onChange={(e) => setRemoveEmailInput(e.target.value)} />
           </div>
@@ -458,7 +458,7 @@ export default function UntrustedBorrowersPage() {
               <div style={{ color: 'var(--muted)' }}>Loading details…</div>
             ) : (
               <>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0.6rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))', gap: '0.6rem' }}>
                   <div><strong>ID:</strong> {selected?.id ?? '—'}</div>
                   <div><strong>Account ID:</strong> {selected?.accountId ?? '—'}</div>
                   <div><strong>Name:</strong> {fullName(selected) || '—'}</div>

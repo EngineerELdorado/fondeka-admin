@@ -82,7 +82,7 @@ const Modal = ({ title, onClose, children }) => (
   </div>
 );
 
-const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.6rem' }}>
     {regulatorVisibleFields(rows, enableRegulatorMode).map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
@@ -917,7 +917,7 @@ export default function KycsPage() {
         </div>
         {showFilters && (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="status">Status</label>
             <select id="status" value={filters.status} onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value }))}>
@@ -947,7 +947,7 @@ export default function KycsPage() {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="emailOrUsername">Email or username</label>
             <input id="emailOrUsername" value={filters.emailOrUsername} onChange={(e) => setFilters((p) => ({ ...p, emailOrUsername: e.target.value }))} />
@@ -966,7 +966,7 @@ export default function KycsPage() {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="startDate">Updated from</label>
             <input id="startDate" type="datetime-local" value={filters.startDate} onChange={(e) => setFilters((p) => ({ ...p, startDate: e.target.value }))} />
@@ -975,7 +975,7 @@ export default function KycsPage() {
             <label htmlFor="endDate">Updated to</label>
             <input id="endDate" type="datetime-local" value={filters.endDate} onChange={(e) => setFilters((p) => ({ ...p, endDate: e.target.value }))} />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.5rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: '0.5rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="page">Page</label>
               <input id="page" type="number" min={0} value={page} onChange={(e) => setPage(Number(e.target.value))} />
@@ -1151,7 +1151,7 @@ export default function KycsPage() {
           />
           <div style={{ marginTop: '0.75rem' }}>
             <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Documents</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.6rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: '0.6rem' }}>
               {[
                 { key: 'docFront', label: 'Doc front', value: selected?.docFront },
                 { key: 'docBack', label: 'Doc back', value: selected?.docBack },
@@ -1178,7 +1178,7 @@ export default function KycsPage() {
           </div>
           <div style={{ marginTop: '0.75rem', borderTop: '1px dashed var(--border)', paddingTop: '0.75rem' }}>
             <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Upload backup documents</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.6rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="docFront">Doc front</label>
                 <input id="docFront" type="file" accept="image/*" onChange={(e) => setUploadFiles((p) => ({ ...p, docFront: e.target.files?.[0] || null }))} />
@@ -1280,7 +1280,7 @@ export default function KycsPage() {
           <div style={{ color: 'var(--muted)', marginBottom: '0.75rem' }}>
             Update the KYC status (and optional comments).
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.65rem', marginBottom: '0.75rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '0.65rem', marginBottom: '0.75rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="decisionSelect">Status</label>
               <select
@@ -1323,7 +1323,7 @@ export default function KycsPage() {
           <div style={{ color: 'var(--muted)', marginBottom: '0.75rem' }}>
             Update the KYC level only.
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.65rem', marginBottom: '0.75rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '0.65rem', marginBottom: '0.75rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="decisionLevel">Level</label>
               <select id="decisionLevel" value={levelDraft.level} onChange={(e) => setLevelDraft((p) => ({ ...p, level: e.target.value }))}>
@@ -1349,7 +1349,7 @@ export default function KycsPage() {
 
       {showEdit && (
         <Modal title={`Edit KYC ${selected?.id}`} onClose={() => setShowEdit(false)}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="editExternalReference">External reference</label>
               <input id="editExternalReference" value={editDraft.externalReference} onChange={(e) => setEditDraft((p) => ({ ...p, externalReference: e.target.value }))} />

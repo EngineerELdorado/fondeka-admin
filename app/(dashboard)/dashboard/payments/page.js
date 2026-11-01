@@ -27,7 +27,7 @@ export default function PaymentsHubPage() {
         <div style={{ fontSize: '20px', fontWeight: 800 }}>Payments</div>
         <div style={{ color: 'var(--muted)' }}>Friendly UIs for payment methods, providers and mappings.</div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '1rem' }}>
         {sections.filter((item) => !item.adminOnly || canRead).map((item) => (
           <Link
             key={item.href}

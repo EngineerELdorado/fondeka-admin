@@ -16,7 +16,7 @@ export default function EsimHubPage() {
         <div style={{ fontSize: '20px', fontWeight: 800 }}>eSIM</div>
         <div style={{ color: 'var(--muted)' }}>Choose an eSIM area to manage with a focused UI.</div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '1rem' }}>
         {sections.map((item) => (
           <Link
             key={item.href}

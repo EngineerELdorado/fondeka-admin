@@ -1,5 +1,7 @@
 'use client';
 
+import ResponsiveTable from '@/components/ResponsiveTable';
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
@@ -39,7 +41,7 @@ export default function OperationDetail({ transactionId, onHistory, onClose }) {
         <ProductSummary title="Recorded fixed product" product={attempt.product} />
       </article></li>)}</ol>
       <div className="failover-card"><div className="failover-heading"><h3>Recorded provider status</h3><HelpTip label="Automatic status checks">Workers read provider status on a schedule. Unknown or in-progress results keep funds held. An exhausted check budget needs manual review and never authorizes another purchase or an unsafe refund.</HelpTip></div>
-        {detail.observations.length ? <div className="failover-table"><table><thead><tr>{['Observed (UTC)', 'Attempt', 'Outcome / code', 'Provider reference'].map((label) => <th key={label}>{label}</th>)}</tr></thead><tbody>{detail.observations.map((observation, index) => <tr key={index}><td>{formatInstant(observation.observed_at)}</td><td>#{observation.attempt_number}</td><td>{attemptLabel(observation.outcome)}<div>{observation.code || '—'}</div></td><td>{observation.provider_reference || '—'}</td></tr>)}</tbody></table></div> : <span>No recorded observations.</span>}
+        {detail.observations.length ? <div className="failover-table"><ResponsiveTable><thead><tr>{['Observed (UTC)', 'Attempt', 'Outcome / code', 'Provider reference'].map((label) => <th key={label}>{label}</th>)}</tr></thead><tbody>{detail.observations.map((observation, index) => <tr key={index}><td>{formatInstant(observation.observed_at)}</td><td>#{observation.attempt_number}</td><td>{attemptLabel(observation.outcome)}<div>{observation.code || '—'}</div></td><td>{observation.provider_reference || '—'}</td></tr>)}</tbody></ResponsiveTable></div> : <span>No recorded observations.</span>}
         <small>Refresh reads the journal only. Background queries use backoff from 5 seconds to 15 minutes, up to 128 scheduled reads per attempt. No manual submit, force-query, reset or unsafe refund action is exposed here.</small>
       </div>
       <p>Delivery proof is separate from financial settlement. A submit response or provider transaction ID is not proof of delivery. All attempts need confirmed non-delivery before final failure/refund; unknown, pending, successful or conflicting evidence blocks it. Check the original transaction and refundedAt before treating a reservation as a wallet credit.</p>

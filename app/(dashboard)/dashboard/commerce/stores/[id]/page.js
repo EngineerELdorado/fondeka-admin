@@ -1,5 +1,7 @@
 'use client';
 
+import ResponsiveTable from '@/components/ResponsiveTable';
+
 import { RegulatorRecord, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
 
 import { useEffect, useMemo, useState } from 'react';
@@ -321,7 +323,7 @@ export default function CommerceStorePosPage() {
       <section style={{ display: 'grid', gap: '0.75rem' }}>
         <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
           <div style={{ fontSize: '18px', fontWeight: 800 }}>POS report</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.65rem', alignItems: 'end' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: '0.65rem', alignItems: 'end' }}>
             <label style={{ display: 'grid', gap: '0.25rem' }}>
               <span>Period</span>
               <select value={reportPeriod} onChange={(event) => setReportPeriod(event.target.value)}>
@@ -354,7 +356,7 @@ export default function CommerceStorePosPage() {
 
         {report ? (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))', gap: '0.75rem' }}>
               <MetricCard label="Total sales" value={formatMoney(report.totalSalesAmount, reportCurrencyValue)} help={`${report.orderCount || 0} orders`} />
               <MetricCard label="Amount paid" value={formatMoney(report.amountPaid, reportCurrencyValue)} help={`${report.paidOrderCount || 0} paid orders`} />
               <MetricCard label="Balance due" value={formatMoney(report.balanceDue, reportCurrencyValue)} help={`${report.partialOrderCount || 0} partial · ${report.creditOrderCount || 0} credit`} />
@@ -363,7 +365,7 @@ export default function CommerceStorePosPage() {
               <MetricCard label="Report range" value={`${report.fromDate || '—'} → ${report.toDate || '—'}`} help={`Generated ${formatDateTime(report.generatedAt)}`} />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))', gap: '0.75rem' }}>
               <BucketList title="Sales by status" rows={report.salesByStatus} />
               <BucketList title="Sales by channel" rows={report.salesByChannel} />
               <BucketList title="Payment status" rows={report.salesByPaymentStatus} />
@@ -372,7 +374,7 @@ export default function CommerceStorePosPage() {
 
             <div className="card" style={{ display: 'grid', gap: '0.65rem', overflowX: 'auto' }}>
               <div style={{ fontWeight: 800 }}>Top products</div>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead><tr>{['Product', 'Type', 'Quantity', 'Orders', 'Sales'].map((label) => <RegulatorField field={label} key={label}><th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid var(--border)' }}>{label}</th></RegulatorField>)}</tr></thead>
                 <tbody>
                   {!report.topProducts?.length ? <tr><td colSpan={5} style={{ padding: '0.75rem', color: 'var(--muted)' }}>No product sales.</td></tr> : report.topProducts.map((product) => (
@@ -385,12 +387,12 @@ export default function CommerceStorePosPage() {
                     </tr></RegulatorRecord>
                   ))}
                 </tbody>
-              </table>
+              </ResponsiveTable>
             </div>
 
             <div className="card" style={{ display: 'grid', gap: '0.65rem', overflowX: 'auto' }}>
               <div style={{ fontWeight: 800 }}>Unpaid customers</div>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead><tr>{['Customer', 'Contact', 'Orders', 'Balance due', 'Earliest due'].map((label) => <RegulatorField field={label} key={label}><th key={label} style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid var(--border)' }}>{label}</th></RegulatorField>)}</tr></thead>
                 <tbody>
                   {!report.unpaidCustomers?.length ? <tr><td colSpan={5} style={{ padding: '0.75rem', color: 'var(--muted)' }}>No unpaid customers.</td></tr> : report.unpaidCustomers.map((customer, index) => (
@@ -403,7 +405,7 @@ export default function CommerceStorePosPage() {
                     </tr></RegulatorRecord>
                   ))}
                 </tbody>
-              </table>
+              </ResponsiveTable>
             </div>
           </>
         ) : null}
@@ -411,7 +413,7 @@ export default function CommerceStorePosPage() {
 
       <section className="card" style={{ display: 'grid', gap: '0.75rem' }}>
         <div style={{ fontSize: '18px', fontWeight: 800 }}>POS orders</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.65rem', alignItems: 'end' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: '0.65rem', alignItems: 'end' }}>
           <label style={{ display: 'grid', gap: '0.25rem' }}><span>Order status</span><select value={orderFilters.status} onChange={(event) => setOrderFilters((current) => ({ ...current, status: event.target.value }))}><option value="">All</option>{ORDER_STATUSES.map((value) => <option key={value} value={value}>{formatEnum(value)}</option>)}</select></label>
           <label style={{ display: 'grid', gap: '0.25rem' }}><span>Payment status</span><select value={orderFilters.paymentStatus} onChange={(event) => setOrderFilters((current) => ({ ...current, paymentStatus: event.target.value }))}><option value="">All</option>{PAYMENT_STATUSES.map((value) => <option key={value} value={value}>{formatEnum(value)}</option>)}</select></label>
           <label style={{ display: 'grid', gap: '0.25rem' }}><span>Payment mode</span><select value={orderFilters.paymentMode} onChange={(event) => setOrderFilters((current) => ({ ...current, paymentMode: event.target.value }))}><option value="">All</option>{PAYMENT_MODES.map((value) => <option key={value} value={value}>{formatEnum(value)}</option>)}</select></label>
@@ -432,7 +434,7 @@ export default function CommerceStorePosPage() {
       <section className="card" style={{ display: 'grid', gap: '0.75rem' }}>
         <div style={{ fontSize: '18px', fontWeight: 800 }}>Registered customers</div>
         <form onSubmit={(event) => { event.preventDefault(); setCustomerPage(0); setAppliedCustomerSearch(customerSearch.trim()); }} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'end' }}>
-          <label style={{ display: 'grid', gap: '0.25rem', minWidth: '260px', flex: 1 }}><span>Search name, email or phone</span><input value={customerSearch} onChange={(event) => setCustomerSearch(event.target.value)} placeholder="Search customers" /></label>
+          <label style={{ display: 'grid', gap: '0.25rem', minWidth: 'min(260px, 100%)', flex: 1 }}><span>Search name, email or phone</span><input value={customerSearch} onChange={(event) => setCustomerSearch(event.target.value)} placeholder="Search customers" /></label>
           <label style={{ display: 'grid', gap: '0.25rem', width: '120px' }}><span>Page size</span><input type="number" min="1" max="100" value={customerSize} onChange={(event) => { setCustomerSize(Math.min(100, Math.max(1, Number(event.target.value) || 20))); setCustomerPage(0); }} /></label>
           <button type="submit" className="btn-primary" disabled={customersLoading}>Search</button>
           <button type="button" className="btn-neutral" onClick={() => { setCustomerSearch(''); setAppliedCustomerSearch(''); setCustomerPage(0); }} disabled={customersLoading}>Clear</button>

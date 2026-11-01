@@ -160,7 +160,7 @@ export default function MapleradSandboxPage() {
           <div style={{ fontWeight: 800 }}>Credit sandbox wallet</div>
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Amount must be a positive integer. Currency can be selected or typed as an uppercase ISO code.</div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '0.75rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="currency">Currency</label>
             <input

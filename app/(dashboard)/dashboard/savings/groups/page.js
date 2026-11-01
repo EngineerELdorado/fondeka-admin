@@ -199,7 +199,7 @@ export default function GroupSavingsPage() {
         }
       />
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
         <button type="button" className="card" onClick={() => { setFilters((prev) => ({ ...prev, type: 'LIKELEMBA' })); setAppliedFilters((prev) => ({ ...prev, type: 'LIKELEMBA' })); setPage(0); }} style={{ textAlign: 'left', cursor: 'pointer' }}>
           <div style={{ display: 'grid', gap: '0.35rem' }}>
             <TypeBadge value="LIKELEMBA" />
@@ -217,7 +217,7 @@ export default function GroupSavingsPage() {
       </div>
 
       <SectionCard title={t('savings.groups.searchTitle')} description={t('savings.groups.searchDescription')}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
           <div style={{ display: 'grid', gap: '0.25rem' }}>
             <label htmlFor="group-reference">{t('savings.groups.reference')}</label>
             <input id="group-reference" value={filters.reference} onChange={(e) => setFilters((prev) => ({ ...prev, reference: e.target.value }))} />

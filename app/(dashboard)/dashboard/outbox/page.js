@@ -432,7 +432,7 @@ export default function OutboxPage() {
 
         {showFilters && (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
               {(outboxType === 'webhooks' ? (
                 <>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -490,7 +490,7 @@ export default function OutboxPage() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="page">Page</label>
                 <input id="page" type="number" min={0} value={page} onChange={(e) => setPage(Number(e.target.value))} />
@@ -585,7 +585,7 @@ export default function OutboxPage() {
             <div style={{ color: 'var(--muted)' }}>Loading detail...</div>
           ) : selected ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0.6rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))', gap: '0.6rem' }}>
                 {[
                   { label: 'ID', value: selected.id },
                   { label: outboxConfig.primaryLabel, value: selected?.[outboxConfig.primaryField] || '—' },

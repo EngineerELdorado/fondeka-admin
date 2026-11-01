@@ -551,7 +551,7 @@ export default function AnnouncementsPage() {
     ];
 
   const renderForm = () => (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
       <AnnouncementPopupFields draft={draft} setDraft={setDraft} notification={false} />
       <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.55rem' }}>
         <input type="checkbox" style={{ width: 'auto' }} checked={draft.active} onChange={(e) => setDraft((p) => ({ ...p, active: e.target.checked }))} />
@@ -628,7 +628,7 @@ export default function AnnouncementsPage() {
       <div style={{ display: 'grid', gap: '0.75rem', gridColumn: '1 / -1' }}>
         <details>
           <summary style={{ cursor: 'pointer', fontWeight: 700 }}>App version targeting</summary>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem', marginTop: '0.65rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem', marginTop: '0.65rem' }}>
             <label style={{ display: 'grid', gap: '0.25rem' }}>
               <span>App version at least</span>
               <input value={draft.appVersionAtLeast} onChange={(e) => setDraft((p) => ({ ...p, appVersionAtLeast: e.target.value }))} placeholder="2.0.0" />
@@ -647,7 +647,7 @@ export default function AnnouncementsPage() {
         <details>
           <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Audience targeting</summary>
           <div style={{ display: 'grid', gap: '0.75rem', marginTop: '0.65rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))', gap: '0.75rem' }}>
               {[
                 ['hasCryptoWallets', 'Has crypto wallets'],
                 ['hasCards', 'Has cards'],
@@ -668,7 +668,7 @@ export default function AnnouncementsPage() {
                 </label></RegulatorField>
               ))}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
               {[
                 ['minCompletedTransactions', 'Min completed'],
                 ['maxCompletedTransactions', 'Max completed'],
@@ -682,7 +682,7 @@ export default function AnnouncementsPage() {
                 </label>
               ))}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
               <label style={{ display: 'grid', gap: '0.25rem' }}>
                 <span>Account created from</span>
                 <input type="date" value={draft.accountCreatedFrom} onChange={(e) => setDraft((p) => ({ ...p, accountCreatedFrom: e.target.value }))} />
@@ -692,7 +692,7 @@ export default function AnnouncementsPage() {
                 <input type="date" value={draft.accountCreatedTo} onChange={(e) => setDraft((p) => ({ ...p, accountCreatedTo: e.target.value }))} />
               </label>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
               {[
                 ['kycStatuses', 'KYC statuses'],
                 ['transactionStatuses', 'Transaction statuses'],

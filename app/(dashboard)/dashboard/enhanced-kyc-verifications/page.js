@@ -102,7 +102,7 @@ const Modal = ({ title, onClose, children, surfaceStyle = null }) => (
   </div>
 );
 
-const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.6rem' }}>
+const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))', gap: '0.6rem' }}>
     {regulatorVisibleFields(rows, enableRegulatorMode).map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: '1px solid var(--border)', borderRadius: '10px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
@@ -419,7 +419,7 @@ export default function EnhancedKycVerificationsPage() {
 
         {showFilters && (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="status">Status</label>
                 <PresentationSelect id="status" value={filters.status} onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value }))}>
@@ -513,7 +513,7 @@ export default function EnhancedKycVerificationsPage() {
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
               Submit enhanced IBAN verification on behalf of a customer. Use files for multipart upload, or provide existing uploaded URLs for JSON-only submission.
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="targetType">Create by</label>
                 <PresentationSelect id="targetType" value={createDraft.targetType} onChange={(e) => setCreateDraft((p) => ({ ...p, targetType: e.target.value }))}>
@@ -560,7 +560,7 @@ export default function EnhancedKycVerificationsPage() {
               ))}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))', gap: '0.75rem' }}>
               {[
                 ['proofOfAddress', 'Proof of address'],
                 ['sourceOfFunds', 'Source of funds'],
@@ -580,7 +580,7 @@ export default function EnhancedKycVerificationsPage() {
               ))}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))', gap: '0.75rem' }}>
               {[
                 ['proofOfAddressUrl', 'Proof of address URL'],
                 ['sourceOfFundsUrl', 'Source of funds URL'],

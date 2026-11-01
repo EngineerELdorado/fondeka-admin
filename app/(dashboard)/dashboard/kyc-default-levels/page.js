@@ -91,7 +91,7 @@ export default function KycDefaultLevelsPage() {
           {loading ? 'Loading global default...' : currentLevel === null ? 'No global default set.' : `Current: ${currentLevel}`}
         </div>
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'end' }}>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', flex: 1, minWidth: '200px' }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', flex: 1, minWidth: 'min(200px, 100%)' }}>
             <span>Default level</span>
             <input
               type="number"

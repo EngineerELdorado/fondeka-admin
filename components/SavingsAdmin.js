@@ -140,7 +140,7 @@ export function SavingsPageHeader({ title, description, actions }) {
 
 export function MetricStrip({ items }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
       {items.map((item) => (
         <div
           key={item.label}
@@ -163,7 +163,7 @@ export function MetricStrip({ items }) {
 
 export function DetailGrid({ rows }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
       {rows.map((row) => (
         <div key={row.label} className="card" style={{ display: 'grid', gap: '0.2rem', padding: '0.8rem' }}>
           <div style={{ color: 'var(--muted)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{row.label}</div>

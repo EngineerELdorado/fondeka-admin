@@ -158,7 +158,7 @@ export default function DirectLoanCreditPage() {
           ))}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: '0.75rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="accountValue">{currentMode.label}</label>
             <input
@@ -230,7 +230,7 @@ export default function DirectLoanCreditPage() {
       {result && (
         <div className="card" style={{ display: 'grid', gap: '0.7rem' }}>
           <div style={{ fontWeight: 800 }}>Direct credit result</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.5rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.5rem' }}>
             <div><strong>Transaction ID:</strong> {transactionId ?? '—'}</div>
             <div><strong>Status:</strong> {result?.status ?? '—'}</div>
             <div><strong>Loan reference:</strong> {loanReference || '—'}</div>

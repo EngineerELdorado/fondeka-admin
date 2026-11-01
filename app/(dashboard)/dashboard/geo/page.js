@@ -16,7 +16,7 @@ export default function GeoHubPage() {
         <div style={{ fontSize: '20px', fontWeight: 800 }}>Geo</div>
         <div style={{ color: 'var(--muted)' }}>Manage geographic hierarchy for countries, provinces, territories, and municipalities.</div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '1rem' }}>
         {sections.map((item) => (
           <Link
             key={item.href}

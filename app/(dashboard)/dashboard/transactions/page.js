@@ -1,5 +1,6 @@
 'use client';
 
+import ResponsiveTable from '@/components/ResponsiveTable';
 
 import { CatalogSelect } from '@/components/CatalogSelect';
 import { RegulatorRecord, PresentationSelect, NonRegulatorContent, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
@@ -220,7 +221,7 @@ const Modal = ({ title, onClose, children }) => (
   </div>
 );
 
-const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.6rem' }}>
     {regulatorVisibleFields(rows, enableRegulatorMode).map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px', minWidth: 0 }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
@@ -276,7 +277,7 @@ const CommerceContextPanel = ({ commerce, formatDate, formatMoney }) => {
         { label: 'Store deleted', value: store.deletedAt ? formatDate(store.deletedAt) : 'No' }
       ]} />
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.6rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))', gap: '0.6rem' }}>
         <CommerceIdentity title="Current store owner" identity={commerce.storeOwnerAccount} />
         <CommerceIdentity title="Recorded merchant / recipient" identity={commerce.merchantAccount} />
         <CommerceIdentity title="Order creator / POS staff" identity={commerce.createdByAccount} />
@@ -313,7 +314,7 @@ const CommerceContextPanel = ({ commerce, formatDate, formatMoney }) => {
               { label: 'Updated', value: formatDate(order.updatedAt) }
             ]} />
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '920px' }}>
+              <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse', minWidth: '920px' }}>
                 <thead><tr>{['Item', 'Type', 'Quantity', 'Original price', 'Normalized price', 'Description'].map((label) => <RegulatorField field={label} key={label}><th key={label} style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)' }}>{label}</th></RegulatorField>)}</tr></thead>
                 <tbody>{orderItems.length ? orderItems.map((item, index) => (
                   <RegulatorRecord record={item} key={item.id || item.orderItemId || index}><tr key={item.id || item.orderItemId || index} style={{ borderBottom: '1px solid var(--border)' }}>
@@ -325,7 +326,7 @@ const CommerceContextPanel = ({ commerce, formatDate, formatMoney }) => {
                     <td style={{ padding: '0.45rem', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{item.productDescription || item.description || '—'}</td>
                   </tr></RegulatorRecord>
                 )) : <tr><td colSpan={6} style={{ padding: '0.75rem', color: 'var(--muted)' }}>No order items returned.</td></tr>}</tbody>
-              </table>
+              </ResponsiveTable>
             </div>
           </div>
         </details>
@@ -2443,7 +2444,7 @@ export default function TransactionsPage() {
               {bankPayoutViewActive && <NonRegulatorContent><span style={{ fontSize: '12px', color: 'var(--muted)' }}>Showing FUNDED + WITHDRAW_FROM_WALLET + EQUITY_DRC</span></NonRegulatorContent>}
             </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="transactionId">Transaction ID</label>
             <input id="transactionId" value={filters.transactionId} onChange={(e) => setFilters((p) => ({ ...p, transactionId: e.target.value }))} />
@@ -2466,7 +2467,7 @@ export default function TransactionsPage() {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="service">Service</label>
             <PresentationSelect id="service" value={filters.service} onChange={(e) => setFilters((p) => ({ ...p, service: e.target.value }))}>
@@ -2513,7 +2514,7 @@ export default function TransactionsPage() {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="paymentMethodName">Payment method name</label>
             <input
@@ -2604,7 +2605,7 @@ export default function TransactionsPage() {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="startDate">Start date</label>
             <input id="startDate" type="datetime-local" value={filters.startDate} onChange={(e) => setFilters((p) => ({ ...p, startDate: e.target.value }))} />
@@ -2613,7 +2614,7 @@ export default function TransactionsPage() {
             <label htmlFor="endDate">End date</label>
             <input id="endDate" type="datetime-local" value={filters.endDate} onChange={(e) => setFilters((p) => ({ ...p, endDate: e.target.value }))} />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.5rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: '0.5rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="page">Page</label>
               <input id="page" type="number" min={0} value={page} onChange={(e) => setPage(Number(e.target.value))} />
@@ -2865,7 +2866,7 @@ export default function TransactionsPage() {
                         ]}
                       />
                       <div style={{ overflowX: 'auto' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '980px' }}>
+                        <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse', minWidth: '980px' }}>
                           <thead>
                             <tr style={{ color: 'var(--muted)', fontSize: '12px', textAlign: 'left' }}>
                               {['Leg', 'Flow', 'Provider', 'Source', 'Target', 'Raw rate', 'Applied rate', 'Margin', 'USD margin'].map((heading) => (
@@ -2888,7 +2889,7 @@ export default function TransactionsPage() {
                               </tr></RegulatorRecord>
                             ))}
                           </tbody>
-                        </table>
+                        </ResponsiveTable>
                       </div>
                     </>
                   ) : (
@@ -3211,7 +3212,7 @@ export default function TransactionsPage() {
               </div>
 
               <div style={{ marginTop: '0.75rem', display: 'grid', gap: '0.75rem' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem', alignItems: 'end' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem', alignItems: 'end' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                     <label htmlFor="refundLookupInternal">Internal reference</label>
                     <input
@@ -3228,7 +3229,7 @@ export default function TransactionsPage() {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem', alignItems: 'end' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem', alignItems: 'end' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                     <label htmlFor="refundLookupTransaction">Transaction id</label>
                     <input
@@ -3279,7 +3280,7 @@ export default function TransactionsPage() {
                         <div style={{ fontWeight: 700 }}>Event {event.id ?? '—'}</div>
                         <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{formatDateTime(event.createdAt)}</div>
                       </div>
-                      <div style={{ marginTop: '0.6rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.6rem' }}>
+                      <div style={{ marginTop: '0.6rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: '0.6rem' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
                           <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>Provider</div>
                           <div style={{ fontWeight: 700 }}>{event.provider ?? '—'}</div>
@@ -3407,7 +3408,7 @@ export default function TransactionsPage() {
               <div style={{ marginTop: '0.75rem' }}>
                 {auditError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{auditError}</div>}
                 <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr>
                         {['Time', 'Action', 'Admin', 'Target'].map((label) => (
@@ -3446,7 +3447,7 @@ export default function TransactionsPage() {
                         );
                       })}
                     </tbody>
-                  </table>
+                  </ResponsiveTable>
                 </div>
               </div>
             </div>
@@ -3473,7 +3474,7 @@ export default function TransactionsPage() {
                 <div style={{ marginTop: '0.75rem' }}>
                   {billStatusAuditError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{billStatusAuditError}</div>}
                   <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse' }}>
                       <thead>
                         <tr>
                           {['Time', 'Action', 'Admin', 'Target'].map((label) => (
@@ -3512,7 +3513,7 @@ export default function TransactionsPage() {
                           );
                         })}
                       </tbody>
-                    </table>
+                    </ResponsiveTable>
                   </div>
                 </div>
               </div>
@@ -3829,7 +3830,7 @@ export default function TransactionsPage() {
                 { label: 'Needs manual refund', value: selected?.needsManualRefund ? 'Yes' : 'No' }
               ]}
             />
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="postWebhookRailLabel">Rail label (optional)</label>
                 <input
@@ -4083,7 +4084,7 @@ export default function TransactionsPage() {
       {showReceiptForm && (
         <Modal title={`${receipt ? 'Edit' : 'Add'} receipt`} onClose={() => (!receiptSaving ? setShowReceiptForm(false) : null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="receiptType">Type</label>
                 <PresentationSelect id="receiptType" value={receiptType} onChange={(e) => setReceiptType(e.target.value)}>
@@ -4149,7 +4150,7 @@ export default function TransactionsPage() {
             </div>
 
             {isBillReceiptContext && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                   <label htmlFor="billSenderMsisdn">Sender MSISDN</label>
                   <input

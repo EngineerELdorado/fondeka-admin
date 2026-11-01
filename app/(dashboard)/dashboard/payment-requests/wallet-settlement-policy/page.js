@@ -106,7 +106,7 @@ export default function WalletSettlementPolicyPage() {
           ))}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.6rem' }}>
           <div style={{ padding: '0.65rem', border: '1px solid var(--border)', borderRadius: '10px' }}>
             <div style={{ color: 'var(--muted)', fontSize: '12px', textTransform: 'uppercase' }}>Current mode</div>
             <div style={{ fontWeight: 800 }}>{modeLabel(policy?.mode || mode)}</div>

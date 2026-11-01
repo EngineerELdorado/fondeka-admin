@@ -1,5 +1,7 @@
 'use client';
 
+import ResponsiveTable from '@/components/ResponsiveTable';
+
 import { isRegulatorRestrictedRecord } from '@/lib/regulator-presentation';
 
 import { RegulatorRecord, PresentationSelect, NonRegulatorContent, PresentationLink } from '@/components/RegulatorPresentation';
@@ -220,28 +222,28 @@ export default function AppVersionPage() {
             ? 'Loading app version settings...'
             : `Current API version: ${currentConfig.appVersion || 'not set'}. Force-update thresholds are only needed for must-have releases.`}
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', flex: 1, minWidth: '200px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', flex: 1, minWidth: 'min(200px, 100%)' }}>
             <span>API app version</span>
             <input value={draft.appVersion} onChange={(e) => setDraft((p) => ({ ...p, appVersion: e.target.value }))} placeholder="1.0" />
           </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', flex: 1, minWidth: '200px' }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', flex: 1, minWidth: 'min(200px, 100%)' }}>
             <span>Minimum mobile app version</span>
             <input value={draft.minMobileAppVersion} onChange={(e) => setDraft((p) => ({ ...p, minMobileAppVersion: e.target.value }))} placeholder="2.0.0" />
           </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', flex: 1, minWidth: '200px' }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', flex: 1, minWidth: 'min(200px, 100%)' }}>
             <span>Minimum Android app version</span>
             <input value={draft.minAndroidAppVersion} onChange={(e) => setDraft((p) => ({ ...p, minAndroidAppVersion: e.target.value }))} placeholder="2.1.0" />
           </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', flex: 1, minWidth: '200px' }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', flex: 1, minWidth: 'min(200px, 100%)' }}>
             <span>Minimum iOS app version</span>
             <input value={draft.minIosAppVersion} onChange={(e) => setDraft((p) => ({ ...p, minIosAppVersion: e.target.value }))} placeholder="2.0.5" />
           </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', flex: 1, minWidth: '200px' }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', flex: 1, minWidth: 'min(200px, 100%)' }}>
             <span>Force update title</span>
             <input value={draft.forceUpdateTitle} onChange={(e) => setDraft((p) => ({ ...p, forceUpdateTitle: e.target.value }))} placeholder="Update required" />
           </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', flex: 1, minWidth: '200px' }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', flex: 1, minWidth: 'min(200px, 100%)' }}>
             <span>Force update message</span>
             <textarea
               rows={3}
@@ -274,7 +276,7 @@ export default function AppVersionPage() {
         {rulesInfo && <div style={{ color: '#15803d', fontWeight: 700 }}>{rulesInfo}</div>}
 
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'end' }}>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minWidth: '220px' }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minWidth: 'min(220px, 100%)' }}>
             <span>Service</span>
             <PresentationSelect value={ruleService} onChange={(e) => setRuleService(e.target.value)}>
               <option value="">Select service</option>
@@ -285,7 +287,7 @@ export default function AppVersionPage() {
               ))}
             </PresentationSelect>
           </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minWidth: '160px' }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minWidth: 'min(160px, 100%)' }}>
             <span>Min version</span>
             <input value={ruleMinVersion} onChange={(e) => setRuleMinVersion(e.target.value)} placeholder="1.1" />
           </label>
@@ -298,7 +300,7 @@ export default function AppVersionPage() {
         </div>
 
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
                 <th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid var(--border)' }}>Service</th>
@@ -343,7 +345,7 @@ export default function AppVersionPage() {
                 ))
               )}
             </tbody>
-          </table>
+          </ResponsiveTable>
         </div>
       </div>
     </div>

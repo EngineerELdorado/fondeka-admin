@@ -1520,7 +1520,7 @@ export default function ReferralCampaignsPage() {
           Manage per-referrer overrides without editing campaign JSON. Inviter override beats campaign defaults.
         </div>
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <div style={{ minWidth: '260px' }}>
+          <div style={{ minWidth: 'min(260px, 100%)' }}>
             <label htmlFor="ruleCampaignId">Campaign</label>
             <PresentationSelect
               id="ruleCampaignId"
@@ -1586,7 +1586,7 @@ export default function ReferralCampaignsPage() {
             Export reward ledger CSV
           </button>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.6rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: '0.6rem' }}>
           <div className="card"><strong>Invites:</strong> {analytics?.funnel?.invites ?? '—'}</div>
           <div className="card"><strong>Signups:</strong> {analytics?.funnel?.signups ?? '—'}</div>
           <div className="card"><strong>Qualified:</strong> {analytics?.funnel?.qualifiedReferrals ?? '—'}</div>
@@ -1646,7 +1646,7 @@ export default function ReferralCampaignsPage() {
             Create a referral binding by account ID, email, or a mix of both. Reason is sent for audit history.
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))', gap: '0.75rem' }}>
           <div>
             <label htmlFor="bindingInviterAccountId">Inviter account ID</label>
             <input id="bindingInviterAccountId" type="number" min="1" value={bindingInviterAccountId} onChange={(e) => setBindingInviterAccountId(e.target.value)} placeholder="10" />
@@ -1832,7 +1832,7 @@ export default function ReferralCampaignsPage() {
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
               Action can be left as default for this inviter. Exact action rules take precedence over the default account rule.
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))', gap: '0.75rem' }}>
               <div>
                 <label htmlFor="accountRewardRuleInviterAccountId">Inviter account ID</label>
                 <input
@@ -2004,7 +2004,7 @@ export default function ReferralCampaignsPage() {
                   {fieldErrors.description && <div style={{ color: '#b91c1c', fontSize: '12px' }}>{fieldErrors.description}</div>}
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                     <label htmlFor="startsAt">Start date/time</label>
                     <input
@@ -2042,7 +2042,7 @@ export default function ReferralCampaignsPage() {
 
             {campaignStep === 2 && (
               <div style={{ display: 'grid', gap: '0.75rem' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                     <label htmlFor="baseRewardPoints">Points per qualified invitee *</label>
                     <input
@@ -2124,7 +2124,7 @@ export default function ReferralCampaignsPage() {
 
                 <details open={showRewardOptions} onToggle={(e) => setShowRewardOptions(e.currentTarget.open)}>
                   <summary style={{ cursor: 'pointer', fontWeight: 700 }}>More options</summary>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem', marginTop: '0.65rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem', marginTop: '0.65rem' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                       <label htmlFor="activationRewardPoints">Activation bonus points</label>
                       <input
@@ -2171,7 +2171,7 @@ export default function ReferralCampaignsPage() {
                   <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
                     FIXED formula: points = baseRewardPoints. REVENUE_SHARE and NET_AMOUNT_SHARE use percentage rules.
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.75rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))', gap: '0.75rem' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                       <label htmlFor="rewardMode">Reward mode</label>
                       <PresentationSelect
@@ -2308,7 +2308,7 @@ export default function ReferralCampaignsPage() {
                   <div style={{ color: 'var(--muted)', fontSize: '12px', marginTop: '0.5rem' }}>
                     Optional advanced config; leave empty unless needed.
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.75rem', marginTop: '0.5rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '0.75rem', marginTop: '0.5rem' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                       <label htmlFor="milestoneRules">Milestone rules (JSON)</label>
                       <textarea
@@ -2407,7 +2407,7 @@ export default function ReferralCampaignsPage() {
                 </button>
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="ruleInviterAccountId">Inviter account ID *</label>
                 <input
@@ -2521,7 +2521,7 @@ export default function ReferralCampaignsPage() {
               </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="ruleMinPoints">Min points</label>
                 <input

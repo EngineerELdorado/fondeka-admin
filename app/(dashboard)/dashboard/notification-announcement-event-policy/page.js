@@ -171,7 +171,7 @@ export default function AnnouncementEventPolicyPage() {
                   key={event}
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: 'minmax(220px, 1fr) minmax(160px, 220px) auto',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
                     gap: '0.75rem',
                     alignItems: 'center',
                     padding: '0.65rem 0.75rem',

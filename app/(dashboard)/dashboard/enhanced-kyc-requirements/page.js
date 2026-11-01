@@ -386,7 +386,7 @@ export default function EnhancedKycRequirementsPage() {
 
       <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
         <div style={{ fontWeight: 800 }}>Filters</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.75rem', alignItems: 'end' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: '0.75rem', alignItems: 'end' }}>
           <label style={{ display: 'grid', gap: '0.25rem' }}>
             <span>Purpose</span>
             <select value={filters.purpose} onChange={(e) => setFilters((prev) => ({ ...prev, purpose: e.target.value }))}>
@@ -453,7 +453,7 @@ export default function EnhancedKycRequirementsPage() {
 
       {showDetail && selected && (
         <Modal title={`Requirement ${selected.id}`} onClose={() => setShowDetail(false)}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.6rem' }}>
             {[
               ['Purpose', selected.purpose],
               ['Scope', formatScope(selected)],
@@ -500,7 +500,7 @@ export default function EnhancedKycRequirementsPage() {
 function RequirementForm({ draft, updateDraft, saving }) {
   return (
     <div style={{ display: 'grid', gap: '0.75rem' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
         <label style={{ display: 'grid', gap: '0.25rem' }}>
           <span>Purpose</span>
           <select value={draft.purpose} onChange={(e) => updateDraft('purpose', e.target.value)} disabled={saving}>
@@ -530,7 +530,7 @@ function RequirementForm({ draft, updateDraft, saving }) {
       <div style={{ display: 'grid', gap: '0.4rem' }}>
         <div style={{ fontWeight: 800 }}>Scope</div>
         <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Leave all scope fields empty for global. Use country for country requirements, or account ID/email for account-specific requirements.</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
           <label style={{ display: 'grid', gap: '0.25rem' }}>
             <span>Country</span>
             <input value={draft.countryCode} onChange={(e) => updateDraft('countryCode', e.target.value)} placeholder="US" disabled={saving} />
@@ -546,7 +546,7 @@ function RequirementForm({ draft, updateDraft, saving }) {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
         <label style={{ display: 'grid', gap: '0.25rem' }}>
           <span>Title EN</span>
           <input value={draft.titleEn} onChange={(e) => updateDraft('titleEn', e.target.value)} disabled={saving} />
@@ -571,7 +571,7 @@ function RequirementForm({ draft, updateDraft, saving }) {
         <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
           Use the same group code on multiple rows when the user only needs to submit some of them, for example 1 of 3 proof-of-funds documents.
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
           <label style={{ display: 'grid', gap: '0.25rem' }}>
             <span>Group code</span>
             <input value={draft.groupCode} onChange={(e) => updateDraft('groupCode', e.target.value)} placeholder="SOURCE_OF_FUNDS_EXTRA" disabled={saving} />
@@ -591,7 +591,7 @@ function RequirementForm({ draft, updateDraft, saving }) {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
         <label style={{ display: 'grid', gap: '0.25rem' }}>
           <span>Supported formats</span>
           <input list="enhancedKycRequirementFormatOptions" value={draft.supportedFormats} onChange={(e) => updateDraft('supportedFormats', e.target.value)} disabled={saving} />

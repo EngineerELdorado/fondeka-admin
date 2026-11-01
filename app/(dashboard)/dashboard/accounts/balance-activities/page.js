@@ -27,7 +27,7 @@ const Modal = ({ title, onClose, children }) => (
 );
 
 const DetailGrid = ({ rows }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.6rem' }}>
     {rows.map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: '1px solid var(--border)', borderRadius: '10px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
@@ -215,11 +215,11 @@ export default function FiatWalletActivitiesPage() {
           <label htmlFor="size">Size</label>
           <input id="size" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
         </div>
-        <div style={{ minWidth: '130px' }}>
+        <div style={{ minWidth: 'min(130px, 100%)' }}>
           <label htmlFor="fiatWalletId">Wallet ID</label>
           <input id="fiatWalletId" value={filters.fiatWalletId} onChange={(e) => updateFilter('fiatWalletId', e.target.value)} placeholder="10" />
         </div>
-        <div style={{ minWidth: '130px' }}>
+        <div style={{ minWidth: 'min(130px, 100%)' }}>
           <label htmlFor="accountId">Account ID</label>
           <input id="accountId" value={filters.accountId} onChange={(e) => updateFilter('accountId', e.target.value)} placeholder="7" />
         </div>
@@ -227,15 +227,15 @@ export default function FiatWalletActivitiesPage() {
           <label htmlFor="currency">Currency</label>
           <input id="currency" value={filters.currency} onChange={(e) => updateFilter('currency', e.target.value)} placeholder="CDF" />
         </div>
-        <div style={{ minWidth: '160px' }}>
+        <div style={{ minWidth: 'min(160px, 100%)' }}>
           <label htmlFor="activityType">Activity type</label>
           <input id="activityType" value={filters.activityType} onChange={(e) => updateFilter('activityType', e.target.value)} placeholder="DEPOSIT" />
         </div>
-        <div style={{ minWidth: '180px' }}>
+        <div style={{ minWidth: 'min(180px, 100%)' }}>
           <label htmlFor="transactionReference">Transaction ref</label>
           <input id="transactionReference" value={filters.transactionReference} onChange={(e) => updateFilter('transactionReference', e.target.value)} placeholder="TX123" />
         </div>
-        <div style={{ minWidth: '200px' }}>
+        <div style={{ minWidth: 'min(200px, 100%)' }}>
           <label htmlFor="userEmail">User email</label>
           <input id="userEmail" type="email" value={filters.userEmail} onChange={(e) => updateFilter('userEmail', e.target.value)} placeholder="user@example.com" />
         </div>

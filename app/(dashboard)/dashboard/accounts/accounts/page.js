@@ -1,5 +1,6 @@
 'use client';
 
+import ResponsiveTable from '@/components/ResponsiveTable';
 
 import { CatalogSelect } from '@/components/CatalogSelect';
 import { RegulatorRecord, PresentationSelect, NonRegulatorContent, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
@@ -137,7 +138,7 @@ const Modal = ({ title, onClose, children }) => (
   </div>
 );
 
-const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.6rem' }}>
     {regulatorVisibleFields(rows, enableRegulatorMode).map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
@@ -1156,7 +1157,7 @@ export default function AccountsListPage() {
         </div>
         {showFilters && (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="accountId">Account ID</label>
                 <input id="accountId" value={filters.accountId} onChange={(e) => setFilters((p) => ({ ...p, accountId: e.target.value }))} />
@@ -1174,7 +1175,7 @@ export default function AccountsListPage() {
                 <input id="usernameContains" value={filters.usernameContains} onChange={(e) => setFilters((p) => ({ ...p, usernameContains: e.target.value }))} />
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="email">Email</label>
                 <input id="email" value={filters.email} onChange={(e) => setFilters((p) => ({ ...p, email: e.target.value }))} />
@@ -1235,7 +1236,7 @@ export default function AccountsListPage() {
                 </PresentationSelect>
               </div></NonRegulatorContent>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="startDate">{t('accounts.startDate')}</label>
                 <input id="startDate" type="datetime-local" value={filters.startDate} onChange={(e) => setFilters((p) => ({ ...p, startDate: e.target.value }))} />
@@ -1269,7 +1270,7 @@ export default function AccountsListPage() {
                   ))}
                 </PresentationSelect>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: '0.5rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   <label htmlFor="page">{t('accounts.page')}</label>
                   <input id="page" type="number" min={0} value={page} onChange={(e) => setPage(Number(e.target.value))} />
@@ -1574,7 +1575,7 @@ export default function AccountsListPage() {
 
                   {kycCap && (
                     <div style={{ overflowX: 'auto', marginTop: '0.5rem' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '520px' }}>
+                      <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse', minWidth: '520px' }}>
                         <thead>
                           <tr>
                             {[t('accounts.limit'), t('accounts.baseKyc'), t('accounts.overrideCustom'), t('accounts.effective')].map((label) => (
@@ -1638,7 +1639,7 @@ export default function AccountsListPage() {
                             ));
                           })()}
                         </tbody>
-                      </table>
+                      </ResponsiveTable>
                       <div style={{ marginTop: '0.4rem', color: 'var(--muted)', fontSize: '12px' }}>
                         Loan eligibility uses the computed `eligibleLoanAmount` from the account record; the “Override” column uses `extraLoanEligibilityAmount` from custom KYC caps when available.
                       </div>
@@ -1680,7 +1681,7 @@ export default function AccountsListPage() {
                 {!feeConfigsLoading && feeConfigs.length === 0 && <div style={{ color: 'var(--muted)' }}>{t('accounts.noFeeOverrides')}</div>}
                 {!feeConfigsLoading && feeConfigs.length > 0 && (
                   <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '720px' }}>
+                    <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse', minWidth: '720px' }}>
                       <thead>
                         <tr>
                             {[t('common.action'), t('common.service'), 'PMPP', t('common.country'), t('accounts.providerFeePct'), t('accounts.providerFeeFlat'), t('accounts.ourFeePct'), t('accounts.ourFeeFlat'), t('accounts.feeMode'), t('common.updated'), ''].map((h) => (
@@ -1730,7 +1731,7 @@ export default function AccountsListPage() {
                           </tr></RegulatorRecord>
                         ))}
                       </tbody>
-                    </table>
+                    </ResponsiveTable>
                   </div>
                 )}
               </div>
@@ -1740,7 +1741,7 @@ export default function AccountsListPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 <div style={{ fontWeight: 700 }}>{t('accounts.recentTransaction')}</div>
                 <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr>
                         {[t('common.created'), t('accounts.reference'), t('common.status'), t('common.service'), t('common.action'), t('common.amount')].map((label) => (
@@ -1764,7 +1765,7 @@ export default function AccountsListPage() {
                         </tr></RegulatorRecord>
                       ))}
                     </tbody>
-                  </table>
+                  </ResponsiveTable>
                 </div>
               </div>
             )}
@@ -1776,7 +1777,7 @@ export default function AccountsListPage() {
                   Full fiat wallet balances from `fiatWallets`. The legacy balance above remains the USD wallet balance for backward compatibility.
                 </div></NonRegulatorContent>
                 <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr>
                         {['ID', 'Currency', 'Name', 'Balance', 'Enabled', 'Legacy backed', 'Actions'].map((label) => (
@@ -1805,7 +1806,7 @@ export default function AccountsListPage() {
                         </tr></RegulatorRecord>
                       ))}
                     </tbody>
-                  </table>
+                  </ResponsiveTable>
                 </div>
               </div>
             )}
@@ -1835,7 +1836,7 @@ export default function AccountsListPage() {
                   );
                 })()}
                 <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr>
                         {['ID', t('accounts.product'), t('accounts.network'), t('accounts.balance')].map((label) => (
@@ -1862,7 +1863,7 @@ export default function AccountsListPage() {
                         </tr></RegulatorRecord>
                       ))}
                     </tbody>
-                  </table>
+                  </ResponsiveTable>
                 </div>
               </div>
             )}
@@ -1924,7 +1925,7 @@ export default function AccountsListPage() {
             <div style={{ color: 'var(--muted)' }}>
               {t('accounts.creditingAccount', { account: accountView?.accountReference || selected?.accountReference || selected?.id })}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="creditAction">{t('common.action')}</label>
                 <PresentationSelect id="creditAction" value={creditAction} onChange={(e) => setCreditAction(e.target.value)}>
@@ -1978,7 +1979,7 @@ export default function AccountsListPage() {
             <div style={{ color: 'var(--muted)' }}>
               {t('accounts.debitingAccount', { account: accountView?.accountReference || selected?.accountReference || selected?.id })}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="debitAction">{t('common.action')}</label>
                 <PresentationSelect id="debitAction" value={debitAction} onChange={(e) => setDebitAction(e.target.value)}>
@@ -2036,7 +2037,7 @@ export default function AccountsListPage() {
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
               {t('accounts.feeOverrideHelp2')}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="feeService">{t('common.service')}</label>
                 <PresentationSelect id="feeService" value={feeService} onChange={(e) => setFeeService(e.target.value)}>
@@ -2083,7 +2084,7 @@ export default function AccountsListPage() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.65rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="feeProviderPct">{t('accounts.providerFeePct')}</label>
                 <input id="feeProviderPct" type="number" step="0.01" value={feeProviderPct} onChange={(e) => setFeeProviderPct(e.target.value)} />
@@ -2140,7 +2141,7 @@ export default function AccountsListPage() {
       {showPricingForm && (
         <NonRegulatorContent><Modal title={customPricing ? t('accounts.editCustomKycCapsTitle') : t('accounts.addCustomKycCapsTitle')} onClose={() => (!pricingSaving ? setShowPricingForm(false) : null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="extraLoanEligibilityAmount">{t('accounts.extraLoanEligibility')}</label>
                 <input

@@ -1,5 +1,7 @@
 'use client';
 
+import ResponsiveTable from '@/components/ResponsiveTable';
+
 import { RegulatorRecord, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
 
 import { regulatorVisibleFields } from '@/lib/regulator-presentation';
@@ -170,7 +172,7 @@ const Badge = ({ children, tone = 'neutral' }) => {
   );
 };
 
-const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.6rem' }}>
     {regulatorVisibleFields(rows, enableRegulatorMode).map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
@@ -540,7 +542,7 @@ export default function PaymentRequestsPage() {
   };
 
   const renderForm = () => (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="accountId">Account ID</label>
         <input id="accountId" type="number" value={draft.accountId} onChange={(e) => setDraft((p) => ({ ...p, accountId: e.target.value }))} />
@@ -750,7 +752,7 @@ export default function PaymentRequestsPage() {
         </div>
         {showFilters && (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '0.75rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="f-id">ID</label>
             <input id="f-id" type="number" value={filters.id} onChange={(e) => setFilters((p) => ({ ...p, id: e.target.value }))} />
@@ -818,7 +820,7 @@ export default function PaymentRequestsPage() {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0.65rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))', gap: '0.65rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="f-amountGte">Amount ≥</label>
             <input id="f-amountGte" type="number" value={filters.amountGte} onChange={(e) => setFilters((p) => ({ ...p, amountGte: e.target.value }))} />
@@ -973,7 +975,7 @@ export default function PaymentRequestsPage() {
                 <div style={{ color: 'var(--muted)', fontSize: '13px' }}>No extra payer fields configured.</div>
               ) : (
                 <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '420px' }}>
+                  <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse', minWidth: '420px' }}>
                     <thead>
                       <tr>
                         {['Key', 'Label', 'Required'].map((header) => (
@@ -994,7 +996,7 @@ export default function PaymentRequestsPage() {
                         </tr></RegulatorRecord>
                       ))}
                     </tbody>
-                  </table>
+                  </ResponsiveTable>
                 </div>
               )}
             </div>

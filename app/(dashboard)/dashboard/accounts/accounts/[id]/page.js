@@ -1,5 +1,6 @@
 'use client';
 
+import ResponsiveTable from '@/components/ResponsiveTable';
 
 import { CatalogSelect } from '@/components/CatalogSelect';
 import { RegulatorRecord, PresentationSelect, NonRegulatorContent, PresentationLink as Link, RegulatorField, RegulatorList } from '@/components/RegulatorPresentation';
@@ -106,7 +107,7 @@ const Modal = ({ title, onClose, children }) => (
   </div>
 );
 
-const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.6rem' }}>
     {regulatorVisibleFields(rows, enableRegulatorMode).map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
@@ -212,7 +213,7 @@ const MultiSelect = ({ label, options, values, onChange, helperText }) => (
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
         gap: '0.35rem',
         maxHeight: '220px',
         overflow: 'auto',
@@ -4279,7 +4280,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               { label: 'Invitee email', value: accountEmailValue(accountView) || '—' }
             ]}
           />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.65rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="manualReferralInviterAccountId">Inviter account ID</label>
               <input
@@ -4373,7 +4374,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               Use this after manually paying a bonus. Approved rewards are reversed for audit history; rows are not deleted.
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.65rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="clearReferralRewardCurrency">Currency (optional)</label>
               <input
@@ -4418,7 +4419,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         )}
         {!accountReferralRewardsLoading && accountReferralRewards.length > 0 && (
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '980px' }}>
+            <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse', minWidth: '980px' }}>
               <thead>
                 <tr style={{ textAlign: 'left', color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
                   {['Date', 'Campaign', 'Invitee', 'Event', 'Points', 'Status', 'Suspicious', 'Reason', 'Actions'].map((label) => (
@@ -4463,7 +4464,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                   );
                 })}
               </tbody>
-            </table>
+            </ResponsiveTable>
           </div>
         )}
         </div>
@@ -4494,7 +4495,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           )}
           {!accountRewardRulesLoading && accountRewardRules.length > 0 && (
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '760px' }}>
+              <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse', minWidth: '760px' }}>
                 <thead>
                   <tr style={{ textAlign: 'left', color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
                     {['Action', 'Percentage', 'Max tx', 'Min', 'Max', 'Enabled', 'Notes', 'Actions'].map((label) => (
@@ -4536,7 +4537,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                     </tr></RegulatorRecord>
                   ))}
                 </tbody>
-              </table>
+              </ResponsiveTable>
             </div>
           )}
         </div>
@@ -4561,7 +4562,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         )}
 
         <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'end' }}>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minWidth: '240px', flex: 1 }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minWidth: 'min(240px, 100%)', flex: 1 }}>
             <span>Country (ISO alpha-2)</span>
             <PresentationSelect value={countryCodeDraft} onChange={(e) => setCountryCodeDraft(e.target.value)}>
               <option value="">Select country</option>
@@ -4654,7 +4655,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               ].map((action) => (
                 <div key={action.label} style={{ display: 'grid', gap: '0.65rem', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '12px' }}>
                   <div style={{ fontWeight: 800 }}>{action.label} button</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.65rem' }}>
                     <label style={{ display: 'grid', gap: '0.25rem' }}>
                       <span>Title EN</span>
                       <input
@@ -4747,7 +4748,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         )}
 
         <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'end' }}>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minWidth: '240px', flex: 1 }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minWidth: 'min(240px, 100%)', flex: 1 }}>
             <span>Phone number</span>
             <input
               value={phoneNumberDraft}
@@ -4991,7 +4992,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         )}
 
         <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'end' }}>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minWidth: '220px', flex: 1 }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minWidth: 'min(220px, 100%)', flex: 1 }}>
             <span>Override version</span>
             <input
               value={appVersionOverride}
@@ -5770,7 +5771,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         </div>
 
         <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'end' }}>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minWidth: '260px', flex: 1 }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minWidth: 'min(260px, 100%)', flex: 1 }}>
             <span>Minimum amount override (USD)</span>
             <input
               type="number"
@@ -5837,7 +5838,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           {!feeConfigsLoading && feeConfigs.length === 0 && <div style={{ color: 'var(--muted)' }}>No fee overrides.</div>}
           {!feeConfigsLoading && feeConfigs.length > 0 && (
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '720px' }}>
+              <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse', minWidth: '720px' }}>
                 <thead>
                   <tr>
                           {['Action', 'Service', 'From', 'To', 'PMPP', 'Country', 'Provider %', 'Provider flat', 'Our %', 'Our flat', 'Amount range', 'Fee mode', 'Updated', ''].map((h) => (
@@ -5890,7 +5891,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                     </tr></RegulatorRecord>
                   ))}
                 </tbody>
-              </table>
+              </ResponsiveTable>
             </div>
           )}
         </div>
@@ -5941,7 +5942,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           )}
           {!paymentMethodActionConfigsLoading && paymentMethodActionConfigs.length > 0 && (
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '1120px' }}>
+              <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse', minWidth: '1120px' }}>
                 <thead>
                   <tr>
                     {['Action', 'Country', 'Rank', 'Active', 'Local MM for USD wallet', 'Include Types', 'Exclude Types', 'Include Names', 'Exclude Names', 'Updated', ''].map((h) => (
@@ -5975,7 +5976,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                     </tr></RegulatorRecord>
                   ))}
                 </tbody>
-              </table>
+              </ResponsiveTable>
             </div>
           )}
         </div>
@@ -6005,7 +6006,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           {!billProductOverridesLoading && billProductOverrides.length === 0 && <div style={{ color: 'var(--muted)' }}>No bill product overrides.</div>}
           {!billProductOverridesLoading && billProductOverrides.length > 0 && (
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '700px' }}>
+              <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse', minWidth: '700px' }}>
                 <thead>
                   <tr>
                     {['Bill product', 'Enabled', 'Note', 'Updated', ''].map((h) => (
@@ -6039,7 +6040,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                     );
                   })}
                 </tbody>
-              </table>
+              </ResponsiveTable>
             </div>
           )}
         </div>
@@ -6068,7 +6069,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         </div>
 
         <div style={{ marginTop: '0.75rem', display: 'grid', gap: '0.75rem' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.65rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="providerRoutingFilterActive">Active</label>
               <PresentationSelect
@@ -6120,7 +6121,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           )}
           {!providerRoutingLoading && providerRoutingFilteredRows.length > 0 && (
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '980px' }}>
+              <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse', minWidth: '980px' }}>
                 <thead>
                   <tr>
                     {['Payment method', 'Provider', 'Action', 'Context', 'Rank', 'Active', 'Updated', ''].map((h) => (
@@ -6161,7 +6162,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                     );
                   })}
                 </tbody>
-              </table>
+              </ResponsiveTable>
             </div>
           )}
         </div>
@@ -6198,7 +6199,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           {!cardProviderStatusLoading && cardProviderStatusOverrides.length === 0 && <div style={{ color: 'var(--muted)' }}>No card provider status overrides.</div>}
           {!cardProviderStatusLoading && cardProviderStatusOverrides.length > 0 && (
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '720px' }}>
+              <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse', minWidth: '720px' }}>
                 <thead>
                   <tr>
                     {['Target', 'Product / Provider', 'Override', 'Updated', ''].map((h) => (
@@ -6232,7 +6233,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                     );
                   })}
                 </tbody>
-              </table>
+              </ResponsiveTable>
             </div>
           )}
         </div>
@@ -6267,7 +6268,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           {!cardPricesLoading && cardPrices.length === 0 && <div style={{ color: 'var(--muted)' }}>No card price overrides.</div>}
           {!cardPricesLoading && cardPrices.length > 0 && (
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '560px' }}>
+              <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse', minWidth: '560px' }}>
                 <thead>
                   <tr>
                     {['Product / Provider', 'Price', 'Updated', ''].map((h) => (
@@ -6302,7 +6303,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                     </tr></RegulatorRecord>
                   ))}
                 </tbody>
-              </table>
+              </ResponsiveTable>
             </div>
           )}
         </div>
@@ -6337,7 +6338,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           {!cryptoRatesLoading && cryptoRates.length === 0 && <div style={{ color: 'var(--muted)' }}>No crypto rate overrides.</div>}
           {!cryptoRatesLoading && cryptoRates.length > 0 && (
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '560px' }}>
+              <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse', minWidth: '560px' }}>
                 <thead>
                   <tr>
                     {['Product', 'Ask', 'Bid', 'Updated', ''].map((h) => (
@@ -6374,7 +6375,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                     </tr></RegulatorRecord>
                   ))}
                 </tbody>
-              </table>
+              </ResponsiveTable>
             </div>
           )}
         </div>
@@ -6409,7 +6410,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           {!cryptoLimitsLoading && cryptoLimits.length === 0 && <div style={{ color: 'var(--muted)' }}>No crypto limits.</div>}
           {!cryptoLimitsLoading && cryptoLimits.length > 0 && (
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '720px' }}>
+              <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse', minWidth: '720px' }}>
                 <thead>
                   <tr>
                     {['Network', 'Buy (USD)', 'Sell (USD)', 'Send (USD)', 'Receive (USD)', 'Swap (USD)', 'Updated', ''].map((h) => (
@@ -6450,7 +6451,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                     </tr></RegulatorRecord>
                   ))}
                 </tbody>
-              </table>
+              </ResponsiveTable>
             </div>
           )}
         </div>
@@ -6485,7 +6486,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           {!loanRatesLoading && loanRates.length === 0 && <div style={{ color: 'var(--muted)' }}>No loan rate overrides.</div>}
           {!loanRatesLoading && loanRates.length > 0 && (
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '560px' }}>
+              <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse', minWidth: '560px' }}>
                 <thead>
                   <tr>
                     {['Loan product', 'Interest %', 'Updated', ''].map((h) => (
@@ -6517,7 +6518,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                     </tr></RegulatorRecord>
                   ))}
                 </tbody>
-              </table>
+              </ResponsiveTable>
             </div>
           )}
         </div>
@@ -6527,7 +6528,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', ...fadeInStyle(!loading) }}>
           <div style={{ fontWeight: 700 }}>Recent transactions</div>
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '1100px' }}>
+            <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse', minWidth: '1100px' }}>
               <thead>
                 <tr>
                   {['ID', 'Created', 'Reference', 'Action', 'Status', 'Amount', 'Method', 'Customer', 'Actions'].map((label) => (
@@ -6567,7 +6568,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                   );
                 })}
               </tbody>
-            </table>
+            </ResponsiveTable>
           </div>
         </div>
       )}
@@ -6607,7 +6608,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'end' }}>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: '140px' }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: 'min(140px, 100%)' }}>
             <span>Page</span>
             <input
               type="number"
@@ -6616,7 +6617,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               onChange={(e) => setNotificationsPage(Math.max(0, Number(e.target.value)))}
             />
           </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: '140px' }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: 'min(140px, 100%)' }}>
             <span>Size</span>
             <input
               type="number"
@@ -6647,7 +6648,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           <div style={{ color: 'var(--muted)' }}>No notifications yet.</div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '760px' }}>
+            <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse', minWidth: '760px' }}>
               <thead>
                 <tr>
                   {['Created', 'Category', 'Subject', 'Body', 'Data', 'Read', 'Archived'].map((label) => (
@@ -6698,7 +6699,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                   </tr></RegulatorRecord>
                 ))}
               </tbody>
-            </table>
+            </ResponsiveTable>
           </div>
         )}
       </div>
@@ -6710,7 +6711,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             Full fiat wallet balances from `fiatWallets`. The legacy balance above remains the USD wallet balance for backward compatibility.
           </div>
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
                   {['ID', 'Currency', 'Name', 'Balance', 'Enabled', 'Legacy backed', 'Actions'].map((label) => (
@@ -6739,7 +6740,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                   </tr></RegulatorRecord>
                 ))}
               </tbody>
-            </table>
+            </ResponsiveTable>
           </div>
         </div></NonRegulatorContent>
       )}
@@ -6769,7 +6770,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             );
           })()}
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
                   {['ID', 'Product', 'Network', 'Balance', 'Actions'].map((label) => (
@@ -6801,7 +6802,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                   </tr></RegulatorRecord>
                 ))}
               </tbody>
-            </table>
+            </ResponsiveTable>
           </div>
         </div></NonRegulatorContent>
       )}
@@ -6839,7 +6840,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               Deposit prompt default: {globalDepositPromptStatus} • Account flag: {accountDepositPromptFeatureFlagStatus} • Default threshold:{' '}
               {formatDepositPromptThresholdValue(walletPolicyReference?.depositPromptThresholdAmount, { empty: 'Client fallback' })}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="extraLoanEligibilityAmount">Extra loan eligibility amount</label>
                 <input
@@ -7027,7 +7028,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             </div>
 
             <div style={{ fontWeight: 700 }}>Identity</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.65rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="cardholder-idType">ID type *</label>
                 <input
@@ -7105,7 +7106,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Provide either BVN or ID number.</div>
 
             <div style={{ fontWeight: 700 }}>Personal details</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.65rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="cardholder-firstName">First name *</label>
                 <input
@@ -7146,7 +7147,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             </div>
 
             <div style={{ fontWeight: 700 }}>Address</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.65rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="cardholder-address">Address *</label>
                 <input
@@ -7234,7 +7235,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       {showCredit && (
         <NonRegulatorContent><Modal title="Credit wallet" onClose={() => (!creditLoading ? setShowCredit(false) : null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="creditAction">Action</label>
                 <PresentationSelect id="creditAction" value={creditAction} onChange={(e) => setCreditAction(e.target.value)}>
@@ -7277,7 +7278,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             </div>
             <details style={{ border: '1px solid var(--border)', borderRadius: '10px', padding: '0.6rem 0.75rem' }}>
               <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Advanced (optional)</summary>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem', marginTop: '0.65rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.65rem', marginTop: '0.65rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   <label htmlFor="creditInternalFeeAmount">Internal fee amount</label>
                   <input
@@ -7355,7 +7356,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
       {showDebit && (
         <NonRegulatorContent><Modal title="Debit wallet" onClose={() => (!debitLoading ? setShowDebit(false) : null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="debitAction">Action</label>
                 <PresentationSelect id="debitAction" value={debitAction} onChange={(e) => setDebitAction(e.target.value)}>
@@ -7398,7 +7399,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             </div>
             <details style={{ border: '1px solid var(--border)', borderRadius: '10px', padding: '0.6rem 0.75rem' }}>
               <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Advanced (optional)</summary>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem', marginTop: '0.65rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.65rem', marginTop: '0.65rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   <label htmlFor="debitInternalFeeAmount">Internal fee amount</label>
                   <input
@@ -7479,7 +7480,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               Leave action blank for this inviter&apos;s default rule.
             </div>
             {accountRewardRulesError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{accountRewardRulesError}</div>}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="accountRewardRuleInviterAccountId">Inviter account ID</label>
                 <input
@@ -7628,7 +7629,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
               Creates an account-specific ACCOUNT_FORCE requirement for account <strong>#{resolvedAccountId ?? '—'}</strong> and enables enhanced verification for this customer.
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
               <label style={{ display: 'grid', gap: '0.25rem' }}>
                 <span>Document code</span>
                 <PresentationSelect
@@ -7659,7 +7660,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               </label>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
               <label style={{ display: 'grid', gap: '0.25rem' }}>
                 <span>Title EN</span>
                 <input value={enhancedKycRequirementDraft.titleEn} onChange={(e) => updateEnhancedKycRequirementDraft('titleEn', e.target.value)} disabled={enhancedKycRequirementSaving} />
@@ -7682,7 +7683,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             <details className="card" style={{ padding: '0.75rem' }}>
               <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Alternative group and upload options</summary>
               <div style={{ marginTop: '0.75rem', display: 'grid', gap: '0.75rem' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
                   <label style={{ display: 'grid', gap: '0.25rem' }}>
                     <span>Group code</span>
                     <input value={enhancedKycRequirementDraft.groupCode} onChange={(e) => updateEnhancedKycRequirementDraft('groupCode', e.target.value)} placeholder="SOURCE_OF_FUNDS_EXTRA" disabled={enhancedKycRequirementSaving} />
@@ -7700,7 +7701,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                     <input type="number" min="1" value={enhancedKycRequirementDraft.minRequiredInGroup} onChange={(e) => updateEnhancedKycRequirementDraft('minRequiredInGroup', e.target.value)} disabled={enhancedKycRequirementSaving} />
                   </label>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
                   <label style={{ display: 'grid', gap: '0.25rem' }}>
                     <span>Supported formats</span>
                     <input value={enhancedKycRequirementDraft.supportedFormats} onChange={(e) => updateEnhancedKycRequirementDraft('supportedFormats', e.target.value)} disabled={enhancedKycRequirementSaving} />
@@ -7760,7 +7761,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               Account ID: <span style={{ fontWeight: 700 }}>{resolvedAccountId ?? '—'}</span>
               {cryptoCreditWallet?.currency ? ` · ${cryptoCreditWallet.currency}` : ''}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="cryptoCreditAction">Action</label>
                 <PresentationSelect id="cryptoCreditAction" value={cryptoCreditAction} onChange={(e) => setCryptoCreditAction(e.target.value)}>
@@ -7860,7 +7861,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                   Also show as in-app announcement
                 </label>
                 {notificationAnnouncement.enabled ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
                     <AnnouncementPopupFields draft={notificationAnnouncement} setDraft={setNotificationAnnouncement} />
                     <label style={{ display: 'grid', gap: '0.25rem' }}>
                       <span>Severity</span>
@@ -7941,7 +7942,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             <NonRegulatorContent><div style={{ color: 'var(--muted)', fontSize: '13px' }}>
               Account custom swap fees let you override pricing for a specific customer and a specific crypto pair. Pair-specific account rules take priority over global pair pricing and generic account-level swap pricing.
             </div></NonRegulatorContent>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="feeService">Service</label>
                 <PresentationSelect id="feeService" value={feeService} onChange={(e) => setFeeService(e.target.value)}>
@@ -8024,7 +8025,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.65rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="feeProviderPct">Provider fee %</label>
                 <input id="feeProviderPct" type="number" step="0.01" value={feeProviderPct} onChange={(e) => setFeeProviderPct(e.target.value)} />
@@ -8102,7 +8103,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
               Override applies only to account <strong>#{resolvedAccountId ?? '—'}</strong>.
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="billProductOverrideId">Bill product *</label>
                 <CatalogSelect kind="bill-product" records={billProducts} countries={countries}
@@ -8166,7 +8167,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
               Saving as account override for account <strong>#{resolvedAccountId ?? '—'}</strong>.
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="paymentMethodRuleAction">Action</label>
                 <PresentationSelect id="paymentMethodRuleAction" value={paymentMethodAction} onChange={(e) => setPaymentMethodAction(e.target.value)}>
@@ -8298,7 +8299,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
               Saving as account override for account <strong>#{resolvedAccountId ?? '—'}</strong>.
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="providerRoutingPmpId">Payment method / provider *</label>
                 <CatalogSelect kind="payment-route" records={pmps} countries={countries}
@@ -8406,7 +8407,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         <Modal title={`${cardPriceFormId ? 'Edit' : 'Add'} card price override`} onClose={() => (!cardPriceSaving ? setShowCardPriceForm(false) : null)}>
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             {cardPricesError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{cardPricesError}</div>}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="cardPriceCpcpId">Product / Provider *</label>
                 <PresentationSelect
@@ -8457,7 +8458,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
               Set exactly one target. Account overrides win over email overrides when both exist.
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="cardProviderStatusTargetType">Target *</label>
                 <PresentationSelect
@@ -8609,7 +8610,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         <NonRegulatorContent><Modal title={`${loanRateFormId ? 'Edit' : 'Add'} loan rate override`} onClose={() => (!loanRateSaving ? setShowLoanRateForm(false) : null)}>
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             {loanRatesError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{loanRatesError}</div>}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="loanRateProductId">Loan product *</label>
                 <PresentationSelect id="loanRateProductId" value={loanRateProductId} onChange={(e) => setLoanRateProductId(e.target.value)}>
@@ -8660,7 +8661,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         <NonRegulatorContent><Modal title={`${cryptoRateFormId ? 'Edit' : 'Add'} crypto rate override`} onClose={() => (!cryptoRateSaving ? setShowCryptoRateForm(false) : null)}>
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             {cryptoRatesError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{cryptoRatesError}</div>}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="cryptoRateProductId">Crypto product *</label>
                 <PresentationSelect
@@ -8727,7 +8728,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         <NonRegulatorContent><Modal title={`${cryptoLimitFormId ? 'Edit' : 'Add'} crypto limit override`} onClose={() => (!cryptoLimitSaving ? setShowCryptoLimitForm(false) : null)}>
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             {cryptoLimitsError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{cryptoLimitsError}</div>}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="cryptoLimitNetworkId">Network *</label>
                 <PresentationSelect
@@ -8745,7 +8746,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                   ))}
                 </PresentationSelect>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.6rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   <label htmlFor="cryptoLimitBuy">Daily buy limit (USD)</label>
                   <input

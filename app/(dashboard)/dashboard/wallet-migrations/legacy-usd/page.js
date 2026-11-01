@@ -101,7 +101,7 @@ const MetricCard = ({ label, value, tone }) => {
 };
 
 const DetailGrid = ({ rows }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.6rem' }}>
+  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))', gap: '0.6rem' }}>
     {rows.map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.65rem', border: '1px solid var(--border)', borderRadius: '8px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
@@ -240,7 +240,7 @@ export default function LegacyUsdWalletMigrationPage() {
         {latestLoading ? <div style={{ color: 'var(--muted)' }}>Loading latest migration audit…</div> : <DetailGrid rows={summaryRows} />}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
         <MetricCard label="Legacy balance count" value={formatNumber(audit?.legacyAccountBalanceCount)} />
         <MetricCard label="Legacy balance total" value={formatUsd(audit?.legacyAccountBalanceTotal)} />
         <MetricCard label="Final wallet count" value={formatNumber(audit?.postUsdWalletCount)} />

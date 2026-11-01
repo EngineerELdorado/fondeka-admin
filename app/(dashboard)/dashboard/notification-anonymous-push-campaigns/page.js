@@ -181,7 +181,7 @@ export default function NotificationAnonymousPushCampaignsPage() {
         <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
           Backend still limits delivery to unclaimed installs with usable push tokens. These filters only narrow that anonymous audience further.
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
           <div style={{ display: 'grid', gap: '0.25rem' }}>
             <label htmlFor="audienceTypes">Audience types</label>
             <select
@@ -263,7 +263,7 @@ export default function NotificationAnonymousPushCampaignsPage() {
       <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
         <div style={{ fontWeight: 800 }}>Payload data</div>
         {dataRows.map((row, index) => (
-          <div key={`${index}-${row.key}`} style={{ display: 'grid', gridTemplateColumns: 'minmax(160px, 1fr) minmax(220px, 2fr) auto', gap: '0.5rem', alignItems: 'end' }}>
+          <div key={`${index}-${row.key}`} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.5rem', alignItems: 'end' }}>
             <div style={{ display: 'grid', gap: '0.25rem' }}>
               <label htmlFor={`data-key-${index}`}>Key</label>
               <input
@@ -304,7 +304,7 @@ export default function NotificationAnonymousPushCampaignsPage() {
 
       <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
         <div style={{ fontWeight: 800 }}>Queue settings</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
           <div style={{ display: 'grid', gap: '0.25rem' }}>
             <label htmlFor="batchSize">Batch size</label>
             <input id="batchSize" type="number" min={1} value={batchSize} onChange={(e) => setBatchSize(e.target.value)} />

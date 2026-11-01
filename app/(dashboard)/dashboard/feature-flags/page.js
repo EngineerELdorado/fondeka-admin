@@ -2080,7 +2080,7 @@ export default function FeatureFlagsPage() {
         subtitle="Account-level overrides win over the currency product defaults. Delete an override to return to the global currency behavior."
         borderColor="#0ea5e9"
       >
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.65rem', alignItems: 'end' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: '0.65rem', alignItems: 'end' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="ibanOverrideAccountId">Account ID</label>
             <input

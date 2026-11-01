@@ -155,7 +155,7 @@ export default function NotificationProvidersPage() {
         <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
           <div style={{ fontWeight: 800 }}>Add provider</div>
           <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Only registry providers can be added.</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.6rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '0.6rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="providerChannel">Channel</label>
               <select

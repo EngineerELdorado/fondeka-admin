@@ -277,7 +277,7 @@ export default function DashboardLayout({ children }) {
       </aside>
       {menuOpen && <div className="dashboard-menu-backdrop" onClick={() => setMenuOpen(false)} aria-hidden="true" />}
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div className="dashboard-content" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <header
           className="dashboard-header"
           style={{

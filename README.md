@@ -37,6 +37,12 @@ The login screen implements the same passwordless email + code flow used in the 
 
 The `lib/api.js` helper maps to the Spring Boot admin endpoints that manage accounts, admins, KYC, loans, transactions, and aggregated reports. Set `NEXT_PUBLIC_ADMIN_API_BASE` to the base path of the admin API (e.g., `https://api.example.com/admin`).
 
+## Responsive layouts
+
+Dashboard content, controls and grids shrink to their available width. Use `minmax(min(100%, 220px), 1fr)` for automatic grids so a field's preferred minimum cannot widen a narrow panel. Long references and JSON wrap, and action groups and tabs wrap onto another line.
+
+Use `components/ResponsiveTable.js` for custom tables; shared `DataTable` uses it automatically. Tables fit their container on larger screens and become labelled record grids when space is limited, including inside popups and split panels. Headers supply the record labels. Cells, links, inputs, actions, pagination and expanded rows remain available, with native table roles and header associations preserved. Avoid fixed minimum table widths and horizontal swipe instructions. `scripts/responsive-table.test.cjs` checks labels, controls, grouped headers and full-width rows.
+
 ## Business API LIVE payment settings
 
 Feature flags contains **Default for live API payments**, backed by `business_api.live_payments.enabled`. Businesses → Details & credentials → LIVE API payments supports explicit enable/disable overrides and restoring inheritance with a bodyless `DELETE`. The Business directory and quick view show the backend's saved effective status and its source, with a direct **Manage LIVE payments** link for Admins and Super Admins (read-only settings link for Assistants). Directory actions are limited to **Quick view** and **Details & credentials**; operational/KYB status changes and owner access are on Business details. Successful updates invalidate the router cache; the directory fetches current rows when opened or refreshed.

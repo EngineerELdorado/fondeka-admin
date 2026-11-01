@@ -35,7 +35,7 @@ const Modal = ({ title, onClose, children }) => (
 );
 
 const DetailGrid = ({ rows }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.6rem' }}>
     {rows.map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
@@ -344,7 +344,7 @@ export default function CryptoWalletsPage() {
   };
 
   const renderForm = () => (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="accountFilter">Account filter</label>
         <input
@@ -439,7 +439,7 @@ export default function CryptoWalletsPage() {
           <label htmlFor="size">Size</label>
           <input id="size" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
         </div>
-        <div style={{ minWidth: '180px' }}>
+        <div style={{ minWidth: 'min(180px, 100%)' }}>
           <label htmlFor="accountReference">Account reference</label>
           <input
             id="accountReference"
@@ -451,7 +451,7 @@ export default function CryptoWalletsPage() {
             placeholder="ACC-123"
           />
         </div>
-        <div style={{ minWidth: '200px' }}>
+        <div style={{ minWidth: 'min(200px, 100%)' }}>
           <label htmlFor="email">User email</label>
           <input
             id="email"
@@ -556,7 +556,7 @@ export default function CryptoWalletsPage() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.6rem', border: '1px dashed var(--border)', borderRadius: '10px' }}>
               <div style={{ fontWeight: 700 }}>Get quote</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.5rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   <label htmlFor="quoteFrom">From currency</label>
                   <input id="quoteFrom" value={quoteFrom} onChange={(e) => setQuoteFrom(e.target.value)} placeholder="USDT" />
@@ -602,7 +602,7 @@ export default function CryptoWalletsPage() {
                 </div>
               )}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="creditAction">Action</label>
                 <select id="creditAction" value={creditAction} onChange={(e) => setCreditAction(e.target.value)}>

@@ -1,5 +1,7 @@
 'use client';
 
+import ResponsiveTable from '@/components/ResponsiveTable';
+
 import Link from 'next/link';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -78,7 +80,7 @@ export function DataTable({
       ...visibleCols,
       {
         key: '__account_quick_nav__',
-        label: '',
+        label: <span className="sr-only">Account</span>,
         render: (row) => {
           const accountId = resolveAccountId(row);
           if (!accountId) return '—';
@@ -173,8 +175,7 @@ export function DataTable({
   return (
     <div className="card table-scroll">
       {!shouldCompactEmptyState ? renderPagination('top') : null}
-      {!shouldCompactEmptyState ? <div className="table-scroll__hint">Swipe to see more</div> : null}
-      <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <ResponsiveTable className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
           <tr>
             {showIndex && (
@@ -189,7 +190,7 @@ export function DataTable({
               <th
                 key={String(col.key)}
                 className="data-table__cell"
-                style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}
+                style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)', width: col.key === '__account_quick_nav__' ? '3.5rem' : undefined }}
               >
                 {col.label}
               </th>
@@ -222,7 +223,7 @@ export function DataTable({
             </tr>
           ))}
         </tbody>
-      </table>
+      </ResponsiveTable>
       {renderPagination('bottom')}
     </div>
   );

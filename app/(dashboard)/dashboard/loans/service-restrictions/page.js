@@ -1,5 +1,7 @@
 'use client';
 
+import ResponsiveTable from '@/components/ResponsiveTable';
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DataTable } from '@/components/DataTable';
 import { api } from '@/lib/api';
@@ -64,7 +66,7 @@ const Modal = ({ title, onClose, children }) => (
 );
 
 const DetailGrid = ({ rows }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.6rem' }}>
+  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))', gap: '0.6rem' }}>
     {rows.map((row) => (
       <div key={row.label} style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '0.65rem', display: 'grid', gap: '0.15rem' }}>
         <div style={{ color: 'var(--muted)', fontSize: '12px', fontWeight: 700 }}>{row.label}</div>
@@ -201,7 +203,7 @@ export default function LoanServiceRestrictionsPage() {
       {error ? <div className="alert alert-error">{error}</div> : null}
 
       <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', alignItems: 'end' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem', alignItems: 'end' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="accountId">Account ID</label>
             <input
@@ -300,7 +302,7 @@ export default function LoanServiceRestrictionsPage() {
                   ]}
                 />
                 <div style={{ overflowX: 'auto' }}>
-                  <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <ResponsiveTable className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr>
                         {['Installment ID', 'Due date', 'Amount', 'Fine', 'Paid', 'Remaining', 'Triggers restriction'].map((heading) => (
@@ -331,7 +333,7 @@ export default function LoanServiceRestrictionsPage() {
                         ))
                       )}
                     </tbody>
-                  </table>
+                  </ResponsiveTable>
                 </div>
               </div>
             ))}

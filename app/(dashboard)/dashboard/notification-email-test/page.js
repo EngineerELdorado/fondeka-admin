@@ -209,7 +209,7 @@ export default function NotificationEmailTestPage() {
 
       <div className="card" style={{ display: 'grid', gap: '0.85rem' }}>
         <div style={{ fontWeight: 800 }}>Recipient</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
             <span>Account ID (optional)</span>
             <input value={accountId} onChange={(e) => setAccountId(e.target.value)} placeholder="12345" />
@@ -227,7 +227,7 @@ export default function NotificationEmailTestPage() {
 
       <div className="card" style={{ display: 'grid', gap: '0.85rem' }}>
         <div style={{ fontWeight: 800 }}>Content</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
             <span>Subject</span>
             <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Fondeka Email Preview" />

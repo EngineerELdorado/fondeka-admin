@@ -448,7 +448,7 @@ export default function NotificationPushCampaignsPage() {
         </div>
       )}
 
-      <fieldset disabled={launchLoading} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem' }}>
+      <fieldset disabled={launchLoading} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: '1rem' }}>
         <div style={{ display: 'grid', gap: '1rem' }}>
           <div className="card" style={{ display: 'grid', gap: '0.85rem' }}>
             <div style={{ fontWeight: 800 }}>1. Campaign content</div>
@@ -530,7 +530,7 @@ export default function NotificationPushCampaignsPage() {
               </div>
 
               {announcement.enabled && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
                   <AnnouncementPopupFields draft={announcement} setDraft={setAnnouncement} />
                   <label style={{ display: 'grid', gap: '0.35rem' }}>
                     <span>Severity</span>
@@ -597,7 +597,7 @@ export default function NotificationPushCampaignsPage() {
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
               AND across fields, OR inside list fields. Leave empty to target all accounts.
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '0.75rem' }}>
               <label style={{ display: 'grid', gap: '0.35rem' }}>
                 <span>Countries ({countryLoading ? 'loading...' : `${countries.length} available`})</span>
                 <PresentationSelect
@@ -660,7 +660,7 @@ export default function NotificationPushCampaignsPage() {
             </div>
             <details>
               <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Advanced transaction ranges</summary>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', marginTop: '0.65rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem', marginTop: '0.65rem' }}>
                 <label style={{ display: 'grid', gap: '0.35rem' }}>
                   <span>Min completed</span>
                   <input type="number" min={0} value={minCompletedTransactions} onChange={(e) => setMinCompletedTransactions(e.target.value)} placeholder="0" />
@@ -691,7 +691,7 @@ export default function NotificationPushCampaignsPage() {
                   <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
                     These are account-level filters. Any = do not filter. Yes = must have at least one. No = must have none.
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
                     {[
                       ['Has crypto wallet', hasCryptoWallets, setHasCryptoWallets],
                       ['Has savings', hasSavings, setHasSavings],
@@ -720,7 +720,7 @@ export default function NotificationPushCampaignsPage() {
                   <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
                     Day-level filters evaluated in UTC. From is inclusive from the start of the day. To is inclusive through the end of the day.
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
                     <label style={{ display: 'grid', gap: '0.35rem' }}>
                       <span>Created from</span>
                       <input type="date" value={accountCreatedFrom} onChange={(e) => setAccountCreatedFrom(e.target.value)} />
@@ -737,7 +737,7 @@ export default function NotificationPushCampaignsPage() {
                   <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
                     These filters use completed transactions. Combining several fields narrows the audience on the same transaction path.
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
                     <label style={{ display: 'grid', gap: '0.35rem' }}>
                       <span>Bill products</span>
                       <CatalogSelect kind="bill-product" records={billProducts} countries={countries}
@@ -866,7 +866,7 @@ export default function NotificationPushCampaignsPage() {
       {createResult && (
         <div className="card" style={{ display: 'grid', gap: '0.55rem' }}>
           <div style={{ fontWeight: 800 }}>Campaign submitted</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.6rem' }}>
             <div><strong>Campaign ID:</strong> {createResult.campaignId || '—'}</div>
             <div><strong>Announcement ID:</strong> {createResult.announcementId ? <Link href={`/dashboard/announcements?announcementId=${encodeURIComponent(createResult.announcementId)}`}>#{createResult.announcementId} · Edit announcement</Link> : '—'}</div>
             <div><strong>Scanned:</strong> {createResult.scannedAccounts ?? '—'}</div>
@@ -898,7 +898,7 @@ export default function NotificationPushCampaignsPage() {
           <div style={{ color: 'var(--muted)' }}>Enter a campaign ID or launch a new campaign to start tracking.</div>
         ) : (
           <div style={{ display: 'grid', gap: '0.75rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0.6rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))', gap: '0.6rem' }}>
               <div><strong>Campaign ID:</strong> {campaignStatus.campaignId || '—'}</div>
               <div><strong>Announcement ID:</strong> {campaignStatus.announcementId || '—'}</div>
               <div><strong>Found:</strong> {String(Boolean(campaignStatus.found))}</div>

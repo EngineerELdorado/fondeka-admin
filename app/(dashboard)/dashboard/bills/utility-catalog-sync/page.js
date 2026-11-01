@@ -188,13 +188,13 @@ export default function UtilityBillCatalogSyncPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
         <SummaryCard label="Total Cached Slices" value={summary.total} />
         <SummaryCard label="Zendit Utilities" value={summary.zendit} tone="zendit" />
         <SummaryCard label="Cron Enabled" value={summary.cronEnabled} tone="cron" />
       </div>
 
-      <div className="card" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+      <div className="card" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="providerFilter">Provider</label>
           <select id="providerFilter" value={providerFilter} onChange={(e) => setProviderFilter(e.target.value)}>

@@ -20,7 +20,7 @@ const Modal = ({ title, onClose, children }) => (
 );
 
 const DetailGrid = ({ rows }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.6rem' }}>
     {rows.map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: '1px solid var(--border)', borderRadius: '10px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
@@ -268,15 +268,15 @@ export default function FiatWalletsPage() {
           <label htmlFor="size">Size</label>
           <input id="size" type="number" min={1} max={500} value={size} onChange={(e) => setSize(Number(e.target.value))} />
         </div>
-        <div style={{ minWidth: '140px' }}>
+        <div style={{ minWidth: 'min(140px, 100%)' }}>
           <label htmlFor="accountId">Account ID</label>
           <input id="accountId" value={accountId} onChange={(e) => { setPage(0); setAccountId(e.target.value); }} placeholder="7" />
         </div>
-        <div style={{ minWidth: '170px' }}>
+        <div style={{ minWidth: 'min(170px, 100%)' }}>
           <label htmlFor="accountReference">Account reference</label>
           <input id="accountReference" value={accountReference} onChange={(e) => { setPage(0); setAccountReference(e.target.value); }} placeholder="ACC-123" />
         </div>
-        <div style={{ minWidth: '200px' }}>
+        <div style={{ minWidth: 'min(200px, 100%)' }}>
           <label htmlFor="email">Email</label>
           <input id="email" type="email" value={email} onChange={(e) => { setPage(0); setEmail(e.target.value); }} placeholder="user@example.com" />
         </div>

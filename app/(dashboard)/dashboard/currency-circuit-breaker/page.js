@@ -422,7 +422,7 @@ export default function CurrencyCircuitBreakerPage() {
 
       <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
         <div style={{ fontWeight: 800 }}>Customer behavior</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0.85rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: '0.85rem' }}>
           <div style={{ display: 'grid', gap: '0.45rem' }}>
             <div style={{ color: '#b91c1c', fontWeight: 800 }}>Blocked when enabled</div>
             <ul style={{ margin: 0, paddingLeft: '1.1rem', color: 'var(--muted)' }}>

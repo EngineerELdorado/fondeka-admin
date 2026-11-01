@@ -1,5 +1,7 @@
 'use client';
 
+import ResponsiveTable from '@/components/ResponsiveTable';
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { rechargeQuery, rechargeOperationResource } from '@/lib/recharge-failover';
@@ -53,10 +55,10 @@ export default function OperationsPanel({ onHistory, initialTransactionId, view 
     {selected ? <OperationDetail key={String(selected)} transactionId={selected} onHistory={onHistory} onClose={() => setSelected(null)} /> : null}
     <Card title="Recharge purchases and attempts"><p>Each row is one original customer purchase. Provider attempts share its existing debit and quote.</p><button type="button" className="btn-neutral btn-sm" disabled={loading} onClick={() => setReload((value) => value + 1)}>Refresh purchases</button>
       {loading ? <span role="status">Loading managed purchases…</span> : null}<Alert>{error}</Alert>{error && rows ? <small>Previous results are retained; refresh to retry.</small> : null}
-      <div className="failover-table"><table><thead><tr>{['Original purchase', 'Customer quote', 'Provider attempt', 'Resolution / refund', 'Actions'].map((label) => <th key={label}>{label}</th>)}</tr></thead><tbody>{(rows || []).map((operation) => {
+      <div className="failover-table"><ResponsiveTable><thead><tr>{['Original purchase', 'Customer quote', 'Provider attempt', 'Resolution / refund', 'Actions'].map((label) => <th key={label}>{label}</th>)}</tr></thead><tbody>{(rows || []).map((operation) => {
         const purchase = operation.purchase, attempt = operation.attempts?.find((entry) => entry.number === operation.currentAttempt);
         return <tr key={operation.transactionId}><td>#{operation.transactionId}<div>Account {purchase?.accountId ?? '—'} · {purchase?.country} · {purchase?.type}</div><small>Rule {purchase?.rule?.id} · revision {purchase?.policyRevision}</small></td><td>{purchase?.quote?.amount ?? '—'} {purchase?.quote?.currency}<div>Gross {purchase?.quote?.grossAmount ?? '—'} {purchase?.quote?.currency}</div></td><td>#{operation.currentAttempt} · {attempt?.provider}<div>{attemptLabel(attempt?.outcome)}</div><small>{attempt?.code || '—'} · {attempt?.queryCount ?? '—'} scheduled reads</small></td><td>{operation.conflicted ? <strong>CONFLICTED</strong> : 'No conflict'}<div>{operation.refundReserved ? 'Refund reserved — verify original transaction' : 'No refund reservation'}</div></td><td><button type="button" className="btn-neutral btn-sm" aria-label={'Investigate recharge transaction ' + operation.transactionId} onClick={() => setSelected(operation.transactionId)}>Investigate recharge</button></td></tr>;
-      })}</tbody></table></div>
+      })}</tbody></ResponsiveTable></div>
       {rows?.length === 0 && !loading ? <EmptyPayments kind="recharge" /> : null}
       {rows ? <ArrayPager page={page} size={size} length={rows.length} busy={loading} onChange={setPage} /> : null}
     </Card></div>

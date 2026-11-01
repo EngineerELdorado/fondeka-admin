@@ -49,7 +49,7 @@ function PolicyFields({ idPrefix, draft, setDraft, disabled }) {
   const modeDescription = MODE_OPTIONS.find((option) => option.value === normalizeMode(draft.mode))?.description || '';
   return (
     <div style={{ display: 'grid', gap: '0.75rem' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', alignItems: 'end' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem', alignItems: 'end' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor={`${idPrefix}-mode`}>Settlement mode</label>
           <select
@@ -288,7 +288,7 @@ export default function CommerceSettlementPolicyPage() {
             Use this to hold one merchant/account while the global default stays direct, or remove the override to fall back to global behavior.
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 280px) auto', gap: '0.75rem', alignItems: 'end' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem', alignItems: 'end' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="accountId">Account ID</label>
             <input id="accountId" value={accountId} onChange={(e) => setAccountId(e.target.value)} placeholder="12345" disabled={accountLoading || accountSaving} />

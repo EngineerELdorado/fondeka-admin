@@ -20,7 +20,7 @@ export default function CryptoHubPage() {
         <div style={{ fontSize: '20px', fontWeight: 800 }}>Crypto</div>
         <div style={{ color: 'var(--muted)' }}>Pick a crypto area to manage with focused UIs.</div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '1rem' }}>
         {sections.map((item) => (
           <Link
             key={item.href}

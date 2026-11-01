@@ -55,7 +55,7 @@ const getDeletedAt = (row) => row?.deletedAt;
 const isDeletedSaving = (row) => Boolean(getDeletedAt(row));
 
 const DetailGrid = ({ rows }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.6rem' }}>
     {rows.map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
@@ -432,7 +432,7 @@ export default function SavingsPage() {
         Changing the savings product changes the saving mode. Switching to <strong>LOCKED_SAVING</strong> requires a future end date that respects the product minimum lock duration. Locked savings accrue daily interest, but that interest is payable only at maturity. Early withdrawal is full-break only in v1 and forfeits accrued interest. Switching to <strong>OPEN_SAVING</strong> clears the end date.
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="name">Name</label>
           <input id="name" value={draft.name} onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))} />

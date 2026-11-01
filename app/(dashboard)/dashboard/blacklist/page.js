@@ -197,7 +197,7 @@ export default function BlacklistPage() {
         <button type="button" className="btn-neutral" onClick={fetchRows} disabled={loading}>
           {loading ? 'Refreshing…' : 'Refresh'}
         </button>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: '260px', flex: 1 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: 'min(260px, 100%)', flex: 1 }}>
           <label htmlFor="emailFilter">Email (exact)</label>
           <input
             id="emailFilter"

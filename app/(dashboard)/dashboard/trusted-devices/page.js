@@ -1,5 +1,7 @@
 'use client';
 
+import ResponsiveTable from '@/components/ResponsiveTable';
+
 import { RegulatorRecord, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
 
 import { Fragment, useEffect, useMemo, useState } from 'react';
@@ -653,7 +655,7 @@ export default function TrustedDevicesPage() {
                   </div>
                 )}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.6rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.6rem' }}>
                 {recoveryFactorOptions.map((factor) => (
                   <RegulatorField field={factor} key={factor}><label
                     key={factor}
@@ -681,7 +683,7 @@ export default function TrustedDevicesPage() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="maxTrustedDevicesGlobal">Max trusted devices (global)</label>
                 <input
@@ -755,7 +757,7 @@ export default function TrustedDevicesPage() {
         </div>
         {showFilters && (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="accountId">Account ID</label>
                 <input id="accountId" type="number" min={0} value={filters.accountId} onChange={(e) => setFilters((p) => ({ ...p, accountId: e.target.value }))} />
@@ -823,7 +825,7 @@ export default function TrustedDevicesPage() {
                   <option value="asc">Asc</option>
                 </select>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: '0.5rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   <label htmlFor="page">Page</label>
                   <input id="page" type="number" min={0} value={page} onChange={(e) => setPage(Number(e.target.value))} />
@@ -867,8 +869,7 @@ export default function TrustedDevicesPage() {
       </div>
 
       <div className="card table-scroll">
-        <div className="table-scroll__hint">Swipe to see more</div>
-        <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <ResponsiveTable className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
               <th className="data-table__cell" style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>
@@ -956,7 +957,7 @@ export default function TrustedDevicesPage() {
                         {group.otherDevices.length === 0 ? (
                           <div style={{ color: 'var(--muted)' }}>No other devices for this account.</div>
                         ) : (
-                          <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                          <ResponsiveTable className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
                             <tbody>
                               {group.otherDevices.map((device) => (
                                 <RegulatorRecord record={device} key={device.deviceId}><tr key={device.deviceId} style={{ borderBottom: '1px solid var(--border)' }}>
@@ -1007,7 +1008,7 @@ export default function TrustedDevicesPage() {
                                 </tr></RegulatorRecord>
                               ))}
                             </tbody>
-                          </table>
+                          </ResponsiveTable>
                         )}
                       </td>
                     </tr></RegulatorRecord>
@@ -1016,7 +1017,7 @@ export default function TrustedDevicesPage() {
               );
             })}
           </tbody>
-        </table>
+        </ResponsiveTable>
       </div>
 
       <div className="card" style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>

@@ -218,7 +218,7 @@ const Modal = ({ title, onClose, children }) => (
   </div>
 );
 
-const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.6rem' }}>
     {regulatorVisibleFields(rows, enableRegulatorMode).map((row) => (
       <div
         key={row.label}
@@ -236,7 +236,7 @@ const MultiSelect = ({ label, options, values, onChange, helperText }) => (
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
         gap: '0.35rem',
         maxHeight: '220px',
         overflow: 'auto',
@@ -518,7 +518,7 @@ export default function PaymentMethodActionConfigsPage() {
           ? `Rule target: Account #${selectedAccountId || draft.accountId || '—'} (custom override)`
           : 'Rule target: Global default'}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="action">Action</label>
           <PresentationSelect id="action" value={draft.action} onChange={(e) => setDraft((p) => ({ ...p, action: e.target.value }))}>
@@ -565,7 +565,7 @@ export default function PaymentMethodActionConfigsPage() {
         onChange={(values) => setDraft((p) => ({ ...p, excludeTypes: values }))}
         helperText="Excluded types are always removed."
       />
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.75rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '0.75rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="showCountrySelectorForCollection">Show country selector for collection</label>
           <PresentationSelect
@@ -734,7 +734,7 @@ export default function PaymentMethodActionConfigsPage() {
 
       {viewMode === 'account' ? (
         <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0.75rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: '0.75rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="selectedAccountId">Account</label>
               <PresentationSelect
@@ -793,7 +793,7 @@ export default function PaymentMethodActionConfigsPage() {
       )}
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="filterAction">Action</label>
             <PresentationSelect

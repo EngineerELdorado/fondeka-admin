@@ -1,5 +1,7 @@
 'use client';
 
+import ResponsiveTable from '@/components/ResponsiveTable';
+
 import { RegulatorRecord, PresentationLink as Link } from '@/components/RegulatorPresentation';
 
 import { useEffect, useMemo, useState } from 'react';
@@ -155,7 +157,7 @@ export default function StubFailureModesPage() {
           <div style={{ color: 'var(--muted)' }}>Loading shared modes…</div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
                   <th style={{ textAlign: 'left', borderBottom: '1px solid var(--border)', padding: '0.6rem' }}>Mode</th>
@@ -188,7 +190,7 @@ export default function StubFailureModesPage() {
                   ))
                 )}
               </tbody>
-            </table>
+            </ResponsiveTable>
           </div>
         )}
       </div>
@@ -199,7 +201,7 @@ export default function StubFailureModesPage() {
           <div style={{ color: 'var(--muted)' }}>Loading providers…</div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
                   <th style={{ textAlign: 'left', borderBottom: '1px solid var(--border)', padding: '0.6rem' }}>Provider</th>
@@ -242,7 +244,7 @@ export default function StubFailureModesPage() {
                   ))
                 )}
               </tbody>
-            </table>
+            </ResponsiveTable>
           </div>
         )}
       </div>

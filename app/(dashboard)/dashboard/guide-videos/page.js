@@ -1,5 +1,7 @@
 'use client';
 
+import ResponsiveTable from '@/components/ResponsiveTable';
+
 import { isRegulatorRestrictedRecord, isRegulatorRestrictedService } from '@/lib/regulator-presentation';
 
 import { RegulatorRecord, PresentationSelect, RegulatorField } from '@/components/RegulatorPresentation';
@@ -495,7 +497,7 @@ export default function GuideVideosPage() {
             {overrideError ? <div style={{ color: '#b91c1c', fontWeight: 700 }}>{overrideError}</div> : null}
             {overrideInfo ? <div style={{ color: '#15803d', fontWeight: 700 }}>{overrideInfo}</div> : null}
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
               <label style={{ display: 'grid', gap: '0.25rem' }}>
                 <span>Account ID</span>
                 <input value={overrideAccountId} onChange={(e) => setOverrideAccountId(e.target.value)} placeholder="123" />
@@ -607,7 +609,7 @@ export default function GuideVideosPage() {
               return (
                 <RegulatorRecord record={row} key={row.id}><div key={row.id} className="card" style={{ padding: '0.9rem', display: 'grid', gap: '0.75rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
-                    <div style={{ display: 'grid', gap: '0.25rem', minWidth: '240px', flex: '1 1 260px' }}>
+                    <div style={{ display: 'grid', gap: '0.25rem', minWidth: 'min(240px, 100%)', flex: '1 1 260px' }}>
                       <label>Key</label>
                       <input
                         value={row.key}
@@ -651,7 +653,7 @@ export default function GuideVideosPage() {
                   </div>
 
                   <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '720px' }}>
+                    <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse', minWidth: '720px' }}>
                       <thead>
                         <RegulatorRecord record={row}><tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
                           <RegulatorField field={row}><th style={{ padding: '0.6rem' }}>Locale</th></RegulatorField>
@@ -744,7 +746,7 @@ export default function GuideVideosPage() {
                           );
                         })}
                       </tbody>
-                    </table>
+                    </ResponsiveTable>
                   </div>
                 </div></RegulatorRecord>
               );

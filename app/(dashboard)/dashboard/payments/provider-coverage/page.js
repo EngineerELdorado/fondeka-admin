@@ -151,7 +151,7 @@ export default function ProviderCoveragePage() {
         </Link>
       </div>
 
-      <div className="card" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', alignItems: 'end' }}>
+      <div className="card" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem', alignItems: 'end' }}>
         <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
           <input type="checkbox" checked={filters.activeOnly} onChange={(e) => setFilters((p) => ({ ...p, activeOnly: e.target.checked }))} />
           Active mappings only

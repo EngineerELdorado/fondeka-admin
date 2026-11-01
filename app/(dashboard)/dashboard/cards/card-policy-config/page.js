@@ -230,7 +230,7 @@ export default function CardPolicyConfigPage() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 1fr) minmax(180px, 1fr) auto', gap: '0.5rem', alignItems: 'end', maxWidth: '680px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.5rem', alignItems: 'end', maxWidth: '680px' }}>
             <div style={{ display: 'grid', gap: '0.25rem' }}>
               <label htmlFor="bridgecardOverrideAccountId">Account ID</label>
               <input
@@ -273,7 +273,7 @@ export default function CardPolicyConfigPage() {
                   key={entry.accountId}
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: 'minmax(120px, 1fr) minmax(160px, 1fr) auto',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
                     gap: '0.5rem',
                     alignItems: 'center',
                     border: '1px solid var(--border)',

@@ -1,5 +1,7 @@
 'use client';
 
+import ResponsiveTable from '@/components/ResponsiveTable';
+
 import { RegulatorRecord, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
 
 import { useEffect, useMemo, useState } from 'react';
@@ -87,7 +89,7 @@ const RankingEditor = ({ title, subtitle, rows, onChange, disabled }) => {
       </div>
 
       <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '760px' }}>
+        <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse', minWidth: '760px' }}>
           <thead>
             <tr style={{ textAlign: 'left', color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
               {['Order', 'Enabled', 'Field', 'Direction', 'Actions'].map((label) => (
@@ -138,7 +140,7 @@ const RankingEditor = ({ title, subtitle, rows, onChange, disabled }) => {
               </tr></RegulatorRecord>
             ))}
           </tbody>
-        </table>
+        </ResponsiveTable>
       </div>
     </div>
   );

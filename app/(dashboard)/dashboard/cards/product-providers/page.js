@@ -1,5 +1,7 @@
 'use client';
 
+import ResponsiveTable from '@/components/ResponsiveTable';
+
 import { RegulatorRecord, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
 
 import { regulatorVisibleFields } from '@/lib/regulator-presentation';
@@ -203,7 +205,7 @@ const renderOperationFeeSummary = (row) => {
   if (!lines.length) return '—';
 
   return (
-    <div style={{ display: 'grid', gap: '0.2rem', minWidth: '180px' }}>
+    <div style={{ display: 'grid', gap: '0.2rem', minWidth: 'min(180px, 100%)' }}>
       {lines.map((line) => (
         <div key={line}>{line}</div>
       ))}
@@ -245,7 +247,7 @@ const renderLabelBadgeStyle = (row) => {
   if (!row?.label && !row?.labelIcon && !row?.labelBackgroundColor) return '—';
   const background = row.labelBackgroundColor || '#111827';
   return (
-    <div style={{ display: 'grid', gap: '0.25rem', minWidth: '130px' }}>
+    <div style={{ display: 'grid', gap: '0.25rem', minWidth: 'min(130px, 100%)' }}>
       <span
         style={{
           justifySelf: 'start',
@@ -283,7 +285,7 @@ const Modal = ({ title, onClose, children }) => (
   </div>
 );
 
-const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.6rem' }}>
     {regulatorVisibleFields(rows, enableRegulatorMode).map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
@@ -804,7 +806,7 @@ export default function CardProductProvidersPage() {
       <div style={{ display: 'grid', gap: '0.45rem' }}>
         <div style={{ fontWeight: 700 }}>{title}</div>
         {(options || []).length > 0 ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.4rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))', gap: '0.4rem' }}>
             {options.map((option) => (
               <RegulatorField field={option} key={option.code}><label
                 key={option.code}
@@ -912,7 +914,7 @@ export default function CardProductProvidersPage() {
           <div style={{ color: 'var(--muted)', fontSize: '12px' }}>No popular platforms configured.</div>
         )}
         {(draft.popularPlatforms || []).map((platform, index) => (
-          <div key={index} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr)) auto', gap: '0.5rem', alignItems: 'end' }}>
+          <div key={index} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr)) auto', gap: '0.5rem', alignItems: 'end' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor={`platformCode-${index}`}>Code</label>
               <input
@@ -955,7 +957,7 @@ export default function CardProductProvidersPage() {
       <div style={{ gridColumn: '1 / -1', display: 'grid', gap: '0.65rem' }}>
         <div style={{ fontWeight: 700 }}>Capabilities</div>
         {(metadataDefaults?.capabilities || []).length > 0 ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.35rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))', gap: '0.35rem' }}>
             {(metadataDefaults?.capabilities || []).map((capability) => (
               <div
                 key={capability.code}
@@ -996,7 +998,7 @@ export default function CardProductProvidersPage() {
           </button>
         </div>
         {(draft.capabilitiesExtra || []).map((item, index) => (
-          <div key={index} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr)) auto', gap: '0.5rem', alignItems: 'end' }}>
+          <div key={index} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr)) auto', gap: '0.5rem', alignItems: 'end' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor={`capabilityKey-${index}`}>Key</label>
               <input
@@ -1037,7 +1039,7 @@ export default function CardProductProvidersPage() {
     const sudoProviderSelected = selectedProviderName.includes('SUDO');
 
     return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="cardProductId">Card product</label>
         <select id="cardProductId" value={draft.cardProductId} onChange={(e) => setDraft((p) => ({ ...p, cardProductId: e.target.value }))}>
@@ -1240,7 +1242,7 @@ export default function CardProductProvidersPage() {
           Percentages are human values, so 3.25 means 3.25%.
         </div>
       </div>
-      <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
+      <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.65rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="fundCardFeePercentage">Fund card fee %</label>
           <input
@@ -1314,7 +1316,7 @@ export default function CardProductProvidersPage() {
           />
         </div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.65rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="validityLength">Validity length</label>
           <input
@@ -1459,7 +1461,7 @@ export default function CardProductProvidersPage() {
 
             <div className="card" style={{ padding: '0.85rem', display: 'grid', gap: '0.75rem' }}>
               <div style={{ fontWeight: 800 }}>{statusOverrideFormId ? 'Edit override' : 'Add override'}</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.65rem', alignItems: 'end' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))', gap: '0.65rem', alignItems: 'end' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   <label htmlFor="statusOverrideTargetType">Target</label>
                   <select id="statusOverrideTargetType" value={statusOverrideTargetType} onChange={(e) => setStatusOverrideTargetType(e.target.value)}>
@@ -1520,7 +1522,7 @@ export default function CardProductProvidersPage() {
               {!statusOverridesLoading && statusOverrides.length === 0 && <div style={{ color: 'var(--muted)' }}>No overrides for this mapping.</div>}
               {!statusOverridesLoading && statusOverrides.length > 0 && (
                 <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '620px' }}>
+                  <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse', minWidth: '620px' }}>
                     <thead>
                       <tr>
                         {['Target', 'Override', 'Updated', ''].map((header) => (
@@ -1547,7 +1549,7 @@ export default function CardProductProvidersPage() {
                         </tr></RegulatorRecord>
                       ))}
                     </tbody>
-                  </table>
+                  </ResponsiveTable>
                 </div>
               )}
             </div>

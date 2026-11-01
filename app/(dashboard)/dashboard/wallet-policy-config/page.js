@@ -957,7 +957,7 @@ export default function WalletPolicyConfigPage() {
               }}
             >
               <div style={{ fontWeight: 800 }}>{action.key} button</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.65rem' }}>
                 <label style={{ display: 'grid', gap: '0.25rem' }}>
                   <span>Title EN</span>
                   <input
@@ -1126,7 +1126,7 @@ export default function WalletPolicyConfigPage() {
                   key={action}
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: 'minmax(220px, 1.3fr) minmax(220px, 1fr) auto',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
                     gap: '0.6rem',
                     alignItems: 'end',
                     padding: '0.75rem',
@@ -1266,7 +1266,7 @@ export default function WalletPolicyConfigPage() {
                     key={action}
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: 'minmax(220px, 1.3fr) minmax(180px, 1fr) minmax(180px, 1fr) auto',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
                       gap: '0.6rem',
                       alignItems: 'end',
                       padding: '0.75rem',
@@ -1769,7 +1769,7 @@ export default function WalletPolicyConfigPage() {
                   <div
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
                       gap: '0.75rem'
                     }}
                   >
@@ -1883,7 +1883,7 @@ export default function WalletPolicyConfigPage() {
                         key={`collection-source-risk-threshold-${ruleIndex}-${thresholdIndex}`}
                         style={{
                           display: 'grid',
-                          gridTemplateColumns: 'minmax(180px, 1fr) minmax(180px, 1fr) minmax(180px, 1fr) auto',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
                           gap: '0.6rem',
                           alignItems: 'end',
                           padding: '0.75rem',
@@ -2038,7 +2038,7 @@ export default function WalletPolicyConfigPage() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label htmlFor="cryptoProviderCollectionMinimumUsd">Minimum amount (USD)</label>
               <input
@@ -2191,7 +2191,7 @@ export default function WalletPolicyConfigPage() {
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: 'minmax(160px, 1fr) minmax(160px, 1fr) minmax(180px, 1fr) auto',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
                   gap: '0.6rem',
                   alignItems: 'end'
                 }}
@@ -2282,7 +2282,7 @@ export default function WalletPolicyConfigPage() {
                         key={railKey}
                         style={{
                           display: 'grid',
-                          gridTemplateColumns: 'minmax(160px, 0.9fr) minmax(160px, 0.9fr) minmax(160px, 1fr) auto',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
                           gap: '0.6rem',
                           alignItems: 'center',
                           padding: '0.75rem',
@@ -2436,7 +2436,7 @@ export default function WalletPolicyConfigPage() {
                         key={currency}
                         style={{
                           display: 'grid',
-                          gridTemplateColumns: 'minmax(160px, 1fr) minmax(180px, 1fr)',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
                           gap: '0.6rem',
                           alignItems: 'end'
                         }}

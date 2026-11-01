@@ -27,7 +27,7 @@ export default function ReportPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      <div className="card" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+      <div className="card" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '1rem' }}>
         <div>
           <label htmlFor="start">Start date</label>
           <input id="start" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
@@ -58,7 +58,7 @@ export default function ReportPage() {
 
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 600 }}>{error}</div>}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '1rem' }}>
         <StatCard title="Accounts" value={report?.totalAccounts ?? '—'} />
         <NonRegulatorContent><StatCard title="Loans" value={report?.totalLoans ?? '—'} /></NonRegulatorContent>
         <NonRegulatorContent><StatCard title="Approved loans" value={report?.totalApprovedLoans ?? '—'} /></NonRegulatorContent>

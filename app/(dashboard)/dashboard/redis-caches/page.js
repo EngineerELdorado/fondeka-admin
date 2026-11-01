@@ -163,7 +163,7 @@ export default function RedisCachesPage() {
             id="evictCacheName"
             value={evictDraft.cacheName}
             onChange={(e) => setEvictDraft((p) => ({ ...p, cacheName: e.target.value }))}
-            style={{ minWidth: '200px' }}
+            style={{ minWidth: 'min(200px, 100%)' }}
           >
             <option value="">Select cache</option>
             {caches.map((c) => (
@@ -178,7 +178,7 @@ export default function RedisCachesPage() {
             value={evictDraft.key}
             onChange={(e) => setEvictDraft((p) => ({ ...p, key: e.target.value }))}
             placeholder="Optional key to evict"
-            style={{ minWidth: '220px' }}
+            style={{ minWidth: 'min(220px, 100%)' }}
           />
           <button type="button" onClick={evictKey} className="btn-neutral">
             Evict key
@@ -231,12 +231,12 @@ export default function RedisCachesPage() {
           }}
         >
           {info && (
-            <div style={{ padding: '0.75rem 1rem', borderRadius: '10px', background: '#ECFDF3', color: '#166534', minWidth: '240px', boxShadow: '0 10px 30px rgba(0,0,0,0.08)' }}>
+            <div style={{ padding: '0.75rem 1rem', borderRadius: '10px', background: '#ECFDF3', color: '#166534', minWidth: 'min(240px, 100%)', boxShadow: '0 10px 30px rgba(0,0,0,0.08)' }}>
               {info}
             </div>
           )}
           {error && (
-            <div style={{ padding: '0.75rem 1rem', borderRadius: '10px', background: '#FEF2F2', color: '#991B1B', minWidth: '240px', boxShadow: '0 10px 30px rgba(0,0,0,0.08)' }}>
+            <div style={{ padding: '0.75rem 1rem', borderRadius: '10px', background: '#FEF2F2', color: '#991B1B', minWidth: 'min(240px, 100%)', boxShadow: '0 10px 30px rgba(0,0,0,0.08)' }}>
               {error}
             </div>
           )}

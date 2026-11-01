@@ -1,5 +1,6 @@
 'use client';
 
+import ResponsiveTable from '@/components/ResponsiveTable';
 
 import { CatalogSelect } from '@/components/CatalogSelect';
 import { RegulatorRecord, PresentationSelect, NonRegulatorContent, PresentationLink as Link } from '@/components/RegulatorPresentation';
@@ -87,7 +88,7 @@ const Modal = ({ title, onClose, children, zIndex }) => (
   </div>
 );
 
-const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.6rem' }}>
     {regulatorVisibleFields(rows, enableRegulatorMode).map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
@@ -849,7 +850,7 @@ export default function CardsPage() {
   };
 
   const renderForm = () => (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="internalReference">Internal reference</label>
         <input id="internalReference" value={draft.internalReference} onChange={(e) => setDraft((p) => ({ ...p, internalReference: e.target.value }))} />
@@ -931,7 +932,7 @@ export default function CardsPage() {
         </div>
         {showFilters && (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="statusFilter">Status</label>
                 <PresentationSelect
@@ -986,7 +987,7 @@ export default function CardsPage() {
                 />
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: '0.5rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="page">Page</label>
                 <input id="page" type="number" min={0} value={page} onChange={(e) => setPage(Number(e.target.value))} />
@@ -1061,7 +1062,7 @@ export default function CardsPage() {
               Uses <code>POST /admin-api/cards/issue</code>.
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="issueAccountMode">Account selector</label>
                 <PresentationSelect
@@ -1173,7 +1174,7 @@ export default function CardsPage() {
             <div style={{ gridColumn: '1 / -1', borderTop: '1px solid var(--border)', paddingTop: '0.6rem', color: 'var(--muted)', fontSize: '13px' }}>
               Optional transaction financial overrides (BUY_CARD)
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="issueInternalFeeAmount">Internal fee amount (optional)</label>
                 <input
@@ -1251,7 +1252,7 @@ export default function CardsPage() {
               Add an operator note when you need the reason stored on the transaction.
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="cardAdjustmentAmount">Amount</label>
                 <input
@@ -1302,7 +1303,7 @@ export default function CardsPage() {
 
             {adjustmentDraft.usePaymentMethod ? (
               <>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                     <label htmlFor="cardAdjustmentPaymentMethod">Payment method</label>
                     <CatalogSelect kind="payment-method" records={paymentMethods}
@@ -1503,7 +1504,7 @@ export default function CardsPage() {
               <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
                 Provider timestamps are GMT and displayed in your local timezone here.
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem', alignItems: 'end' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.65rem', alignItems: 'end' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   <label htmlFor="providerTxPage">Page</label>
                   <input id="providerTxPage" type="number" min={1} value={providerTxPage} onChange={(e) => setProviderTxPage(e.target.value)} />
@@ -1595,7 +1596,7 @@ export default function CardsPage() {
                     ]}
                   />
                   <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '980px' }}>
+                    <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse', minWidth: '980px' }}>
                       <thead>
                         <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
                           <th style={{ padding: '0.45rem' }}>Time</th>
@@ -1678,7 +1679,7 @@ export default function CardsPage() {
                           ))
                         )}
                       </tbody>
-                    </table>
+                    </ResponsiveTable>
                   </div>
                 </>
               )}

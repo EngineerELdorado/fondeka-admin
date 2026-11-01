@@ -1,5 +1,7 @@
 'use client';
 
+import ResponsiveTable from '@/components/ResponsiveTable';
+
 import { RegulatorRecord, PresentationLink as Link } from '@/components/RegulatorPresentation';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -201,8 +203,7 @@ export default function NotificationPushCampaignHistoryPage() {
       </div>
 
       <div className="card table-scroll">
-        <div className="table-scroll__hint">Swipe to see more</div>
-        <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <ResponsiveTable className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
               <th className="data-table__cell" style={{ textAlign: 'left', padding: '0.65rem' }}>Campaign ID</th>
@@ -249,7 +250,7 @@ export default function NotificationPushCampaignHistoryPage() {
                   <td className="data-table__cell" style={{ padding: '0.65rem', whiteSpace: 'nowrap' }}>
                     {(Number(row.totalJobs) || 0)} / {(Number(row.pendingJobs) || 0)} / {(Number(row.processingJobs) || 0)} / {(Number(row.processedJobs) || 0)} / {(Number(row.failedJobs) || 0)}
                   </td>
-                  <td className="data-table__cell" style={{ padding: '0.65rem', minWidth: '170px' }}>
+                  <td className="data-table__cell" style={{ padding: '0.65rem', minWidth: 'min(170px, 100%)' }}>
                     <div style={{ display: 'grid', gap: '0.25rem' }}>
                       <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{progress.percent}%</div>
                       <div style={{ width: '100%', height: '8px', borderRadius: '999px', background: 'color-mix(in srgb, var(--surface) 78%, var(--border) 22%)', overflow: 'hidden' }}>
@@ -283,7 +284,7 @@ export default function NotificationPushCampaignHistoryPage() {
               );
             })}
           </tbody>
-        </table>
+        </ResponsiveTable>
       </div>
 
       {selectedCampaign && (
@@ -297,7 +298,7 @@ export default function NotificationPushCampaignHistoryPage() {
                 {detailLoading ? 'Refreshing…' : 'Refresh now'}
               </button>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.6rem' }}>
               <div><strong>Campaign ID:</strong> {selectedCampaign.campaignId || '—'}</div>
               <div><strong>Campaign type:</strong> {String(selectedCampaign.campaignType || 'ACCOUNT').toUpperCase() === 'ANONYMOUS' ? 'Anonymous Push' : 'Account Push'}</div>
               <div><strong>Status:</strong> {selectedCampaign.completed ? 'Completed' : 'Running'}</div>

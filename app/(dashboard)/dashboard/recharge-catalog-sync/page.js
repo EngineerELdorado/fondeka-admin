@@ -281,7 +281,7 @@ export default function RechargeCatalogSyncPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
         <SummaryCard label="Total Cached Slices" value={summary.total} />
         <SummaryCard label="Reloadly Slices" value={summary.reloadly} tone="reloadly" />
         <SummaryCard label="Zendit Slices" value={summary.zendit} tone="zendit" />
@@ -306,7 +306,7 @@ export default function RechargeCatalogSyncPage() {
           </button>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.75rem', alignItems: 'end' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '0.75rem', alignItems: 'end' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', fontWeight: 700 }}>
             <input
               type="checkbox"
@@ -364,7 +364,7 @@ export default function RechargeCatalogSyncPage() {
         {dataBundlePolicyInfo && <div style={{ color: '#15803d', fontWeight: 700 }}>{dataBundlePolicyInfo}</div>}
       </div>
 
-      <div className="card" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+      <div className="card" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="providerFilter">Provider</label>
           <select id="providerFilter" value={providerFilter} onChange={(e) => setProviderFilter(e.target.value)}>

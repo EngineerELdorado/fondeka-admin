@@ -220,7 +220,7 @@ export default function LoanPolicyConfigPage() {
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
-      <div className="card" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0.8rem' }}>
+      <div className="card" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: '0.8rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
           <label htmlFor="likelembaLoanEligibilityEnabled">Enable Likelemba loan eligibility</label>
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
@@ -319,7 +319,7 @@ export default function LoanPolicyConfigPage() {
           Manually triggers the same overdue installment penalty flow used by cron.
         </div>
         <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'end', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: '220px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: 'min(220px, 100%)' }}>
             <label htmlFor="batchSize">Batch size (optional)</label>
             <input
               id="batchSize"
@@ -337,7 +337,7 @@ export default function LoanPolicyConfigPage() {
           </button>
         </div>
         {runResult && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.5rem' }}>
             <div><strong>Processed installments:</strong> {runResult?.processedInstallments ?? '—'}</div>
             <div><strong>Batch size used:</strong> {runResult?.batchSizeUsed ?? '—'}</div>
             <div><strong>Triggered at:</strong> {runResult?.triggeredAt || '—'}</div>

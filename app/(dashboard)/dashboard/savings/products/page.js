@@ -356,7 +356,7 @@ export default function SavingProductsPage() {
   const renderForm = () => (
     <div style={{ display: 'grid', gap: '1rem' }}>
       <SectionCard title="Core Product Fields" description="These are the fields already used by the personal savings mobile flow.">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
           <div style={{ display: 'grid', gap: '0.25rem' }}>
             <label htmlFor="code">Product code</label>
             <input id="code" value={draft.code} onChange={(e) => setDraft((p) => ({ ...p, code: e.target.value }))} placeholder="OPEN_SAVING" />
@@ -479,7 +479,7 @@ export default function SavingProductsPage() {
                     key={tier.id ?? `${tier.minLockDurationDays}-${tier.maxLockDurationDays}-${index}`}
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr)) auto',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr)) auto',
                       gap: '0.75rem',
                       alignItems: 'end',
                       padding: '0.85rem',

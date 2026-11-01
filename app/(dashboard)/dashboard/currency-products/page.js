@@ -165,7 +165,7 @@ const Modal = ({ title, onClose, children }) => (
 );
 
 const DetailGrid = ({ rows }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.6rem' }}>
     {rows.map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: '1px solid var(--border)', borderRadius: '10px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
@@ -1081,7 +1081,7 @@ export default function CurrencyProductsPage() {
   );
 
   const renderForm = () => (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
       {renderCurrencyInput('currency', 'Currency', draft.currency, (e) => setDraft((p) => ({ ...p, currency: e.target.value.toUpperCase() })))}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="displayName">Display name</label>
@@ -1471,7 +1471,7 @@ export default function CurrencyProductsPage() {
             {activeFilterCount ? (
               <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{activeFilterCount} active filter{activeFilterCount === 1 ? '' : 's'}</div>
             ) : null}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', marginTop: '0.75rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem', marginTop: '0.75rem' }}>
             {renderFilterInput('q', 'Search', { placeholder: 'cdf, dollar, franc' })}
             {renderFilterInput('id', 'ID', { type: 'number', min: '1', step: '1', placeholder: '12' })}
             {renderFilterInput('currency', 'Currency', { list: 'currencyProductCurrencyOptions', uppercase: true, placeholder: 'CDF' })}
@@ -1632,7 +1632,7 @@ export default function CurrencyProductsPage() {
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
               Default receiving details for this currency product. These fields are saved through the currency product bank-account default endpoint.
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
               {[
                 ['internationalAccountNumber', 'International account number'],
                 ['accountNumber', 'Account number'],
@@ -1669,7 +1669,7 @@ export default function CurrencyProductsPage() {
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
               Creates a customer fiat wallet if needed and starts a user-owned bank account request without charging customer payment. Use for customers with approved normal KYC and approved enhanced bank account verification.
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="createBankAccountTargetType">Customer</label>
                 <select
@@ -1737,7 +1737,7 @@ export default function CurrencyProductsPage() {
                   <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
                     Complete marks the bank account active and completes transaction {createBankAccountResult.orderTransactionId}. Cancel stops the linked order transaction.
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
                     {[
                       ['note', 'Note'],
                       ['externalReference', 'External reference'],
@@ -1806,14 +1806,14 @@ export default function CurrencyProductsPage() {
             </div>
             {previewOptionsLoading ? <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Loading backend options...</div> : null}
             {previewOptionsError ? <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{previewOptionsError}</div> : null}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))', gap: '0.75rem' }}>
               {renderPreviewInput('amount', 'Amount', { type: 'number', min: '0', step: '0.000001' })}
               {renderPreviewSelect('sourceCurrency', 'Source currency', previewCurrencyOptions, { emptyLabel: 'Select source currency' })}
               {renderPreviewSelect('targetCurrency', 'Target currency', previewCurrencyOptions, { emptyLabel: 'Select target currency' })}
             </div>
             <details>
               <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Optional action context</summary>
-              <div style={{ marginTop: '0.75rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ marginTop: '0.75rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))', gap: '0.75rem' }}>
                 {renderPreviewSelect('action', 'Action', previewActionOptions, { emptyLabel: 'No action' })}
                 {renderPreviewSelect('paymentMethodId', 'Payment method', paymentMethodOptions, {
                   emptyLabel: 'No payment method',

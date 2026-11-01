@@ -72,7 +72,7 @@ const Modal = ({ title, onClose, children }) => (
   </div>
 );
 
-const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.65rem' }}>
+const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))', gap: '0.65rem' }}>
     {regulatorVisibleFields(rows, enableRegulatorMode).map((row) => (
       <div key={row.label} style={{ display: 'grid', gap: '0.15rem', padding: '0.7rem', border: '1px solid var(--border)', borderRadius: '10px', minWidth: 0 }}>
         <span style={{ color: 'var(--muted)', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</span>
@@ -233,7 +233,7 @@ export default function BusinessesPage() {
 
       <form className="card" onSubmit={applyFilters} style={{ display: 'grid', gap: '0.75rem' }}>
         <div style={{ fontWeight: 800 }}>Filters</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))', gap: '0.75rem' }}>
           <label style={{ display: 'grid', gap: '0.25rem' }}>
             <span>Owner email</span>
             <input value={filters.email} maxLength={254} placeholder="owner@example.com" onChange={(event) => setFilters((previous) => ({ ...previous, email: event.target.value }))} />

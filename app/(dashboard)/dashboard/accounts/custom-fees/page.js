@@ -1,5 +1,7 @@
 'use client';
 
+import ResponsiveTable from '@/components/ResponsiveTable';
+
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
@@ -32,7 +34,7 @@ const feeLabel = (fee) =>
   ].filter(Boolean).join(' / ') || `Custom fee #${fee?.id}`;
 
 const DetailGrid = ({ rows }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.6rem' }}>
     {rows.map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: '1px solid var(--border)', borderRadius: '10px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
@@ -194,7 +196,7 @@ export default function AccountsWithCustomFeesPage() {
         </Link>
       </div>
 
-      <div className="card" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', alignItems: 'end' }}>
+      <div className="card" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem', alignItems: 'end' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="accountReference">Account reference</label>
           <input id="accountReference" placeholder="FDK" value={filters.accountReference} onChange={(e) => setFilters((p) => ({ ...p, accountReference: e.target.value }))} />
@@ -248,7 +250,7 @@ export default function AccountsWithCustomFeesPage() {
             ) : customFees.length === 0 ? (
               <div style={{ color: 'var(--muted)' }}>No custom fee configs remain for this account.</div>
             ) : (
-              <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <ResponsiveTable className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr>
                     {['ID', 'Scope', 'Fee', 'Active', 'Updated', 'Actions'].map((header) => (
@@ -272,7 +274,7 @@ export default function AccountsWithCustomFeesPage() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </ResponsiveTable>
             )}
           </div>
 

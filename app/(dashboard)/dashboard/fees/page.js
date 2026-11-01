@@ -13,7 +13,7 @@ export default function FeesHubPage() {
         <div style={{ fontSize: '20px', fontWeight: 800 }}>Fee Configs</div>
         <div style={{ color: 'var(--muted)' }}>Manage fee configurations from a dedicated hub.</div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '1rem' }}>
         {sections.map((item) => (
           <Link
             key={item.href}

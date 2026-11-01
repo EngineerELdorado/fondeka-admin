@@ -1,5 +1,6 @@
 'use client';
 
+import ResponsiveTable from '@/components/ResponsiveTable';
 
 import { CatalogSelect } from '@/components/CatalogSelect';
 import { RegulatorRecord, PresentationSelect, NonRegulatorContent, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
@@ -314,7 +315,7 @@ const Modal = ({ title, onClose, children }) => (
   </div>
 );
 
-const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.6rem' }}>
     {regulatorVisibleFields(rows, enableRegulatorMode).map((row) => (
       <div
         key={row.label}
@@ -1164,7 +1165,7 @@ export default function FeeConfigsPage() {
   };
 
   const renderForm = () => (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="scopeType">Scope type</label>
         <PresentationSelect id="scopeType" value={draft.scopeType} onChange={(e) => updateScopeType(e.target.value)}>
@@ -1659,7 +1660,7 @@ export default function FeeConfigsPage() {
             Product-specific BUY_GIFT_CARD rows are recommended for exact pricing, but broader fallbacks are allowed. Ensure each required gift card has an active Reloadly mapping and review whether it needs a specific BUY_GIFT_CARD fee row.
           </div>
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+            <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead>
                 <tr>
                   <th style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)' }}>Product</th>
@@ -1680,7 +1681,7 @@ export default function FeeConfigsPage() {
                   </tr></RegulatorRecord>
                 ))}
               </tbody>
-            </table>
+            </ResponsiveTable>
           </div>
         </div>
       </details>
@@ -1715,7 +1716,7 @@ export default function FeeConfigsPage() {
         </div>
         {showFilters && (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="filterPaymentMethodType">Payment method type</label>
             <PresentationSelect id="filterPaymentMethodType" value={filters.paymentMethodType} onChange={(e) => setFilters((p) => ({ ...p, paymentMethodType: e.target.value }))}>
@@ -1950,7 +1951,7 @@ export default function FeeConfigsPage() {
                 Visible-page match estimate before update: {bulkProviderVisibleMatchCount}. The backend response is authoritative and may include rows outside the current page.
               </div>
             ) : null}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="bulkPaymentProviderId">Payment provider</label>
                 <PresentationSelect
@@ -2052,7 +2053,7 @@ export default function FeeConfigsPage() {
 
             <div style={{ display: 'grid', gap: '0.5rem' }}>
               <div style={{ fontWeight: 700 }}>Fields to update</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.65rem' }}>
                 {[
                   ['ourFeePercentage', 'Our %', 'number'],
                   ['ourFlatFee', 'Our flat', 'number'],
@@ -2197,7 +2198,7 @@ export default function FeeConfigsPage() {
                 Charged directly by customer&apos;s mobile-money provider. Not collected by Fondeka. For disclosure-only rows, set providerFeeConfigEnabled to false so the backend does not create a normal fee config.
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
                 <input
                   type="checkbox"

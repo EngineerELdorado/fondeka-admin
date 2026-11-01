@@ -226,7 +226,7 @@ export default function ArchivedPendingLoansPage() {
       {showUpsert && (
         <Modal title="Add or edit archived pending loan" onClose={() => (!saving ? setShowUpsert(false) : null)}>
           <div style={{ display: 'grid', gap: '0.75rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.65rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: '0.65rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                 <label htmlFor="firstName">First name</label>
                 <input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} />

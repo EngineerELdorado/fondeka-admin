@@ -357,7 +357,7 @@ export default function NotificationDeliveryPolicyPage() {
               </label></RegulatorField>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '0.75rem' }}>
               <MultiSelect
                 id={`excludedCategories-${rule.channel}`}
                 label="Excluded categories"

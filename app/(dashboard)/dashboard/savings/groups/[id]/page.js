@@ -1239,12 +1239,12 @@ export default function GroupSavingDetailPage() {
   };
   const policyGridStyle = {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
     gap: '0.75rem'
   };
   const policyCheckboxGridStyle = {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
     gap: '0.6rem'
   };
   const renderPolicyInput = (field, label, props = {}) => (
@@ -1674,7 +1674,7 @@ export default function GroupSavingDetailPage() {
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
               Manual reminders only target unpaid members with <strong>PENDING</strong> contributions. Automatic reminders continue to run from the backend.
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(240px, 320px) auto auto', gap: '0.65rem', alignItems: 'end' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.65rem', alignItems: 'end' }}>
               <div style={{ display: 'grid', gap: '0.25rem' }}>
                 <label htmlFor="reminderCycle">Reminder cycle</label>
                 <select
@@ -1898,7 +1898,7 @@ export default function GroupSavingDetailPage() {
       {activeTab === 'invitations' ? (
         <div style={{ display: 'grid', gap: '1rem' }}>
           <SectionCard title="Create Invitation" description="Send a group invitation using one identifier only: account ID, account reference, email, or phone.">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'grid', gap: '0.25rem' }}>
                 <label htmlFor="inviteAccountId">Account ID</label>
                 <input id="inviteAccountId" value={inviteDraft.accountId} onChange={(e) => setInviteDraft((prev) => ({ ...prev, accountId: e.target.value }))} placeholder="123" />
@@ -2587,7 +2587,7 @@ export default function GroupSavingDetailPage() {
                 placeholder="Ops override after provider investigation"
               />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'grid', gap: '0.25rem' }}>
                 <label htmlFor="groupInterventionExternalReference">External reference</label>
                 <input

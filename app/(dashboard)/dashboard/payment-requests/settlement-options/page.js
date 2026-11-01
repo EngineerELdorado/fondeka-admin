@@ -121,7 +121,7 @@ export default function PaymentRequestSettlementOptionsPage() {
                   {row.allowCustomSettlement ? 'Custom settlement allowed' : 'Default settlement only'}
                 </div>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minWidth: '220px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minWidth: 'min(220px, 100%)' }}>
                 <RegulatorField field={row}><label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <input
                     type="checkbox"

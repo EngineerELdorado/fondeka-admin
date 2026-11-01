@@ -1,5 +1,6 @@
 'use client';
 
+import ResponsiveTable from '@/components/ResponsiveTable';
 
 import { CatalogSelect } from '@/components/CatalogSelect';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -313,8 +314,7 @@ const Pill = ({ children, tone = 'var(--accent)', soft }) => (
 
 const Table = ({ columns, rows, emptyLabel = 'No data' }) => (
   <div className="table-scroll">
-    <div className="table-scroll__hint">Swipe to see more</div>
-    <table className="data-table">
+    <ResponsiveTable className="data-table">
       <thead>
         <tr style={{ color: 'var(--muted)' }}>
           {columns.map((col) => (
@@ -342,7 +342,7 @@ const Table = ({ columns, rows, emptyLabel = 'No data' }) => (
           </tr>
         ))}
       </tbody>
-    </table>
+    </ResponsiveTable>
   </div>
 );
 
@@ -1405,7 +1405,7 @@ export default function DashboardPage() {
                     }
                     setStuckCriticalWindows(0);
                   }}
-                  style={{ width: 'auto', minWidth: '110px' }}
+                  style={{ width: 'auto', minWidth: 'min(110px, 100%)' }}
                 >
                   {STALE_MINUTES_PRESETS.map((minutes) => (
                     <option key={minutes} value={minutes}>
@@ -1425,7 +1425,7 @@ export default function DashboardPage() {
                       setStaleMinutes(clampStaleMinutes(e.target.value));
                       setStuckCriticalWindows(0);
                     }}
-                    style={{ width: 'auto', minWidth: '110px' }}
+                    style={{ width: 'auto', minWidth: 'min(110px, 100%)' }}
                   />
                 )}
                 <span style={{ fontSize: '11px', color: 'var(--muted)' }}>{formatStaleMinutesLabel(staleMinutes)}</span>
@@ -1841,7 +1841,7 @@ export default function DashboardPage() {
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
               {t('dashboard.revenueBreakdownHelp')}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.6rem' }}>
               {[
               { label: t('dashboard.bookedRevenue'), value: formatCurrency(totalRevenue) },
               { label: t('dashboard.fullyRealized'), value: formatCurrency(totalPaidRevenue) },
@@ -1877,7 +1877,7 @@ export default function DashboardPage() {
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
               {t('dashboard.completedBreakdownHelp')}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.6rem' }}>
               {[
                 { label: t('dashboard.completed'), value: formatNumber(totals.completedCount), tone: '#16a34a' },
                 { label: t('dashboard.volume'), value: formatCurrency(totals.completedVolume), tone: '#0f172a' },
@@ -1923,7 +1923,7 @@ export default function DashboardPage() {
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
                 gap: '0.75rem',
                 padding: '1rem',
                 border: '1px solid var(--border)',
@@ -1949,7 +1949,7 @@ export default function DashboardPage() {
 
             <section style={{ display: 'grid', gap: '0.55rem' }}>
               <div style={{ fontWeight: 800 }}>Consolidated USD breakdown</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
                 {[
                   { label: 'Fiat wallets', amount: customerLiabilities.walletFiatBalances },
                   { label: 'Crypto', amount: customerLiabilities.cryptoFiatBalances, note: 'USD value' },
@@ -1991,7 +1991,7 @@ export default function DashboardPage() {
                         <div style={{ flex: '0 0 70px', fontWeight: 900, fontSize: '16px' }}>{row.currency}</div>
                         <div style={{ flex: '1 1 320px', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                           {components.map((item) => (
-                            <div key={item.label} style={{ minWidth: '105px' }}>
+                            <div key={item.label} style={{ minWidth: 'min(105px, 100%)' }}>
                               <div style={{ color: 'var(--muted)', fontSize: '11px' }}>{item.label}</div>
                               <div style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums', marginTop: '0.1rem' }}>{formatRoundedNativeAmount(item.value, row.currency, item.precision)}</div>
                             </div>
@@ -2026,7 +2026,7 @@ export default function DashboardPage() {
       {showFiatHoldings && (
         <Modal title="Fiat Wallet Holdings" onClose={() => setShowFiatHoldings(false)}>
           <div style={{ display: 'grid', gap: '1rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem', padding: '1rem', border: '1px solid var(--border)', borderRadius: '12px', background: 'var(--accent-soft)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem', padding: '1rem', border: '1px solid var(--border)', borderRadius: '12px', background: 'var(--accent-soft)' }}>
               <div>
                 <div style={{ color: 'var(--muted)', fontSize: '12px', fontWeight: 700 }}>AVAILABLE USD VALUE</div>
                 <div style={{ fontWeight: 900, fontSize: 'clamp(1.8rem, 4vw, 2.5rem)', lineHeight: 1.1, marginTop: '0.3rem' }}>{formatCurrency(holdings.fiatBalanceTotal)}</div>
@@ -2089,7 +2089,7 @@ export default function DashboardPage() {
       {showHoldings && (
         <Modal title="Crypto Holdings" onClose={() => setShowHoldings(false)}>
           <div style={{ display: 'grid', gap: '1rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem', padding: '1rem', border: '1px solid var(--border)', borderRadius: '12px', background: 'var(--accent-soft)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem', padding: '1rem', border: '1px solid var(--border)', borderRadius: '12px', background: 'var(--accent-soft)' }}>
               <div>
                 <div style={{ color: 'var(--muted)', fontSize: '12px', fontWeight: 700 }}>TOTAL USD VALUE</div>
                 <div style={{ fontWeight: 900, fontSize: 'clamp(1.8rem, 4vw, 2.5rem)', lineHeight: 1.1, marginTop: '0.3rem' }}>{formatCurrency(holdings.cryptoBalanceFiat)}</div>
@@ -2133,7 +2133,7 @@ export default function DashboardPage() {
       {showSavingsBreakdown && (
         <Modal title={t('dashboard.savingsAggregatesTitle')} onClose={() => setShowSavingsBreakdown(false)}>
           <div style={{ display: 'grid', gap: '1rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem', padding: '1rem', border: '1px solid var(--border)', borderRadius: '12px', background: 'var(--accent-soft)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem', padding: '1rem', border: '1px solid var(--border)', borderRadius: '12px', background: 'var(--accent-soft)' }}>
               <div>
                 <div style={{ color: 'var(--muted)', fontSize: '12px', fontWeight: 700 }}>CURRENT LIABILITY, INCLUDING INTEREST</div>
                 <div style={{ fontWeight: 900, fontSize: 'clamp(1.8rem, 4vw, 2.5rem)', lineHeight: 1.1, marginTop: '0.3rem' }}>{formatCurrency(savingsAggregates.currentAllLiabilityWithAccruedInterest)}</div>
@@ -2148,7 +2148,7 @@ export default function DashboardPage() {
 
             <section style={{ display: 'grid', gap: '0.55rem' }}>
               <div style={{ fontWeight: 800 }}>Consolidated USD breakdown</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(165px, 1fr))', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 165px), 1fr))', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
                 {[
                   { label: 'Open savings', amount: savingsAggregates.currentOpenSavingsLiability },
                   { label: 'Locked savings', amount: savingsAggregates.currentLockedSavingsLiability },
@@ -2186,7 +2186,7 @@ export default function DashboardPage() {
                         <div style={{ flex: '0 0 70px', fontWeight: 900, fontSize: '16px' }}>{row.currency}</div>
                         <div style={{ flex: '1 1 340px', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                           {components.map((item) => (
-                            <div key={item.label} style={{ minWidth: '105px' }}>
+                            <div key={item.label} style={{ minWidth: 'min(105px, 100%)' }}>
                               <div style={{ color: 'var(--muted)', fontSize: '11px' }}>{item.label}</div>
                               <div style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums', marginTop: '0.1rem' }}>{formatRoundedNativeAmount(item.value, row.currency, 2)}</div>
                             </div>
@@ -2217,7 +2217,7 @@ export default function DashboardPage() {
                         { label: 'Likelemba', value: row.likelemba },
                         { label: 'AVEC', value: row.avec }
                       ].filter((item) => hasNonZeroAmount(item.value)).map((item) => (
-                        <div key={item.label} style={{ minWidth: '105px' }}>
+                        <div key={item.label} style={{ minWidth: 'min(105px, 100%)' }}>
                           <div style={{ color: 'var(--muted)', fontSize: '11px' }}>{item.label}</div>
                           <div style={{ fontWeight: 700, marginTop: '0.1rem' }}>{formatRoundedNativeAmount(item.value, row.currency, 2)}</div>
                         </div>
@@ -2255,7 +2255,7 @@ export default function DashboardPage() {
             <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
               Loan amount percentages are based on disbursed principal. Open-loan risk percentages use either total open loans or total approved loans, and archived-loan percentages use archived totals.
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.6rem' }}>
               {[
                 { label: 'Disbursed principal', value: formatCurrency(metrics?.loanDisbursedVolume), sub: `Loans disbursed ${formatNumber(metrics?.loansDisbursed)}` },
                 { label: 'Collected interest', value: formatCurrency(metrics?.loanInterestVolume), sub: `USD-normalized from repayments • Of disbursed principal ${formatPercentage(metrics?.loanInterestVolumePercentage)}` },
@@ -2290,7 +2290,7 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: '0.75rem' }}>
               <div className="card" style={{ display: 'grid', gap: '0.4rem', padding: '0.75rem' }}>
                 <div style={{ fontWeight: 800 }}>Loan volume</div>
                 <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Principal, collected interest, due, paid back, and outstanding.</div>

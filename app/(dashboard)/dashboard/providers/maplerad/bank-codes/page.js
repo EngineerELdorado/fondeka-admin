@@ -1,5 +1,7 @@
 'use client';
 
+import ResponsiveTable from '@/components/ResponsiveTable';
+
 import { RegulatorRecord, NonRegulatorContent, PresentationLink as Link } from '@/components/RegulatorPresentation';
 
 import { useMemo, useState } from 'react';
@@ -184,7 +186,7 @@ export default function MapleradBankCodesPage() {
             {loading ? 'Refreshing...' : 'Preview bank codes'}
           </button>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '0.75rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="country">Country</label>
             <input
@@ -258,7 +260,7 @@ export default function MapleradBankCodesPage() {
       </div>
 
       <div className="card table-scroll" style={{ overflowX: 'auto' }}>
-        <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <ResponsiveTable className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
               <th style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>Code</th>
@@ -282,14 +284,14 @@ export default function MapleradBankCodesPage() {
               </tr></RegulatorRecord>
             ))}
           </tbody>
-        </table>
+        </ResponsiveTable>
       </div>
 
       {(syncPreview || syncResponse) && (
         <>
           <div className="card table-scroll" style={{ overflowX: 'auto' }}>
             <div style={{ fontWeight: 800, marginBottom: '0.5rem' }}>Updated routes {syncResponse ? '(synced)' : '(dry-run)'}</div>
-            <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <ResponsiveTable className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
                   <th style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>Payment method</th>
@@ -319,12 +321,12 @@ export default function MapleradBankCodesPage() {
                   </tr></RegulatorRecord>
                 ))}
               </tbody>
-            </table>
+            </ResponsiveTable>
           </div>
 
           <div className="card table-scroll" style={{ overflowX: 'auto' }}>
             <div style={{ fontWeight: 800, marginBottom: '0.5rem' }}>Unmatched routes / warnings</div>
-            <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <ResponsiveTable className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
                   <th style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}>Payment method</th>
@@ -348,7 +350,7 @@ export default function MapleradBankCodesPage() {
                   </tr></RegulatorRecord>
                 ))}
               </tbody>
-            </table>
+            </ResponsiveTable>
           </div>
         </>
       )}

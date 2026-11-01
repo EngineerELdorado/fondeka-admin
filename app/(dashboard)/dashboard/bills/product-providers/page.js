@@ -1,5 +1,6 @@
 'use client';
 
+import ResponsiveTable from '@/components/ResponsiveTable';
 
 import { CatalogSelect } from '@/components/CatalogSelect';
 import { RegulatorRecord, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
@@ -86,7 +87,7 @@ const toPayload = (state) => ({
   reloadlyRequiresInvoice: state.reloadlyBillerId === '' ? null : Boolean(state.reloadlyRequiresInvoice)
 });
 
-const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); return (<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.6rem' }}>
     {regulatorVisibleFields(rows, enableRegulatorMode).map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
@@ -659,7 +660,7 @@ export default function BillProductProvidersPage() {
         <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
           Select a grouped Zendit biller result and map it once. Fixed amounts and open-amount variants will be handled automatically under the same bill product.
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="zenditBrandSearch">Brand</label>
             <input id="zenditBrandSearch" value={zenditSearch.brand} onChange={(e) => setZenditSearch((prev) => ({ ...prev, brand: e.target.value }))} />
@@ -731,7 +732,7 @@ export default function BillProductProvidersPage() {
   );
 
   const renderForm = () => (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="billProductId">Bill Product</label>
         <CatalogSelect kind="bill-product" records={products} id="billProductId" value={draft.billProductId} onChange={(e) => setDraft((prev) => ({ ...prev, billProductId: e.target.value }))}>
@@ -862,7 +863,7 @@ export default function BillProductProvidersPage() {
         <span style={{ color: 'var(--muted)', fontSize: '12px', fontWeight: 700 }}>{items.length} row(s)</span>
       </div>
       <div className="table-scroll" style={{ border: '1px solid var(--border)', borderRadius: '10px', padding: 0 }}>
-        <table className="data-table" style={{ minWidth: '920px', width: '100%', borderCollapse: 'collapse' }}>
+        <ResponsiveTable className="data-table" style={{ minWidth: '920px', width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
               {columns.map((col) => (
@@ -886,7 +887,7 @@ export default function BillProductProvidersPage() {
               </tr></RegulatorRecord>
             ))}
           </tbody>
-        </table>
+        </ResponsiveTable>
       </div>
     </div>
   );
@@ -1106,7 +1107,7 @@ export default function BillProductProvidersPage() {
               Run Preview first. Apply uses the exact same request body from the latest successful preview.
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="cegawebCatalogSubscriberNumber">Subscriber number</label>
                 <input

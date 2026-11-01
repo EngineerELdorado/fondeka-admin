@@ -240,26 +240,26 @@ label {
 
 .dashboard-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
   gap: 0.75rem;
 }
 
 .dashboard-filters-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 120px), 1fr));
   gap: 0.5rem;
   align-items: end;
 }
 
 .dashboard-filters-wide-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
   gap: 0.65rem;
 }
 
 .dashboard-metrics-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
   gap: 0.5rem;
 }
 
@@ -602,7 +602,7 @@ label {
 
 .detail-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
   gap: 0.75rem;
 }
 
@@ -629,6 +629,36 @@ label {
 .dashboard-shell {
   min-height: 100vh;
 }
+
+.dashboard-content, .dashboard-main { min-width: 0; width: 100%; max-width: 100%; }
+.dashboard-main { overflow-wrap: anywhere; }
+.dashboard-main :where(div, section, article, form, fieldset, nav, label) { min-width: 0; }
+.dashboard-main :where(div, form, nav):has(> button), .modal-actions, .table-pagination, .table-pagination__actions { flex-wrap: wrap; }
+.dashboard-main :where(input, select, textarea, button), .modal-surface { max-width: 100%; min-width: 0; }
+.dashboard-main textarea { resize: vertical; }
+.dashboard-main :where(img, video, canvas) { max-width: 100%; }
+.dashboard-main pre { white-space: pre-wrap !important; overflow-wrap: anywhere; max-width: 100%; }
+.table-pagination__label { white-space: normal; }
+
+/* Tables fit their container; narrow tables become labelled records, retaining every cell. */
+.responsive-table-container { width: 100%; max-width: 100%; min-width: 0; }
+.responsive-table { width: 100%; min-width: 0; border-collapse: collapse; font-size: .8125rem; }
+.responsive-table :is(th, td) { overflow-wrap: anywhere; white-space: normal !important; vertical-align: top; }
+.responsive-table :is(th, td) > * { min-width: 0; max-width: 100%; }
+.responsive-table :is(th, td) :is(div, span, a) { white-space: normal !important; }
+.responsive-table :is(th, td) :is(input, select, textarea, button) { min-width: 0; max-width: 100%; }
+.responsive-table :is(th, td) div:has(> button) { flex-wrap: wrap; }
+.responsive-table-container[data-layout='records'] > .responsive-table { display: block; }
+.responsive-table-container[data-layout='records'] > .responsive-table > thead { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.responsive-table-container[data-layout='records'] > .responsive-table > thead:has(:is(input, select, button, a)) { position: static; display: block; width: auto; height: auto; overflow: visible; clip-path: none; margin-bottom: .75rem; }
+.responsive-table-container[data-layout='records'] > .responsive-table > thead:has(:is(input, select, button, a)) > tr { display: flex; flex-wrap: wrap; gap: .5rem; }
+.responsive-table-container[data-layout='records'] > .responsive-table > thead:has(:is(input, select, button, a)) > tr > th { width: auto !important; padding: .5rem !important; }
+.responsive-table-container[data-layout='records'] > .responsive-table > thead:has(:is(input, select, button, a)) > tr > th:not(:has(:is(input, select, button, a))) { position: absolute; width: 1px !important; height: 1px; padding: 0 !important; overflow: hidden; clip-path: inset(50%); }
+.responsive-table-container[data-layout='records'] > .responsive-table > :is(tbody, tfoot) { display: grid; gap: .85rem; }
+.responsive-table-container[data-layout='records'] > .responsive-table > :is(tbody, tfoot) > tr { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); gap: .6rem; padding: .75rem; border: 1px solid var(--border); border-radius: 10px; }
+.responsive-table-container[data-layout='records'] > .responsive-table > :is(tbody, tfoot) > tr > :is(td, th) { display: block; min-width: 0; padding: .35rem !important; border: 0 !important; }
+.responsive-table-container[data-layout='records'] > .responsive-table > :is(tbody, tfoot) > tr > [data-label]::before { content: attr(data-label); display: block; font-size: .75rem; font-weight: 600; color: var(--muted); margin-bottom: .3rem; }
+.responsive-table-container[data-layout='records'] > .responsive-table > :is(tbody, tfoot) > tr > [data-full-width] { grid-column: 1 / -1; }
 
 .dashboard-nav-links {
   overflow-y: auto;
@@ -693,9 +723,6 @@ label {
     padding: 1rem;
   }
 
-  table {
-    min-width: 560px;
-  }
 }
 
 @media (min-width: 901px) {
@@ -737,11 +764,11 @@ label {
   }
 
   .dashboard-kpi-grid {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
   }
 
   .dashboard-metrics-grid {
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
   }
 
   .dashboard-filters-wide-grid {
@@ -780,9 +807,6 @@ label {
     height: 180px;
   }
 
-  table {
-    min-width: 480px;
-  }
 }
 
 :is(.payout-failover, .recharge-failover), .failover-card { display: grid; gap: 1rem; min-width: 0; }
@@ -809,7 +833,7 @@ label {
 .failover-table table { width: 100%; border-collapse: collapse; font-size: .85rem; }
 .failover-table th, .failover-table td { padding: .65rem; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
 .failover-table td { overflow-wrap: anywhere; }
-.failover-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: .7rem; }
+.failover-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); gap: .7rem; }
 .failover-metric { padding: .8rem; border: 1px solid var(--border); border-radius: 10px; display: grid; gap: .35rem; }
 .failover-metric strong { font-size: 1.4rem; }
 .failover-timeline { display: grid; gap: 1rem; margin: 0; padding-left: 1.3rem; }
@@ -852,7 +876,7 @@ label {
 .failover-provider-flow { display: flex; align-items: center; flex-wrap: wrap; gap: .6rem; }
 .failover-provider-flow > span:not([aria-hidden]) { padding: .4rem .65rem; border: 1px solid var(--border); border-radius: 8px; font-weight: 800; }
 .failover-core-promise { font-weight: 700; }
-.failover-navigation { display: flex; gap: .25rem; overflow-x: auto; border-bottom: 1px solid var(--border); padding: 0 .1rem; }
+.failover-navigation { display: flex; flex-wrap: wrap; gap: .25rem; border-bottom: 1px solid var(--border); padding: 0 .1rem; }
 .failover-navigation button { flex-shrink: 0; border: 0; border-bottom: 3px solid transparent; border-radius: 0; padding: .85rem 1rem; background: transparent; color: var(--muted); font-weight: 700; }
 .failover-navigation button.is-active { border-bottom-color: var(--accent); color: var(--accent); }
 .failover-status-heading { display: flex; align-items: center; gap: .85rem; flex-wrap: wrap; }
@@ -914,7 +938,7 @@ label {
   .failover-save-bar__actions > small { flex-basis: 100%; }
   .failover-getting-started { grid-template-columns: 1fr; gap: .85rem; }
   .failover-metrics { grid-template-columns: 1fr; }
-  .failover-navigation { display: flex; overflow-x: auto; }
+  .failover-navigation { display: flex; flex-wrap: wrap; }
   .failover-navigation button { padding: .75rem .8rem; }
   .failover-workspace .failover-intro h1 { font-size: 1.4rem; }
   .failover-status-grid { gap: .85rem; }

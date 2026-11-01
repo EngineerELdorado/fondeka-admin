@@ -1,5 +1,7 @@
 'use client';
 
+import ResponsiveTable from '@/components/ResponsiveTable';
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { failoverQuery, failoverUtcInput, failoverUtcValue } from '@/lib/payout-failover';
@@ -78,12 +80,12 @@ export default function OperationsPanel({ capabilities, onHistory, initialTransa
     <Card title="Payout payments and attempts"><p>Find the original transaction, then open its attempts to see why a backup was selected and what each provider reported.</p><div className="failover-actions"><button type="button" className="btn-neutral btn-sm" disabled={loading} onClick={() => apply({ ...applied, unresolved: 'true' })}>Show pending resolution</button><button type="button" className="btn-neutral btn-sm" disabled={loading} onClick={() => apply({ ...applied, conflicted: 'true' })}>Show conflicting results</button><button type="button" className="btn-neutral btn-sm" disabled={loading} onClick={() => setReload((value) => value + 1)}>Refresh payments</button></div>
       {loading ? <span role="status">Loading operations…</span> : null}<Alert>{error}</Alert>
       {error && result ? <small>The previous result set is retained. Retry or apply filters to refresh it.</small> : null}
-      <div className="failover-table"><table><thead><tr>{['Payment / customer', 'Original amount / gross', 'Provider attempt', 'Resolution', 'Actions'].map((label) => <th key={label}>{label}</th>)}</tr></thead><tbody>
+      <div className="failover-table"><ResponsiveTable><thead><tr>{['Payment / customer', 'Original amount / gross', 'Provider attempt', 'Resolution', 'Actions'].map((label) => <th key={label}>{label}</th>)}</tr></thead><tbody>
         {(result?.content || []).map((operation) => {
           const current = operation.attempts?.find((attempt) => attempt.number === operation.currentAttempt);
           return <tr key={operation.transactionId}><td><strong>#{operation.transactionId} · {operation.internalReference || '—'}</strong><div>Account {operation.accountId ?? '—'} · {operation.transactionStatus || 'Missing transaction'}</div><small>{formatInstant(operation.createdAt)}</small></td><td>{operation.amount ?? '—'} {operation.currency}<div>Gross: {operation.grossAmount ?? '—'} {operation.currency}</div></td><td>#{operation.currentAttempt} · {current?.provider || '—'}<div>{attemptLabel(current?.state)} · route #{current?.routeId ?? '—'}</div></td><td>{operation.conflicted ? <strong>Conflicted</strong> : null}<div>{operation.unresolved ? 'Pending resolution' : 'Resolved'}</div></td><td><button type="button" className="btn-neutral btn-sm" aria-label={'Investigate transaction ' + operation.transactionId} onClick={() => setSelected(operation.transactionId)}>Investigate</button></td></tr>;
         })}
-      </tbody></table></div>
+      </tbody></ResponsiveTable></div>
       {result?.content.length === 0 && !loading ? <EmptyPayments kind="payout" /> : null}
       {result ? <Pager page={page} totalPages={result.totalPages} totalElements={result.totalElements} busy={loading} onChange={setPage} /> : null}
       <small>One original customer transaction is retained across attempts. RETURNED is submit evidence, not settlement confirmation.</small>

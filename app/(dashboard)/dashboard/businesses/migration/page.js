@@ -26,7 +26,7 @@ const ResultSummary = ({ title, pages }) => {
   return (
     <div className="card" style={{ display: 'grid', gap: '0.7rem' }}>
       <div><strong>{title}</strong><div style={{ color: 'var(--muted)', fontSize: '13px' }}>Dashboard-summed totals across {pages.length} server page{pages.length === 1 ? '' : 's'}.</div></div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(135px, 1fr))', gap: '0.6rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 135px), 1fr))', gap: '0.6rem' }}>
         {[
           ['Scanned', totals.scanned], ['Eligible', totals.eligible], ['Granted', totals.granted],
           ['Skipped', totals.skipped], ['Failed', totals.failed]
@@ -114,7 +114,7 @@ export default function BusinessToolsMigrationPage() {
       {info ? <div className="alert alert-success">{info}</div> : null}
 
       <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(160px, 220px) minmax(260px, 1fr)', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
           <label style={{ display: 'grid', gap: '0.25rem' }}><span>Accounts per request</span><input type="number" min="1" max="500" value={limit} disabled={Boolean(running)} onChange={(e) => setLimit(e.target.value)} /></label>
           <label style={{ display: 'grid', gap: '0.25rem' }}><span>Audit reason</span><input maxLength={1000} value={reason} disabled={Boolean(running)} placeholder="Approved migration review run" onChange={(e) => setReason(e.target.value)} /></label>
         </div>

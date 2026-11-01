@@ -1,5 +1,7 @@
 'use client';
 
+import ResponsiveTable from '@/components/ResponsiveTable';
+
 import { isRegulatorRestrictedRecord } from '@/lib/regulator-presentation';
 
 import { RegulatorRecord, PresentationSelect, NonRegulatorContent, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
@@ -370,7 +372,7 @@ export default function WhatsappTemplateCatalogPage() {
       {showForm ? (
       <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
         <div style={{ fontWeight: 800 }}>{form.id ? `Edit catalog item #${form.id}` : 'New catalog item'}</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
           <label style={{ display: 'grid', gap: '0.35rem' }}>
             <span>Target type</span>
             <PresentationSelect value={form.targetType} onChange={(e) => updateForm({ targetType: e.target.value })}>
@@ -410,7 +412,7 @@ export default function WhatsappTemplateCatalogPage() {
           <span>Body text</span>
           <textarea rows={4} value={form.bodyText} onChange={(e) => updateForm({ bodyText: e.target.value })} placeholder={'Notification Fondeka :\n{{1}}'} />
         </label>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: '0.75rem' }}>
           <label style={{ display: 'grid', gap: '0.35rem' }}>
             <span>Body parameter keys JSON</span>
             <textarea rows={3} value={form.bodyParameterKeysJson} onChange={(e) => updateForm({ bodyParameterKeysJson: e.target.value })} />
@@ -446,7 +448,7 @@ export default function WhatsappTemplateCatalogPage() {
       ) : null}
 
       <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
           <label style={{ display: 'grid', gap: '0.35rem' }}>
             <span>Target type</span>
             <PresentationSelect value={targetTypeFilter} onChange={(e) => setTargetTypeFilter(e.target.value)}>
@@ -524,7 +526,7 @@ export default function WhatsappTemplateCatalogPage() {
       </div>
 
       <div className="card table-scroll" style={{ padding: 0, overflowX: 'auto' }}>
-        <table className="data-table">
+        <ResponsiveTable className="data-table">
           <thead>
             <tr>
               <th style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '1px solid var(--border)' }}>
@@ -553,7 +555,7 @@ export default function WhatsappTemplateCatalogPage() {
                     aria-label={`Select ${row.templateName || row.targetKey || 'template'}`}
                   />
                 </td>
-                <td style={{ padding: '0.75rem', verticalAlign: 'top', minWidth: '240px' }}>
+                <td style={{ padding: '0.75rem', verticalAlign: 'top', minWidth: 'min(240px, 100%)' }}>
                   <div style={{ fontWeight: 700, overflowWrap: 'anywhere' }}>{row.templateName || '—'}</div>
                   <div style={{ color: 'var(--muted)', fontSize: '12px', marginTop: '0.15rem' }}>
                     {row.bodyText ? `${String(row.bodyText).replace(/\s+/g, ' ').slice(0, 96)}${String(row.bodyText).replace(/\s+/g, ' ').length > 96 ? '...' : ''}` : 'No body text'}
@@ -565,7 +567,7 @@ export default function WhatsappTemplateCatalogPage() {
                 </td>
                 <td style={{ padding: '0.75rem', verticalAlign: 'top' }}>{row.languageCode || '—'}</td>
                 <td style={{ padding: '0.75rem', verticalAlign: 'top' }}>{row.metaCategory || '—'}</td>
-                <td style={{ padding: '0.75rem', verticalAlign: 'top', minWidth: '190px' }}>
+                <td style={{ padding: '0.75rem', verticalAlign: 'top', minWidth: 'min(190px, 100%)' }}>
                   <div style={{ display: 'grid', gap: '0.25rem' }}>
                     <div style={{ fontWeight: 700 }}>{row.metaLastSyncStatus || 'Not synced'}</div>
                     <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{row.metaLastSyncedAt ? new Date(row.metaLastSyncedAt).toLocaleString() : 'No sync date'}</div>
@@ -582,7 +584,7 @@ export default function WhatsappTemplateCatalogPage() {
                   </div>
                 </td>
                 <td style={{ padding: '0.75rem', verticalAlign: 'top' }}>{row.active ? 'Yes' : 'No'}</td>
-                <td style={{ padding: '0.75rem', verticalAlign: 'top', minWidth: '160px' }}>
+                <td style={{ padding: '0.75rem', verticalAlign: 'top', minWidth: 'min(160px, 100%)' }}>
                   {row.adminNotes ? `${String(row.adminNotes).slice(0, 90)}${String(row.adminNotes).length > 90 ? '...' : ''}` : '—'}
                 </td>
                 <td style={{ padding: '0.75rem', verticalAlign: 'top' }}>
@@ -621,7 +623,7 @@ export default function WhatsappTemplateCatalogPage() {
               </tr>
             ) : null}
           </tbody>
-        </table>
+        </ResponsiveTable>
       </div>
 
       {detailModal ? (
@@ -644,7 +646,7 @@ export default function WhatsappTemplateCatalogPage() {
               <button type="button" className="btn-neutral btn-sm" onClick={() => copyText('variable samples', detailModal.sampleValuesJson)}>Copy samples</button>
               <button type="button" className="btn-neutral btn-sm" onClick={() => copyPolicyRule(detailModal)}>Copy policy rule</button>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
               <div>
                 <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Meta</div>
                 <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Category: {detailModal.metaCategory || '—'}</div>
@@ -665,7 +667,7 @@ export default function WhatsappTemplateCatalogPage() {
                 {detailModal.bodyText || '—'}
               </pre></NonRegulatorContent>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '0.75rem' }}>
               <div>
                 <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Body parameter keys</div>
                 <NonRegulatorContent><pre style={{ margin: 0, whiteSpace: 'pre-wrap', maxHeight: '180px', overflow: 'auto' }}>{formatJsonString(detailModal.bodyParameterKeysJson) || '—'}</pre></NonRegulatorContent>
@@ -728,7 +730,7 @@ export default function WhatsappTemplateCatalogPage() {
               </button>
             </div>
             <div className="table-scroll" style={{ overflowX: 'auto' }}>
-              <table className="data-table">
+              <ResponsiveTable className="data-table">
                 <thead>
                   <tr>
                     {['Result', 'Operation', 'Meta template ID', 'Status', 'Catalog item', 'Response'].map((header) => (
@@ -745,13 +747,13 @@ export default function WhatsappTemplateCatalogPage() {
                       <td style={{ padding: '0.65rem', verticalAlign: 'top' }}>{result?.operation || '—'}</td>
                       <td style={{ padding: '0.65rem', verticalAlign: 'top' }}>{result?.metaTemplateId || result?.catalogItem?.metaTemplateId || '—'}</td>
                       <td style={{ padding: '0.65rem', verticalAlign: 'top' }}>{result?.status || result?.catalogItem?.metaLastSyncStatus || '—'}</td>
-                      <td style={{ padding: '0.65rem', verticalAlign: 'top', minWidth: '180px' }}>
+                      <td style={{ padding: '0.65rem', verticalAlign: 'top', minWidth: 'min(180px, 100%)' }}>
                         <div style={{ fontWeight: 700 }}>{result?.catalogItem?.templateName || '—'}</div>
                         <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
                           {result?.catalogItem?.targetType || '—'} {result?.catalogItem?.targetKey || ''}
                         </div>
                       </td>
-                      <td style={{ padding: '0.65rem', verticalAlign: 'top', minWidth: '260px' }}>
+                      <td style={{ padding: '0.65rem', verticalAlign: 'top', minWidth: 'min(260px, 100%)' }}>
                         <NonRegulatorContent><pre style={{ margin: 0, whiteSpace: 'pre-wrap', maxHeight: '180px', overflow: 'auto' }}>
                           {formatJsonString(result?.responseBody || result?.catalogItem?.metaLastSyncResponse) || '—'}
                         </pre></NonRegulatorContent>
@@ -766,7 +768,7 @@ export default function WhatsappTemplateCatalogPage() {
                     </tr>
                   ) : null}
                 </tbody>
-              </table>
+              </ResponsiveTable>
             </div>
             <div className="modal-actions">
               <button type="button" className="btn-neutral" onClick={() => copyText('batch result JSON', JSON.stringify(batchResultModal, null, 2))}>

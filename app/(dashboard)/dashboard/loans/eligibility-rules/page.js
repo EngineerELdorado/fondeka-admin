@@ -97,7 +97,7 @@ const Modal = ({ title, onClose, children, width = 760 }) => (
 );
 
 const DetailGrid = ({ rows }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
     {rows.map((row) => (
       <div key={row.label} className="card" style={{ display: 'grid', gap: '0.2rem', padding: '0.8rem' }}>
         <div style={{ color: 'var(--muted)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{row.label}</div>
@@ -460,7 +460,7 @@ export default function LoanEligibilityRulesPage() {
 
       <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
         <div style={{ fontWeight: 800 }}>Filters</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
           <div style={{ display: 'grid', gap: '0.25rem' }}>
             <label htmlFor="filter-scope">Scope</label>
             <select id="filter-scope" value={filters.scope} onChange={(e) => setFilters((prev) => ({ ...prev, scope: e.target.value }))}>
@@ -544,7 +544,7 @@ export default function LoanEligibilityRulesPage() {
       {showForm ? (
         <Modal title={draft.id ? `Edit Rule ${draft.id}` : 'Create Loan Eligibility Rule'} onClose={() => (!saving ? setShowForm(false) : null)}>
           <div style={{ display: 'grid', gap: '0.85rem', marginTop: '0.75rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'grid', gap: '0.25rem' }}>
                 <label htmlFor="rule-scope">Scope</label>
                 <select id="rule-scope" value={draft.scope} onChange={(e) => setDraft((prev) => ({ ...prev, scope: e.target.value }))}>
@@ -628,7 +628,7 @@ export default function LoanEligibilityRulesPage() {
       {showPreview ? (
         <Modal title="Rule Preview" onClose={() => (!previewLoading ? setShowPreview(false) : null)} width={820}>
           <div style={{ display: 'grid', gap: '0.85rem', marginTop: '0.75rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
               <div style={{ display: 'grid', gap: '0.25rem' }}>
                 <label htmlFor="preview-accountId">Account ID</label>
                 <input id="preview-accountId" value={previewDraft.accountId} onChange={(e) => setPreviewDraft((prev) => ({ ...prev, accountId: e.target.value }))} placeholder="7" />
