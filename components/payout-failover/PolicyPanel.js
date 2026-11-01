@@ -10,8 +10,9 @@ import { SetupStep } from '@/components/failover/Experience';
 import PreviewPanel from './PreviewPanel';
 import RoutingRulesEditor from './RoutingRulesEditor';
 import DefaultsPanel from './DefaultsPanel';
+import ProviderContracts from './ProviderContracts';
 
-export default function PolicyPanel({ capabilities, canPublish, onRevision, onPolicy, view = 'setup', active = true }) {
+export default function PolicyPanel({ capabilities, capabilitiesReady = true, canPublish, onRevision, onPolicy, view = 'setup', active = true }) {
   const [saved, setSaved] = useState(null), [draft, setDraft] = useState(null), [baseline, setBaseline] = useState(null), [baseRevision, setBaseRevision] = useState(null);
   const [loading, setLoading] = useState(true), [busy, setBusy] = useState(false), [verified, setVerified] = useState(false), [reviewRequired, setReviewRequired] = useState(false);
   const [error, setError] = useState(''), [info, setInfo] = useState(''), [reason, setReason] = useState('');
@@ -21,9 +22,9 @@ export default function PolicyPanel({ capabilities, canPublish, onRevision, onPo
   const sequence = useRef(0), lock = useRef(false), current = useRef({});
   const validation = useMemo(() => {
     if (!draft) return { payload: null, error: '' };
-    try { return { payload: failoverConfiguration(draft, capabilities), error: '' }; }
+    try { return { payload: failoverConfiguration(draft, capabilities, routes), error: '' }; }
     catch (err) { return { payload: null, error: err.message }; }
-  }, [draft, capabilities]);
+  }, [draft, capabilities, routes]);
   const changed = Boolean(draft && baseline && failoverFingerprint(validation.payload || draft) !== failoverFingerprint(baseline));
   current.current = { changed, baseRevision };
   const accept = useCallback((response, preserveDraft = false) => {
@@ -65,11 +66,11 @@ export default function PolicyPanel({ capabilities, canPublish, onRevision, onPo
     setReviewRequired(false); setError(''); setInfo('Draft now matches the current saved revision.');
   };
   async function write(action) {
-    if (!canPublish || lock.current || loading || !saved || !verified || reviewRequired) return;
+    if (!canPublish || !capabilitiesReady || lock.current || loading || !saved || !verified || reviewRequired) return;
     let payload;
     try {
       payload = action === 'publish'
-        ? { expectedRevision: baseRevision, reason: failoverReason(reason), configuration: failoverConfiguration(draft, capabilities) }
+        ? { expectedRevision: baseRevision, reason: failoverReason(reason), configuration: failoverConfiguration(draft, capabilities, routes) }
         : payoutActivation(saved.policy, action === 'enable', cutoverMode === 'manual' ? cutover : null, activationReason);
     } catch (err) { setError(err.message); return; }
     lock.current = true; setBusy(true); setError(''); setInfo('');
@@ -92,12 +93,12 @@ export default function PolicyPanel({ capabilities, canPublish, onRevision, onPo
       }
     } finally { lock.current = false; setBusy(false); }
   }
-  const policy = saved?.policy, disabled = !canPublish || busy || loading || !verified;
+  const policy = saved?.policy, disabled = !canPublish || !capabilitiesReady || busy || loading || !verified;
   const sourceRoutes = failoverRoutes(routes, capabilities);
   const emptyRuleLists = policy && policy.configuration.rules.length === 0 && !policy.configuration.routingRules?.length;
   const scopedSupported = Boolean(draft && Object.hasOwn(draft, 'routingRules') || Array.isArray(capabilities.scopePrecedence));
   const importDefaults = (configuration) => {
-    if (lock.current || loading || !verified || !canPublish || !draft) return;
+    if (lock.current || loading || !verified || !canPublish || !capabilitiesReady || !draft) return;
     setDraft(payoutDefaultsDraft(draft, configuration));
     setError(''); setInfo('Disabled defaults copied to your local draft. Account IDs are retained. Review and save separately.');
   };
@@ -108,6 +109,7 @@ export default function PolicyPanel({ capabilities, canPublish, onRevision, onPo
       {policy?.configuration.createdAfter ? <p>Saved payment creation boundary: <strong>{formatInstant(policy.configuration.createdAfter)}</strong>. Earlier payouts remain excluded.</p> : null}
       {policy ? <details className="failover-technical"><summary>Saved configuration details</summary><div className="failover-grid"><span>Configured switch: {policy.configuration.enabled ? 'Enabled' : 'Paused'}</span><span>Emergency switch: {policy.emergencyDisabled ? 'SUPPRESSING FAILOVER' : 'Off'}</span><span>Payments created after: {formatInstant(policy.configuration.createdAfter)}</span><span>Earliest allowed start: {formatInstant(policy.cutoverFloor)}</span><span>Updated: {formatInstant(policy.updatedAt)}</span><span>Actor: {policy.updatedByAdminId ?? 'Deployment'}</span></div></details> : null}
       {!verified && !loading ? <Alert>Saved state is unavailable. Refresh before publishing or activating.</Alert> : null}
+      {!capabilitiesReady ? <Alert>Provider capabilities are unavailable or refreshing. Saving and activation are disabled; your draft is retained.</Alert> : null}
       {policy?.emergencyDisabled ? <Alert>The infrastructure emergency switch is on. Dashboard changes cannot bypass it.</Alert> : null}
       <Alert>{error}</Alert><Alert success>{info}</Alert>
       {saved ? <details className="failover-technical" open={saved.validation.issues.some((issue) => issue.severity === 'ERROR')}><summary>Saved setup checks</summary><ValidationReport report={saved.validation} title="Saved setup" /></details> : null}
@@ -133,22 +135,23 @@ export default function PolicyPanel({ capabilities, canPublish, onRevision, onPo
       {validation.error ? <Alert>{validation.error}</Alert> : null}
       <Alert>{routesError}</Alert><div className="failover-actions"><button type="button" className="btn-neutral btn-sm" disabled={routesLoading || busy} onClick={() => void loadRoutes()}>{routesLoading ? 'Loading routes…' : 'Refresh route catalog'}</button><small>Inactive supported routes can be prepared while disabled. Server validation decides whether they can be activated.</small></div>
       <fieldset disabled={disabled} className="failover-card" style={{ border: 0, padding: 0, margin: 0 }}>
-        <SetupStep number="1" title="Review defaults and exceptions">Only the pawaPay → Maplerad provider order can execute. A blocked override stops inheritance; deleting it restores the broader setting.</SetupStep>
+        <SetupStep number="1" title="Review defaults and exceptions">Execution allows up to {capabilities.maximumProviders} distinct providers under the reviewed contracts below. A blocked override stops inheritance; deleting it restores the broader setting.</SetupStep>
         {scopedSupported ? <RoutingRulesEditor rules={draft.routingRules || []} methods={methods} capabilities={capabilities} disabled={disabled} onChange={(routingRules) => setDraft((previous) => ({ ...previous, routingRules }))} /> : <p>Scoped rules are unavailable in this backend response. Existing route-pair rules can still be edited below.</p>}
         <details className="failover-technical"><summary>Advanced: explicit route-pair rules ({draft.rules.length})</summary><div className="failover-card">
         <p>These rules take priority for their source route, even when disabled. Their list order is preserved. A disabled explicit source-route rule also prevents scoped defaults for that source.</p>
         {draft.rules.map((rule, index) => {
           const source = routes.find((route) => String(route.id) === String(rule.sourceRouteId));
           const targets = source ? failoverRoutes(routes, capabilities, source) : [];
+          const evidenceCodes = failoverCodes(capabilities, source?.paymentProviderName || '');
           const change = (key, value) => setDraft((previous) => ({ ...previous, rules: previous.rules.map((item, at) => at === index ? { ...item, [key]: value } : item) }));
           return <article key={rule.id} className="failover-rule-summary" aria-label={'Failover rule ' + (index + 1)}>
             <div className="failover-heading"><strong>Rule {index + 1}</strong><div className="failover-actions"><button type="button" className="btn-neutral btn-sm" disabled={disabled || index === 0} aria-label={'Move rule ' + (index + 1) + ' up'} onClick={() => setDraft((previous) => { const rules = [...previous.rules]; [rules[index - 1], rules[index]] = [rules[index], rules[index - 1]]; return { ...previous, rules }; })}>Move up</button><button type="button" className="btn-neutral btn-sm" disabled={disabled || index + 1 === draft.rules.length} aria-label={'Move rule ' + (index + 1) + ' down'} onClick={() => setDraft((previous) => { const rules = [...previous.rules]; [rules[index + 1], rules[index]] = [rules[index], rules[index + 1]]; return { ...previous, rules }; })}>Move down</button><button type="button" className="btn-danger btn-sm" onClick={() => setDraft({ ...draft, rules: draft.rules.filter((_, at) => at !== index) })}>Remove rule</button></div></div>
             <details className="failover-technical"><summary>Rule identifier</summary><code>{rule.id}</code></details><div className="failover-grid"><Field label={'Rule ' + (index + 1) + ' name (optional)'}><input maxLength={120} value={rule.name || ''} onChange={(event) => change('name', event.target.value)} /></Field></div>
             <label className="failover-check"><input type="checkbox" checked={rule.enabled} onChange={(event) => change('enabled', event.target.checked)} />Use this backup rule</label>
-            <div className="failover-grid"><Field label={'Rule ' + (index + 1) + ' primary route'}><CatalogSelect kind="payment-route" records={sourceRoutes} value={rule.sourceRouteId} loading={routesLoading} disabled={disabled} onChange={(event) => change('sourceRouteId', event.target.value)}><option value="">Choose a source route</option>{sourceRoutes.map((route) => <option key={route.id} value={route.id}>{route.paymentMethodName + ' · ' + route.paymentProviderName + ' · #' + route.id}</option>)}</CatalogSelect></Field>
+            <div className="failover-grid"><Field label={'Rule ' + (index + 1) + ' source route'} help="The provider that must confirm non-payment for this step. It can be the original provider or an earlier alternate."><CatalogSelect kind="payment-route" records={sourceRoutes} value={rule.sourceRouteId} loading={routesLoading} disabled={disabled} onChange={(event) => change('sourceRouteId', event.target.value)}><option value="">Choose a source route</option>{sourceRoutes.map((route) => <option key={route.id} value={route.id}>{route.paymentMethodName + ' · ' + route.paymentProviderName + ' · #' + route.id}</option>)}</CatalogSelect></Field>
               <Field label={'Rule ' + (index + 1) + ' backup route'} help="Target must use the identical mobile-money method and compatible payout action."><CatalogSelect kind="payment-route" records={targets} value={rule.targetRouteId} loading={routesLoading} disabled={disabled || !source} onChange={(event) => change('targetRouteId', event.target.value)}><option value="">Choose a target route</option>{targets.map((route) => <option key={route.id} value={route.id}>{route.paymentMethodName + ' · ' + route.paymentProviderName + ' · #' + route.id}</option>)}</CatalogSelect></Field></div>
-            <div className="failover-card"><strong>When can this backup be used?</strong><small>Choose confirmed, immediate rejection conditions. Timeouts and accepted requests cannot trigger a backup.</small>{failoverCodes(capabilities).map((entry) => <label className="failover-check" key={entry.code}><input type="checkbox" checked={rule.rejectionCodes.includes(entry.code)} onChange={(event) => change('rejectionCodes', event.target.checked ? [...rule.rejectionCodes, entry.code] : rule.rejectionCodes.filter((code) => code !== entry.code))} /><span>{failureConditionLabel(entry.code)}<small>{entry.code}</small><small style={{ display: 'block' }}>{entry.explanation}</small></span></label>)}
-              {rule.rejectionCodes.filter((code) => !failoverCodes(capabilities).some((entry) => entry.code === code)).map((code) => <span key={code}>Unsupported saved code: {code}. Remove this rule or refresh capabilities before publishing.</span>)}
+            <div className="failover-card"><strong>What confirms non-payment for this source?</strong><small>{source ? `Showing reviewed ${source.paymentProviderName} evidence only. Acceptance, a generic HTTP error or a timeout alone cannot switch providers.` : 'Select a source route to see its reviewed evidence codes.'}</small>{evidenceCodes.map((entry) => <label className="failover-check" key={entry.code}><input type="checkbox" checked={rule.rejectionCodes.includes(entry.code)} onChange={(event) => change('rejectionCodes', event.target.checked ? [...rule.rejectionCodes, entry.code] : rule.rejectionCodes.filter((code) => code !== entry.code))} /><span>{failureConditionLabel(entry.code)}<small>{entry.code}</small><small style={{ display: 'block' }}>{entry.explanation}</small></span></label>)}
+              {rule.rejectionCodes.filter((code) => !evidenceCodes.some((entry) => entry.code === code)).map((code) => <div key={code}><span>Saved evidence is unavailable or belongs to another source: {code}.</span> <button type="button" className="btn-neutral btn-sm" onClick={() => change('rejectionCodes', rule.rejectionCodes.filter((item) => item !== code))}>Remove {code}</button></div>)}
             </div>
           </article>;
         })}
@@ -168,11 +171,11 @@ export default function PolicyPanel({ capabilities, canPublish, onRevision, onPo
     </Card> : null}
     <div hidden={view !== 'setup'}><PreviewPanel capabilities={capabilities} configuration={validation.payload} saved={saved} routes={sourceRoutes} /></div>
     <details className="card failover-technical" hidden={view !== 'setup'}><summary>Supported providers and fixed safeguards</summary><div className="failover-card" style={{ marginTop: '.8rem' }}>
+      <ProviderContracts capabilities={capabilities} />
       <p>Maximum {capabilities.maximumProviders} providers. {capabilities.requiresSynchronousRejection ? 'A correlated synchronous rejection is required.' : ''} {capabilities.preservesCustomerQuote ? 'The customer quote is preserved.' : ''} {capabilities.wholeUnitsOnly ? 'Whole units only.' : ''} {capabilities.sameCurrencyOnly ? 'Same currency only.' : ''}</p>
       {capabilities.maximumDraftProviders ? <p>Disabled scoped preferences can contain up to {capabilities.maximumDraftProviders} providers. This does not increase the {capabilities.maximumProviders}-provider execution limit.</p> : null}
       {Array.isArray(capabilities.scopePrecedence) ? <p>Backend scope precedence: {capabilities.scopePrecedence.join(' → ')}.</p> : null}
       <p>Timeout fallback: {capabilities.allowsTimeoutFallback ? 'Supported' : 'Unavailable'}. Manual resubmit: {capabilities.allowsManualResubmit ? 'Supported' : 'Unavailable'}.</p>
-      {capabilities.providers.filter((provider) => provider.sourceSupported || provider.targetSupported).map((provider) => <div className="failover-rule-summary" key={provider.provider}><strong>{provider.provider} · Live lookup {provider.liveStatusCheckSupported ? 'supported' : 'UNSUPPORTED'}</strong><span>{provider.explanation}</span></div>)}
       <p>Account routing, recipient funding constraints, cutover and attempt guards still apply. With both rule lists empty, activation can discover validated defaults. A nonempty list is preserved as saved; blocked scopes never fall through to broader defaults.</p>
     </div></details>
   </div>;

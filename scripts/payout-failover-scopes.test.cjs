@@ -4,6 +4,7 @@ const path = require('node:path');
 const { test } = require('node:test');
 const load = file => import('data:text/javascript;base64,' + Buffer.from(readFileSync(path.join(__dirname, '..', file), 'utf8')).toString('base64'));
 const helpers = load('lib/payout-failover.js');
+const legacyCapabilities = { maximumProviders: 2, requiresSynchronousRejection: true, providers: [{ provider: 'PAWAPAY', sourceSupported: true, targetSupported: false }, { provider: 'MAPLERAD', sourceSupported: false, targetSupported: true }], errorCodes: [{ provider: 'PAWAPAY', operation: 'PAYOUT', selectable: true, code: 'PROVIDER_TEMPORARILY_UNAVAILABLE' }] };
 const scope = (id, extra = {}) => ({ id, name: null, enabled: true, paymentMethod: null, countryCode: null, currency: null, providers: ['PAWAPAY', 'MAPLERAD'], ...extra });
 const configuration = { enabled: false, createdAfter: null, accountIds: [123], rules: [], routingRules: [scope('global'), scope('benin', { countryCode: 'BJ' }), scope('benin-xof', { countryCode: 'BJ', currency: 'XOF' }), scope('moov-off', { enabled: false, paymentMethod: 'MOOV_MONEY_BENIN' }), scope('draft-gbp', { enabled: false, currency: 'GBP', providers: ['ARAKAPAY', 'AVADAPAY', 'MAPLERAD'] })] };
 const defaults = { configuration, readiness: { valid: false, issues: [{ severity: 'ERROR', code: 'PREFLIGHT_UNAVAILABLE', path: 'routingRules[global]', message: 'Preflight unavailable' }], routes: [] }, skippedSources: 1, truncated: false, coverage: [{ paymentMethod: 'MOOV_MONEY_BENIN', countryCode: 'BJ', currency: 'XOF', action: 'BUSINESS_API_PAYOUT', scopeId: 'moov-off', enabled: false, providers: ['PAWAPAY', 'MAPLERAD'], routes: [], executable: false, blockers: ['SCOPE_DISABLED'] }] };
@@ -37,11 +38,11 @@ test('scoped rules reject duplicates, cross-list IDs, unsupported executable ord
     [scope('one', { countryCode: 'BEN' })], [scope('one', { currency: 'XOFx' })], [scope('one', { paymentMethod: 'bad method' })],
     [scope('one', { newField: true })], Array(101).fill(scope('one'))
   ];
-  for (const routingRules of invalidRules) assert.throws(() => h.failoverConfiguration({ ...configuration, routingRules }));
+  for (const routingRules of invalidRules) assert.throws(() => h.failoverConfiguration({ ...configuration, routingRules }, legacyCapabilities));
   const routeRule = { id: 'same-id', enabled: false, sourceRouteId: 1, targetRouteId: 2, rejectionCodes: ['PROVIDER_TEMPORARILY_UNAVAILABLE'] };
   assert.throws(() => h.failoverConfiguration({ ...configuration, rules: [routeRule], routingRules: [scope('same-id')] }));
-  assert.equal(h.payoutOrderExecutable(['PAWAPAY', 'MAPLERAD']), true);
-  assert.equal(h.payoutOrderExecutable(['PAWAPAY', 'MAPLERAD', 'ARAKAPAY']), false);
+  assert.equal(h.payoutOrderExecutable(['PAWAPAY', 'MAPLERAD'], legacyCapabilities), true);
+  assert.equal(h.payoutOrderExecutable(['PAWAPAY', 'MAPLERAD', 'ARAKAPAY'], legacyCapabilities), false);
 });
 
 test('payout automatic activation leaves cutoff and rules to the backend; recharge helper remains explicit', async () => {

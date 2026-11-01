@@ -4,7 +4,7 @@ This is the team operating guide for payout and recharge failover. It covers the
 
 ## 1. The mental model
 
-**One customer transaction, one original quote/debit, and at most one alternate provider attempt.**
+**One customer transaction and one original quote/debit.** Payout failover allows at most three distinct providers in total (the original plus up to two alternates). Recharge remains limited to two providers in total. A provider cannot be attempted twice.
 
 An attempt is an external provider request with its own recorded identity. It is not another customer purchase. The journal remembers every attempt so a restart, callback, policy change or repeated request cannot authorize an extra payment.
 
@@ -17,7 +17,7 @@ For a new alternate claim, all of these must agree:
 3. An enabled directional rule matches its actual route or exact product.
 4. The source produced the reviewed failure evidence for that system.
 5. Route/product, account, recipient, funding and original-quote checks still pass.
-6. The journal permits the claim: no previous alternate, uncertainty, conflicting success or refund reservation blocks it.
+6. The journal permits the claim: the distinct-provider limit is not exhausted, earlier attempts have the required non-payment evidence, and uncertainty, conflicting success or refund reservation does not block it.
 
 ```mermaid
 flowchart TD
@@ -25,11 +25,12 @@ flowchart TD
     B --> C{Outcome evidence}
     C -->|Confirmed success| D[Complete using the original transaction]
     C -->|Accepted, pending or uncertain| E[Continue recovery and investigation]
+    E -->|New trusted evidence| C
     C -->|Reviewed failover trigger| F{Current policy and journal allow a switch?}
     F -->|No| G[Existing recovery or final-failure handling]
-    F -->|Yes| H[Durably claim one alternate attempt]
+    F -->|Yes and attempt budget remains| H[Durably claim the next distinct provider]
     H --> I[Send and recover the alternate using its own identity]
-    I --> J[Settle only from trusted outcome evidence]
+    I --> C
 ```
 
 **Unknown does not mean unpaid.** Timeouts, missing lookups and queued requests cannot justify a second provider request. Evidence that the provider accepted a request is also different from evidence that it completed delivery.
@@ -44,10 +45,10 @@ The policies are independent. Enabling or pausing one does not change the other.
 | --- | --- | --- |
 | Menu | **Payout failover**, also linked from **Payments** | **Recharge failover**, also linked from **Payments** |
 | Page | `/dashboard/payout-failover` | `/dashboard/recharge-failover` |
-| Direction | pawaPay → Maplerad only | RELOADLY → ZENDIT or ZENDIT → RELOADLY |
+| Direction | Backend-reviewed orders using PAWAPAY, AVADAPAY, MAPLERAD and last-only ARAKAPAY | RELOADLY → ZENDIT or ZENDIT → RELOADLY |
 | What a rule maps | Two routes for the identical mobile-money method, with compatible wallet/Business API payout actions | Two inspected, equivalent FIXED direct-delivery AIRTIME, DATA or BUNDLE products |
-| Trigger | A correlated, synchronous rejection with a reviewed code | Verified terminal non-delivery with a reviewed source-specific condition |
-| Attempt limit | Primary plus one alternate | Primary plus one alternate, using distinct providers |
+| Trigger | Source-specific confirmed non-payment: synchronous rejection, authenticated final lookup or admitted signed final-failure callback | Verified terminal non-delivery with a reviewed source-specific condition |
+| Attempt limit | Three distinct providers total, including the original | Primary plus one alternate, using distinct providers |
 | Preview | Configuration only, a sample payout, or an existing transaction | An existing transaction only; may read provider catalogs |
 | On-demand provider check | **Read latest provider evidence**, observational only | No manual status-check action in this screen; inspect recorded recovery observations |
 
@@ -96,7 +97,7 @@ Have engineering confirm the matching backend release and migrations are deploye
 
 | System | Backend schema requirements |
 | --- | --- |
-| Payout | `20261207_payout_failover_journal.sql`, then `20261208_payout_failover_admin.sql`, `20261209_payout_failover_refund_fence.sql` and `20261212_payout_failover_routing_defaults.sql` |
+| Payout | `20261207_payout_failover_journal.sql`, then `20261208_payout_failover_admin.sql`, `20261209_payout_failover_refund_fence.sql`, `20261212_payout_failover_routing_defaults.sql` and `20261213_payout_failover_provider_contracts.sql` |
 | Recharge | `20261211_recharge_failover.sql` |
 
 Refresh capabilities and saved policy in the intended environment. Confirm the current revision, configured/effective state and any emergency suppression. No migration, dashboard build or documentation change enables a production policy.
@@ -144,19 +145,42 @@ If both saved rule lists are empty, activation can discover validated environmen
 
 Country is the payment method's destination ISO alpha-2 country. Currency is its payout currency. Neither is the customer's residence or preferred wallet currency.
 
-The winner is selected before checking availability. A blocked scope, unsupported order or missing/inactive backup never falls through to a broader default. A dedicated action/payout mapping also wins over a generic mapping even when the dedicated one is inactive. Duplicate or ambiguous scopes fail closed; display order cannot resolve ambiguity.
+The winner is selected before checking availability. Missing/inactive alternatives can be skipped within that winning provider order; a broader scope is never tried. A blocked scope prevents inheritance. A dedicated action/payout mapping also wins over a generic mapping even when the dedicated one is inactive. Duplicate or ambiguous scopes fail closed; display order cannot resolve ambiguity.
+
+Coverage is locally executable when at least one reviewed source/alternate path passes local checks. A missing optional provider can remain visible in the route list without blocking another eligible alternate in the same scope. Use **Show only combinations with unavailable routes or blockers** to find both fully blocked combinations and executable combinations with unavailable alternatives. This assessment is not a balance, uptime or entitlement guarantee.
 
 For example, with global and Benin/XOF backups allowed, a blocked `MOOV_MONEY_BENIN` scope excludes MOOV Benin. Another eligible Benin/XOF method can use the country/currency scope. Deleting the method override restores inheritance after saving.
 
-Requested provider orders contain 2–4 distinct mobile-money providers. **Only pawaPay → Maplerad (two providers) can execute.** ArakaPay/AvadaPay, a Maplerad primary or a third provider may be saved only with that scoped rule blocked. Such preferences do not change primary routing ranks or add another provider's rejection/callback/refund contract. Scope IDs allow 1–32 letters, digits, `_` or `-` and must be unique across both rule lists.
+Requested provider orders contain 2–4 distinct mobile-money providers, but **execution allows at most three**. Every provider before the last must have a reviewed non-payment source contract. ArakaPay is alternate-only and must be last; four-provider orders and ArakaPay-first/middle orders remain blocked preferences. Scope IDs allow 1–32 letters, digits, `_` or `-` and must be unique across both rule lists. Ordering controls alternates for the already selected source; primary routing ranks are unchanged.
+
+Executable examples include PAWAPAY → AVADAPAY → ARAKAPAY, AVADAPAY → PAWAPAY → MAPLERAD, both directions between PAWAPAY and AVADAPAY, and native Maplerad → PawaPay where the method/currency routes pass preflight.
+
+### Provider evidence contracts
+
+The dashboard reads source/alternate roles, selectable codes, lookup support and limits from `/capabilities`. `requiresConfirmedNonPayment:true` is required for the expanded contract. `requiresSynchronousRejection:false` allows reviewed asynchronous final evidence; it does not permit generic retries. Older synchronous two-provider responses remain compatible. A failed/invalid capability refresh disables saves and activation while retaining the draft.
+
+| Provider | Can continue to another provider? | Can be an alternate? | Required evidence |
+| --- | --- | --- | --- |
+| PAWAPAY | Yes | Yes | Matching synchronous REJECTED plus a reviewed payout code |
+| AVADAPAY | Yes | Yes | Successful authenticated lookup for the exact order_id, final status 3 |
+| MAPLERAD | Yes | Yes | Admitted signed transfer.failed callback, matching reference, explicit FAILED |
+| ARAKAPAY | No | Yes, last only | Authenticated matching 200 / APPROVED confirms success; declined/failed remains for review |
+
+`AVADAPAY_FINAL_FAILED` is backend evidence, not an outage/low-balance error. Known gateway/PIN/authentication errors (`AVADAPAY_FINAL_NON_RETRYABLE`) and final cancellation (`AVADAPAY_FINAL_CANCELLED`) cannot switch. Status 5 is partial cancellation and remains unresolved. Unknown/mismatched identities, unsuccessful lookups and not-found responses also remain unresolved. Signed AvadaPay callbacks are verified by authenticated lookup.
+
+An accepted AvadaPay payout can continue the same managed chain after authenticated final status 3, subject to the latest policy, cutoff, cohort, destination checks and remaining attempt budget. The timeout or earlier acceptance itself is never a switching condition. The backend durably records rejection and claims the next attempt before its POST; pending/uncertain continuation does not enter refund or failure execution. No alternate means the normal confirmed-failure/refund path applies.
+
+`MAPLERAD_FINAL_FAILED` requires the admitted signed final-failure callback and can continue the same native-currency chain before refund/executor processing. A generic HTTP error, reversal alias or unverified cancellation cannot replace that evidence. No live Maplerad lookup is exposed.
+
+ArakaPay callbacks are unsigned lookup triggers; they cannot directly settle or refund a managed payout. Each lookup uses the attempt's actual reference, not the customer's logical reference. Evidence codes and journal state are separate: a retained non-retryable code alone does not mean the attempt is REJECTED. Recorded success is retained while awaiting settlement; contradictory failure requires review. Provider clients do not automatically repeat payout POSTs.
 
 ### Existing explicit route pairs
 
-Expand **Advanced: explicit route-pair rules** for the original exact-route contract. Select a real pawaPay primary and Maplerad backup for the identical mobile-money method and compatible payout action. Choose only capability-provided rejection conditions: currently `PROVIDER_TEMPORARILY_UNAVAILABLE` and `PAWAPAY_WALLET_OUT_OF_FUNDS`.
+Expand **Advanced: explicit route-pair rules** for the exact-route contract. Select a reviewed source and distinct alternate for the identical mobile-money method and compatible payout action. Evidence choices are filtered to that source provider: PAWAPAY uses `PROVIDER_TEMPORARILY_UNAVAILABLE` or `PAWAPAY_WALLET_OUT_OF_FUNDS`, AVADAPAY uses `AVADAPAY_FINAL_FAILED`, and MAPLERAD uses `MAPLERAD_FINAL_FAILED`. Changing source does not silently delete the old code; remove incompatible saved evidence and select the correct source-bound condition.
 
 Keep stable IDs and list order. An explicit source-route rule takes precedence over scoped defaults, including when disabled; removing it can restore scoped inheritance. Older policies without `routingRules` remain compatible. Saving route-pair edits retains all scoped overrides.
 
-Only reviewed synchronous source rejections can switch. Customer insufficient balance, a generic HTTP failure, an accepted/enqueued payout, a timeout or an unknown outcome cannot trigger Maplerad. The payout must satisfy the whole-unit, same-currency, unchanged-quote and destination-funding constraints. An account-specific provider route remains a constraint even when the account is in the pilot.
+Only the source provider's reviewed confirmed non-payment can switch. Customer insufficient balance, generic HTTP failure, acceptance alone, timeout or unknown outcome cannot trigger an alternate. Whole-unit, same-currency, unchanged-quote and destination-funding checks still apply. An account-specific provider route remains a constraint even when the account is in the pilot.
 
 ### Preview a planned activation without publishing it
 
@@ -252,9 +276,9 @@ Start with the original transaction ID/reference. Inspect **all attempts**, incl
 
 ### Payout evidence checks
 
-In **Payment activity**, investigate a transaction and use **Read latest provider evidence**. It uses recorded identities, including the original pawaPay UUID after a route change. It records observations and an audit event without submitting, refunding, settling or automatically reconciling money.
+In **Payment activity**, investigate a transaction and use **Read latest provider evidence**. Each provider is queried using its recorded attempt identity, including earlier providers after a route change. It records observations and an audit event without submitting, refunding, settling or automatically reconciling money.
 
-The cooldown is 30 seconds per transaction across all admins/processes. On `429`, wait for the cooldown rather than repeatedly clicking. pawaPay lookup is supported; Maplerad live lookup is currently `UNSUPPORTED`. Use recorded signed callbacks and the provider's operational records for that side. Do not treat an old submit/callback summary as a fresh provider query.
+The cooldown is 30 seconds per transaction across all admins/processes. On `429`, wait for the cooldown rather than repeatedly clicking. Current capabilities advertise live lookup for pawaPay, AvadaPay and ArakaPay. Maplerad live lookup remains `UNSUPPORTED`; use admitted signed callbacks and provider operational records. An old submit/callback summary is not a fresh lookup. A manual observational check never authorizes another payout or refund.
 
 Do not substitute the generic transaction **momo-status** action: that existing action can trigger fulfillment. The failover-specific check is the observational tool.
 

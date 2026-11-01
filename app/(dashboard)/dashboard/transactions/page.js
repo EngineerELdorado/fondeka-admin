@@ -12,7 +12,6 @@ import { DataTable } from '@/components/DataTable';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
-import { SandboxHistoryLink } from '@/components/business-api-sandbox/Common';
 import { paymentMethodAdminLabel, paymentMethodRouteAdminLabel } from '@/lib/payment-method-labels';
 
 const serviceOptions = ['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'COMMERCE', 'PAYMENT_REQUEST', 'BUSINESS_TOOLS', 'BUSINESS_API', 'E_SIM', 'AIRTIME_AND_DATA', 'OTHER'];
@@ -2409,8 +2408,6 @@ export default function TransactionsPage() {
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <div style={{ fontWeight: 800, fontSize: '20px' }}>Transactions</div>
-          <SandboxHistoryLink />
-          <div style={{ color: 'var(--muted)' }}>Trace transactions with deep filters and quick drill-down.</div>
         </div>
         <Link href="/dashboard" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
           ← Dashboard
