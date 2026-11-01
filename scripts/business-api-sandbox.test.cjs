@@ -62,6 +62,20 @@ test('resource confirmation rejects LIVE, missing and wrong-reference responses 
   assert.throws(() => sandboxHistoryPage({ ...page, content: [{ ...row, environment: 'LIVE' }] }, 0, 20));
 });
 
+test('sandbox history accepts Spring VIA_DTO pagination without relaxing page or environment checks', async () => {
+  const { sandboxHistoryPage } = await load('lib/business-api-sandbox.js');
+  const row = payment();
+  const response = { content: [row], page: { number: 2, size: 20, totalElements: 41, totalPages: 3 } };
+  const normalized = sandboxHistoryPage(response, 2, 20);
+  assert.equal(normalized.content, response.content);
+  assert.deepEqual([normalized.number, normalized.size, normalized.totalElements, normalized.totalPages], [2, 20, 41, 3]);
+  assert.deepEqual(sandboxHistoryPage({ content: [], page: { number: 0, size: 20, totalElements: 0, totalPages: 0 } }, 0, 20).content, []);
+  assert.throws(() => sandboxHistoryPage(response, 1, 20));
+  assert.throws(() => sandboxHistoryPage(response, 2, 50));
+  assert.throws(() => sandboxHistoryPage({ ...response, page: { ...response.page, totalPages: '3' } }, 2, 20));
+  assert.throws(() => sandboxHistoryPage({ ...response, content: [{ ...row, environment: 'LIVE' }] }, 2, 20));
+});
+
 test('sandbox API helpers expose GETs only, use the admin JWT/base, encode once and retain denied reads', async (t) => {
   const originalFetch = global.fetch, originalWindow = global.window, originalBase = process.env.NEXT_PUBLIC_ADMIN_API_BASE;
   t.after(() => { global.fetch = originalFetch; global.window = originalWindow; if (originalBase === undefined) delete process.env.NEXT_PUBLIC_ADMIN_API_BASE; else process.env.NEXT_PUBLIC_ADMIN_API_BASE = originalBase; });

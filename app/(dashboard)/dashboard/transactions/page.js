@@ -1441,25 +1441,6 @@ export default function TransactionsPage() {
         render: (row) => row?.accountId ?? row?.account?.id ?? '—'
       },
       {
-        key: 'commerce',
-        label: 'Commerce order',
-        render: (row) => {
-          const commerce = row?.commerce;
-          if (!commerce) return '—';
-          const owner = commerce.storeOwnerAccount;
-          const merchant = commerce.merchantAccount;
-          const buyer = commerce.buyer;
-          return (
-            <div style={{ display: 'grid', gap: '0.12rem', minWidth: '220px' }}>
-              <strong>{commerce.orderReference || `Order ${commerce.orderId || '—'}`}</strong>
-              <span style={{ fontSize: '12px' }}>{commerce.store?.name || commerce.store?.slug || `Store ${commerce.store?.id || '—'}`} · {formatEnumLabel(commerce.orderStatus)}</span>
-              <span style={{ color: 'var(--muted)', fontSize: '11px' }}>Buyer: {buyer?.name || buyer?.email || (buyer?.guest ? 'Guest' : '—')}</span>
-              <span style={{ color: 'var(--muted)', fontSize: '11px' }}>Owner: {owner?.name || owner?.accountReference || owner?.accountId || '—'} · Merchant: {merchant?.name || merchant?.accountReference || merchant?.accountId || '—'}</span>
-            </div>
-          );
-        }
-      },
-      {
         key: 'actions',
         label: 'Actions',
         render: (row) => (

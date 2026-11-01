@@ -134,6 +134,8 @@ Apply backend migration `20261206_referral_invitation_prompt.sql` and deploy the
 
 ## Payout failover
 
+Team operating guide: [Managing provider failover](docs/provider-failover-guide.md), covering the mental model, setup, cutovers, pausing, monitoring and incident investigation for both payout and recharge failover.
+
 Open **Payments → Payout failover**, or `/dashboard/payout-failover`. Admins and Super Admins can inspect counts, operations, attempt timelines, capabilities and revision history, and run non-payment previews. Only Super Admins can publish or activate/pause. Assistants and Staff have no access. Regulator presentation hides this page because the shared policy and investigation include wallet payouts.
 
 **Policy & rollout** keeps the saved policy and editor draft separate. Source, revision, configured/effective switches, infrastructure suppression, cutover floor and structured validation are shown from backend responses. Use the searchable country-grouped route selectors for pawaPay → Maplerad mappings of the same mobile-money method. Rejection choices come from capabilities; rules retain stable IDs and array order. Empty rollout IDs mean all otherwise eligible accounts. Publication replaces the entire document immediately and requires an audit reason. No policy is enabled merely by adding this dashboard.
