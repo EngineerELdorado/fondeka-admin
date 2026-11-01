@@ -1,0 +1,42 @@
+'use client';
+
+import { useState } from 'react';
+import { CatalogSelect } from '@/components/CatalogSelect';
+import { newPayoutScope, payoutOrderExecutable, payoutScopeLabel } from '@/lib/payout-failover';
+import { Field } from './Common';
+
+export default function RoutingRulesEditor({ rules, methods, capabilities, disabled, onChange }) {
+  const [expanded, setExpanded] = useState(null);
+  const providers = ['PAWAPAY', 'MAPLERAD', 'ARAKAPAY', 'AVADAPAY'].filter((name) => capabilities.providers.some((item) => item.provider === name));
+  const options = methods.map((method) => ({ ...method, id: method.name }));
+  const update = (index, key, value) => onChange(rules.map((item, at) => at === index ? { ...item, [key]: value } : item));
+  const move = (index, from, to) => { const list = [...rules[index].providers]; [list[from], list[to]] = [list[to], list[from]]; update(index, 'providers', list); };
+  return <div className="failover-card">
+    <div><h3>Defaults and scoped overrides</h3><p>Set a global provider order, then narrow it by payment method, destination country or payout currency. All filled filters must match. Scopes follow specificity, not their display order.</p></div>
+    <details className="failover-technical"><summary>Which setting wins?</summary><ol><li>Explicit source-route rules (under Advanced route pairs below).</li><li>Payment method, with country/currency filters making it more specific.</li><li>Destination country + payout currency.</li><li>Destination country.</li><li>Payout currency.</li><li>Global default.</li></ol><p>The winning scope is chosen before route availability is checked. A blocked scope or a missing/inactive backup never falls through to a broader default. Delete an override to restore inheritance. Equal scopes cannot coexist.</p></details>
+    {!rules.length ? <p>No scoped defaults are in this draft. Review environment defaults below, or add an override. Existing explicit route-pair rules continue to apply.</p> : null}
+    {rules.map((rule, index) => <details className="failover-rule-summary" key={rule.id} open={expanded === rule.id || undefined}>
+      <summary className="failover-scope-summary"><strong>{rule.name || payoutScopeLabel(rule)}</strong><span>{rule.enabled ? 'Allow backups' : 'Block backups · no inheritance'} · {rule.providers.join(' → ')}</span>{!payoutOrderExecutable(rule.providers) ? <small>Provider preference only · cannot execute in this release</small> : null}</summary>
+      <div className="failover-card" style={{ marginTop: '.8rem' }}>
+        <p>Matches: <strong>{payoutScopeLabel(rule)}</strong>. These filters describe the payment method&apos;s destination and payout currency, not the customer&apos;s home country or wallet preference.</p>
+        <div className="failover-grid">
+          <Field label={`Scope ${index + 1} name (optional)`}><input maxLength={120} value={rule.name || ''} onChange={(event) => update(index, 'name', event.target.value)} /></Field>
+          <Field label={`Scope ${index + 1} behavior`} tip="Block is an explicit override: it prevents broader defaults from being used. Removing this scope restores inheritance. A disabled provider preference still blocks inheritance for its matching scope."><select value={String(rule.enabled)} onChange={(event) => update(index, 'enabled', event.target.value === 'true')}><option value="true">Allow backups for this scope</option><option value="false">Block backups for this scope</option></select></Field>
+          <Field label={`Scope ${index + 1} payment method`} help="Any method leaves this filter unrestricted."><CatalogSelect kind="payment-method" records={options} value={rule.paymentMethod || ''} disabled={disabled} onChange={(event) => update(index, 'paymentMethod', event.target.value || null)}><option value="">Any payment method</option>{options.map((method) => <option key={method.name} value={method.name}>{method.displayName || method.name}</option>)}{rule.paymentMethod && !options.some((method) => method.name === rule.paymentMethod) ? <option value={rule.paymentMethod}>{rule.paymentMethod} · saved method unavailable in catalog</option> : null}</CatalogSelect></Field>
+          <Field label={`Scope ${index + 1} destination country`} help="ISO alpha-2, e.g. BJ. Blank means any country." tip="This is the payment method's destination country. It is independent of the customer account's country."><input maxLength={2} placeholder="Any country" value={rule.countryCode || ''} onChange={(event) => update(index, 'countryCode', event.target.value.toUpperCase())} /></Field>
+          <Field label={`Scope ${index + 1} payout currency`} help="Three-letter currency, e.g. XOF. Blank means any currency."><input maxLength={3} placeholder="Any currency" value={rule.currency || ''} onChange={(event) => update(index, 'currency', event.target.value.toUpperCase())} /></Field>
+        </div>
+        <div className="failover-card"><strong>Requested provider order</strong><small>Only pawaPay → Maplerad (two providers) can execute. Other mobile-money orders can be stored only with this scope blocked. This does not change ordinary primary-provider ranks.</small>
+          <ol className="failover-provider-order">{rule.providers.map((provider, at) => <li key={at}><Field label={`Scope ${index + 1} provider ${at + 1}`}><select value={provider} onChange={(event) => update(index, 'providers', rule.providers.map((name, position) => position === at ? event.target.value : name))}>{[...new Set([...providers, provider])].map((name) => <option key={name} value={name} disabled={rule.providers.includes(name) && name !== provider}>{name}</option>)}</select></Field><div className="failover-actions"><button type="button" className="btn-neutral btn-sm" disabled={disabled || at === 0} aria-label={`Move scope ${index + 1} provider ${at + 1} up`} onClick={() => move(index, at, at - 1)}>Move up</button><button type="button" className="btn-neutral btn-sm" disabled={disabled || at + 1 === rule.providers.length} aria-label={`Move scope ${index + 1} provider ${at + 1} down`} onClick={() => move(index, at, at + 1)}>Move down</button><button type="button" className="btn-neutral btn-sm" disabled={disabled || rule.providers.length <= 2} aria-label={`Remove scope ${index + 1} provider ${at + 1}`} onClick={() => update(index, 'providers', rule.providers.filter((_, position) => position !== at))}>Remove</button></div></li>)}</ol>
+          <button type="button" className="btn-neutral btn-sm" disabled={disabled || rule.providers.length >= Math.min(capabilities.maximumDraftProviders || 4, 4) || providers.every((name) => rule.providers.includes(name))} onClick={() => update(index, 'providers', [...rule.providers, providers.find((name) => !rule.providers.includes(name))])}>Add draft provider</button>
+          {!payoutOrderExecutable(rule.providers) ? <p className="failover-notice">This order cannot execute. Keep this scope blocked to save it as a provider preference. The global switch does not make an unsupported order executable.</p> : null}
+        </div>
+        <details className="failover-technical"><summary>Stable scope identifier</summary><code>{rule.id}</code></details>
+        <button type="button" className="btn-danger btn-sm" disabled={disabled} onClick={() => onChange(rules.filter((_, at) => at !== index))}>{rule.paymentMethod || rule.countryCode || rule.currency ? 'Delete scope and restore inheritance' : 'Delete global default'}</button>
+        {!rule.paymentMethod && !rule.countryCode && !rule.currency ? <small>Removing the global scope leaves unmatched payments without a scoped default. Narrower overrides and explicit route pairs remain in the draft.</small> : null}
+      </div>
+    </details>)}
+    <button type="button" className="btn-neutral" disabled={disabled || rules.length >= 100} onClick={() => { const rule = newPayoutScope(); setExpanded(rule.id); onChange([...rules, rule]); }}>Add a scoped override</button>
+    <small>{rules.length}/100 scoped rules. Clearing all three filters makes a global scope. A more specific override can block that global scope.</small>
+  </div>;
+}

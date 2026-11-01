@@ -885,6 +885,12 @@ label {
 .failover-help-content p { line-height: 1.55; margin-top: .4rem; }
 .failover-check > span > small { display: block; margin-top: .25rem; }
 .failover-workspace [hidden] { display: none !important; }
+.failover-scope-summary { cursor: pointer; line-height: 1.6; overflow-wrap: anywhere; }
+.failover-scope-summary > span, .failover-scope-summary > small { display: block; margin-left: 1.15rem; overflow-wrap: anywhere; }
+.failover-provider-order { display: grid; gap: .8rem; padding-left: 1.4rem; margin: 0; }
+.failover-provider-order > li { padding-left: .3rem; }
+.failover-provider-order .failover-actions { margin-top: .5rem; }
+.failover-coverage-blockers { margin: .5rem 0 0; padding-left: 1rem; }
 @media (max-width: 760px) {
   .failover-getting-started { grid-template-columns: 1fr; gap: .85rem; }
   .failover-metrics { grid-template-columns: 1fr; }

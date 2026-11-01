@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { failoverSummary, failoverViews } from '@/lib/failover-presentation';
+import { payoutOrderExecutable, payoutScopeLabel } from '@/lib/payout-failover';
 import { Card, formatInstant } from '@/components/payout-failover/Common';
 
 export { default as HelpTip } from './HelpTip';
@@ -29,9 +30,9 @@ export function FailoverOverview({ snapshot, kind, canPublish, onSetup, onActiva
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(timer); }, []);
   const status = failoverSummary(snapshot, kind, now), payout = kind === 'payout';
   const steps = payout ? [
-    ['Choose a backup route', 'Pair a pawaPay route with a compatible Maplerad route. Choose only the supported failure conditions.'],
+    ['Review defaults and exceptions', 'Inspect environment coverage. Use scoped defaults or explicit route pairs; blocked overrides stop inheritance.'],
     ['Save rules and covered accounts', 'Start with selected customer accounts. Saving an off setup does not turn backups on.'],
-    ['Turn on for new payments', 'Choose a future UTC start time. Payments created earlier stay excluded.']
+    ['Turn on for new payments', 'Use the automatic safe start or choose a future UTC time. Earlier payments stay excluded.']
   ] : [
     ['Review an equivalent product pair', 'Inspect both provider products and confirm benefits, network, cost limits and approval expiry.'],
     ['Save pairs and covered accounts', 'Add reviewed pairs to the draft and choose customer accounts. Save before enabling.'],
@@ -41,8 +42,8 @@ export function FailoverOverview({ snapshot, kind, canPublish, onSetup, onActiva
     <Card title="Saved status">
       <div className="failover-status-heading"><span className={`failover-state failover-state--${status.state}`}>{status.label}</span><p>{status.description}</p></div>
       {status.state !== 'unavailable' ? <>
-        <dl className="failover-status-grid"><div><dt>Saved backup rules</dt><dd>{status.enabledRules} enabled / {status.ruleCount} total</dd></div><div><dt>Customer accounts covered</dt><dd>{status.coverage}</dd></div><div><dt>New payments eligible after</dt><dd>{status.createdAfter ? formatInstant(status.createdAfter) : 'Choose when turning on'}</dd></div></dl>
-        {status.enabledRules === 0 ? <div className="failover-notice">No enabled backup rules are saved. No payment can switch provider until a matching rule is configured and enabled.</div> : null}
+        <dl className="failover-status-grid"><div><dt>{payout ? 'Saved route rules / scopes' : 'Saved backup rules'}</dt><dd>{status.enabledRules} enabled / {status.ruleCount} total</dd>{payout ? <small>{status.routeRuleCount} route pairs · {status.scopedRuleCount} scopes · {status.blockedScopes} blocked scopes</small> : null}</div><div><dt>Customer accounts covered</dt><dd>{status.coverage}</dd></div><div><dt>New payments eligible after</dt><dd>{status.createdAfter ? formatInstant(status.createdAfter) : payout ? 'Backend chooses on activation, or specify a time' : 'Choose when turning on'}</dd></div></dl>
+        {status.enabledRules === 0 ? <div className="failover-notice">{payout ? status.ruleCount === 0 ? 'Both rule lists are empty. Activation can discover validated environment defaults. Review coverage in Backup setup first.' : 'No saved rules or scopes are enabled. Activation preserves blocked overrides; it does not replace them with defaults.' : 'No enabled backup rules are saved. No payment can switch provider until a matching rule is configured and enabled.'}</div> : null}
         <details className="failover-technical"><summary>Configuration details</summary><p>Saved version {status.revision ?? '—'}{status.source ? ` · Source: ${status.source}` : ''}. A new saved version records who changed the setup and why.</p><p>The infrastructure emergency switch can block backups even when the configured switch is on. Provider funds and each recipient&apos;s eligibility still need to pass at execution.</p></details>
       </> : null}
       <div className="failover-actions"><button type="button" className="btn-primary" onClick={onSetup}>{canPublish ? status.ruleCount ? 'Review backup setup' : 'Set up a backup' : 'Review saved setup'}</button><button type="button" className="btn-neutral" onClick={onActivation}>{canPublish ? 'Manage on / pause state' : 'View activation settings'}</button><button type="button" className="btn-neutral" onClick={onActivity}>Find a payment</button></div>
@@ -62,5 +63,6 @@ export function EmptyPayments({ kind }) {
 export function ConfigurationSummary({ configuration, kind }) {
   if (!configuration) return <p>Configuration details are unavailable.</p>;
   const rules = configuration.rules || [];
-  return <div className="failover-card" style={{ marginTop: '.8rem' }}><dl className="failover-status-grid"><div><dt>Configured switch</dt><dd>{configuration.enabled ? 'On' : 'Off'}</dd></div><div><dt>Accounts covered</dt><dd>{configuration.accountIds?.length ? configuration.accountIds.join(', ') : 'All eligible accounts'}</dd></div><div><dt>Payments created after</dt><dd>{formatInstant(configuration.createdAfter)}</dd></div></dl><strong>{rules.length} saved backup rule{rules.length === 1 ? '' : 's'}</strong><ul>{rules.map((rule) => <li key={rule.id}>{kind === 'payout' ? `${rule.name || rule.id}: route #${rule.sourceRouteId} → route #${rule.targetRouteId}` : `${rule.country} · ${rule.type} · ${rule.networkIdentity}: ${rule.source?.provider} → ${rule.target?.provider}`} · {rule.enabled ? 'Enabled' : 'Disabled'}</li>)}</ul></div>;
+  const scopes = kind === 'payout' ? configuration.routingRules || [] : [];
+  return <div className="failover-card" style={{ marginTop: '.8rem' }}><dl className="failover-status-grid"><div><dt>Configured switch</dt><dd>{configuration.enabled ? 'On' : 'Off'}</dd></div><div><dt>Accounts covered</dt><dd>{configuration.accountIds?.length ? configuration.accountIds.join(', ') : 'All eligible accounts'}</dd></div><div><dt>Payments created after</dt><dd>{formatInstant(configuration.createdAfter)}</dd></div></dl><strong>{rules.length} saved {kind === 'payout' ? 'route-pair' : 'backup'} rule{rules.length === 1 ? '' : 's'}</strong><ul>{rules.map((rule) => <li key={rule.id}>{kind === 'payout' ? `${rule.name || rule.id}: route #${rule.sourceRouteId} → route #${rule.targetRouteId}` : `${rule.country} · ${rule.type} · ${rule.networkIdentity}: ${rule.source?.provider} → ${rule.target?.provider}`} · {rule.enabled ? 'Enabled' : 'Disabled'}</li>)}</ul>{scopes.length ? <><strong>{scopes.length} scoped default{scopes.length === 1 ? '' : 's'} / overrides</strong><ul>{scopes.map((rule) => <li key={rule.id}>{rule.name || rule.id} · {payoutScopeLabel(rule)} · {rule.providers.join(' → ')} · {rule.enabled ? 'Allows backups' : 'Blocks backups; no inheritance'}{!payoutOrderExecutable(rule.providers) ? ' · provider preference only' : ''}</li>)}</ul></> : null}</div>;
 }

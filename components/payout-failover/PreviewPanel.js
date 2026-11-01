@@ -24,7 +24,7 @@ export default function PreviewPanel({ capabilities, configuration, saved, route
     lock.current = true; setBusy(true); setError('');
     try {
       const response = await api.payoutFailover.preview(body);
-      if (response?.sendsPayments !== false || !response.validation || !Array.isArray(response.validation.issues) || !Array.isArray(response.validation.routes) || !Array.isArray(response.reasons) || !['NONE', 'SAMPLE', 'EXISTING_TRANSACTION'].includes(response.contextType)) throw new Error('The backend did not confirm a complete non-payment preview.');
+      if (response?.sendsPayments !== false || !response.validation || !Array.isArray(response.validation.issues) || !Array.isArray(response.validation.routes) || !Array.isArray(response.reasons) || !['NONE', 'SAMPLE', 'EXISTING_TRANSACTION'].includes(response.contextType) || response.matchedScopeId != null && typeof response.matchedScopeId !== 'string') throw new Error('The backend did not confirm a complete non-payment preview.');
       setResult({ ...response, inputKey });
     } catch (err) { await fail(err); }
     finally { setBusy(false); lock.current = false; }
@@ -49,6 +49,7 @@ export default function PreviewPanel({ capabilities, configuration, saved, route
       {stale ? <Alert>Inputs or saved revision changed. This is a previous preview; run it again for the current inputs.</Alert> : null}
       <strong>{result.contextType === 'NONE' ? 'Configuration validation only — eligibility not evaluated' : (result.eligible === true ? 'Eligible under local checks' : result.eligible === false ? 'Not eligible under local checks' : 'Eligibility unavailable')}</strong>
       <span>Check: {{ NONE: 'Settings only', SAMPLE: 'Example payout', EXISTING_TRANSACTION: 'Existing payment' }[result.contextType]} · Payments sent: No · Evaluated creation: {formatInstant(result.evaluatedCreatedAt)}</span>
+      {result.matchedScopeId != null ? <div className="failover-notice"><strong>Winning scope: {result.matchedScopeId === 'EXPLICIT_ROUTE' ? 'Explicit source-route rules' : result.matchedScopeId}</strong><p>This scope was selected before availability was checked. A blocked scope or unavailable backup does not fall through to a broader default.</p></div> : null}
       {result.targetRouteId != null ? <span>Alternate route #{result.targetRouteId} · Rule {result.ruleId}</span> : null}
       {result.reasons.length ? <ul>{result.reasons.map((code, index) => { const reason = explainFailoverReason(code); return <li key={index}><strong>{reason.title}</strong><p>{reason.detail}</p><small>{reason.code}</small></li>; })}</ul> : null}
       <ValidationReport report={result.validation} title={stale ? 'Previous preview validation' : 'Preview validation'} />

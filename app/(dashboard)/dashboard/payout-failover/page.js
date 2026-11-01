@@ -41,7 +41,7 @@ export default function PayoutFailoverPage() {
       <FailoverNavigation kind="payout" view={tab} onChange={setTab} />
       <div hidden={tab !== 'overview'}><FailoverOverview kind="payout" snapshot={snapshot} canPublish={canPublish} onSetup={() => setTab('setup')} onActivation={() => setTab('activation')} onActivity={() => setTab('operations')} /></div>
       <div hidden={!['overview', 'operations'].includes(tab)}><OperationsPanel view={tab === 'overview' ? 'overview' : 'operations'} capabilities={capabilities} onHistory={showHistory} initialTransactionId={search.get('transactionId')} /></div>
-      <div hidden={!['setup', 'activation'].includes(tab)}><PolicyPanel view={tab === 'activation' ? 'activation' : 'setup'} capabilities={capabilities} canPublish={canPublish} onRevision={setRevision} onPolicy={setSnapshot} onSetup={() => setTab('setup')} /></div>
+      <div hidden={!['setup', 'activation'].includes(tab)}><PolicyPanel view={tab === 'activation' ? 'activation' : 'setup'} capabilities={capabilities} canPublish={canPublish} onRevision={setRevision} onPolicy={setSnapshot} active={['setup', 'activation'].includes(tab)} /></div>
       <div hidden={tab !== 'history'}><HistoryPanel active={tab === 'history'} latestRevision={revision} focusRevision={historyRevision} /></div>
     </> : loading ? <Card><span role="status">Loading supported payout providers…</span></Card> : null}
   </div>;

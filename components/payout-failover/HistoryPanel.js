@@ -28,14 +28,14 @@ export default function HistoryPanel({ active, latestRevision, focusRevision }) 
     <p>History explains policy selection. To restore historical rule settings, edit the current policy and publish a new revision. Previous cutovers and attempts cannot be rewound.</p>
     <Alert>{error}</Alert><div><button type="button" className="btn-neutral btn-sm" disabled={loading} onClick={() => setReload((value) => value + 1)}>Refresh saved changes</button></div>
     {loading ? <span role="status">Loading revisions…</span> : null}
-    {String(focusRevision) === '0' ? <span>Revision 0 uses deployment defaults; it has no published database history entry.</span> : null}
+    {String(focusRevision) === '0' ? <span>Version 0 is the initial setup, from deployment defaults or the disabled database seed. Check Saved setup for its source; it has no admin publication history entry.</span> : null}
     {focusRevision != null && String(focusRevision) !== '0' ? <span>Requested revision {focusRevision}. New publications may move it to an adjacent page.</span> : null}
     {(result?.content || []).map((entry) => <details key={entry.revision} className="failover-rule-summary" open={String(focusRevision) === String(entry.revision)} ref={String(focusRevision) === String(entry.revision) ? focused : undefined}>
       <summary style={{ cursor: 'pointer' }}><strong>Revision {entry.revision}</strong> · Admin {entry.adminId} · {formatInstant(entry.changedAt)}<div>{entry.reason}</div></summary>
       <ConfigurationSummary configuration={entry.configuration} kind="payout" />
       <details className="failover-technical"><summary>Complete configuration (technical)</summary><pre style={{ marginTop: '.7rem' }}>{JSON.stringify(entry.configuration, null, 2)}</pre></details>
     </details>)}
-    {result?.content.length === 0 && !loading ? <span>No published revisions. Deployment defaults remain in effect until the first publication.</span> : null}
+    {result?.content.length === 0 && !loading ? <span>No admin publications are recorded. Check Saved setup for the current source and initial configuration.</span> : null}
     {result ? <Pager page={page} totalPages={result.totalPages} totalElements={result.totalElements} busy={loading} onChange={setPage} /> : null}
     <small>Audits: PAYOUT_FAILOVER_POLICY_UPDATED, PAYOUT_FAILOVER_ACTIVATED and PAYOUT_FAILOVER_DEACTIVATED use target PAYOUT_FAILOVER_POLICY / 1. PAYOUT_FAILOVER_STATUS_CHECKED uses transaction / transaction ID.</small>
   </Card>;

@@ -71,24 +71,24 @@ There are three different things on the page:
 
 | Thing | Meaning | When it changes payments |
 | --- | --- | --- |
-| Local draft | Your unsaved rules, cohort and proposed configuration | Never by itself; navigation/reload can lose it |
+| Local draft | Your unsaved rules, cohort and proposed configuration | Never by itself; section changes keep it, but reloading or leaving the page can lose it |
 | Published policy | Complete configuration stored under a revision | On successful publication; publishing an enabled configuration is a live change |
 | Effective switch | Configured enabled value, subject to infrastructure suppression | Allows claims only when every transaction-level condition also passes |
 
-**Publish replaces the whole configuration**, including ordered rules, account IDs, enabled value and cutover. It is not a partial rule update. Every retained rule must be included. A publication reason and the last-read `expectedRevision` are required.
+**Publish replaces the whole configuration**, including both payout rule lists (`rules` and `routingRules`), account IDs, enabled value and cutover. It is not a partial rule update. Every retained rule must be included. A publication reason and the last-read `expectedRevision` are required.
 
 **Enable/resume and pause use the saved rules and cohort. They do not publish your unsaved editor changes.** The dashboard preserves a separate dirty draft across these actions. Review or discard that draft before publishing again, especially after a pause, so an old draft cannot accidentally restore an earlier enabled value or cohort.
 
 Other policy concepts:
 
 - **Rollout account IDs:** customer account IDs, not Business IDs, API-key IDs or admin IDs. A blank list means **all otherwise eligible accounts**, not an empty pilot. Maximum: 1,000 IDs.
-- **Rule order:** rules are evaluated in array order, independently of primary-provider rank. Keep the intended precedence when reordering. Maximum: 100 rules.
+- **Rule order:** explicit payout route pairs and recharge product pairs retain array order. Payout scopes use specificity instead of display order. Each list allows up to 100 entries.
 - **Stable rule ID:** keep it when editing the same rule; attempt history uses it to explain a selection. A reverse recharge mapping is a separate directional rule.
 - **Rule enabled:** determines whether that saved rule can participate. A globally enabled policy with no enabled matching rules cannot switch a transaction.
 - **Cutover:** a boundary on the original transaction's creation time, not the time its provider error arrives.
 - **Cutover floor:** the established boundary cannot be moved backwards to adopt historical or paused-period transactions.
 
-For payouts, `DEPLOYMENT` revision `0` means no admin policy has been published yet. The normal default is off. After the first publication, `DATABASE` becomes authoritative across upgraded web/worker processes without a cache TTL or redeploy. Editing deployment route settings then does not replace the published database policy.
+Before the payout seed migration, a pristine unpublished policy reports `DEPLOYMENT` revision `0`. Migration `20261212_payout_failover_routing_defaults.sql` converts only such a null policy to `DATABASE` revision `0`, with global state off, no cutover and scoped presets. Existing saved admin documents are preserved. Database policy is authoritative across upgraded processes; deployment route settings do not replace it.
 
 ## 4. Before the first rollout
 
@@ -96,7 +96,7 @@ Have engineering confirm the matching backend release and migrations are deploye
 
 | System | Backend schema requirements |
 | --- | --- |
-| Payout | `20261207_payout_failover_journal.sql`, then `20261208_payout_failover_admin.sql`; the current backend contract also requires `20261209_payout_failover_refund_fence.sql` |
+| Payout | `20261207_payout_failover_journal.sql`, then `20261208_payout_failover_admin.sql`, `20261209_payout_failover_refund_fence.sql` and `20261212_payout_failover_routing_defaults.sql` |
 | Recharge | `20261211_recharge_failover.sql` |
 
 Refresh capabilities and saved policy in the intended environment. Confirm the current revision, configured/effective state and any emergency suppression. No migration, dashboard build or documentation change enables a production policy.
@@ -119,14 +119,42 @@ Question-mark controls open explanations on click or keyboard activation. Advanc
 
 ## 5. Set up payout failover
 
-1. Open **Payout failover → Backup setup**. Refresh saved policy and route catalog; note the saved revision and source.
-2. In **Configure payout backups**, prepare the setup with backups off. The draft enabled value is under **Advanced: enabled value and creation boundary in this draft**. Enter the pilot account IDs explicitly.
-3. Select **Add a backup route pair**. Choose a real pawaPay source route and a Maplerad target for the identical mobile-money method. Check the country/operator, currency, supported payout action and active states.
-4. Select only the applicable rejection codes offered by capabilities. The current allowlist is `PROVIDER_TEMPORARILY_UNAVAILABLE` and `PAWAPAY_WALLET_OUT_OF_FUNDS`. Leave the generated stable ID intact; use the rule name for an operator-friendly description.
-5. Review every rule and its order. Enter a meaningful **Reason for this setup change**, then **Save backup rules**. Confirm the returned revision and paused saved state.
-6. Use **Test your payout setup without sending payments** to validate the configuration and, when needed, test a sample using the recipe below. Resolve validation errors before activation; review warnings such as an unrestricted cohort.
-7. Open **Turn on / pause**, enter **Start for payments created after (UTC)** and **Reason for turning on or pausing**. Choose **Turn on payout backups**. Confirm a newer saved revision, the intended cutover and the enabled saved state (or **Scheduled** on Overview when the start is in the future).
-8. Reconcile or discard any remaining local preview draft against the new saved revision. Monitor **Payment activity** as new, eligible payouts arrive through the normal flow.
+1. Open **Payout failover → Backup setup** and confirm the saved version and on/off state.
+2. Expand **Review environment defaults and coverage**. This read-only assessment shows preset method/action combinations, requested provider orders, concrete route IDs/operator codes, active states and blockers. Locally executable does not certify provider funds, uptime, entitlement or recipient eligibility.
+3. To use the presets, select **Replace draft rules with disabled defaults**. This replaces both local rule lists and turns the draft off, retaining its customer account IDs and creation boundary. It does not save. Review any custom rules that would be replaced.
+4. Under **Defaults and scoped overrides**, expand a scope or select **Add a scoped override**. Set the payment method, destination country and/or payout currency. All filled filters must match. Leave the generated stable ID unchanged.
+5. Choose **Allow backups for this scope** or **Block backups for this scope**. Block is an explicit exclusion. **Delete scope and restore inheritance** removes that exclusion from the draft.
+6. Enter explicit pilot **Customer account IDs**, then **Reason for this setup change** and **Save backup rules**. Confirm the returned version and off state.
+7. Use **Test your payout setup without sending payments** to validate the configuration and optionally a real/example payment. The result displays the backend's winning scope, even if it blocks switching. Resolve errors and review warnings.
+8. Open **Turn on / pause**. Keep **Automatic safe start (backend chooses)** or select **Choose a future UTC time**. Enter the reason and select **Turn on payout backups**. Confirm the returned creation boundary and newer version. Overview shows **Scheduled** while the start is in the future.
+9. Review/discard any retained preview draft, then monitor new normal-flow payments in **Payment activity**.
+
+If both saved rule lists are empty, activation can discover validated environment defaults without a separate rule publication. Saved rollout accounts are preserved. If either list is nonempty, activation keeps it, including blocked scopes; custom settings are not silently replaced. Activation fails without changing the policy if no executable pair exists.
+
+### How scoped inheritance works
+
+| Priority | Scope |
+| --- | --- |
+| 1 | Explicit source-route rules |
+| 2 | Payment method, made more specific by additional country/currency filters |
+| 3 | Destination country + payout currency |
+| 4 | Destination country |
+| 5 | Payout currency |
+| 6 | Global |
+
+Country is the payment method's destination ISO alpha-2 country. Currency is its payout currency. Neither is the customer's residence or preferred wallet currency.
+
+The winner is selected before checking availability. A blocked scope, unsupported order or missing/inactive backup never falls through to a broader default. A dedicated action/payout mapping also wins over a generic mapping even when the dedicated one is inactive. Duplicate or ambiguous scopes fail closed; display order cannot resolve ambiguity.
+
+For example, with global and Benin/XOF backups allowed, a blocked `MOOV_MONEY_BENIN` scope excludes MOOV Benin. Another eligible Benin/XOF method can use the country/currency scope. Deleting the method override restores inheritance after saving.
+
+Requested provider orders contain 2–4 distinct mobile-money providers. **Only pawaPay → Maplerad (two providers) can execute.** ArakaPay/AvadaPay, a Maplerad primary or a third provider may be saved only with that scoped rule blocked. Such preferences do not change primary routing ranks or add another provider's rejection/callback/refund contract. Scope IDs allow 1–32 letters, digits, `_` or `-` and must be unique across both rule lists.
+
+### Existing explicit route pairs
+
+Expand **Advanced: explicit route-pair rules** for the original exact-route contract. Select a real pawaPay primary and Maplerad backup for the identical mobile-money method and compatible payout action. Choose only capability-provided rejection conditions: currently `PROVIDER_TEMPORARILY_UNAVAILABLE` and `PAWAPAY_WALLET_OUT_OF_FUNDS`.
+
+Keep stable IDs and list order. An explicit source-route rule takes precedence over scoped defaults, including when disabled; removing it can restore scoped inheritance. Older policies without `routingRules` remain compatible. Saving route-pair edits retains all scoped overrides.
 
 Only reviewed synchronous source rejections can switch. Customer insufficient balance, a generic HTTP failure, an accepted/enqueued payout, a timeout or an unknown outcome cannot trigger Maplerad. The payout must satisfy the whole-unit, same-currency, unchanged-quote and destination-funding constraints. An account-specific provider route remains a constraint even when the account is in the pilot.
 
@@ -134,7 +162,7 @@ Only reviewed synchronous source rejections can switch. Customer insufficient ba
 
 Use a local draft that represents the intended enabled policy and future cutoff. Select **Unsaved setup draft**, **An example payout (no money sent)**, a reviewed rejection code, and a sample creation time **after** that cutoff. Supply a real sample account/source route, supported action, recipient and amounts.
 
-Changing the draft enabled checkbox for this preview does not activate the saved policy. Do not publish that temporary draft merely to run the preview. The dedicated enable action later uses the saved policy and its separately entered activation cutoff.
+Changing the draft enabled checkbox for this preview does not activate the saved policy. Do not publish that temporary draft merely to run the preview. Activation later uses the saved policy and either the automatic safe start or the separately entered cutoff.
 
 Interpret the result correctly:
 
@@ -230,7 +258,7 @@ The cooldown is 30 seconds per transaction across all admins/processes. On `429`
 
 Do not substitute the generic transaction **momo-status** action: that existing action can trigger fulfillment. The failover-specific check is the observational tool.
 
-Newer payout backend responses also expose terminal evidence and a refund reservation fence; this dashboard version does not render every added field. Use the existing transaction investigation and approved backend evidence tools when fuller evidence is needed. A matching status observation of `COMPLETED` blocks unsafe refunds/alternate claims; the observation does not itself reconcile the transaction.
+Payout timelines show terminal status, evidence and timestamp separately from submit replies and observational lookups. They also show the read-only refund/final-failure reservation fence; a reservation does not prove wallet credit. A matching status observation of `COMPLETED` blocks unsafe refunds/alternate claims without itself reconciling the transaction.
 
 ### Recharge recovery
 
@@ -270,7 +298,7 @@ Payout final failures and unresolved cases can overlap when a manual refund rema
 | `400` / `409` / `429` | Correct validation / review the newer revision / wait for the evidence-check cooldown, respectively |
 | Network or `5xx` during a policy write | The UI retains last-confirmed state. Refresh saved policy/history to determine whether it committed before retrying |
 
-Record transaction IDs, provider references, policy revision/rule ID, current evidence and any pause/review decision in the team's incident/change record. Use **Revision history** to identify who published a policy and why. Restoring service does not remove the need to resolve existing uncertain operations.
+Record transaction IDs, provider references, policy revision/rule ID, current evidence and any pause/review decision in the team's incident/change record. Use **Change history** to identify who published a policy and why. Restoring service does not remove the need to resolve existing uncertain operations.
 
 ## 10. Infrastructure and newer backend helpers
 
@@ -281,15 +309,11 @@ Engineering can suppress new claims with the deployment emergency switches:
 
 They are independent, cannot be bypassed by dashboard toggles and do not cancel already-claimed work. Clearing an emergency switch can expose an already-enabled saved policy again; coordinate the saved policy state and intended cutoff before clearing it. Clearing infrastructure suppression does not itself create a new disabled-to-enabled policy transition.
 
-The backend contracts now also describe conveniences **not wired into the dashboard version covered by this guide**:
+Payout **Review environment defaults and coverage** uses `GET /payout-failover/defaults`. It imports only a local disabled draft. Coverage describes backend presets rather than a customized draft; use preview to validate custom settings.
 
-| Backend capability | Boundary |
-| --- | --- |
-| Payout `GET /defaults`; activation can discover compatible active defaults for an empty policy | Read/discovery does not publish. Nonempty custom/disabled rules are not replaced. Review route scope and cohort before any API activation |
-| Recharge `GET /defaults`, `POST /defaults/prepare` | Suggestions use fresh cached catalogs. Explicit equivalence confirmation is still required; preparation saves into a globally paused policy and preserves cohort/custom choices. Live activation/runtime checks still apply |
-| Activation with omitted `createdAfter` | Updated backends normally choose a future cutoff about 30 seconds ahead while respecting existing future schedules/floors. The current dashboard still requires an explicit future UTC cutoff |
+Payout activation can omit `createdAfter`: the backend normally chooses a safe future boundary about 30 seconds ahead while respecting existing future schedules/floors. Automatic mode sends no timestamp and displays the returned time. Pausing or repeating an already-enabled toggle does not move the boundary.
 
-Use the manual dashboard procedures above unless deliberately operating these APIs under the matching backend contract. Suggested defaults do not establish provider funding or approve product equivalence automatically.
+Recharge `GET /defaults` and `POST /defaults/prepare` remain backend conveniences not wired into this dashboard. Suggestions still require explicit product-equivalence review. The recharge dashboard keeps its manual product-review flow and explicit future UTC activation time.
 
 ## References
 
