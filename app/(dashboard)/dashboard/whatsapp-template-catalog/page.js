@@ -1,5 +1,7 @@
 'use client';
 
+import TableActions from '@/components/TableActions';
+
 import ResponsiveTable from '@/components/ResponsiveTable';
 
 import { isRegulatorRestrictedRecord } from '@/lib/regulator-presentation';
@@ -587,8 +589,8 @@ export default function WhatsappTemplateCatalogPage() {
                 <td style={{ padding: '0.75rem', verticalAlign: 'top', minWidth: 'min(160px, 100%)' }}>
                   {row.adminNotes ? `${String(row.adminNotes).slice(0, 90)}${String(row.adminNotes).length > 90 ? '...' : ''}` : '—'}
                 </td>
-                <td style={{ padding: '0.75rem', verticalAlign: 'top' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <td className="data-table__cell--actions" style={{ padding: '0.75rem', verticalAlign: 'top' }}>
+                  <TableActions><div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                     <button type="button" className="btn-neutral btn-sm" onClick={() => setDetailModal(row)}>Details</button>
                     <button type="button" className="btn-neutral btn-sm" onClick={() => startEdit(row)}>Edit</button>
                     <button
@@ -611,7 +613,7 @@ export default function WhatsappTemplateCatalogPage() {
                     <button type="button" className="btn-danger btn-sm" onClick={() => deleteCatalogItem(row)} disabled={deletingId === row.id}>
                       {deletingId === row.id ? 'Deleting...' : 'Delete'}
                     </button>
-                  </div>
+                  </div></TableActions>
                 </td>
               </tr></RegulatorRecord>
             ))}

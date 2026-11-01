@@ -1,5 +1,7 @@
 'use client';
 
+import TableActions from '@/components/TableActions';
+
 import ResponsiveTable from '@/components/ResponsiveTable';
 
 import { CatalogSelect } from '@/components/CatalogSelect';
@@ -4515,8 +4517,8 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                         <Badge>{rule.enabled === false ? 'Disabled' : 'Enabled'}</Badge>
                       </td>
                       <td style={{ padding: '0.45rem', maxWidth: '220px' }}>{rule.notes || '—'}</td>
-                      <td style={{ padding: '0.45rem' }}>
-                        <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                      <td className="data-table__cell--actions" style={{ padding: '0.45rem' }}>
+                        <TableActions><div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                           <button type="button" className="btn-neutral btn-sm" onClick={() => openAccountRewardRuleForm(rule)} disabled={Boolean(accountRewardRuleActionLoading)}>
                             Edit
                           </button>
@@ -4532,7 +4534,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                           <button type="button" className="btn-danger btn-sm" onClick={() => deleteAccountRewardRule(rule)} disabled={Boolean(accountRewardRuleActionLoading)}>
                             Delete
                           </button>
-                        </div>
+                        </div></TableActions>
                       </td>
                     </tr></RegulatorRecord>
                   ))}
@@ -5880,14 +5882,14 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                                   : 'Use inherited default'}
                             </td>
                             <td style={{ padding: '0.45rem' }}>{fee.updatedAt ? formatDateTime(fee.updatedAt) : '—'}</td>
-                      <td style={{ padding: '0.45rem', display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                      <td className="data-table__cell--actions" style={{ padding: '0.45rem' }}><TableActions>
                         <button type="button" className="btn-neutral btn-sm" onClick={() => openFeeForm(fee)}>
                           Edit
                         </button>
                         <button type="button" className="btn-danger btn-sm" onClick={() => deleteFee(fee)}>
                           Delete
                         </button>
-                      </td>
+                      </TableActions></td>
                     </tr></RegulatorRecord>
                   ))}
                 </tbody>
@@ -5965,14 +5967,14 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                       <td style={{ padding: '0.45rem' }}>{Array.isArray(rule.includeNames) && rule.includeNames.length ? <RegulatorList values={rule.includeNames} separator={', '} /> : '—'}</td>
                       <td style={{ padding: '0.45rem' }}>{Array.isArray(rule.excludeNames) && rule.excludeNames.length ? <RegulatorList values={rule.excludeNames} separator={', '} /> : '—'}</td>
                       <td style={{ padding: '0.45rem' }}>{rule.updatedAt ? formatDateTime(rule.updatedAt) : '—'}</td>
-                      <td style={{ padding: '0.45rem', display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                      <td className="data-table__cell--actions" style={{ padding: '0.45rem' }}><TableActions>
                         <button type="button" className="btn-neutral btn-sm" onClick={() => openPaymentMethodActionForm(rule)}>
                           Edit
                         </button>
                         <button type="button" className="btn-danger btn-sm" onClick={() => deletePaymentMethodActionRule(rule)}>
                           Delete
                         </button>
-                      </td>
+                      </TableActions></td>
                     </tr></RegulatorRecord>
                   ))}
                 </tbody>
@@ -6028,14 +6030,14 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                         </td>
                         <td style={{ padding: '0.45rem' }}>{override?.note || '—'}</td>
                         <td style={{ padding: '0.45rem' }}>{override?.updatedAt ? formatDateTime(override.updatedAt) : '—'}</td>
-                        <td style={{ padding: '0.45rem', display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                        <td className="data-table__cell--actions" style={{ padding: '0.45rem' }}><TableActions>
                           <button type="button" className="btn-neutral btn-sm" onClick={() => openBillProductOverrideForm(override)}>
                             Edit
                           </button>
                           <button type="button" className="btn-danger btn-sm" onClick={() => deleteBillProductOverride(override)}>
                             Remove
                           </button>
-                        </td>
+                        </TableActions></td>
                       </tr></RegulatorRecord>
                     );
                   })}
@@ -6145,7 +6147,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                         <td style={{ padding: '0.45rem' }}>{row.rank ?? 1}</td>
                         <td style={{ padding: '0.45rem' }}>{row.active ? 'Yes' : 'No'}</td>
                         <td style={{ padding: '0.45rem' }}>{row.updatedAt ? formatDateTime(row.updatedAt) : '—'}</td>
-                        <td style={{ padding: '0.45rem', display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                        <td className="data-table__cell--actions" style={{ padding: '0.45rem' }}><TableActions>
                           <button type="button" className="btn-neutral btn-sm" onClick={() => openProviderRoutingForm(row)}>
                             Edit
                           </button>
@@ -6157,7 +6159,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                           <button type="button" className="btn-danger btn-sm" onClick={() => deleteProviderRouting(row)}>
                             Delete
                           </button>
-                        </td>
+                        </TableActions></td>
                       </tr></RegulatorRecord>
                     );
                   })}
@@ -6221,14 +6223,14 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                           <Badge>{override.active ? 'Exposed' : 'Hidden'}</Badge>
                         </td>
                         <td style={{ padding: '0.45rem' }}>{override.updatedAt ? formatDateTime(override.updatedAt) : '—'}</td>
-                        <td style={{ padding: '0.45rem', display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                        <td className="data-table__cell--actions" style={{ padding: '0.45rem' }}><TableActions>
                           <button type="button" className="btn-neutral btn-sm" onClick={() => openCardProviderStatusForm(override)}>
                             Edit
                           </button>
                           <button type="button" className="btn-danger btn-sm" onClick={() => deleteCardProviderStatusOverride(override)}>
                             Delete
                           </button>
-                        </td>
+                        </TableActions></td>
                       </tr></RegulatorRecord>
                     );
                   })}
@@ -6292,14 +6294,14 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                       </td>
                       <td style={{ padding: '0.45rem' }}>{override.price}</td>
                       <td style={{ padding: '0.45rem' }}>{override.updatedAt ? formatDateTime(override.updatedAt) : '—'}</td>
-                      <td style={{ padding: '0.45rem', display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                      <td className="data-table__cell--actions" style={{ padding: '0.45rem' }}><TableActions>
                         <button type="button" className="btn-neutral btn-sm" onClick={() => openCardPriceForm(override)}>
                           Edit
                         </button>
                         <button type="button" className="btn-danger btn-sm" onClick={() => deleteCardPrice(override)}>
                           Delete
                         </button>
-                      </td>
+                      </TableActions></td>
                     </tr></RegulatorRecord>
                   ))}
                 </tbody>
@@ -6364,14 +6366,14 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                         {override.bid === null || override.bid === undefined ? '—' : `${override.bid}%`}
                       </td>
                       <td style={{ padding: '0.45rem' }}>{override.updatedAt ? formatDateTime(override.updatedAt) : '—'}</td>
-                      <td style={{ padding: '0.45rem', display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                      <td className="data-table__cell--actions" style={{ padding: '0.45rem' }}><TableActions>
                         <button type="button" className="btn-neutral btn-sm" onClick={() => openCryptoRateForm(override)}>
                           Edit
                         </button>
                         <button type="button" className="btn-danger btn-sm" onClick={() => deleteCryptoRate(override)}>
                           Delete
                         </button>
-                      </td>
+                      </TableActions></td>
                     </tr></RegulatorRecord>
                   ))}
                 </tbody>
@@ -6440,14 +6442,14 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                       <td style={{ padding: '0.45rem' }}>{override.dailyReceiveLimitUsd ?? '—'}</td>
                       <td style={{ padding: '0.45rem' }}>{override.dailySwapLimitUsd ?? '—'}</td>
                       <td style={{ padding: '0.45rem' }}>{override.updatedAt ? formatDateTime(override.updatedAt) : '—'}</td>
-                      <td style={{ padding: '0.45rem', display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                      <td className="data-table__cell--actions" style={{ padding: '0.45rem' }}><TableActions>
                         <button type="button" className="btn-neutral btn-sm" onClick={() => openCryptoLimitForm(override)}>
                           Edit
                         </button>
                         <button type="button" className="btn-danger btn-sm" onClick={() => deleteCryptoLimit(override)}>
                           Delete
                         </button>
-                      </td>
+                      </TableActions></td>
                     </tr></RegulatorRecord>
                   ))}
                 </tbody>
@@ -6507,14 +6509,14 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
                       </td></RegulatorField>
                       <td style={{ padding: '0.45rem' }}>{override.interestPercentage}</td>
                       <td style={{ padding: '0.45rem' }}>{override.updatedAt ? formatDateTime(override.updatedAt) : '—'}</td>
-                      <td style={{ padding: '0.45rem', display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                      <td className="data-table__cell--actions" style={{ padding: '0.45rem' }}><TableActions>
                         <button type="button" className="btn-neutral btn-sm" onClick={() => openLoanRateForm(override)}>
                           Edit
                         </button>
                         <button type="button" className="btn-danger btn-sm" onClick={() => deleteLoanRate(override)}>
                           Delete
                         </button>
-                      </td>
+                      </TableActions></td>
                     </tr></RegulatorRecord>
                   ))}
                 </tbody>

@@ -1,5 +1,7 @@
 'use client';
 
+import TableActions from '@/components/TableActions';
+
 import ResponsiveTable from '@/components/ResponsiveTable';
 
 import { CatalogSelect } from '@/components/CatalogSelect';
@@ -335,7 +337,7 @@ const Table = ({ columns, rows, emptyLabel = 'No data' }) => (
         {rows?.map((row, idx) => (
           <tr key={idx} style={{ borderTop: '1px solid var(--border)' }}>
             {columns.map((col) => (
-              <td key={col.key} className="data-table__cell" style={{ padding: '0.5rem', fontWeight: col.bold ? 700 : 500 }}>
+              <td key={col.key} className={`data-table__cell${col.key === 'actions' ? ' data-table__cell--actions' : ''}`} style={{ padding: '0.5rem', fontWeight: col.bold ? 700 : 500 }}>
                 {col.render ? col.render(row) : row[col.key]}
               </td>
             ))}
@@ -1786,7 +1788,7 @@ export default function DashboardPage() {
                   label: 'Actions',
                   render: (row) => (
                     <div style={{ display: 'grid', gap: '0.35rem' }}>
-                      <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                      <TableActions><div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                         {normalizeStuckStatus(row?.status || stuckItemsModal?.status) === 'EXECUTING' && (
                           <button
                             type="button"
@@ -1815,7 +1817,7 @@ export default function DashboardPage() {
                         >
                           Open
                         </button>
-                      </div>
+                      </div></TableActions>
                       {stuckRowActionError[row.transactionId || row.id] && (
                         <div style={{ color: '#b91c1c', fontSize: '12px', fontWeight: 700 }}>{stuckRowActionError[row.transactionId || row.id]}</div>
                       )}

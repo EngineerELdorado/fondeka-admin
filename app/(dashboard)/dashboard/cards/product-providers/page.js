@@ -1,5 +1,7 @@
 'use client';
 
+import TableActions from '@/components/TableActions';
+
 import ResponsiveTable from '@/components/ResponsiveTable';
 
 import { RegulatorRecord, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
@@ -1538,14 +1540,14 @@ export default function CardProductProvidersPage() {
                           <td style={{ padding: '0.45rem' }}>{override.email ? `Email: ${override.email}` : `Account: #${override.accountId || '—'}`}</td>
                           <td style={{ padding: '0.45rem' }}>{override.active ? 'Exposed' : 'Hidden'}</td>
                           <td style={{ padding: '0.45rem' }}>{override.updatedAt || override.createdAt || '—'}</td>
-                          <td style={{ padding: '0.45rem', display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                          <td className="data-table__cell--actions" style={{ padding: '0.45rem' }}><TableActions>
                             <button type="button" className="btn-neutral btn-sm" onClick={() => openStatusOverrideForm(override)}>
                               Edit
                             </button>
                             <button type="button" className="btn-danger btn-sm" onClick={() => deleteStatusOverride(override)}>
                               Delete
                             </button>
-                          </td>
+                          </TableActions></td>
                         </tr></RegulatorRecord>
                       ))}
                     </tbody>

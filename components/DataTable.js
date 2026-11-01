@@ -1,6 +1,7 @@
 'use client';
 
 import ResponsiveTable from '@/components/ResponsiveTable';
+import TableActions from '@/components/TableActions';
 
 import Link from 'next/link';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -15,22 +16,6 @@ function TableValue({ children }) {
     if (element) element.title = element.textContent?.trim() || '';
   }, [children]);
   return <div ref={value} className="data-table__value">{children}</div>;
-}
-
-const actionCount = (content) => React.Children.toArray(content).reduce((count, child) => {
-  if (!React.isValidElement(child)) return count;
-  if (child.type === 'button' || child.type === 'a' || child.props.href) return count + 1;
-  return count + actionCount(child.props.children);
-}, 0);
-
-function TableActions({ children }) {
-  if (actionCount(children) <= 1) return children;
-  return <details className="table-row-actions">
-    <summary>Actions</summary>
-    <div className="table-row-actions__menu" onClick={(event) => {
-      if (event.target.closest('button, a')) event.currentTarget.parentElement.open = false;
-    }}>{children}</div>
-  </details>;
 }
 
 const resolveAccountId = (row) => {
@@ -164,9 +149,6 @@ export function DataTable({
   useEffect(() => {
     const closeMenu = (event) => {
       if (columnsMenu.current && (event.key === 'Escape' || event.type === 'pointerdown' && !columnsMenu.current.contains(event.target))) columnsMenu.current.open = false;
-      container.current?.querySelectorAll('.table-row-actions[open]').forEach((menu) => {
-        if (event.key === 'Escape' || event.type === 'pointerdown' && !menu.contains(event.target)) menu.open = false;
-      });
     };
     document.addEventListener('pointerdown', closeMenu);
     document.addEventListener('keydown', closeMenu);

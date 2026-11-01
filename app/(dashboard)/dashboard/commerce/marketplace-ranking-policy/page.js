@@ -1,5 +1,7 @@
 'use client';
 
+import TableActions from '@/components/TableActions';
+
 import ResponsiveTable from '@/components/ResponsiveTable';
 
 import { RegulatorRecord, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
@@ -124,8 +126,8 @@ const RankingEditor = ({ title, subtitle, rows, onChange, disabled }) => {
                     ))}
                   </select>
                 </td>
-                <td style={{ padding: '0.45rem' }}>
-                  <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                <td className="data-table__cell--actions" style={{ padding: '0.45rem' }}>
+                  <TableActions><div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                     <button type="button" className="btn-neutral btn-sm" onClick={() => moveRow(index, -1)} disabled={disabled || index === 0}>
                       Up
                     </button>
@@ -135,7 +137,7 @@ const RankingEditor = ({ title, subtitle, rows, onChange, disabled }) => {
                     <button type="button" className="btn-danger btn-sm" onClick={() => removeRow(index)} disabled={disabled || rows.length <= 1}>
                       Remove
                     </button>
-                  </div>
+                  </div></TableActions>
                 </td>
               </tr></RegulatorRecord>
             ))}

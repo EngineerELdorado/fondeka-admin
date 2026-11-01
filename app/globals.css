@@ -685,9 +685,11 @@ label {
 .table-columns__menu input { width: auto; flex-shrink: 0; }
 .responsive-table-container[data-layout='table'] > .responsive-table td.data-table__cell--actions { overflow: visible; }
 .table-row-actions { position: relative; width: max-content; max-width: 100%; font-size: .875rem; }
-.table-row-actions > summary { cursor: pointer; padding: .4rem .6rem; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
-.table-row-actions__menu { position: absolute; right: 0; top: calc(100% + .3rem); z-index: 25; min-width: 10rem; padding: .5rem; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); }
-.responsive-table .table-row-actions__menu, .responsive-table .table-row-actions__menu div { display: grid !important; gap: .4rem; }
+.table-row-actions--single, .responsive-table .table-row-actions__content { display: contents !important; }
+.table-row-actions__menu { position: fixed; inset: auto; margin: 0; z-index: 75; width: min(15rem, calc(100vw - 1.5rem)); max-width: calc(100vw - 1.5rem) !important; max-height: min(24rem, calc(100dvh - 1.5rem)); overflow-y: auto; padding: .5rem; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); }
+.responsive-table .table-row-actions__menu { display: grid !important; gap: .4rem; }
+.responsive-table .table-row-actions__menu div { flex-direction: column !important; align-items: stretch; gap: .4rem; }
+.responsive-table .table-row-actions__menu[hidden] { display: none !important; }
 .responsive-table .table-row-actions__menu :is(button, a) { width: 100%; text-align: left; }
 
 .dashboard-nav-links {

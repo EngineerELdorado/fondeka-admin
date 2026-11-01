@@ -23,6 +23,7 @@ const loadDataTable = async (regulatorMode = false) => {
   const load = (name) => import(`data:text/javascript;base64,${Buffer.from(readFileSync(path.join(__dirname, '../lib', name), 'utf8')).toString('base64')}`);
   const modules = {
     '@/components/ResponsiveTable': { __esModule: true, default: await component },
+    '@/components/TableActions': { __esModule: true, default: await loadComponent('TableActions.js') },
     '@/contexts/AuthContext': { useAuth: () => ({ enableRegulatorMode: regulatorMode }) },
     '@/lib/regulator-presentation': await load('regulator-presentation.js'),
     '@/lib/table-columns': await load('table-columns.js'),
@@ -38,7 +39,8 @@ test('compact action menus retain every action while transaction action text sta
   const columns = [{ key: 'reference', label: 'Reference' }, { key: 'action', label: 'Action' }, { key: 'actions', label: 'Actions', render: () => h('div', null, h('button', null, 'View'), h('button', null, 'Edit'), h('button', null, 'Delete')) }];
   const html = renderToStaticMarkup(h(Table, { columns, rows: [{ reference: 'TX-42', action: 'Electricity payment' }], showAccountQuickNav: false }));
   assert.equal((html.match(/class="table-row-actions"/g) || []).length, 1);
-  assert.match(html, /<summary>Actions<\/summary>/);
+  assert.match(html, /<button[^>]+aria-expanded="false"[^>]*>Actions /);
+  assert.match(html, /popover="manual" hidden=""/);
   for (const label of ['View', 'Edit', 'Delete']) assert.match(html, new RegExp(`<button>${label}<\\/button>`));
   assert.match(html, /class="data-table__value">Electricity payment<\/div>/);
   assert.equal((html.match(/<th(?:\s|>)/g) || []).length, 4);
@@ -50,6 +52,29 @@ test('column choices and table values remain subject to regulator presentation f
   assert.doesNotMatch(html, /Crypto balance|secret balance/);
   assert.match(html, /href="\/details">View<\/a>/);
   assert.doesNotMatch(html, /class="table-row-actions"/);
+});
+
+test('one visible action stays direct while hidden actions do not create a menu', async () => {
+  const Actions = await loadComponent('TableActions.js');
+  const html = renderToStaticMarkup(h(Actions, null,
+    h('a', { href: '/details' }, 'View'),
+    h('div', { hidden: true }, h('button', null, 'Hidden edit')),
+    h('button', { style: { display: 'none' } }, 'Hidden delete')));
+  assert.doesNotMatch(html, /aria-expanded|popover=/);
+  assert.match(html, /href="\/details">View<\/a>/);
+  assert.doesNotMatch(renderToStaticMarkup(h(Actions, null, '—')), /<button/);
+});
+
+test('multiple actions expose one labelled trigger and retain disabled choices and link destinations', async () => {
+  const Actions = await loadComponent('TableActions.js');
+  const html = renderToStaticMarkup(h(Actions, null,
+    h(React.Fragment, null, h('a', { href: '/details' }, 'View'), h('button', { disabled: true }, 'Delete'))));
+  assert.equal((html.match(/aria-expanded="false"/g) || []).length, 1);
+  assert.match(html, /aria-controls="[^"]+"/);
+  assert.match(html, /popover="manual" hidden=""/);
+  assert.match(html, /role="group" aria-label="Row actions"/);
+  assert.match(html, /<button disabled="">Delete<\/button>/);
+  assert.match(html, /href="\/details">View<\/a>/);
 });
 
 test('responsive tables retain native headings, translated text, values, links and controls before enhancement', async () => {

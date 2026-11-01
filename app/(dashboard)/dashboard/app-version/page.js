@@ -1,5 +1,7 @@
 'use client';
 
+import TableActions from '@/components/TableActions';
+
 import ResponsiveTable from '@/components/ResponsiveTable';
 
 import { isRegulatorRestrictedRecord } from '@/lib/regulator-presentation';
@@ -326,8 +328,8 @@ export default function AppVersionPage() {
                   <RegulatorRecord record={rule} key={rule.service}><tr key={rule.service}>
                     <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border)' }}>{rule.service}</td>
                     <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border)' }}>{rule.minVersion || '—'}</td>
-                    <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border)' }}>
-                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <td className="data-table__cell--actions" style={{ padding: '0.5rem', borderBottom: '1px solid var(--border)' }}>
+                      <TableActions><div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                         <button type="button" className="btn-neutral btn-sm" onClick={() => handleEditRule(rule)}>
                           Edit
                         </button>
@@ -339,7 +341,7 @@ export default function AppVersionPage() {
                         >
                           {rulesDeleting === rule.service ? 'Deleting...' : 'Delete'}
                         </button>
-                      </div>
+                      </div></TableActions>
                     </td>
                   </tr></RegulatorRecord>
                 ))
