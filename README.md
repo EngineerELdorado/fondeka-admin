@@ -45,7 +45,7 @@ Use `components/ResponsiveTable.js` for custom tables; shared `DataTable` uses i
 
 Table values use 16px text with 14px secondary text and record labels at the default root size. Layout changes use the rendered font size and column count, giving dense tables more room before switching to records. Keep fonts readable; fit content by wrapping and reflowing it.
 
-`DataTable` columns can supply a CSS `width` hint. Transaction status reserves more width when the current page contains long codes; those badges use 14px text and take a full field row in the record layout. The complete code remains visible, with breaks at underscores when a narrow screen requires them. Other values retain their normal font size.
+`DataTable` columns can supply a CSS `width` hint. Transaction status reserves more width when the current page contains long codes. All transaction status badges use consistent 14px normal-weight text; long statuses take a full field row in the record layout. The complete code remains visible, with breaks at underscores when a narrow screen requires them. Other values retain their normal font size.
 
 ## Business API LIVE payment settings
 
