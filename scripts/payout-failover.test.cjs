@@ -34,6 +34,16 @@ test('failover request validation rejects malformed IDs, duplicates, excessive c
   ]) assert.throws(() => h.failoverConfiguration(value, capabilities));
 });
 
+test('a policy that cannot currently validate is not mistaken for an unsaved edit during pause', async () => {
+  const h = await helpers;
+  const saved = { ...configuration, enabled: true, createdAfter: '2026-01-01T00:00:00Z' };
+  const draft = h.failoverDraft(saved);
+  assert.equal(h.failoverDraftChanged(draft, saved, null), false);
+  assert.equal(h.failoverDraftChanged({ ...draft, accountIds: '456' }, saved, null), true);
+  assert.equal(h.failoverDraftChanged({ ...draft, enabled: false }, saved, null), true);
+  assert.equal(h.failoverDraftChanged({ ...draft, accountIds: ' 123 ' }, saved, saved), false);
+});
+
 test('policy response requires confirmed revision and Booleans and never silently drops unsupported fields', async () => {
   const h = await helpers;
   const response = { policy: { revision: 0, source: 'DEPLOYMENT', effectiveEnabled: false, emergencyDisabled: false, cutoverFloor: null, configuration }, validation: { valid: true, issues: [], routes: [] } };

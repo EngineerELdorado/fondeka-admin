@@ -838,6 +838,13 @@ label {
 .sandbox-status--failed { background: #fef2f2; color: #b91c1c; }
 .sandbox-status--processing { background: #fff7ed; color: #b45309; }
 .failover-workspace { display: grid; gap: 1rem; min-width: 0; }
+.failover-save-bar { position: sticky; top: 84px; z-index: 9; align-self: start; display: grid; grid-template-columns: minmax(200px, 1fr) minmax(220px, 1fr) auto; gap: .8rem; align-items: center; box-shadow: 0 4px 18px rgba(15, 23, 42, .12); }
+.failover-save-bar--read-only { grid-template-columns: minmax(0, 1fr) auto; }
+.failover-save-bar__status, .failover-save-bar__actions { display: grid; gap: .35rem; }
+.failover-save-bar small { color: var(--muted); font-size: .8rem; line-height: 1.4; }
+.failover-save-bar__status > strong { color: var(--accent); }
+.failover-save-bar textarea { min-height: 2.7rem; max-height: 7rem; resize: vertical; }
+.failover-save-bar__error { grid-column: 1 / -1; }
 .failover-workspace .failover-intro { display: grid; gap: .85rem; }
 .failover-eyebrow { color: var(--muted); font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
 .failover-workspace .failover-intro h1 { margin: .25rem 0 .5rem; font-size: 1.65rem; }
@@ -849,12 +856,16 @@ label {
 .failover-navigation button { flex-shrink: 0; border: 0; border-bottom: 3px solid transparent; border-radius: 0; padding: .85rem 1rem; background: transparent; color: var(--muted); font-weight: 700; }
 .failover-navigation button.is-active { border-bottom-color: var(--accent); color: var(--accent); }
 .failover-status-heading { display: flex; align-items: center; gap: .85rem; flex-wrap: wrap; }
+.failover-status-heading > small { flex: 1; color: var(--muted); }
 .failover-status-heading p { flex: 1; min-width: min(100%, 260px); }
 .failover-state { display: inline-flex; padding: .5rem .9rem; border-radius: 8px; font-size: 1.05rem; font-weight: 800; background: var(--bg); border: 1px solid var(--border); }
 .failover-state--on, .failover-state--scheduled { color: var(--accent); background: var(--accent-soft); }
 .failover-status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); margin: 0; gap: 1rem; }
 .failover-status-grid dt { font-size: .8rem; color: var(--muted); margin-bottom: .35rem; }
 .failover-status-grid dd { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
+.failover-activation { display: grid; grid-template-columns: minmax(180px, .7fr) minmax(0, 1.3fr); gap: 2rem; align-items: start; }
+.failover-activation .failover-state { justify-self: start; }
+.failover-activation > .failover-card:first-child { gap: .6rem; }
 .failover-getting-started { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.2rem; list-style: none; padding: 0; margin: 0; }
 .failover-getting-started li, .failover-setup-step { display: flex; align-items: flex-start; gap: .65rem; min-width: 0; }
 .failover-step-number { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 1.75rem; height: 1.75rem; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-size: .8rem; font-weight: 800; }
@@ -887,17 +898,27 @@ label {
 .failover-workspace [hidden] { display: none !important; }
 .failover-scope-summary { cursor: pointer; line-height: 1.6; overflow-wrap: anywhere; }
 .failover-scope-summary > span, .failover-scope-summary > small { display: block; margin-left: 1.15rem; overflow-wrap: anywhere; }
+.failover-scope-summary > .failover-rule-badge { display: inline-flex; margin: .15rem 0 .15rem .5rem; padding: .15rem .5rem; border: 1px solid var(--border); border-radius: 6px; font-size: .75rem; color: var(--muted); background: var(--bg); font-weight: 600; }
+.failover-scope-summary > .failover-rule-badge.is-allowed { color: var(--accent); background: var(--accent-soft); }
+.failover-scope-summary > .failover-provider-chain { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .45rem; }
+.failover-provider-chain > span { display: inline-flex; align-items: center; gap: .4rem; }
+.failover-provider-chain b { padding: .15rem .5rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); font-weight: 500; font-size: .8rem; }
 .failover-provider-order { display: grid; gap: .8rem; padding-left: 1.4rem; margin: 0; }
 .failover-provider-order > li { padding-left: .3rem; }
 .failover-provider-order .failover-actions { margin-top: .5rem; }
 .failover-coverage-blockers { margin: .5rem 0 0; padding-left: 1rem; }
 @media (max-width: 760px) {
+  .failover-save-bar { grid-template-columns: 1fr; gap: .55rem; padding: .8rem; }
+  .failover-save-bar__version { display: none; }
+  .failover-save-bar__actions { display: flex; flex-wrap: wrap; align-items: center; }
+  .failover-save-bar__actions > small { flex-basis: 100%; }
   .failover-getting-started { grid-template-columns: 1fr; gap: .85rem; }
   .failover-metrics { grid-template-columns: 1fr; }
-  .failover-navigation { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: visible; }
+  .failover-navigation { display: flex; overflow-x: auto; }
   .failover-navigation button { padding: .75rem .8rem; }
   .failover-workspace .failover-intro h1 { font-size: 1.4rem; }
   .failover-status-grid { gap: .85rem; }
+  .failover-activation { grid-template-columns: 1fr; gap: 1rem; }
   .failover-field--help > .failover-help, .failover-metric > .failover-help { position: static; display: block; }
   .failover-field--help > .failover-help > summary, .failover-metric > .failover-help > summary { position: absolute; top: 0; right: 0; }
   .failover-metric > .failover-help > summary { top: .6rem; right: .6rem; }

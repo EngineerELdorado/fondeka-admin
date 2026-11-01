@@ -125,9 +125,9 @@ Question-mark controls open explanations on click or keyboard activation. Advanc
 3. To use the presets, select **Replace draft rules with disabled defaults**. This replaces both local rule lists and turns the draft off, retaining its customer account IDs and creation boundary. It does not save. Review any custom rules that would be replaced.
 4. Under **Defaults and scoped overrides**, expand a scope or select **Add a scoped override**. Set the payment method, destination country and/or payout currency. All filled filters must match. Leave the generated stable ID unchanged.
 5. Choose **Allow backups for this scope** or **Block backups for this scope**. Block is an explicit exclusion. **Delete scope and restore inheritance** removes that exclusion from the draft.
-6. Enter explicit pilot **Customer account IDs**, then **Reason for this setup change** and **Save backup rules**. Confirm the returned version and off state.
+6. Enter explicit pilot **Customer account IDs**. In the sticky save bar above the editor, enter **Reason for this setup change** and select **Save changes**. Edits are local until saved; only Super Admins can publish. Confirm the returned version and off state.
 7. Use **Test your payout setup without sending payments** to validate the configuration and optionally a real/example payment. The result displays the backend's winning scope, even if it blocks switching. Resolve errors and review warnings.
-8. Open **Turn on / pause**. Keep **Automatic safe start (backend chooses)** or select **Choose a future UTC time**. Enter the reason and select **Turn on payout backups**. Confirm the returned creation boundary and newer version. Overview shows **Scheduled** while the start is in the future.
+8. Open **Turn on / pause**. Keep **Automatic safe start (backend chooses)** or select **Choose a future UTC time**. Enter the reason and select **Turn on automatic failover**. Confirm the returned creation boundary and newer version. Overview shows **Scheduled** while the start is in the future.
 9. Review/discard any retained preview draft, then monitor new normal-flow payments in **Payment activity**.
 
 If both saved rule lists are empty, activation can discover validated environment defaults without a separate rule publication. Saved rollout accounts are preserved. If either list is nonempty, activation keeps it, including blocked scopes; custom settings are not silently replaced. Activation fails without changing the policy if no executable pair exists.
@@ -203,9 +203,9 @@ Interpret the result correctly:
 3. Select **Inspect primary product** and **Inspect backup product**. These calls read provider terms and produce approval fingerprints; they do not buy anything. Reinspect after changing inputs. A previous inspection is unusable after a failed replacement inspection.
 4. Review both term snapshots. Enter the same real **Real network name**, write the benefits/eligibility review, choose an approval expiry, set the maximum additional supplier cost and select the reviewed source failure conditions. Explicitly confirm equivalent benefits and eligibility.
 5. Select **Add reviewed pair to setup draft**. This only copies the approved pair into the local editor. An Admin can prepare a preview draft, but only a Super Admin can publish it.
-6. Open **2. Save pairs & accounts**. Keep the global draft disabled, enter the pilot account IDs, review mapping order and flags, and **Save recharge backup rules** with a reason. Confirm the returned paused revision.
+6. Open **2. Save pairs & accounts**. Keep the global draft disabled, enter the pilot account IDs, and review mapping order and flags. In the sticky save bar above the editor, enter **Reason for this setup change** and select **Save changes**. Inspections and edits are local until saved; only Super Admins can publish. Confirm the returned paused revision.
 7. Use **Check an existing recharge without sending a purchase** where a real transaction is available. It can evaluate the saved policy or local draft but never purchases, enrolls, settles, refunds or clears a guard.
-8. Open **Turn on / pause**, set **Start for purchases created after (UTC)** and a reason; choose **Turn on recharge backups**. Confirm the new revision, effective switch and cutover. Review/discard any retained local draft, then monitor new normal-flow purchases in **Payment activity**.
+8. Open **Turn on / pause**, set **Start for purchases created after (UTC)** and a reason; choose **Turn on automatic failover**. Confirm the new revision, effective switch and cutover. Review/discard any retained local draft, then monitor new normal-flow purchases in **Payment activity**.
 
 ### What counts as equivalent?
 
@@ -234,7 +234,7 @@ Recharge preview has no synthetic future sample. An existing transaction created
 
 ## 7. Pause, resume and change scope
 
-To stop new claims, use **Pause payout backups** for payouts or **Pause recharge backups** for recharge, with an incident/change reason. Confirm the returned saved state and revision. Pause preserves rules and rollout accounts and does not require current route/catalog readiness.
+To stop new claims, open **Turn on / pause** on the relevant failover page, enter an incident/change reason and select **Turn off automatic failover**. The off action stays available after activation clears the previous reason; submitting without a reason highlights that field. No future start time is required to turn off. Confirm the returned saved state and revision. Turning off preserves rules and rollout accounts and does not require current route/catalog readiness. A verified current policy can be turned off while a separate local draft awaits conflict review; revision checks still apply.
 
 Pausing does not cancel or refund a transaction, release held funds, undo an attempt, stop callbacks or disable recovery protections. Keep workers and investigation running. An already-claimed provider request may still be sent after pause.
 
