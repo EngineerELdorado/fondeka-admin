@@ -45,6 +45,8 @@ Use `components/ResponsiveTable.js` for custom tables; shared `DataTable` uses i
 
 Table values use 16px text with 14px secondary text and record labels at the default root size. Layout changes use the rendered font size and column count, giving dense tables more room before switching to records. Keep fonts readable; fit content by wrapping and reflowing it.
 
+`DataTable` columns can supply a CSS `width` hint. Transaction status reserves more width when the current page contains long codes; those badges use 14px text and take a full field row in the record layout. The complete code remains visible, with breaks at underscores when a narrow screen requires them. Other values retain their normal font size.
+
 ## Business API LIVE payment settings
 
 Feature flags contains **Default for live API payments**, backed by `business_api.live_payments.enabled`. Businesses → Details & credentials → LIVE API payments supports explicit enable/disable overrides and restoring inheritance with a bodyless `DELETE`. The Business directory and quick view show the backend's saved effective status and its source, with a direct **Manage LIVE payments** link for Admins and Super Admins (read-only settings link for Assistants). Directory actions are limited to **Quick view** and **Details & credentials**; operational/KYB status changes and owner access are on Business details. Successful updates invalidate the router cache; the directory fetches current rows when opened or refreshed.

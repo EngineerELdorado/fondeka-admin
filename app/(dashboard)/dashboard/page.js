@@ -1471,8 +1471,6 @@ export default function DashboardPage() {
                   ),
                   bold: true
                 },
-                { key: 'oldestUpdatedAt', label: 'Oldest', render: (row) => formatDateTime(row.oldestUpdatedAt) },
-                { key: 'newestUpdatedAt', label: 'Newest', render: (row) => formatDateTime(row.newestUpdatedAt) },
                 {
                   key: 'drill',
                   label: 'Drill-down',

@@ -649,6 +649,9 @@ label {
 .responsive-table :is(th, td) :is(div, span, a, p, strong, b, code, button, input, select, textarea) { font-size: inherit !important; }
 .responsive-table :is(th, td) small { font-size: .875rem !important; line-height: 1.5; }
 .responsive-table :is(th, td) button { font-size: .875rem !important; }
+.transaction-status-badge { display: inline-block; vertical-align: middle; max-width: 100%; padding: .2rem .5rem; border-radius: 999px; font-weight: 700; }
+.transaction-status-badge, .responsive-table :is(th, td) .transaction-status-badge { font-size: 1rem !important; white-space: normal !important; overflow-wrap: break-word; word-break: normal; }
+.transaction-status-badge[data-long-status], .responsive-table :is(th, td) .transaction-status-badge[data-long-status] { font-size: .875rem !important; }
 .responsive-table :is(th, td) :is(input, select, textarea, button) { min-width: 0; max-width: 100%; }
 .responsive-table :is(th, td) div:has(> button) { flex-wrap: wrap; }
 .responsive-table-container[data-layout='records'] > .responsive-table { display: block; }
@@ -662,6 +665,7 @@ label {
 .responsive-table-container[data-layout='records'] > .responsive-table > :is(tbody, tfoot) > tr > :is(td, th) { display: block; min-width: 0; padding: .35rem !important; border: 0 !important; }
 .responsive-table-container[data-layout='records'] > .responsive-table > :is(tbody, tfoot) > tr > [data-label]::before { content: attr(data-label); display: block; font-size: .875rem; font-weight: 600; color: var(--muted); margin-bottom: .35rem; }
 .responsive-table-container[data-layout='records'] > .responsive-table > :is(tbody, tfoot) > tr > [data-full-width] { grid-column: 1 / -1; }
+.responsive-table-container[data-layout='records'] > .responsive-table > :is(tbody, tfoot) > tr > [data-wide-value] { grid-column: 1 / -1; }
 
 .dashboard-nav-links {
   overflow-y: auto;

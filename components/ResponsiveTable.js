@@ -9,7 +9,7 @@ export default function ResponsiveTable({ children, className = '', style, ...pr
   useEffect(() => {
     const element = container.current, nativeTable = table.current;
     if (!element || !nativeTable) return undefined;
-    let columnUnits = 35;
+    let columnWidths = [];
     const attribute = (node, key, value) => {
       if (value == null) node.removeAttribute(key);
       else if (node.getAttribute(key) !== String(value)) node.setAttribute(key, value);
@@ -17,7 +17,19 @@ export default function ResponsiveTable({ children, className = '', style, ...pr
     const resize = () => {
       const width = element.getBoundingClientRect().width;
       const fontSize = parseFloat(window.getComputedStyle(nativeTable).fontSize) || 16;
-      if (width > 0) setStacked(width < Math.max(35, columnUnits) * fontSize);
+      const rootSize = parseFloat(window.getComputedStyle(nativeTable.ownerDocument.documentElement).fontSize) || 16;
+      const hintedWidths = columnWidths.map((heading) => {
+        const hint = heading.width || '';
+        return /^\d+(\.\d+)?rem$/.test(hint) ? parseFloat(hint) * rootSize
+          : /^\d+(\.\d+)?px$/.test(hint) ? parseFloat(hint)
+            : /^\d+(\.\d+)?em$/.test(hint) ? parseFloat(hint) * fontSize : null;
+      });
+      // Flexible columns can share space with a wider status without shrinking their text.
+      const flexibleUnits = hintedWidths.some((pixels) => pixels > 9 * fontSize) ? 8 : 9;
+      const requiredWidth = columnWidths.reduce((total, heading, index) => {
+        return total + (hintedWidths[index] ?? (heading.widthUnits === 9 ? flexibleUnits : heading.widthUnits) * fontSize);
+      }, 0);
+      if (width > 0) setStacked(width < Math.max(35 * fontSize, requiredWidth));
     };
     const prepare = () => {
       // Use rendered cells, including changes made by conditional/context-based wrappers.
@@ -32,7 +44,7 @@ export default function ResponsiveTable({ children, className = '', style, ...pr
           const label = text.replace(/\s+/g, ' ').trim();
           if (label === '#') cell.style.width = '3rem';
           const compact = label === '#' || cell.style.width === '3.5rem' || !cell.textContent.trim() && cell.querySelector('input[type="checkbox"]');
-          if (rowIndex === headingRows.length - 1) for (let at = 0; at < cell.colSpan; at += 1) headers.push({ label, id: cell.id, widthUnits: compact ? 3.5 : 9 });
+          if (rowIndex === headingRows.length - 1) for (let at = 0; at < cell.colSpan; at += 1) headers.push({ label, id: cell.id, width: cell.style.width, widthUnits: compact ? 3.5 : 9 });
         });
       });
       for (const section of [nativeTable.tHead, ...nativeTable.tBodies, nativeTable.tFoot].filter(Boolean)) {
@@ -47,11 +59,12 @@ export default function ResponsiveTable({ children, className = '', style, ...pr
             attribute(cell, 'headers', !fullWidth ? heading?.id : null);
             attribute(cell, 'data-label', !fullWidth ? heading?.label : null);
             attribute(cell, 'data-full-width', fullWidth ? 'true' : null);
+            attribute(cell, 'data-wide-value', cell.querySelector('.transaction-status-badge[data-long-status]') ? 'true' : null);
             column += cell.colSpan;
           }
         }
       }
-      columnUnits = headers.reduce((total, heading) => total + heading.widthUnits, 0);
+      columnWidths = headers;
       resize();
     };
     prepare();

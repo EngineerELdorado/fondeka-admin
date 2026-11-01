@@ -6,13 +6,14 @@ const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
 const { transform } = require('next/dist/build/swc');
 const h = React.createElement;
-const component = transform(readFileSync(path.join(__dirname, '../components/ResponsiveTable.js'), 'utf8'), {
-  filename: 'ResponsiveTable.js', jsc: { parser: { syntax: 'ecmascript', jsx: true }, target: 'es2020', transform: { react: { runtime: 'classic' } } }, module: { type: 'commonjs' }
+const loadComponent = (file) => transform(readFileSync(path.join(__dirname, '../components', file), 'utf8'), {
+  filename: file, jsc: { parser: { syntax: 'ecmascript', jsx: true }, target: 'es2020', transform: { react: { runtime: 'classic' } } }, module: { type: 'commonjs' }
 }).then(({ code }) => {
   const module = { exports: {} };
   new Function('require', 'module', 'exports', code)(require, module, module.exports);
   return module.exports.default;
 });
+const component = loadComponent('ResponsiveTable.js');
 
 test('responsive tables retain native headings, translated text, values, links and controls before enhancement', async () => {
   const Table = await component;
@@ -52,4 +53,25 @@ test('grouped headings and visibility wrappers retain their original authority',
   assert.match(html, /<th>Amount<\/th>/);
   assert.match(html, /<td>USD<\/td>/);
   assert.doesNotMatch(html, /Restricted/);
+});
+
+test('long transaction statuses preserve the full code and offer breaks between words', async () => {
+  const Badge = await loadComponent('TransactionStatusBadge.js');
+  const code = 'MANUAL_INTERVENTION_REQUIRED';
+  const long = renderToStaticMarkup(h(Badge, { value: code }));
+  assert.equal(long.replace(/<[^>]*>/g, ''), code);
+  assert.match(long, /title="MANUAL_INTERVENTION_REQUIRED"/);
+  assert.match(long, /data-long-status="true"/);
+  assert.equal((long.match(/<wbr\/?\s*>/g) || []).length, 2);
+  assert.doesNotMatch(renderToStaticMarkup(h(Badge, { value: 'completed' })), /data-long-status/);
+  assert.equal(renderToStaticMarkup(h(Badge, { value: null })), '—');
+});
+
+test('explicit status column widths survive responsive-table enhancement', async () => {
+  const Table = await component;
+  const html = renderToStaticMarkup(h(Table, null,
+    h('thead', null, h('tr', null, h('th', { style: { width: '19rem' } }, 'Status'))),
+    h('tbody', null, h('tr', null, h('td', null, 'MANUAL_INTERVENTION_REQUIRED')))));
+  assert.match(html, /width:19rem/);
+  assert.match(html, />MANUAL_INTERVENTION_REQUIRED</);
 });

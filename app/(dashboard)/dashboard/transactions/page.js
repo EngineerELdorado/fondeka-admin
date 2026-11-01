@@ -1,6 +1,7 @@
 'use client';
 
 import ResponsiveTable from '@/components/ResponsiveTable';
+import TransactionStatusBadge from '@/components/TransactionStatusBadge';
 
 import { CatalogSelect } from '@/components/CatalogSelect';
 import { RegulatorRecord, PresentationSelect, NonRegulatorContent, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
@@ -1092,36 +1093,7 @@ export default function TransactionsPage() {
     setAppliedFilters(next);
   };
 
-  const renderStatusBadge = (value) => {
-    if (!value) return '—';
-    const val = String(value).toUpperCase();
-    const tone =
-      val === 'COMPLETED'
-        ? { bg: '#ECFDF3', fg: '#15803D' }
-        : val === 'PROCESSING'
-          ? { bg: '#EFF6FF', fg: '#1D4ED8' }
-          : val === 'FAILED'
-            ? { bg: '#FEF2F2', fg: '#B91C1C' }
-            : val === 'CANCELED' || val === 'CANCELLED'
-              ? { bg: '#FFF7ED', fg: '#C2410C' }
-              : { bg: '#E5E7EB', fg: '#374151' };
-    return (
-      <span
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          padding: '0.2rem 0.5rem',
-          borderRadius: '999px',
-          fontSize: '12px',
-          fontWeight: 700,
-          background: tone.bg,
-          color: tone.fg
-        }}
-      >
-        {val}
-      </span>
-    );
-  };
+  const renderStatusBadge = (value) => <TransactionStatusBadge value={value} />;
 
   const loadReceipt = async (transactionId) => {
     if (!transactionId) return;
@@ -1343,6 +1315,8 @@ export default function TransactionsPage() {
     }
   }, [pushToast, router]);
 
+  const statusLength = rows.reduce((longest, row) => Math.max(longest, String(row.status || '').length), 0);
+  const statusColumnWidth = statusLength > 20 ? '19rem' : statusLength > 12 ? '14rem' : '10rem';
   const columns = useMemo(
     () => [
       {
@@ -1380,6 +1354,7 @@ export default function TransactionsPage() {
       {
         key: 'status',
         label: 'Status',
+        width: statusColumnWidth,
         render: (row) => renderStatusBadge(row.status)
       },
       {
@@ -1436,11 +1411,6 @@ export default function TransactionsPage() {
         }
       },
       {
-        key: 'accountId',
-        label: 'Account ID',
-        render: (row) => row?.accountId ?? row?.account?.id ?? '—'
-      },
-      {
         key: 'actions',
         label: 'Actions',
         render: (row) => (
@@ -1452,7 +1422,7 @@ export default function TransactionsPage() {
         )
       }
     ],
-    [formatLocalAndUsd, openTransactionOwnerAccount]
+    [formatLocalAndUsd, openTransactionOwnerAccount, statusColumnWidth]
   );
 
   const openDetail = (row) => {
