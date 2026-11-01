@@ -11,8 +11,8 @@
   --warning: #f59e0b;
   --danger: #ef4444;
   --card-radius: 14px;
-  --font-body: .9375rem;
-  --font-small: .875rem;
+  --font-body: 1rem;
+  --font-small: .9375rem;
   --font-heading: 1.25rem;
   --font-stat: 1.375rem;
 }
@@ -675,8 +675,11 @@ label {
 .responsive-table-container[data-layout='records'] > .responsive-table > :is(tbody, tfoot) > tr > [data-full-width] { grid-column: 1 / -1; }
 .responsive-table-container[data-layout='records'] > .responsive-table > :is(tbody, tfoot) > tr > [data-wide-value] { grid-column: 1 / -1; }
 
-.responsive-table-container[data-layout='table'] > .responsive-table :is(th, td) { vertical-align: middle; white-space: nowrap !important; overflow: hidden; text-overflow: ellipsis; }
-.responsive-table-container[data-layout='table'] > .responsive-table :is(th, td) :is(div, span, a, p, strong, b, code, small) { white-space: nowrap !important; }
+.responsive-table-container[data-layout='table'] > .responsive-table :is(th, td) { vertical-align: middle; }
+.responsive-table-container[data-layout='table'] > .responsive-table thead th { white-space: normal !important; overflow: visible; text-overflow: clip; line-height: 1.3; text-wrap: balance; hyphens: auto; }
+.responsive-table-container[data-layout='table'] > .responsive-table thead th :is(div, span, a, p, strong, b, code, small, button) { white-space: normal !important; }
+.responsive-table-container[data-layout='table'] > .responsive-table td { white-space: nowrap !important; overflow: hidden; text-overflow: ellipsis; }
+.responsive-table-container[data-layout='table'] > .responsive-table td :is(div, span, a, p, strong, b, code, small) { white-space: nowrap !important; }
 .responsive-table-container[data-layout='table'] > .responsive-table td:not([data-interactive]):not(.data-table__cell--actions) :is(div, p) { display: inline !important; }
 .responsive-table-container[data-layout='table'] > .responsive-table td:not([data-interactive]):not(.data-table__cell--actions) br { display: none; }
 .responsive-table-container[data-layout='table'] > .responsive-table td:not([data-interactive]):not(.data-table__cell--actions) :is(div, p, small) + :is(div, p, small)::before { content: ' · '; }
