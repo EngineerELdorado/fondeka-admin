@@ -39,7 +39,7 @@ The `lib/api.js` helper maps to the Spring Boot admin endpoints that manage acco
 
 ## Business API LIVE payment settings
 
-Feature flags contains **Default for live API payments**, backed by `business_api.live_payments.enabled`. Businesses → Details & credentials → LIVE API payments supports explicit enable/disable overrides and restoring inheritance with a bodyless `DELETE`. The Business directory and quick view show the backend's saved effective status and its source. Successful updates invalidate the router cache; the directory fetches current rows when opened or refreshed.
+Feature flags contains **Default for live API payments**, backed by `business_api.live_payments.enabled`. Businesses → Details & credentials → LIVE API payments supports explicit enable/disable overrides and restoring inheritance with a bodyless `DELETE`. The Business directory and quick view show the backend's saved effective status and its source, with a direct **Manage LIVE payments** link for Admins and Super Admins (read-only settings link for Assistants). Directory actions are limited to **Quick view** and **Details & credentials**; operational/KYB status changes and owner access are on Business details. Successful updates invalidate the router cache; the directory fetches current rows when opened or refreshed.
 
 `ADMIN` and `SUPER_ADMIN` can edit these settings; `ASSISTANT` has read-only access. Draft choices are separate from saved status. Failed saves preserve the saved badge, and a `409` requires a successful Business refresh before retrying. Missing or invalid effective/global fields show **Status unavailable** and disable editing. These controls affect new LIVE payments; accepted payments continue processing and sandbox remains available.
 

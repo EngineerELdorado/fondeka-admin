@@ -89,6 +89,8 @@ test('policy permission denials stay on screen while unrelated authorization beh
   const { api } = await importSource('lib/api.js', 'permissions');
   for (const call of [
     () => api.businesses.get(42),
+    () => api.businesses.updateStatus(42, { status: 'ACTIVE' }),
+    () => api.businesses.updateKybStatus(42, { kybStatus: 'APPROVED' }),
     () => api.businesses.updateApiLivePayments(42, { enabled: true }),
     () => api.businesses.resetApiLivePayments(42),
     () => api.featureFlags.get(flagKey),
@@ -97,4 +99,20 @@ test('policy permission denials stay on screen while unrelated authorization beh
   assert.deepEqual(events, []);
   await assert.rejects(api.accounts.get(1), (error) => error.status === 403);
   assert.deepEqual(events, ['fondeka:auth-forbidden']);
+});
+
+test('Business status editors use dedicated PATCH routes with optional audit reasons', async (t) => {
+  const originalFetch = global.fetch;
+  t.after(() => { global.fetch = originalFetch; });
+  const { api } = await importSource('lib/api.js', 'business-status-details');
+  api.setAuthToken('admin-status-test');
+  const calls = [];
+  global.fetch = async (url, init) => { calls.push({ url, ...init }); return Response.json({ id: 42, status: 'ACTIVE', kybStatus: 'APPROVED' }); };
+  await api.businesses.updateStatus(42, { status: 'ACTIVE', reason: 'Updated business metadata' });
+  await api.businesses.updateKybStatus(42, { kybStatus: 'APPROVED' });
+  assert.ok(calls[0].url.endsWith('/admin-api/businesses/42/status'));
+  assert.ok(calls[1].url.endsWith('/admin-api/businesses/42/kyb-status'));
+  assert.deepEqual(JSON.parse(calls[0].body), { status: 'ACTIVE', reason: 'Updated business metadata' });
+  assert.deepEqual(JSON.parse(calls[1].body), { kybStatus: 'APPROVED' });
+  assert.ok(calls.every((call) => call.method === 'PATCH' && call.headers.Authorization === 'Bearer admin-status-test'));
 });

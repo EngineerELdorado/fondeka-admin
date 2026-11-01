@@ -49,13 +49,14 @@ const StatusBadge = ({ value }) => {
   );
 };
 
-const LivePaymentSummary = ({ business }) => {
+const LivePaymentSummary = ({ business, canManage = false }) => {
   const available = livePaymentSettingsAvailable(business);
   return <div style={{ display: 'grid', gap: '0.1rem' }}>
     <strong style={{ color: !available ? 'var(--muted)' : business.apiLivePaymentsEnabled ? '#15803d' : '#b45309' }}>
       {available ? business.apiLivePaymentsEnabled ? 'Enabled for new payments' : 'Disabled for new payments' : 'Status unavailable'}
     </strong>
     <span style={{ color: 'var(--muted)', fontSize: '12px' }}>{available ? livePaymentMode(business) === 'inherit' ? 'Global default' : 'Business override' : 'Refresh to check'}</span>
+    {business?.id != null ? <Link href={`/dashboard/businesses/${encodeURIComponent(business.id)}#business-live-payments-title`} style={{ fontSize: '12px', marginTop: '0.2rem' }}>{canManage ? 'Manage LIVE payments' : 'View LIVE payment settings'}</Link> : null}
   </div>;
 };
 
@@ -91,10 +92,7 @@ export default function BusinessesPage() {
   const [loading, setLoading] = useState(false);
   const [detailLoadingId, setDetailLoadingId] = useState(null);
   const [details, setDetails] = useState(null);
-  const [statusDraft, setStatusDraft] = useState(null);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-  const [info, setInfo] = useState(null);
 
   const adminGroups = useMemo(() => {
     const access = session?.tokens?.accessToken?.payload || {};
@@ -138,7 +136,6 @@ export default function BusinessesPage() {
     if (!row?.id) return;
     setDetailLoadingId(row.id);
     setError(null);
-    setInfo(null);
     try {
       const response = await api.businesses.get(row.id);
       setDetails(response);
@@ -149,57 +146,6 @@ export default function BusinessesPage() {
       setDetailLoadingId(null);
     }
   }, []);
-
-  const openStatusEditor = useCallback((business, type) => {
-    if (!canUpdate || !business?.id) return;
-    setStatusDraft({
-      business,
-      type,
-      value: type === 'kyb' ? business.kybStatus : business.status,
-      reason: ''
-    });
-    setError(null);
-    setInfo(null);
-  }, [canUpdate]);
-
-  const saveStatus = async () => {
-    if (!statusDraft?.business?.id || !canUpdate || saving) return;
-    const reason = statusDraft.reason.trim();
-    if (reason.length > 1000) {
-      setError('Reason must be 1,000 characters or fewer.');
-      return;
-    }
-    const isKyb = statusDraft.type === 'kyb';
-    const currentValue = isKyb ? statusDraft.business.kybStatus : statusDraft.business.status;
-    if (!statusDraft.value) {
-      setError(`${isKyb ? 'KYB status' : 'Operational status'} is required.`);
-      return;
-    }
-    if (statusDraft.value === currentValue) {
-      setError('Select a different status before saving.');
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    setInfo(null);
-    try {
-      const payload = isKyb
-        ? { kybStatus: statusDraft.value, ...(reason ? { reason } : {}) }
-        : { status: statusDraft.value, ...(reason ? { reason } : {}) };
-      const response = isKyb
-        ? await api.businesses.updateKybStatus(statusDraft.business.id, payload)
-        : await api.businesses.updateStatus(statusDraft.business.id, payload);
-      setRows((previous) => previous.map((row) => Number(row.id) === Number(response.id) ? response : row));
-      setDetails((previous) => Number(previous?.id) === Number(response.id) ? response : previous);
-      setStatusDraft(null);
-      setInfo(`${isKyb ? 'KYB' : 'Operational'} status updated for business ${response.id}.`);
-      await fetchRows();
-    } catch (err) {
-      setError(err?.message || 'Failed to update business status. Refresh the business and try again.');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const columns = useMemo(() => [
     {
@@ -227,7 +173,7 @@ export default function BusinessesPage() {
     { key: 'status', label: 'Operational status', render: (row) => <StatusBadge value={row.status} /> },
     { key: 'kybStatus', label: 'KYB status', render: (row) => <StatusBadge value={row.kybStatus} /> },
     {
-      key: 'apiLivePaymentsEnabled', label: 'LIVE API payments', render: (row) => <LivePaymentSummary business={row} />
+      key: 'apiLivePaymentsEnabled', label: 'LIVE API payments', render: (row) => <LivePaymentSummary business={row} canManage={canUpdate} />
     },
     { key: 'countryCode', label: 'Country', render: (row) => row.countryCode || '—' },
     { key: 'defaultBusiness', label: 'Default', render: (row) => row.defaultBusiness ? 'Yes' : 'No' },
@@ -241,17 +187,10 @@ export default function BusinessesPage() {
             {Number(detailLoadingId) === Number(row.id) ? 'Loading…' : 'Quick view'}
           </button>
           <Link href={`/dashboard/businesses/${encodeURIComponent(row.id)}`} className="btn-neutral btn-sm" style={{ textDecoration: 'none' }}>Details & credentials</Link>
-          <Link href={`/dashboard/accounts/accounts/${encodeURIComponent(row.ownerAccountId)}#business-tools-access`} className="btn-neutral btn-sm" style={{ textDecoration: 'none' }}>Owner access</Link>
-          {canUpdate ? (
-            <>
-              <button type="button" className="btn-neutral btn-sm" onClick={() => openStatusEditor(row, 'operational')}>Operational status</button>
-              <button type="button" className="btn-neutral btn-sm" onClick={() => openStatusEditor(row, 'kyb')}>KYB status</button>
-            </>
-          ) : null}
         </div>
       )
     }
-  ], [canUpdate, detailLoadingId, openDetails, openStatusEditor]);
+  ], [canUpdate, detailLoadingId, openDetails]);
 
   const applyFilters = (event) => {
     event.preventDefault();
@@ -331,7 +270,6 @@ export default function BusinessesPage() {
       </form>
 
       {error ? <div className="card" style={{ color: '#B91C1C', fontWeight: 700 }}>{error}</div> : null}
-      {info ? <div className="card" style={{ color: '#15803D', fontWeight: 700 }}>{info}</div> : null}
 
       <DataTable
         columns={columns}
@@ -359,7 +297,7 @@ export default function BusinessesPage() {
             { label: 'Registration number', value: details.registrationNumber },
             { label: 'Operational status', value: <StatusBadge value={details.status} /> },
             { label: 'KYB status', value: <StatusBadge value={details.kybStatus} /> },
-            { label: 'LIVE API payments', value: <LivePaymentSummary business={details} /> },
+            { label: 'LIVE API payments', value: <LivePaymentSummary business={details} canManage={canUpdate} /> },
             { label: 'Default business', value: details.defaultBusiness ? 'Yes' : 'No' },
             { label: 'Created', value: formatDateTime(details.createdAt) },
             { label: 'Updated', value: formatDateTime(details.updatedAt) }
@@ -367,55 +305,11 @@ export default function BusinessesPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               <Link href={`/dashboard/businesses/${encodeURIComponent(details.id)}`} className="btn-neutral" style={{ textDecoration: 'none' }}>Details & credentials</Link>
-              <Link href={`/dashboard/accounts/accounts/${encodeURIComponent(details.ownerAccountId)}#business-tools-access`} className="btn-neutral" style={{ textDecoration: 'none' }}>Owner access and payments</Link>
             </div>
-            {canUpdate ? (
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <button type="button" className="btn-neutral" onClick={() => openStatusEditor(details, 'operational')}>Change operational status</button>
-                <button type="button" className="btn-neutral" onClick={() => openStatusEditor(details, 'kyb')}>Change KYB status</button>
-              </div>
-            ) : null}
           </div>
         </Modal>
       ) : null}
 
-      {statusDraft ? (
-        <Modal title={`Change ${statusDraft.type === 'kyb' ? 'KYB' : 'operational'} status`} onClose={() => saving ? null : setStatusDraft(null)}>
-          <div style={{ display: 'grid', gap: '0.75rem' }}>
-            <div>
-              <strong>{statusDraft.business.name || `Business ${statusDraft.business.id}`}</strong>
-              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Current: {formatStatus(statusDraft.type === 'kyb' ? statusDraft.business.kybStatus : statusDraft.business.status)}</div>
-            </div>
-            <div style={{ padding: '0.7rem', borderRadius: '10px', background: '#FFF7ED', color: '#92400E', fontSize: '13px' }}>
-              This records administrative metadata only. It does not block transactions, suspend the owner account, disable stores, or approve personal KYC.
-            </div>
-            <label style={{ display: 'grid', gap: '0.25rem' }}>
-              <span>{statusDraft.type === 'kyb' ? 'KYB status' : 'Operational status'}</span>
-              <select value={statusDraft.value} disabled={saving} onChange={(event) => setStatusDraft((previous) => ({ ...previous, value: event.target.value }))}>
-                {(statusDraft.type === 'kyb' ? KYB_STATUSES : OPERATIONAL_STATUSES).map((status) => (
-                  <option key={status} value={status}>{formatStatus(status)}</option>
-                ))}
-              </select>
-            </label>
-            <label style={{ display: 'grid', gap: '0.25rem' }}>
-              <span>Reason (optional)</span>
-              <textarea
-                rows={4}
-                maxLength={1000}
-                value={statusDraft.reason}
-                disabled={saving}
-                placeholder="Recorded in the admin audit log"
-                onChange={(event) => setStatusDraft((previous) => ({ ...previous, reason: event.target.value }))}
-              />
-              <span style={{ color: 'var(--muted)', fontSize: '12px', textAlign: 'right' }}>{statusDraft.reason.length}/1000</span>
-            </label>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-              <button type="button" className="btn-neutral" disabled={saving} onClick={() => setStatusDraft(null)}>Cancel</button>
-              <button type="button" className="btn-primary" disabled={saving} onClick={saveStatus}>{saving ? 'Saving…' : 'Save status'}</button>
-            </div>
-          </div>
-        </Modal>
-      ) : null}
     </div>
   );
 }
