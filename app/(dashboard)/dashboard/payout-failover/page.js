@@ -6,6 +6,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { failoverPermissions } from '@/lib/payout-failover';
 import { Card, Alert, useFailoverError } from '@/components/payout-failover/Common';
+import { initialFailoverView } from '@/lib/failover-presentation';
+import { FailoverIntro, FailoverNavigation, FailoverOverview } from '@/components/failover/Experience';
 import PolicyPanel from '@/components/payout-failover/PolicyPanel';
 import OperationsPanel from '@/components/payout-failover/OperationsPanel';
 import HistoryPanel from '@/components/payout-failover/HistoryPanel';
@@ -14,8 +16,9 @@ export default function PayoutFailoverPage() {
   const { session, enableRegulatorMode } = useAuth();
   const { canRead, canPublish } = failoverPermissions(session);
   const search = useSearchParams();
-  const [tab, setTab] = useState(() => ['policy', 'history'].includes(search.get('tab')) ? search.get('tab') : 'operations');
+  const [tab, setTab] = useState(() => initialFailoverView(search));
   const [capabilities, setCapabilities] = useState(null), [error, setError] = useState(''), [loading, setLoading] = useState(true), [reload, setReload] = useState(0);
+  const [snapshot, setSnapshot] = useState(null);
   const [revision, setRevision] = useState(null), [historyRevision, setHistoryRevision] = useState(search.get('revision'));
   const fail = useFailoverError(setError);
   const visible = canRead && enableRegulatorMode === false;
@@ -32,17 +35,14 @@ export default function PayoutFailoverPage() {
   const showHistory = useCallback((value) => { setHistoryRevision(value); setTab('history'); }, []);
   if (!canRead) return <Card title="Payout failover"><Alert>Permission denied. Admin or Super Admin access is required.</Alert></Card>;
   if (enableRegulatorMode !== false) return <Card title="Payout failover">This area is unavailable in the current dashboard presentation.</Card>;
-  return <div className="payout-failover">
-    <Card><div className="failover-heading"><div><h1>Payout failover</h1><p>Publish routing rules, review eligibility and investigate recorded payout attempts.</p></div><button type="button" className="btn-neutral" disabled={loading} onClick={() => setReload((value) => value + 1)}>{loading ? 'Loading…' : 'Refresh capabilities'}</button></div>
-      <p>Automatic failover starts off. Pausing blocks new alternate claims; an alternate already claimed can continue. Policy changes do not cancel, refund or resend payments.</p>
-      {!canPublish ? <small>Policy publishing and activation require Super Admin access. You can preview and investigate.</small> : null}
-      <Alert>{error}</Alert>
-    </Card>
+  return <div className="payout-failover failover-workspace">
+    <FailoverIntro kind="payout" canPublish={canPublish} loading={loading} onRefresh={() => setReload((value) => value + 1)}><Alert>{error}</Alert></FailoverIntro>
     {capabilities ? <>
-      <nav className="failover-actions" aria-label="Payout failover views">{[['operations', 'Overview & operations'], ['policy', 'Policy & rollout'], ['history', 'Revision history']].map(([key, label]) => <button type="button" key={key} className={tab === key ? 'btn-primary' : 'btn-neutral'} aria-pressed={tab === key} onClick={() => setTab(key)}>{label}</button>)}</nav>
-      <div hidden={tab !== 'operations'}><OperationsPanel capabilities={capabilities} onHistory={showHistory} initialTransactionId={search.get('transactionId')} /></div>
-      <div hidden={tab !== 'policy'}><PolicyPanel capabilities={capabilities} canPublish={canPublish} onRevision={setRevision} /></div>
+      <FailoverNavigation kind="payout" view={tab} onChange={setTab} />
+      <div hidden={tab !== 'overview'}><FailoverOverview kind="payout" snapshot={snapshot} canPublish={canPublish} onSetup={() => setTab('setup')} onActivation={() => setTab('activation')} onActivity={() => setTab('operations')} /></div>
+      <div hidden={!['overview', 'operations'].includes(tab)}><OperationsPanel view={tab === 'overview' ? 'overview' : 'operations'} capabilities={capabilities} onHistory={showHistory} initialTransactionId={search.get('transactionId')} /></div>
+      <div hidden={!['setup', 'activation'].includes(tab)}><PolicyPanel view={tab === 'activation' ? 'activation' : 'setup'} capabilities={capabilities} canPublish={canPublish} onRevision={setRevision} onPolicy={setSnapshot} onSetup={() => setTab('setup')} /></div>
       <div hidden={tab !== 'history'}><HistoryPanel active={tab === 'history'} latestRevision={revision} focusRevision={historyRevision} /></div>
-    </> : loading ? <Card><span role="status">Loading payout failover capabilities…</span></Card> : null}
+    </> : loading ? <Card><span role="status">Loading supported payout providers…</span></Card> : null}
   </div>;
 }

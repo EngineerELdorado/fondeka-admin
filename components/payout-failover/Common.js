@@ -2,10 +2,11 @@
 
 import { cloneElement, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import HelpTip from '@/components/failover/HelpTip';
 
-export const formatInstant = (value) => value ? `${new Date(value).toISOString().replace('T', ' ').replace('Z', '')} UTC` : '—';
-export function Field({ label, children, help }) {
-  return <label className="failover-field"><span>{label}</span>{cloneElement(children, { 'aria-label': label })}{help ? <small>{help}</small> : null}</label>;
+export const formatInstant = (value) => !value ? '—' : Number.isNaN(new Date(value).getTime()) ? String(value) : `${new Date(value).toISOString().replace('T', ' ').replace('Z', '')} UTC`;
+export function Field({ label, children, help, tip }) {
+  return <div className={`failover-field${tip ? ' failover-field--help' : ''}`}><label className="failover-field"><span>{label}</span>{cloneElement(children, { 'aria-label': label })}{help ? <small>{help}</small> : null}</label>{tip ? <HelpTip label={label}>{tip}</HelpTip> : null}</div>;
 }
 export function Card({ title, children, ...props }) {
   return <section className="card failover-card" {...props}>{title ? <h2>{title}</h2> : null}{children}</section>;
@@ -23,15 +24,15 @@ export function useFailoverError(setError) {
 export function ValidationReport({ report, title = 'Validation report' }) {
   if (!report) return null;
   return <div className="failover-card" aria-label={title}>
-    <strong>{title}: {report.valid ? 'Valid' : 'Needs changes'}</strong>
-    <ul className="failover-issues">{report.issues.map((issue, index) => <li key={index}><strong>{issue.severity} · {issue.code}</strong><span>{issue.path || 'configuration'}: {issue.message}</span></li>)}</ul>
-    {report.routes.length ? <div className="failover-grid">{report.routes.map((route, index) => <div className="failover-rule-summary" key={`${route.ruleId}-${index}`}>
+    <strong>{title}: {report.valid ? 'Checks passed' : 'Needs changes'}</strong>
+    <ul className="failover-issues">{report.issues.map((issue, index) => <li key={index}><strong>{issue.severity === 'ERROR' ? 'Fix required' : 'Review'}</strong><span>{issue.message}</span><details className="failover-technical"><summary>Technical details</summary><code>{issue.code} · {issue.path || 'configuration'}</code></details></li>)}</ul>
+    {report.routes.length ? <details className="failover-technical"><summary>Checked provider routes ({report.routes.length})</summary><div className="failover-grid">{report.routes.map((route, index) => <div className="failover-rule-summary" key={`${route.ruleId}-${index}`}>
       <strong>{route.order}. {route.paymentMethod || 'Route'} · {route.countryCode || '—'} · {route.currency || '—'}</strong>
       <span>Rule {route.ruleId} · {route.enabled ? 'Enabled' : 'Disabled'}</span>
       <span>#{route.sourceRouteId} ({route.sourceActive ? 'active' : 'inactive'}) → #{route.targetRouteId} ({route.targetActive ? 'active' : 'inactive'})</span>
       {route.destinationCheckRequired ? <span>Recipient funding eligibility must be checked at execution.</span> : null}
-    </div>)}</div> : null}
-    <small>Local preflight does not certify provider funds, availability or commercial fees.</small>
+    </div>)}</div></details> : null}
+    <small>These are local configuration checks. They do not guarantee provider funds, availability or commercial fees.</small>
   </div>;
 }
 export function Pager({ page, totalPages, totalElements, busy, onChange }) {

@@ -8,6 +8,6 @@ export default function ProductSummary({ product, title }) {
     <span>{product.provider === 'RELOADLY' ? 'Operator #' + product.operatorId : 'Offer ' + product.offerId}</span>
     <span>Supplier amount: {rechargeDecimalText(product.amount)} {product.currency}</span>
     <span>Delivered amount: {product.deliveredAmount == null ? 'Not supplied' : rechargeDecimalText(product.deliveredAmount)} {product.deliveredCurrency || ''}</span>
-    <small>Approval fingerprint: {product.fingerprint}</small>
+    <details className="failover-technical"><summary>Approval snapshot identifier</summary><small>This fingerprint locks the inspected provider terms. A change requires fresh inspection and review.</small><code>{product.fingerprint}</code></details>
   </div>;
 }

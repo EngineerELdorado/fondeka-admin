@@ -1,6 +1,6 @@
 # Managing provider failover
 
-This is the team operating guide for payout and recharge failover. It covers the dashboard shipped in commit `37fd8d7` and the backend integration contracts in the sibling backend checkout. Newer backend conveniences that are not exposed in this dashboard are identified separately below.
+This is the team operating guide for payout and recharge failover. It covers the current task-based dashboard and the backend integration contracts in the sibling backend checkout. Newer backend conveniences that are not exposed in this dashboard are identified separately below.
 
 ## 1. The mental model
 
@@ -49,7 +49,7 @@ The policies are independent. Enabling or pausing one does not change the other.
 | Trigger | A correlated, synchronous rejection with a reviewed code | Verified terminal non-delivery with a reviewed source-specific condition |
 | Attempt limit | Primary plus one alternate | Primary plus one alternate, using distinct providers |
 | Preview | Configuration only, a sample payout, or an existing transaction | An existing transaction only; may read provider catalogs |
-| On-demand provider check | **Check provider evidence**, observational only | No manual status-check action in this screen; inspect recorded recovery observations |
+| On-demand provider check | **Read latest provider evidence**, observational only | No manual status-check action in this screen; inspect recorded recovery observations |
 
 Recharge supports an existing legacy-account or fiat-wallet debit. External collections, loan funding, crypto-wallet funding, RANGE products and PIN/redemption products retain their existing path.
 
@@ -105,22 +105,34 @@ Use real active routes/products from that environment. Check provider credential
 
 Start with an explicit small account cohort. For recharge, begin with reviewed fixed airtime before expanding to DATA/BUNDLE or a reverse direction.
 
+Both pages open on **Overview**, which shows the saved on/off/scheduled state, enabled rule count, covered accounts and a three-step guide. Use the same sections on either page:
+
+| Section | Use it to |
+| --- | --- |
+| Overview | Understand the saved state and activity counts |
+| Backup setup | Prepare route/product pairs, choose accounts and save the full configuration |
+| Turn on / pause | Activate the saved setup for a future creation time, or pause new attempts |
+| Payment activity | Search tracked payments and investigate each provider attempt |
+| Change history | Read previous saved versions, their author and reason |
+
+Question-mark controls open explanations on click or keyboard activation. Advanced fields, technical identifiers, full configuration JSON and preview tools are collapsed until needed. Switching sections keeps local drafts.
+
 ## 5. Set up payout failover
 
-1. Open **Payout failover → Policy & rollout**. Refresh saved policy and route catalog; note the saved revision and source.
-2. In **Ordered rules & rollout**, leave **Publish with failover enabled** unchecked while preparing the policy. Enter the pilot account IDs explicitly.
-3. Select **Add failover rule**. Choose a real pawaPay source route and a Maplerad target for the identical mobile-money method. Check the country/operator, currency, supported payout action and active states.
+1. Open **Payout failover → Backup setup**. Refresh saved policy and route catalog; note the saved revision and source.
+2. In **Configure payout backups**, prepare the setup with backups off. The draft enabled value is under **Advanced: enabled value and creation boundary in this draft**. Enter the pilot account IDs explicitly.
+3. Select **Add a backup route pair**. Choose a real pawaPay source route and a Maplerad target for the identical mobile-money method. Check the country/operator, currency, supported payout action and active states.
 4. Select only the applicable rejection codes offered by capabilities. The current allowlist is `PROVIDER_TEMPORARILY_UNAVAILABLE` and `PAWAPAY_WALLET_OUT_OF_FUNDS`. Leave the generated stable ID intact; use the rule name for an operator-friendly description.
-5. Review every rule and its order. Enter a meaningful **Policy publication reason**, then **Publish policy**. Confirm the returned revision and paused saved state.
-6. Use **Preview & simulation** to validate the configuration and, when needed, test a sample using the recipe below. Resolve validation errors before activation; review warnings such as an unrestricted cohort.
-7. In **Enable / pause**, enter a **Future activation cutover (UTC)** and **Activation / pause reason**. Choose **Enable / resume failover**. Confirm a newer saved revision, the intended cutover and **Effective switch ON**.
-8. Reconcile or discard any remaining local preview draft against the new saved revision. Monitor **Overview & operations** as new, eligible payouts arrive through the normal flow.
+5. Review every rule and its order. Enter a meaningful **Reason for this setup change**, then **Save backup rules**. Confirm the returned revision and paused saved state.
+6. Use **Test your payout setup without sending payments** to validate the configuration and, when needed, test a sample using the recipe below. Resolve validation errors before activation; review warnings such as an unrestricted cohort.
+7. Open **Turn on / pause**, enter **Start for payments created after (UTC)** and **Reason for turning on or pausing**. Choose **Turn on payout backups**. Confirm a newer saved revision, the intended cutover and the enabled saved state (or **Scheduled** on Overview when the start is in the future).
+8. Reconcile or discard any remaining local preview draft against the new saved revision. Monitor **Payment activity** as new, eligible payouts arrive through the normal flow.
 
 Only reviewed synchronous source rejections can switch. Customer insufficient balance, a generic HTTP failure, an accepted/enqueued payout, a timeout or an unknown outcome cannot trigger Maplerad. The payout must satisfy the whole-unit, same-currency, unchanged-quote and destination-funding constraints. An account-specific provider route remains a constraint even when the account is in the pilot.
 
 ### Preview a planned activation without publishing it
 
-Use a local draft that represents the intended enabled policy and future cutoff. Select **Unsaved editor draft**, **Sample payout**, a reviewed rejection code, and a sample creation time **after** that cutoff. Supply a real sample account/source route, supported action, recipient and amounts.
+Use a local draft that represents the intended enabled policy and future cutoff. Select **Unsaved setup draft**, **An example payout (no money sent)**, a reviewed rejection code, and a sample creation time **after** that cutoff. Supply a real sample account/source route, supported action, recipient and amounts.
 
 Changing the draft enabled checkbox for this preview does not activate the saved policy. Do not publish that temporary draft merely to run the preview. The dedicated enable action later uses the saved policy and its separately entered activation cutoff.
 
@@ -134,14 +146,14 @@ Interpret the result correctly:
 
 ## 6. Set up recharge failover
 
-1. Open **Recharge failover → Product inspections & approvals**. Choose the country/type and a direction: source and target must be different supported providers.
+1. Open **Recharge failover → Backup setup → 1. Review product pair**. Choose the country/type and a direction: primary and backup must be different supported providers.
 2. Supply the real product identifiers and fixed supplier amounts. Reloadly uses an operator ID and fixed sender denomination; Zendit uses an offer ID and its current fixed catalog supplier cost.
-3. Select **Inspect source product** and **Inspect target product**. These calls read provider terms and produce approval fingerprints; they do not buy anything. Reinspect after changing inputs. A previous inspection is unusable after a failed replacement inspection.
-4. Review both term snapshots. Enter the same real **network identity**, write the benefits/eligibility review, choose an approval expiry, set the maximum additional supplier cost and select the reviewed source failure conditions. Explicitly confirm equivalent benefits and eligibility.
-5. Select **Use reviewed mapping in policy draft**. This only copies the approved pair into the local editor. An Admin can prepare a preview draft, but only a Super Admin can publish it.
-6. Open **Recharge policy & rollout**. Keep the global draft disabled, enter the pilot account IDs, review mapping order and flags, and **Publish recharge policy** with a reason. Confirm the returned paused revision.
-7. Use **Recharge transaction preview** where a real transaction is available. It can evaluate the saved policy or local draft but never purchases, enrolls, settles, refunds or clears a guard.
-8. Set a future UTC activation cutoff and a reason; choose **Enable / resume recharge failover**. Confirm the new revision, effective switch and cutover. Review/discard any retained local draft, then monitor new normal-flow purchases in **Recharge overview & operations**.
+3. Select **Inspect primary product** and **Inspect backup product**. These calls read provider terms and produce approval fingerprints; they do not buy anything. Reinspect after changing inputs. A previous inspection is unusable after a failed replacement inspection.
+4. Review both term snapshots. Enter the same real **Real network name**, write the benefits/eligibility review, choose an approval expiry, set the maximum additional supplier cost and select the reviewed source failure conditions. Explicitly confirm equivalent benefits and eligibility.
+5. Select **Add reviewed pair to setup draft**. This only copies the approved pair into the local editor. An Admin can prepare a preview draft, but only a Super Admin can publish it.
+6. Open **2. Save pairs & accounts**. Keep the global draft disabled, enter the pilot account IDs, review mapping order and flags, and **Save recharge backup rules** with a reason. Confirm the returned paused revision.
+7. Use **Check an existing recharge without sending a purchase** where a real transaction is available. It can evaluate the saved policy or local draft but never purchases, enrolls, settles, refunds or clears a guard.
+8. Open **Turn on / pause**, set **Start for purchases created after (UTC)** and a reason; choose **Turn on recharge backups**. Confirm the new revision, effective switch and cutover. Review/discard any retained local draft, then monitor new normal-flow purchases in **Payment activity**.
 
 ### What counts as equivalent?
 
@@ -170,7 +182,7 @@ Recharge preview has no synthetic future sample. An existing transaction created
 
 ## 7. Pause, resume and change scope
 
-To stop new claims, use **Pause new alternate claims** for payouts or **Pause new recharge claims** for recharge, with an incident/change reason. Confirm the returned saved state and revision. Pause preserves rules and rollout accounts and does not require current route/catalog readiness.
+To stop new claims, use **Pause payout backups** for payouts or **Pause recharge backups** for recharge, with an incident/change reason. Confirm the returned saved state and revision. Pause preserves rules and rollout accounts and does not require current route/catalog readiness.
 
 Pausing does not cancel or refund a transaction, release held funds, undo an attempt, stop callbacks or disable recovery protections. Keep workers and investigation running. An already-claimed provider request may still be sent after pause.
 
@@ -212,7 +224,7 @@ Start with the original transaction ID/reference. Inspect **all attempts**, incl
 
 ### Payout evidence checks
 
-In **Overview & operations**, investigate a transaction and use **Check provider evidence**. It uses recorded identities, including the original pawaPay UUID after a route change. It records observations and an audit event without submitting, refunding, settling or automatically reconciling money.
+In **Payment activity**, investigate a transaction and use **Read latest provider evidence**. It uses recorded identities, including the original pawaPay UUID after a route change. It records observations and an audit event without submitting, refunding, settling or automatically reconciling money.
 
 The cooldown is 30 seconds per transaction across all admins/processes. On `429`, wait for the cooldown rather than repeatedly clicking. pawaPay lookup is supported; Maplerad live lookup is currently `UNSUPPORTED`. Use recorded signed callbacks and the provider's operational records for that side. Do not treat an old submit/callback summary as a fresh provider query.
 

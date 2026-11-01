@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { Alert, Card, formatInstant, useFailoverError } from '@/components/payout-failover/Common';
+import { ConfigurationSummary } from '@/components/failover/Experience';
 import ArrayPager from './ArrayPager';
 
 export default function HistoryPanel({ active, revision, focusRevision }) {
@@ -22,12 +23,12 @@ export default function HistoryPanel({ active, revision, focusRevision }) {
     return () => { sequence.current += 1; };
   }, [active, page, reload, revision, fail]);
   useEffect(() => { if (active && rows) focused.current?.scrollIntoView({ block: 'nearest' }); }, [active, rows]);
-  return <Card title="Recharge revision history">
+  return <Card title="Saved recharge setup changes">
     <p>Each publication records the complete configuration, actor, reason and timestamp. To restore historical settings, review the products and publish a new revision; never reset a journal or rewind a cutover.</p>
     <Alert>{error}</Alert><button type="button" className="btn-neutral" disabled={loading} onClick={() => setReload((value) => value + 1)}>Refresh recharge history</button>
     {loading ? <span role="status">Loading recharge revisions…</span> : null}
     {focusRevision != null ? <span>Requested recharge revision {focusRevision}.</span> : null}
-    {(rows || []).map((entry) => <details className="failover-rule-summary" key={entry.revision} open={String(entry.revision) === String(focusRevision)} ref={String(entry.revision) === String(focusRevision) ? focused : undefined}><summary style={{ cursor: 'pointer' }}><strong>Recharge revision {entry.revision}</strong> · Admin {entry.adminId} · {formatInstant(entry.changedAt)}<div>{entry.reason}</div></summary><pre style={{ marginTop: '.75rem' }}>{JSON.stringify(entry.configuration, null, 2)}</pre></details>)}
+    {(rows || []).map((entry) => <details className="failover-rule-summary" key={entry.revision} open={String(entry.revision) === String(focusRevision)} ref={String(entry.revision) === String(focusRevision) ? focused : undefined}><summary style={{ cursor: 'pointer' }}><strong>Recharge revision {entry.revision}</strong> · Admin {entry.adminId} · {formatInstant(entry.changedAt)}<div>{entry.reason}</div></summary><ConfigurationSummary configuration={entry.configuration} kind="recharge" /><details className="failover-technical"><summary>Complete configuration (technical)</summary><pre style={{ marginTop: '.75rem' }}>{JSON.stringify(entry.configuration, null, 2)}</pre></details></details>)}
     {rows?.length === 0 && !loading ? <span>No published recharge revisions on this page.</span> : null}
     {rows ? <ArrayPager page={page} size={20} length={rows.length} busy={loading} onChange={setPage} /> : null}
   </Card>;
