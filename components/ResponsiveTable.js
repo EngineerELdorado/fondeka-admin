@@ -9,14 +9,15 @@ export default function ResponsiveTable({ children, className = '', style, ...pr
   useEffect(() => {
     const element = container.current, nativeTable = table.current;
     if (!element || !nativeTable) return undefined;
-    let stackBelow = 480;
+    let columnUnits = 35;
     const attribute = (node, key, value) => {
       if (value == null) node.removeAttribute(key);
       else if (node.getAttribute(key) !== String(value)) node.setAttribute(key, value);
     };
     const resize = () => {
       const width = element.getBoundingClientRect().width;
-      if (width > 0) setStacked(width < stackBelow);
+      const fontSize = parseFloat(window.getComputedStyle(nativeTable).fontSize) || 16;
+      if (width > 0) setStacked(width < Math.max(35, columnUnits) * fontSize);
     };
     const prepare = () => {
       // Use rendered cells, including changes made by conditional/context-based wrappers.
@@ -30,7 +31,8 @@ export default function ResponsiveTable({ children, className = '', style, ...pr
           const text = cell.textContent?.trim() || cell.getAttribute('aria-label') || cell.querySelector('[aria-label]')?.getAttribute('aria-label') || 'Actions';
           const label = text.replace(/\s+/g, ' ').trim();
           if (label === '#') cell.style.width = '3rem';
-          if (rowIndex === headingRows.length - 1) for (let at = 0; at < cell.colSpan; at += 1) headers.push({ label, id: cell.id });
+          const compact = label === '#' || cell.style.width === '3.5rem' || !cell.textContent.trim() && cell.querySelector('input[type="checkbox"]');
+          if (rowIndex === headingRows.length - 1) for (let at = 0; at < cell.colSpan; at += 1) headers.push({ label, id: cell.id, widthUnits: compact ? 3.5 : 9 });
         });
       });
       for (const section of [nativeTable.tHead, ...nativeTable.tBodies, nativeTable.tFoot].filter(Boolean)) {
@@ -49,7 +51,7 @@ export default function ResponsiveTable({ children, className = '', style, ...pr
           }
         }
       }
-      stackBelow = Math.min(960, Math.max(480, headers.length * 96));
+      columnUnits = headers.reduce((total, heading) => total + heading.widthUnits, 0);
       resize();
     };
     prepare();

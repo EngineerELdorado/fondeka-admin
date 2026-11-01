@@ -43,6 +43,8 @@ Dashboard content, controls and grids shrink to their available width. Use `minm
 
 Use `components/ResponsiveTable.js` for custom tables; shared `DataTable` uses it automatically. Tables fit their container on larger screens and become labelled record grids when space is limited, including inside popups and split panels. Headers supply the record labels. Cells, links, inputs, actions, pagination and expanded rows remain available, with native table roles and header associations preserved. Avoid fixed minimum table widths and horizontal swipe instructions. `scripts/responsive-table.test.cjs` checks labels, controls, grouped headers and full-width rows.
 
+Table values use 16px text with 14px secondary text and record labels at the default root size. Layout changes use the rendered font size and column count, giving dense tables more room before switching to records. Keep fonts readable; fit content by wrapping and reflowing it.
+
 ## Business API LIVE payment settings
 
 Feature flags contains **Default for live API payments**, backed by `business_api.live_payments.enabled`. Businesses → Details & credentials → LIVE API payments supports explicit enable/disable overrides and restoring inheritance with a bodyless `DELETE`. The Business directory and quick view show the backend's saved effective status and its source, with a direct **Manage LIVE payments** link for Admins and Super Admins (read-only settings link for Assistants). Directory actions are limited to **Quick view** and **Details & credentials**; operational/KYB status changes and owner access are on Business details. Successful updates invalidate the router cache; the directory fetches current rows when opened or refreshed.

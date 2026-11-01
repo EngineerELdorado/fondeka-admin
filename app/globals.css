@@ -642,10 +642,13 @@ label {
 
 /* Tables fit their container; narrow tables become labelled records, retaining every cell. */
 .responsive-table-container { width: 100%; max-width: 100%; min-width: 0; }
-.responsive-table { width: 100%; min-width: 0; border-collapse: collapse; font-size: .8125rem; }
-.responsive-table :is(th, td) { overflow-wrap: anywhere; white-space: normal !important; vertical-align: top; }
+.responsive-table { width: 100%; min-width: 0; border-collapse: collapse; font-size: 1rem !important; line-height: 1.5; }
+.responsive-table :is(th, td) { font-size: inherit !important; overflow-wrap: anywhere; white-space: normal !important; vertical-align: top; }
 .responsive-table :is(th, td) > * { min-width: 0; max-width: 100%; }
 .responsive-table :is(th, td) :is(div, span, a) { white-space: normal !important; }
+.responsive-table :is(th, td) :is(div, span, a, p, strong, b, code, button, input, select, textarea) { font-size: inherit !important; }
+.responsive-table :is(th, td) small { font-size: .875rem !important; line-height: 1.5; }
+.responsive-table :is(th, td) button { font-size: .875rem !important; }
 .responsive-table :is(th, td) :is(input, select, textarea, button) { min-width: 0; max-width: 100%; }
 .responsive-table :is(th, td) div:has(> button) { flex-wrap: wrap; }
 .responsive-table-container[data-layout='records'] > .responsive-table { display: block; }
@@ -655,9 +658,9 @@ label {
 .responsive-table-container[data-layout='records'] > .responsive-table > thead:has(:is(input, select, button, a)) > tr > th { width: auto !important; padding: .5rem !important; }
 .responsive-table-container[data-layout='records'] > .responsive-table > thead:has(:is(input, select, button, a)) > tr > th:not(:has(:is(input, select, button, a))) { position: absolute; width: 1px !important; height: 1px; padding: 0 !important; overflow: hidden; clip-path: inset(50%); }
 .responsive-table-container[data-layout='records'] > .responsive-table > :is(tbody, tfoot) { display: grid; gap: .85rem; }
-.responsive-table-container[data-layout='records'] > .responsive-table > :is(tbody, tfoot) > tr { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); gap: .6rem; padding: .75rem; border: 1px solid var(--border); border-radius: 10px; }
+.responsive-table-container[data-layout='records'] > .responsive-table > :is(tbody, tfoot) > tr { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); gap: .85rem; padding: .85rem; border: 1px solid var(--border); border-radius: 10px; }
 .responsive-table-container[data-layout='records'] > .responsive-table > :is(tbody, tfoot) > tr > :is(td, th) { display: block; min-width: 0; padding: .35rem !important; border: 0 !important; }
-.responsive-table-container[data-layout='records'] > .responsive-table > :is(tbody, tfoot) > tr > [data-label]::before { content: attr(data-label); display: block; font-size: .75rem; font-weight: 600; color: var(--muted); margin-bottom: .3rem; }
+.responsive-table-container[data-layout='records'] > .responsive-table > :is(tbody, tfoot) > tr > [data-label]::before { content: attr(data-label); display: block; font-size: .875rem; font-weight: 600; color: var(--muted); margin-bottom: .35rem; }
 .responsive-table-container[data-layout='records'] > .responsive-table > :is(tbody, tfoot) > tr > [data-full-width] { grid-column: 1 / -1; }
 
 .dashboard-nav-links {
