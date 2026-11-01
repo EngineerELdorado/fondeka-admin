@@ -1329,10 +1329,11 @@ export default function TransactionsPage() {
         label: 'Created',
         render: (row) => formatDateTime(row.createdAt)
       },
-      { key: 'reference', label: 'Reference' },
+      { key: 'reference', label: 'Reference', priority: 0 },
       {
         key: 'action',
         label: 'Action',
+        priority: 2,
         render: (row) => {
           const actionLabel = formatEnumLabel(row.action, actionLabels);
           const service = normalizeEnumKey(row.service);
@@ -1354,12 +1355,14 @@ export default function TransactionsPage() {
       {
         key: 'status',
         label: 'Status',
+        priority: 0,
         width: statusColumnWidth,
         render: (row) => renderStatusBadge(row.status)
       },
       {
         key: 'amount',
         label: 'Amount',
+        priority: 1,
         render: (row) => formatLocalAndUsd(row, 'amount', 'currency', 'usdAmount')
       },
       {
@@ -1413,6 +1416,7 @@ export default function TransactionsPage() {
       {
         key: 'actions',
         label: 'Actions',
+        width: '6rem',
         render: (row) => (
           <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
             <button type="button" onClick={() => openDetail(row)} className="btn-neutral">

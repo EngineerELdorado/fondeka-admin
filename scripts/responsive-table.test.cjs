@@ -15,6 +15,43 @@ const loadComponent = (file) => transform(readFileSync(path.join(__dirname, '../
 });
 const component = loadComponent('ResponsiveTable.js');
 
+const loadDataTable = async (regulatorMode = false) => {
+  const file = 'DataTable.js';
+  const { code } = await transform(readFileSync(path.join(__dirname, '../components', file), 'utf8'), {
+    filename: file, jsc: { parser: { syntax: 'ecmascript', jsx: true }, target: 'es2020', transform: { react: { runtime: 'classic' } } }, module: { type: 'commonjs' }
+  });
+  const load = (name) => import(`data:text/javascript;base64,${Buffer.from(readFileSync(path.join(__dirname, '../lib', name), 'utf8')).toString('base64')}`);
+  const modules = {
+    '@/components/ResponsiveTable': { __esModule: true, default: await component },
+    '@/contexts/AuthContext': { useAuth: () => ({ enableRegulatorMode: regulatorMode }) },
+    '@/lib/regulator-presentation': await load('regulator-presentation.js'),
+    '@/lib/table-columns': await load('table-columns.js'),
+    'next/link': { __esModule: true, default: ({ children, ...props }) => h('a', props, children) }
+  };
+  const module = { exports: {} };
+  new Function('require', 'module', 'exports', code)((name) => modules[name] || require(name), module, module.exports);
+  return module.exports.DataTable;
+};
+
+test('compact action menus retain every action while transaction action text stays a normal value', async () => {
+  const Table = await loadDataTable();
+  const columns = [{ key: 'reference', label: 'Reference' }, { key: 'action', label: 'Action' }, { key: 'actions', label: 'Actions', render: () => h('div', null, h('button', null, 'View'), h('button', null, 'Edit'), h('button', null, 'Delete')) }];
+  const html = renderToStaticMarkup(h(Table, { columns, rows: [{ reference: 'TX-42', action: 'Electricity payment' }], showAccountQuickNav: false }));
+  assert.equal((html.match(/class="table-row-actions"/g) || []).length, 1);
+  assert.match(html, /<summary>Actions<\/summary>/);
+  for (const label of ['View', 'Edit', 'Delete']) assert.match(html, new RegExp(`<button>${label}<\\/button>`));
+  assert.match(html, /class="data-table__value">Electricity payment<\/div>/);
+  assert.equal((html.match(/<th(?:\s|>)/g) || []).length, 4);
+});
+
+test('column choices and table values remain subject to regulator presentation filtering', async () => {
+  const Table = await loadDataTable(true);
+  const html = renderToStaticMarkup(h(Table, { columns: [{ key: 'name', label: 'Name' }, { key: 'cryptoBalance', label: 'Crypto balance' }, { key: 'actions', label: 'Actions', render: () => h('a', { href: '/details' }, 'View') }], rows: [{ name: 'Example', cryptoBalance: 'secret balance' }], showAccountQuickNav: false }));
+  assert.doesNotMatch(html, /Crypto balance|secret balance/);
+  assert.match(html, /href="\/details">View<\/a>/);
+  assert.doesNotMatch(html, /class="table-row-actions"/);
+});
+
 test('responsive tables retain native headings, translated text, values, links and controls before enhancement', async () => {
   const Table = await component;
   const html = renderToStaticMarkup(h(Table, { style: { minWidth: '1600px' } },

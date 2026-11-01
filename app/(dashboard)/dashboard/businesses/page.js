@@ -51,13 +51,12 @@ const StatusBadge = ({ value }) => {
 
 const LivePaymentSummary = ({ business, canManage = false }) => {
   const available = livePaymentSettingsAvailable(business);
-  return <div style={{ display: 'grid', gap: '0.1rem' }}>
-    <strong style={{ color: !available ? 'var(--muted)' : business.apiLivePaymentsEnabled ? '#15803d' : '#b45309' }}>
-      {available ? business.apiLivePaymentsEnabled ? 'Enabled for new payments' : 'Disabled for new payments' : 'Status unavailable'}
-    </strong>
-    <span style={{ color: 'var(--muted)', fontSize: '12px' }}>{available ? livePaymentMode(business) === 'inherit' ? 'Global default' : 'Business override' : 'Refresh to check'}</span>
-    {business?.id != null ? <Link href={`/dashboard/businesses/${encodeURIComponent(business.id)}#business-live-payments-title`} style={{ fontSize: '12px', marginTop: '0.2rem' }}>{canManage ? 'Manage LIVE payments' : 'View LIVE payment settings'}</Link> : null}
-  </div>;
+  const status = available ? business.apiLivePaymentsEnabled ? 'Enabled' : 'Disabled' : 'Status unavailable';
+  const source = available ? livePaymentMode(business) === 'inherit' ? 'Global default' : 'Business override' : 'Refresh to check';
+  const summary = <span style={{ color: !available ? 'var(--muted)' : business.apiLivePaymentsEnabled ? '#15803d' : '#b45309' }}>{status} · {source}</span>;
+  return business?.id != null
+    ? <Link href={`/dashboard/businesses/${encodeURIComponent(business.id)}#business-live-payments-title`} title={`${canManage ? 'Manage' : 'View'} LIVE API payments: ${status} · ${source}`}>{summary}</Link>
+    : summary;
 };
 
 const Modal = ({ title, onClose, children }) => (
@@ -151,29 +150,20 @@ export default function BusinessesPage() {
     {
       key: 'business',
       label: 'Business',
-      render: (row) => (
-        <div style={{ display: 'grid', gap: '0.1rem' }}>
-          <strong>{row.name || `Business ${row.id}`}</strong>
-          <span style={{ color: 'var(--muted)', fontSize: '12px' }}>{row.legalName || 'Legal name not provided'} · ID {row.id}</span>
-        </div>
-      )
+      priority: 0,
+      render: (row) => <Link href={`/dashboard/businesses/${encodeURIComponent(row.id)}`} style={{ fontWeight: 700 }}>{row.name || `Business ${row.id}`}</Link>
     },
     {
       key: 'account',
       label: 'Owner account',
-      render: (row) => (
-        <div style={{ display: 'grid', gap: '0.1rem' }}>
-          <Link href={`/dashboard/accounts/accounts/${encodeURIComponent(row.ownerAccountId)}`} style={{ fontWeight: 700 }}>
-            {row.ownerAccountReference || `Account ${row.ownerAccountId}`}
-          </Link>
-          <span style={{ color: 'var(--muted)', fontSize: '12px' }}>{row.ownerAccountEmail || 'No contact email'}</span>
-        </div>
-      )
+      render: (row) => <Link href={`/dashboard/accounts/accounts/${encodeURIComponent(row.ownerAccountId)}`} title={row.ownerAccountEmail || undefined}>
+        {row.ownerAccountReference || `Account ${row.ownerAccountId}`}
+      </Link>
     },
     { key: 'status', label: 'Operational status', render: (row) => <StatusBadge value={row.status} /> },
     { key: 'kybStatus', label: 'KYB status', render: (row) => <StatusBadge value={row.kybStatus} /> },
     {
-      key: 'apiLivePaymentsEnabled', label: 'LIVE API payments', render: (row) => <LivePaymentSummary business={row} canManage={canUpdate} />
+      key: 'apiLivePaymentsEnabled', label: 'LIVE API payments', priority: 0, width: '19rem', render: (row) => <LivePaymentSummary business={row} canManage={canUpdate} />
     },
     { key: 'countryCode', label: 'Country', render: (row) => row.countryCode || '—' },
     { key: 'defaultBusiness', label: 'Default', render: (row) => row.defaultBusiness ? 'Yes' : 'No' },

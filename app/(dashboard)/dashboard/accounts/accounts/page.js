@@ -104,15 +104,6 @@ const formatWalletAmount = (value, currency) => {
 
 const usdFiatWallet = (wallets) => normalizeFiatWallets(wallets).find((wallet) => wallet.currency === 'USD') || null;
 
-const fiatWalletSummary = (wallets, fallbackBalance) => {
-  const list = normalizeFiatWallets(wallets);
-  if (!list.length) return formatWalletAmount(fallbackBalance, 'USD');
-  return list
-    .slice(0, 3)
-    .map((wallet) => formatWalletAmount(wallet.balance, wallet.currency))
-    .join(' | ');
-};
-
 const fiatWalletCurrencyOptions = (wallets) => {
   const codes = normalizeFiatWallets(wallets).map((wallet) => wallet.currency);
   const unique = Array.from(new Set(['USD', ...codes].filter(Boolean)));
@@ -565,20 +556,16 @@ export default function AccountsListPage() {
 
   const columns = useMemo(
     () => [
-      { key: 'accountId', label: t('common.accountId') },
-      { key: 'userName', label: 'User' },
-      { key: 'email', label: 'Email' },
+      { key: 'userName', label: 'User', priority: 0 },
+      { key: 'email', label: 'Email', priority: 1 },
       { key: 'phone', label: t('accounts.phone') },
       { key: 'countryName', label: t('common.country') },
       { key: 'invitedThroughReferral', label: 'Referral', render: (row) => <ReferralBadge referred={Boolean(row.invitedThroughReferral)} /> },
-      { key: 'balance', label: 'Balance' },
-      { key: 'fiatWallets', label: 'Fiat wallets', render: (row) => fiatWalletSummary(row.fiatWallets, row.balance) },
-      { key: 'cryptoBalance', label: t('accounts.cryptoBalance'), render: (row) => formatAmount(row.cryptoBalance) },
-      { key: 'owedLoans', label: t('accounts.amountOwed'), render: (row) => formatAmount(row.owedLoansAmount ?? row.owedLoans) },
       { key: 'createdAt', label: 'Created at', render: (row) => formatDateTime(row.createdAt) },
       {
         key: 'actions',
         label: 'Actions',
+        width: '6rem',
         render: (row) => (
           <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
             <Link href={`/dashboard/accounts/accounts/${row.id}`} className="btn-neutral">

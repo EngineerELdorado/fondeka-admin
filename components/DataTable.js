@@ -3,9 +3,35 @@
 import ResponsiveTable from '@/components/ResponsiveTable';
 
 import Link from 'next/link';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { isRegulatorRestrictedRecord, regulatorVisibleFields } from '@/lib/regulator-presentation';
+import { fitTableColumns, tableColumnWidth } from '@/lib/table-columns';
+
+function TableValue({ children }) {
+  const value = useRef(null);
+  useEffect(() => {
+    const element = value.current;
+    if (element) element.title = element.textContent?.trim() || '';
+  }, [children]);
+  return <div ref={value} className="data-table__value">{children}</div>;
+}
+
+const actionCount = (content) => React.Children.toArray(content).reduce((count, child) => {
+  if (!React.isValidElement(child)) return count;
+  if (child.type === 'button' || child.type === 'a' || child.props.href) return count + 1;
+  return count + actionCount(child.props.children);
+}, 0);
+
+function TableActions({ children }) {
+  if (actionCount(children) <= 1) return children;
+  return <details className="table-row-actions">
+    <summary>Actions</summary>
+    <div className="table-row-actions__menu" onClick={(event) => {
+      if (event.target.closest('button, a')) event.currentTarget.parentElement.open = false;
+    }}>{children}</div>
+  </details>;
+}
 
 const resolveAccountId = (row) => {
   if (!row || typeof row !== 'object') return null;
@@ -44,6 +70,10 @@ export function DataTable({
   rowStyle
 }) {
   const { session, enableRegulatorMode } = useAuth();
+  const container = useRef(null);
+  const columnsMenu = useRef(null);
+  const [availableRem, setAvailableRem] = useState(null);
+  const [chosenColumns, setChosenColumns] = useState(null);
   const rows = useMemo(() => enableRegulatorMode === false ? suppliedRows : suppliedRows.filter((row) => !isRegulatorRestrictedRecord(row)), [suppliedRows, enableRegulatorMode]);
   const isServerPagination = typeof onPageChange === 'function';
   const [localPage, setLocalPage] = useState(0);
@@ -111,6 +141,56 @@ export function DataTable({
       }
     ];
   }, [shouldShowAccountQuickNav, visibleCols]);
+  useEffect(() => {
+    const element = container.current;
+    if (!element) return undefined;
+    const resize = () => {
+      const style = window.getComputedStyle(element);
+      const fontSize = parseFloat(window.getComputedStyle(document.documentElement).fontSize) || 16;
+      const width = element.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      setAvailableRem(width / fontSize);
+    };
+    resize();
+    const observer = new ResizeObserver(resize);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  const showRowIndex = showIndex && (availableRem == null || availableRem >= 64);
+  const tableCols = useMemo(() => {
+    const selected = chosenColumns && effectiveCols.filter((column) => chosenColumns.includes(column.key));
+    return selected?.length ? selected : fitTableColumns(effectiveCols, availableRem == null ? null : availableRem - (showRowIndex ? 3 : 0));
+  },
+  [effectiveCols, chosenColumns, availableRem, showRowIndex]);
+  useEffect(() => {
+    const closeMenu = (event) => {
+      if (columnsMenu.current && (event.key === 'Escape' || event.type === 'pointerdown' && !columnsMenu.current.contains(event.target))) columnsMenu.current.open = false;
+      container.current?.querySelectorAll('.table-row-actions[open]').forEach((menu) => {
+        if (event.key === 'Escape' || event.type === 'pointerdown' && !menu.contains(event.target)) menu.open = false;
+      });
+    };
+    document.addEventListener('pointerdown', closeMenu);
+    document.addEventListener('keydown', closeMenu);
+    return () => {
+      document.removeEventListener('pointerdown', closeMenu);
+      document.removeEventListener('keydown', closeMenu);
+    };
+  }, []);
+  const totalColumnWidth = tableCols.reduce((total, column) => total + tableColumnWidth(column), showRowIndex ? 3 : 0);
+  const columnMenu = () => (
+    <details className="table-columns" ref={columnsMenu}>
+      <summary>Columns{tableCols.length < effectiveCols.length ? ` (${tableCols.length}/${effectiveCols.length})` : ''}</summary>
+      <div className="table-columns__menu">
+        <button type="button" className="btn-neutral btn-sm" onClick={() => setChosenColumns(null)}>Fit to screen</button>
+        {effectiveCols.map((column) => <label key={column.key}>
+          <input type="checkbox" checked={tableCols.some((shown) => shown.key === column.key)} disabled={tableCols.length === 1 && tableCols[0].key === column.key} onChange={(event) => {
+            const keys = tableCols.map((shown) => shown.key);
+            setChosenColumns(event.target.checked ? [...keys, column.key] : keys.filter((key) => key !== column.key));
+          }} />
+          <span>{column.key === '__account_quick_nav__' ? 'Account shortcut' : column.label}</span>
+        </label>)}
+      </div>
+    </details>
+  );
   const localTotalPages = Math.max(1, Math.ceil(rows.length / safePageSize));
   const inferredCanNext = rows.length === safePageSize && rows.length > 0;
   const effectiveCanNext = typeof canNext === 'boolean' ? canNext : inferredCanNext;
@@ -154,6 +234,7 @@ export function DataTable({
         ) : null}
       </div>
       <div className="table-pagination__actions">
+        {position === 'top' ? columnMenu() : null}
         <button type="button" className="table-pagination__arrow" onClick={() => goToPage(page - 1)} disabled={prevDisabled}>
           ←
         </button>
@@ -173,24 +254,24 @@ export function DataTable({
   );
 
   return (
-    <div className="card table-scroll">
+    <div className="card data-table-card" ref={container}>
       {!shouldCompactEmptyState ? renderPagination('top') : null}
       <ResponsiveTable className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
           <tr>
-            {showIndex && (
+            {showRowIndex && (
               <th
                 className="data-table__cell"
-                style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}
+                style={{ textAlign: 'left', padding: '0.65rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)', width: `${3 / totalColumnWidth * 100}%` }}
               >
                 #
               </th>
             )}
-            {effectiveCols.map((col) => (
+            {tableCols.map((col) => (
               <th
                 key={String(col.key)}
                 className="data-table__cell"
-                style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)', width: col.width || (col.key === '__account_quick_nav__' ? '3.5rem' : undefined) }}
+                style={{ textAlign: 'left', padding: '0.65rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)', width: `${tableColumnWidth(col) / totalColumnWidth * 100}%` }}
               >
                 {col.label}
               </th>
@@ -201,7 +282,7 @@ export function DataTable({
           {isEmpty && (
             <tr>
               <td
-                colSpan={(showIndex ? 1 : 0) + effectiveCols.length}
+                colSpan={(showRowIndex ? 1 : 0) + tableCols.length}
                 style={{ padding: shouldCompactEmptyState ? '0.75rem 1rem' : '1rem', textAlign: 'center', color: 'var(--muted)' }}
               >
                 {emptyLabel}
@@ -210,16 +291,18 @@ export function DataTable({
           )}
           {displayRows.map((row, idx) => (
             <tr key={idx} style={{ borderBottom: '1px solid var(--border)', ...(rowStyle ? rowStyle(row, idx) : {}) }}>
-              {showIndex && (
+              {showRowIndex && (
                 <td className="data-table__cell" style={{ padding: '0.75rem', color: 'var(--muted)' }}>
                   {idx + 1 + page * safePageSize}
                 </td>
               )}
-              {effectiveCols.map((col) => (
-                <td key={String(col.key)} className="data-table__cell" style={{ padding: '0.75rem' }}>
-                  {col.render ? formatValue(col.render(row)) : String(formatValue(row[col.key]))}
-                </td>
-              ))}
+              {tableCols.map((col) => {
+                const value = col.render ? formatValue(col.render(row)) : String(formatValue(row[col.key]));
+                const actions = String(col.key).toLowerCase() === 'actions';
+                return <td key={String(col.key)} className={`data-table__cell${actions ? ' data-table__cell--actions' : ''}`} style={{ padding: '0.65rem' }}>
+                  {actions ? <TableActions>{value}</TableActions> : <TableValue>{value}</TableValue>}
+                </td>;
+              })}
             </tr>
           ))}
         </tbody>

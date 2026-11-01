@@ -639,7 +639,7 @@ export default function PaymentMethodsPage() {
 
   const columns = [
     { key: 'id', label: 'ID' },
-    { key: 'displayName', label: 'Display' },
+    { key: 'displayName', label: 'Display', priority: 0, width: '15rem' },
     { key: 'countryName', label: 'Country', render: (row) => row.countryName || 'GLOBAL' },
     {
       key: 'currency',
@@ -657,6 +657,7 @@ export default function PaymentMethodsPage() {
     {
       key: 'active',
       label: 'Active',
+      width: '12rem',
       render: (row) => (
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
           <span>{row.active ? 'Yes' : 'No'}</span>
@@ -669,6 +670,7 @@ export default function PaymentMethodsPage() {
     {
       key: 'collectionGate',
       label: 'Collection Enabled',
+      width: '14rem',
       render: (row) => {
         if (!row?.id) return '—';
         const loadingRail = isRailLoading(row.id, 'collection');
@@ -695,6 +697,7 @@ export default function PaymentMethodsPage() {
     {
       key: 'payoutGate',
       label: 'Payout Enabled',
+      width: '14rem',
       render: (row) => {
         if (!row?.id) return '—';
         const loadingRail = isRailLoading(row.id, 'payout');
