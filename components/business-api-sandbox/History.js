@@ -67,10 +67,14 @@ export default function SandboxHistory({ initialSearch }) {
     { key: 'createdAt', label: 'Request created / payment updated (UTC)', render: (row) => <div className="sandbox-cell"><span>{formatSandboxTime(row.createdAt)}</span><small>Updated: {formatSandboxTime(row.updatedAt)}</small></div> }
   ];
   const hiddenRecords = enableRegulatorMode !== false && result?.content.some((row) => isRegulatorRestrictedRecord(row));
+  const activeFilters = Object.values(sandboxFiltersFromSearch(initialSearch)).filter((value) => value.trim() !== '').length;
   return <div className="sandbox-history">
     <SandboxHeader><Link href="/dashboard/businesses" className="btn-neutral">Businesses</Link><button type="button" className="btn-primary" disabled={loading || !applied.query} onClick={() => setReload((value) => value + 1)}>{loading ? 'Refreshing…' : 'Refresh history'}</button></SandboxHeader>
-    <form className="card sandbox-card" onSubmit={(event) => { event.preventDefault(); navigate(filters); }} aria-label="Sandbox history filters">
-      <h2>Filter history</h2><div className="sandbox-grid">
+    <SandboxAlert>{applied.error}</SandboxAlert>
+    <details className="card">
+      <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Filter history{activeFilters ? ` · ${activeFilters} active` : ''}</summary>
+      <form className="sandbox-card" style={{ marginTop: '0.85rem' }} onSubmit={(event) => { event.preventDefault(); navigate(filters); }} aria-label="Sandbox history filters">
+      <div className="sandbox-grid">
         {[['businessId', 'Business ID'], ['accountId', 'Owner account ID'], ['apiKeyId', 'Credential ID (including revoked)']].map(([key, label]) => <SandboxField key={key} label={label}><input inputMode="numeric" value={filters[key]} onChange={(event) => change(key, event.target.value)} /></SandboxField>)}
         <SandboxField label="Action"><select value={filters.action} onChange={(event) => change('action', event.target.value)}><option value="">All actions</option>{SANDBOX_ACTIONS.map((value) => <option key={value} value={value}>{value === 'BUSINESS_API_COLLECTION' ? 'Collection' : 'Payout'}</option>)}</select></SandboxField>
         <SandboxField label="API status"><select value={filters.status} onChange={(event) => change('status', event.target.value)}><option value="">All statuses</option>{SANDBOX_STATUSES.map((value) => <option key={value}>{value}</option>)}</select></SandboxField>
@@ -82,9 +86,10 @@ export default function SandboxHistory({ initialSearch }) {
         <SandboxField label="Payments per page"><select value={size} onChange={(event) => setSize(event.target.value)}>{[10, 20, 50, 100].map((value) => <option key={value}>{value}</option>)}</select></SandboxField>
       </div>
       <small>Filters combine with AND. References match exactly; % and _ are literal characters. Blank dates include all creation times.</small>
-      <SandboxAlert>{filterError || applied.error}</SandboxAlert>
+      <SandboxAlert>{filterError}</SandboxAlert>
       <div className="sandbox-actions"><button type="submit" className="btn-primary" disabled={loading}>Apply filters</button><button type="button" className="btn-neutral" disabled={loading} onClick={() => { setFilters({ ...emptySandboxFilters }); navigate(emptySandboxFilters); }}>Clear filters</button></div>
-    </form>
+      </form>
+    </details>
     <section className="card sandbox-card" aria-label="Saved sandbox payments" aria-busy={loading}>
       <h2>Accepted sandbox payments</h2><p>ACCEPTED: queued. PROCESSING: execution started or confirmation is pending. Canceled and expired outcomes appear as FAILED.</p>
       <SandboxAlert>{error}</SandboxAlert>
