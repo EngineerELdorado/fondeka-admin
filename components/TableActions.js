@@ -50,13 +50,14 @@ export default function TableActions({ children }) {
     menu.style.left = `${Math.max(12, Math.min(rect.right - bounds.width, window.innerWidth - bounds.width - 12))}px`;
     menu.style.top = `${Math.max(12, rect.bottom + bounds.height + 6 > window.innerHeight ? rect.top - bounds.height - 6 : rect.bottom + 6)}px`;
     const choices = () => [...menu.querySelectorAll(actionSelector)].filter((action) => !action.disabled && action.getAttribute('aria-disabled') !== 'true' && action.getClientRects().length);
-    (choices()[0] || menu).focus();
+    menu.scrollTop = 0;
+    (choices()[0] || menu).focus({ preventScroll: true });
     const closeOutside = (event) => { if (!container.current.contains(event.target)) setOpen(false); };
     const closeOnMove = () => setOpen(false);
     const closeOnScroll = (event) => { if (!menu.contains(event.target)) setOpen(false); };
     const keyDown = (event) => {
       if (event.key === 'Escape') {
-        event.preventDefault(); event.stopPropagation(); setOpen(false); trigger.current?.focus();
+        event.preventDefault(); event.stopPropagation(); setOpen(false); trigger.current?.focus({ preventScroll: true });
       } else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key) && menu.contains(event.target)) {
         event.preventDefault();
         const items = choices(), at = items.indexOf(document.activeElement);

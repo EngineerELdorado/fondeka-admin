@@ -77,12 +77,13 @@ test('multiple actions expose one labelled trigger and retain disabled choices a
   assert.match(html, /href="\/details">View<\/a>/);
 });
 
-test('responsive tables retain native headings, translated text, values, links and controls before enhancement', async () => {
+test('responsive tables keep the horizontal layout with native headings, values, links and controls', async () => {
   const Table = await component;
   const html = renderToStaticMarkup(h(Table, { style: { minWidth: '1600px' } },
     h('thead', null, h('tr', null, h('th', null, 'Référence'), h('th', null, 'Montant'), h('th', null, 'Actions'))),
     h('tbody', null, h('tr', null, h('td', null, h('a', { href: '/dashboard/transactions?transactionId=42' }, 'SBX-long-reference')), h('td', null, '0 USD'), h('td', null, h('button', { type: 'button' }, 'Open'), h('input', { defaultValue: 'draft retained' }))))));
   assert.match(html, /role="table"/);
+  assert.match(html, /data-layout="table"/);
   assert.match(html, /<th>Référence<\/th>/);
   assert.match(html, /<th>Montant<\/th>/);
   assert.match(html, />0 USD</);

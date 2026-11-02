@@ -305,7 +305,7 @@ const Pill = ({ children, tone = 'var(--accent)', soft }) => (
 
 const Table = ({ columns, rows, emptyLabel = 'No data' }) => (
   <div className="table-scroll">
-    <ResponsiveTable className="data-table">
+    <ResponsiveTable className="data-table dashboard-summary-table">
       <thead>
         <tr style={{ color: 'var(--muted)' }}>
           {columns.map((col) => (

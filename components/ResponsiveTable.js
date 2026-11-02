@@ -1,22 +1,16 @@
 'use client';
 
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef } from 'react';
 
-// Keep the same cells and controls in both layouts; visibility wrappers remain authoritative.
+// Keep native table rows at every size; visibility wrappers remain authoritative.
 export default function ResponsiveTable({ children, className = '', style, ...props }) {
-  const container = useRef(null), table = useRef(null), id = useId();
-  const [stacked, setStacked] = useState(false);
+  const table = useRef(null), id = useId();
   useEffect(() => {
-    const element = container.current, nativeTable = table.current;
-    if (!element || !nativeTable) return undefined;
+    const nativeTable = table.current;
+    if (!nativeTable) return undefined;
     const attribute = (node, key, value) => {
       if (value == null) node.removeAttribute(key);
       else if (node.getAttribute(key) !== String(value)) node.setAttribute(key, value);
-    };
-    const resize = () => {
-      const width = element.getBoundingClientRect().width;
-      const rootSize = parseFloat(window.getComputedStyle(nativeTable.ownerDocument.documentElement).fontSize) || 16;
-      if (width > 0) setStacked(width < 40 * rootSize);
     };
     const prepare = () => {
       // Use rendered cells, including changes made by conditional/context-based wrappers.
@@ -45,7 +39,6 @@ export default function ResponsiveTable({ children, className = '', style, ...pr
             attribute(cell, 'headers', !fullWidth ? heading?.id : null);
             attribute(cell, 'data-label', !fullWidth ? heading?.label : null);
             attribute(cell, 'data-full-width', fullWidth ? 'true' : null);
-            attribute(cell, 'data-wide-value', cell.querySelector('.transaction-status-badge[data-long-status]') ? 'true' : null);
             attribute(cell, 'data-interactive', cell.querySelector('button, input, select, textarea, [contenteditable="true"]') ? 'true' : null);
             if (!cell.hasAttribute('title') || cell.dataset.tableTitle === 'true') {
               attribute(cell, 'title', cell.textContent?.trim() || null);
@@ -55,16 +48,13 @@ export default function ResponsiveTable({ children, className = '', style, ...pr
           }
         }
       }
-      resize();
     };
     prepare();
-    const sizeObserver = new ResizeObserver(resize);
-    sizeObserver.observe(element);
     const contentObserver = new MutationObserver(prepare);
     contentObserver.observe(nativeTable, { childList: true, subtree: true, characterData: true });
-    return () => { sizeObserver.disconnect(); contentObserver.disconnect(); };
+    return () => contentObserver.disconnect();
   }, [children, id]);
-  return <div className="responsive-table-container" ref={container} data-layout={stacked ? 'records' : 'table'}>
+  return <div className="responsive-table-container" data-layout="table" tabIndex={0} role="region" aria-label={props['aria-label'] || 'Table'}>
     <table {...props} ref={table} role="table" className={`responsive-table ${className}`} style={{ ...style, width: '100%', minWidth: 0, maxWidth: '100%', tableLayout: 'fixed' }}>{children}</table>
   </div>;
 }
