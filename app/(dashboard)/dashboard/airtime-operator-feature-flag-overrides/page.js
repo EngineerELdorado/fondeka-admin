@@ -275,8 +275,6 @@ export default function AirtimeOperatorFeatureFlagOverridesPage() {
       { key: 'operatorNamePattern', label: 'Operator Pattern' },
       { key: 'phoneNumberPrefixes', label: 'Phone Prefixes', render: (row) => row.phoneNumberPrefixes || '-' },
       { key: 'enabled', label: 'Status', render: (row) => <EnabledBadge enabled={Boolean(row.enabled)} /> },
-      { key: 'disabledMessageEn', label: 'English Message', render: (row) => row.disabledMessageEn || '-' },
-      { key: 'disabledMessageFr', label: 'French Message', render: (row) => row.disabledMessageFr || '-' },
       { key: 'rank', label: 'Rank' },
       {
         key: 'actions',
