@@ -140,12 +140,13 @@ export function DataTable({
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
-  const showRowIndex = showIndex && (availableRem == null || availableRem >= 64);
   const tableCols = useMemo(() => {
     const selected = chosenColumns && effectiveCols.filter((column) => chosenColumns.includes(column.key));
-    return selected?.length ? selected : fitTableColumns(effectiveCols, availableRem == null ? null : availableRem - (showRowIndex ? 3 : 0));
+    return selected?.length ? selected : fitTableColumns(effectiveCols, availableRem);
   },
-  [effectiveCols, chosenColumns, availableRem, showRowIndex]);
+  [effectiveCols, chosenColumns, availableRem]);
+  const occupiedRem = tableCols.reduce((total, column) => total + tableColumnWidth(column), 0);
+  const showRowIndex = showIndex && (availableRem == null || availableRem >= 64 && occupiedRem + 3 <= availableRem);
   useEffect(() => {
     const closeMenu = (event) => {
       if (columnsMenu.current && (event.key === 'Escape' || event.type === 'pointerdown' && !columnsMenu.current.contains(event.target))) columnsMenu.current.open = false;
@@ -157,7 +158,6 @@ export function DataTable({
       document.removeEventListener('keydown', closeMenu);
     };
   }, []);
-  const totalColumnWidth = tableCols.reduce((total, column) => total + tableColumnWidth(column), showRowIndex ? 3 : 0);
   const columnMenu = () => (
     <details className="table-columns" ref={columnsMenu}>
       <summary>Columns{tableCols.length < effectiveCols.length ? ` (${tableCols.length}/${effectiveCols.length})` : ''}</summary>
@@ -244,7 +244,7 @@ export function DataTable({
             {showRowIndex && (
               <th
                 className="data-table__cell"
-                style={{ textAlign: 'left', padding: '0.65rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)', width: `${3 / totalColumnWidth * 100}%` }}
+                style={{ textAlign: 'left', padding: '0.65rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)', width: '3rem' }}
               >
                 #
               </th>
@@ -253,7 +253,7 @@ export function DataTable({
               <th
                 key={String(col.key)}
                 className="data-table__cell"
-                style={{ textAlign: 'left', padding: '0.65rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)', width: `${tableColumnWidth(col) / totalColumnWidth * 100}%` }}
+                style={{ textAlign: 'left', padding: '0.65rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)', width: col.key === '__account_quick_nav__' ? '3.5rem' : undefined }}
               >
                 {col.label}
               </th>

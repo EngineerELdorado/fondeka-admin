@@ -1334,7 +1334,7 @@ export default function TransactionsPage() {
       {
         key: 'action',
         label: 'Action',
-        priority: 2,
+        priority: 1,
         render: (row) => {
           const actionLabel = formatEnumLabel(row.action, actionLabels);
           const service = normalizeEnumKey(row.service);

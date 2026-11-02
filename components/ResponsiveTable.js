@@ -55,6 +55,6 @@ export default function ResponsiveTable({ children, className = '', style, ...pr
     return () => contentObserver.disconnect();
   }, [children, id]);
   return <div className="responsive-table-container" data-layout="table" tabIndex={0} role="region" aria-label={props['aria-label'] || 'Table'}>
-    <table {...props} ref={table} role="table" className={`responsive-table ${className}`} style={{ ...style, width: '100%', minWidth: 0, maxWidth: '100%', tableLayout: 'fixed' }}>{children}</table>
+    <table {...props} ref={table} role="table" className={`responsive-table ${className}`} style={{ ...style, width: '100%', minWidth: 0, maxWidth: 'none', tableLayout: 'auto' }}>{children}</table>
   </div>;
 }

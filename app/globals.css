@@ -11,8 +11,8 @@
   --warning: #f59e0b;
   --danger: #ef4444;
   --card-radius: 14px;
-  --font-body: 1rem;
-  --font-small: .9375rem;
+  --font-body: .96875rem;
+  --font-small: .90625rem;
   --font-heading: 1.25rem;
   --font-stat: 1.375rem;
 }
@@ -57,13 +57,13 @@ button {
   background: var(--surface);
   border-radius: var(--card-radius);
   box-shadow: var(--shadow);
-  padding: 1.25rem;
+  padding: 1rem;
   border: 1px solid var(--border);
 }
 
 input, select, textarea {
   font: inherit;
-  padding: 0.7rem 0.85rem;
+  padding: 0.55rem 0.75rem;
   border: 1px solid var(--border);
   border-radius: 10px;
   width: 100%;
@@ -397,7 +397,7 @@ label {
 .catalog-select__trigger:disabled { opacity: .55; cursor: not-allowed; }
 .catalog-select__trigger svg { flex-shrink: 0; color: var(--muted); }
 .catalog-select__value { display: grid; gap: .15rem; min-width: 0; }
-.catalog-select__value > span, .catalog-select__value small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.catalog-select__value > span, .catalog-select__value small { white-space: normal; overflow-wrap: anywhere; }
 .catalog-select__value small { color: var(--muted); font-size: 12px; }
 .catalog-select__panel { position: fixed; z-index: 2000; display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); background: var(--surface); color: var(--text); overflow: hidden; font-size: 14px; }
 .catalog-select__heading { display: flex; align-items: center; justify-content: space-between; gap: .6rem; padding: .45rem .65rem .1rem .85rem; flex-shrink: 0; }
@@ -426,7 +426,7 @@ label {
 .catalog-select__clear:disabled { color: var(--muted); opacity: .5; cursor: not-allowed; }
 .catalog-select__chips { display: flex; gap: .35rem; flex-wrap: wrap; align-items: center; padding: 0 .75rem .5rem; flex-shrink: 0; }
 .catalog-select__chips button { display: flex; align-items: center; gap: .5rem; max-width: 100%; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); cursor: pointer; padding: .3rem .45rem; font-size: 12px; }
-.catalog-select__chips button span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.catalog-select__chips button span:first-child { white-space: normal; overflow-wrap: anywhere; }
 @media (max-width: 600px) { .catalog-select__search input { font-size: 16px; } .catalog-select__filters { flex-wrap: wrap; } .catalog-select__filters label { min-height: 28px; } .catalog-select__panel { border-radius: 14px; } }
 
 .btn-primary {
@@ -653,12 +653,13 @@ label {
 /* Keep horizontal rows on every device, with scrolling confined to the table. */
 .responsive-table-container { width: 100%; max-width: 100%; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; container: admin-table / inline-size; }
 .responsive-table { width: 100%; min-width: 0; border-collapse: collapse; font-size: var(--font-body) !important; line-height: 1.5; }
-.responsive-table :is(th, td) { font-size: inherit !important; overflow-wrap: anywhere; white-space: normal !important; vertical-align: top; }
+.responsive-table :is(th, td) { font-size: inherit !important; overflow-wrap: anywhere; white-space: normal !important; vertical-align: top; padding: .5rem .65rem !important; }
 .responsive-table :is(th, td) > * { min-width: 0; max-width: 100%; }
 .responsive-table :is(th, td) :is(div, span, a) { white-space: normal !important; }
 .responsive-table :is(th, td) :is(div, span, a, p, strong, b, code, button, input, select, textarea) { font-size: inherit !important; }
 .responsive-table :is(th, td) small { font-size: var(--font-small) !important; line-height: 1.5; }
 .responsive-table :is(th, td) button { font-size: var(--font-small) !important; }
+.responsive-table :is(th, td) :is(.btn-neutral, .btn-primary, .btn-success, .btn-danger, .btn-ghost) { padding: .3rem .6rem; }
 .transaction-status-badge { display: inline-block; vertical-align: middle; max-width: 100%; padding: .2rem .5rem; border-radius: 999px; font-weight: 700; }
 .transaction-status-badge, .responsive-table :is(th, td) .transaction-status-badge { font-size: var(--font-small) !important; white-space: normal !important; overflow-wrap: break-word; word-break: normal; }
 .responsive-table :is(th, td) :is(input, select, textarea, button) { min-width: 0; max-width: 100%; }
@@ -671,18 +672,16 @@ label {
 .responsive-table-container[data-layout='table'] > .responsive-table :is(th, td) { vertical-align: middle; }
 .responsive-table-container[data-layout='table'] > .responsive-table thead th { white-space: normal !important; overflow: visible; text-overflow: clip; line-height: 1.3; text-wrap: balance; hyphens: auto; }
 .responsive-table-container[data-layout='table'] > .responsive-table thead th :is(div, span, a, p, strong, b, code, small, button) { white-space: normal !important; }
-.responsive-table-container[data-layout='table'] > .responsive-table td { white-space: nowrap !important; overflow: hidden; text-overflow: ellipsis; }
+.responsive-table-container[data-layout='table'] > .responsive-table td { white-space: nowrap !important; overflow: visible; }
 .responsive-table-container[data-layout='table'] > .responsive-table td :is(div, span, a, p, strong, b, code, small) { white-space: nowrap !important; }
 .responsive-table-container[data-layout='table'] > .responsive-table td :is(button, label) { white-space: nowrap !important; }
-.responsive-table.dashboard-summary-table { table-layout: auto !important; }
-.responsive-table-container[data-layout='table'] > .dashboard-summary-table td:first-child { overflow: visible; text-overflow: clip; }
 .responsive-table-container[data-layout='table'] > .responsive-table td:not([data-interactive]):not(.data-table__cell--actions) :is(div, p) { display: inline !important; }
 .responsive-table-container[data-layout='table'] > .responsive-table td:not([data-interactive]):not(.data-table__cell--actions) br { display: none; }
 .responsive-table-container[data-layout='table'] > .responsive-table td:not([data-interactive]):not(.data-table__cell--actions) :is(div, p, small) + :is(div, p, small)::before { content: ' · '; }
 .responsive-table-container[data-layout='table'] > .responsive-table td[data-interactive] { overflow: visible; }
-.responsive-table-container[data-layout='table'] > .responsive-table td[data-interactive] div { flex-wrap: wrap; }
+.responsive-table-container[data-layout='table'] > .responsive-table td[data-interactive] div { flex-wrap: nowrap !important; }
 .responsive-table-container[data-layout='table'] .transaction-status-badge { white-space: nowrap !important; }
-.responsive-table-container[data-layout='table'] .data-table__value { display: block !important; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap !important; }
+.responsive-table-container[data-layout='table'] .data-table__value { display: block !important; max-width: 100%; white-space: nowrap !important; }
 .responsive-table-container[data-layout='table'] .data-table__value > :is(div, span) { max-width: 100%; }
 .responsive-table-container[data-layout='table'] .data-table__value:has(button, input, select, textarea) { overflow: visible; }
 .data-table-card { position: relative; min-width: 0; }
@@ -699,6 +698,7 @@ label {
 .responsive-table .table-row-actions__menu div { flex-direction: column !important; align-items: stretch; gap: .4rem; }
 .responsive-table .table-row-actions__menu[hidden] { display: none !important; }
 .responsive-table .table-row-actions__menu :is(button, a) { width: 100%; text-align: left; }
+.responsive-table-container[data-layout='table'] > .responsive-table td .table-row-actions__menu :is(button, a, span, div) { white-space: normal !important; overflow-wrap: anywhere; }
 
 @media (max-width: 600px) {
   .dashboard-main :is(input, select, textarea),

@@ -1227,7 +1227,7 @@ export default function DashboardPage() {
           <div
             key={kpi.label}
             className="card"
-            style={{ display: 'grid', gap: '0.2rem', cursor: kpi.onClick ? 'pointer' : 'default', position: 'relative' }}
+            style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', cursor: kpi.onClick ? 'pointer' : 'default', position: 'relative' }}
             onClick={kpi.onClick}
             role={kpi.onClick ? 'button' : undefined}
             tabIndex={kpi.onClick ? 0 : undefined}
@@ -1262,8 +1262,8 @@ export default function DashboardPage() {
                 ⋯
               </button>
             ) : null}
-            <div style={{ fontSize: '13px', color: 'var(--muted)' }}>{kpi.label}</div>
-            <div style={{ fontSize: '26px', fontWeight: 800, color: kpi.tone || 'var(--accent)' }}>{kpi.value}</div>
+            <div style={{ fontSize: '13px', color: 'var(--muted)', paddingRight: kpi.menu ? '2rem' : undefined, overflowWrap: 'anywhere' }}>{kpi.label}</div>
+            <div style={{ fontSize: 'var(--font-stat)', fontWeight: 800, color: kpi.tone || 'var(--accent)', marginTop: 'auto' }}>{kpi.value}</div>
             <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{kpi.sub}</div>
           </div>
         ))}

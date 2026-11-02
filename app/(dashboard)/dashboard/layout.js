@@ -228,7 +228,7 @@ export default function DashboardLayout({ children }) {
               href={item.href}
               onClick={() => setMenuOpen(false)}
               style={{
-                padding: '0.65rem 0.85rem',
+                padding: '0.5rem 0.75rem',
                 borderRadius: '10px',
                 color: isActive(item.href) ? 'var(--accent)' : 'var(--text)',
                 background: isActive(item.href) ? 'var(--accent-soft)' : 'transparent',
@@ -285,7 +285,7 @@ export default function DashboardLayout({ children }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '0 1.5rem',
+            padding: '0 1.25rem',
             borderBottom: `1px solid var(--border)`,
             background: 'var(--surface)',
             position: 'sticky',
@@ -325,7 +325,7 @@ export default function DashboardLayout({ children }) {
             <span style={{ fontWeight: 600 }}>{userLabel}</span>
           </div>
         </header>
-        <main className="dashboard-main" style={{ padding: '1.25rem 1.5rem', flex: 1 }}>
+        <main className="dashboard-main" style={{ padding: '1rem 1.25rem', flex: 1 }}>
           {presentationBlocked ? <div style={{ position: 'sticky', top: '84px', height: 0, display: 'flow-root', zIndex: 20 }}>
             {presentationPending ? <div className="card" role="status">Loading dashboard presentation settings…</div> : profileError}
           </div> : null}
