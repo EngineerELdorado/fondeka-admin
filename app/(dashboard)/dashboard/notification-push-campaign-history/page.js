@@ -4,7 +4,7 @@ import ResponsiveTable from '@/components/ResponsiveTable';
 
 import { RegulatorRecord, PresentationLink as Link } from '@/components/RegulatorPresentation';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -12,19 +12,50 @@ const MAX_PAGE_SIZE = 200;
 const RUNNING_REFRESH_MS = 12000;
 const DETAIL_REFRESH_MS = 10000;
 
-const Modal = ({ title, onClose, children }) => (
-  <div className="modal-backdrop">
-    <div className="modal-surface">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ fontWeight: 800 }}>{title}</div>
-        <button type="button" onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: '18px', cursor: 'pointer', color: 'var(--text)' }}>
-          ×
-        </button>
+const Modal = ({ title, onClose, children }) => {
+  const titleId = useId();
+  const surface = useRef(null);
+  const close = useRef(onClose);
+  close.current = onClose;
+
+  useEffect(() => {
+    const previousFocus = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    surface.current?.focus({ preventScroll: true });
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
+    };
+  }, []);
+
+  const handleKeyDown = (event) => {
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      close.current();
+    } else if (event.key === 'Tab') {
+      const controls = Array.from(surface.current.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')).filter((element) => !element.disabled && element.getClientRects().length);
+      const first = controls[0], last = controls[controls.length - 1];
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === surface.current)) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || document.activeElement === surface.current)) {
+        event.preventDefault();
+        first?.focus();
+      }
+    }
+  };
+
+  return <div className="modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <div ref={surface} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} className="modal-surface" onKeyDown={handleKeyDown}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}>
+        <h2 id={titleId} style={{ margin: 0, fontSize: '1.1rem', overflowWrap: 'anywhere' }}>{title}</h2>
+        <button type="button" aria-label="Close modal" onClick={onClose} className="btn-neutral btn-sm">×</button>
       </div>
       {children}
     </div>
-  </div>
-);
+  </div>;
+};
 
 const formatDateTime = (value) => {
   if (!value) return '—';
@@ -34,9 +65,10 @@ const formatDateTime = (value) => {
 };
 
 const truncate = (value, max = 80) => {
-  const text = String(value || '');
-  if (text.length <= max) return text || '—';
-  return `${text.slice(0, max - 1)}…`;
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  const characters = Array.from(text);
+  if (characters.length <= max) return text || '—';
+  return `${characters.slice(0, max - 1).join('').trimEnd()}…`;
 };
 
 const calcProgress = (item) => {
@@ -48,26 +80,6 @@ const calcProgress = (item) => {
   return { total, processed, failed, done, percent };
 };
 
-const renderCampaignTypeBadge = (value) => {
-  const normalized = String(value || 'ACCOUNT').toUpperCase();
-  const isAnonymous = normalized === 'ANONYMOUS';
-  return (
-    <span
-      style={{
-        display: 'inline-flex',
-        padding: '0.2rem 0.45rem',
-        borderRadius: '999px',
-        fontWeight: 700,
-        fontSize: '12px',
-        color: isAnonymous ? '#7c2d12' : '#1e3a8a',
-        background: isAnonymous ? '#ffedd5' : '#dbeafe'
-      }}
-    >
-      {isAnonymous ? 'Anonymous Push' : 'Account Push'}
-    </span>
-  );
-};
-
 export default function NotificationPushCampaignHistoryPage() {
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
@@ -77,6 +89,7 @@ export default function NotificationPushCampaignHistoryPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [selectedCampaign, setSelectedCampaign] = useState(null);
+  const [selectedMessage, setSelectedMessage] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
   const fetchHistory = useCallback(async () => {
@@ -206,8 +219,6 @@ export default function NotificationPushCampaignHistoryPage() {
             <ResponsiveTable className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
-              <th className="data-table__cell" style={{ textAlign: 'left', padding: '0.65rem' }}>Campaign ID</th>
-              <th className="data-table__cell" style={{ textAlign: 'left', padding: '0.65rem' }}>Campaign Type</th>
               <th className="data-table__cell" style={{ textAlign: 'left', padding: '0.65rem' }}>Subject</th>
               <th className="data-table__cell" style={{ textAlign: 'left', padding: '0.65rem' }}>Message</th>
               <th className="data-table__cell" style={{ textAlign: 'left', padding: '0.65rem' }}>Created At</th>
@@ -220,7 +231,7 @@ export default function NotificationPushCampaignHistoryPage() {
           <tbody>
             {campaigns.length === 0 && (
               <tr>
-                <td colSpan={9} style={{ padding: '1rem', textAlign: 'center', color: 'var(--muted)' }}>
+                <td colSpan={7} style={{ padding: '1rem', textAlign: 'center', color: 'var(--muted)' }}>
                   {loading ? 'Loading campaigns…' : 'No campaign history found'}
                 </td>
               </tr>
@@ -228,6 +239,9 @@ export default function NotificationPushCampaignHistoryPage() {
             {campaigns.map((row) => {
               const progress = calcProgress(row);
               const hasFailures = (Number(row.failedJobs) || 0) > 0;
+              const message = String(row.message || '');
+              const messagePreview = truncate(message, 50);
+              const canReadMore = Boolean(message.trim()) && (message.replace(/\s+/g, ' ').trim() !== messagePreview || /[\r\n]/.test(message));
               return (
                 <RegulatorRecord record={row} key={row.campaignId}><tr
                   key={row.campaignId}
@@ -241,10 +255,13 @@ export default function NotificationPushCampaignHistoryPage() {
                     background: hasFailures ? 'rgba(239, 68, 68, 0.06)' : 'transparent'
                   }}
                 >
-                  <td className="data-table__cell" style={{ padding: '0.65rem', fontWeight: 700 }}>{row.campaignId || '—'}</td>
-                  <td className="data-table__cell" style={{ padding: '0.65rem' }}>{renderCampaignTypeBadge(row.campaignType)}</td>
                   <td className="data-table__cell" style={{ padding: '0.65rem' }} title={row.subject || ''}>{truncate(row.subject, 50)}</td>
-                  <td className="data-table__cell" style={{ padding: '0.65rem' }} title={row.message || ''}>{truncate(row.message, 70)}</td>
+                  <td className="data-table__cell" style={{ padding: '0.65rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span>{messagePreview}</span>
+                      {canReadMore ? <button type="button" className="btn-neutral btn-sm" aria-haspopup="dialog" onClick={(event) => { event.stopPropagation(); setSelectedMessage(row); }}>Read more</button> : null}
+                    </div>
+                  </td>
                   <td className="data-table__cell" style={{ padding: '0.65rem' }}>{formatDateTime(row.createdAt)}</td>
                   <td className="data-table__cell" style={{ padding: '0.65rem' }}>{formatDateTime(row.updatedAt)}</td>
                   <td className="data-table__cell" style={{ padding: '0.65rem', whiteSpace: 'nowrap' }}>
@@ -287,6 +304,14 @@ export default function NotificationPushCampaignHistoryPage() {
         </ResponsiveTable>
       </div>
 
+      {selectedMessage && (
+        <Modal title="Campaign message" onClose={() => setSelectedMessage(null)}>
+          <strong style={{ overflowWrap: 'anywhere' }}>{selectedMessage.subject || 'No subject'}</strong>
+          <div style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{selectedMessage.message || '—'}</div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}><button type="button" className="btn-neutral" onClick={() => setSelectedMessage(null)}>Close</button></div>
+        </Modal>
+      )}
+
       {selectedCampaign && (
         <Modal title={`Campaign ${selectedCampaign.campaignId || ''}`} onClose={() => setSelectedCampaign(null)}>
           <div style={{ display: 'grid', gap: '0.75rem' }}>
@@ -328,7 +353,7 @@ export default function NotificationPushCampaignHistoryPage() {
             </div>
             <div style={{ display: 'grid', gap: '0.3rem' }}>
               <div><strong>Subject:</strong> {selectedCampaign.subject || '—'}</div>
-              <div><strong>Message:</strong> {selectedCampaign.message || '—'}</div>
+              <div style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}><strong>Message:</strong> {selectedCampaign.message || '—'}</div>
             </div>
           </div>
         </Modal>
