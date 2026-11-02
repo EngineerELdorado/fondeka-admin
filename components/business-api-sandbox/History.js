@@ -58,13 +58,12 @@ export default function SandboxHistory({ initialSearch }) {
     catch (err) { setFilterError(err.message); }
   }
   const columns = [
-    { key: 'payment', label: 'Payment / order reference', render: (row) => <div className="sandbox-cell"><Link href={sandboxPaymentHref(row.transaction.fondekaReference)}>{row.transaction.fondekaReference}</Link><span>{row.transaction.orderReference ?? 'No order reference'}</span><small>API request #{row.requestId}</small></div> },
-    { key: 'business', label: 'Business / owner', render: (row) => <div className="sandbox-cell"><Link href={`/dashboard/businesses/${encodeURIComponent(row.businessId)}`}>{row.businessName || `Business ${row.businessId}`}</Link><small>Business #{row.businessId}</small><Link href={`/dashboard/accounts/accounts/${encodeURIComponent(row.ownerAccountId)}`}>Account #{row.ownerAccountId}</Link></div> },
-    { key: 'credential', label: 'Credential', render: (row) => <div className="sandbox-cell"><span>{row.apiKeyName || 'Unnamed credential'}</span><small>ID {row.apiKeyId}</small></div> },
-    { key: 'action', label: 'Action / scenario', render: (row) => <div className="sandbox-cell"><span>{row.transaction.action === 'BUSINESS_API_COLLECTION' ? 'Collection' : 'Payout'}</span><small>{row.scenario || '—'}</small><small>{row.paymentMethodName || '—'}{row.networkName ? ` · ${row.networkName}` : ''}</small></div> },
-    { key: 'amount', label: 'Test amount / fee / gross', render: (row) => <div className="sandbox-cell"><strong>{sandboxAmount(row.transaction.amount, row.transaction.currency)}</strong><small>Fee: {sandboxAmount(row.transaction.fee, row.transaction.currency)}</small><small>Gross: {sandboxAmount(row.transaction.grossAmount, row.transaction.currency)}</small></div> },
-    { key: 'status', label: 'API status', render: (row) => <SandboxStatus status={row.transaction.status} /> },
-    { key: 'createdAt', label: 'Request created / payment updated (UTC)', render: (row) => <div className="sandbox-cell"><span>{formatSandboxTime(row.createdAt)}</span><small>Updated: {formatSandboxTime(row.updatedAt)}</small></div> }
+    { key: 'business', label: 'Business', priority: 0, render: (row) => <Link href={`/dashboard/businesses/${encodeURIComponent(row.businessId)}`}>{row.businessName || `Business ${row.businessId}`}</Link> },
+    { key: 'action', label: 'Type', priority: 1, render: (row) => row.transaction.action === 'BUSINESS_API_COLLECTION' ? 'Collection' : 'Payout' },
+    { key: 'amount', label: 'Amount', priority: 1, render: (row) => sandboxAmount(row.transaction.amount, row.transaction.currency) },
+    { key: 'status', label: 'Status', priority: 1, render: (row) => <SandboxStatus status={row.transaction.status} /> },
+    { key: 'createdAt', label: 'Created (UTC)', priority: 2, render: (row) => formatSandboxTime(row.createdAt, { compact: true }) },
+    { key: 'actions', label: 'Actions', render: (row) => <Link href={sandboxPaymentHref(row.transaction.fondekaReference)} className="btn-neutral btn-sm" title={row.transaction.fondekaReference} aria-label={`View sandbox payment ${row.transaction.fondekaReference}`}>View</Link> }
   ];
   const hiddenRecords = enableRegulatorMode !== false && result?.content.some((row) => isRegulatorRestrictedRecord(row));
   const activeFilters = Object.values(sandboxFiltersFromSearch(initialSearch)).filter((value) => value.trim() !== '').length;
@@ -90,8 +89,7 @@ export default function SandboxHistory({ initialSearch }) {
       <div className="sandbox-actions"><button type="submit" className="btn-primary" disabled={loading}>Apply filters</button><button type="button" className="btn-neutral" disabled={loading} onClick={() => { setFilters({ ...emptySandboxFilters }); navigate(emptySandboxFilters); }}>Clear filters</button></div>
       </form>
     </details>
-    <section className="card sandbox-card" aria-label="Saved sandbox payments" aria-busy={loading}>
-      <h2>Accepted sandbox payments</h2><p>ACCEPTED: queued. PROCESSING: execution started or confirmation is pending. Canceled and expired outcomes appear as FAILED.</p>
+    <section className="sandbox-card" aria-label="Saved sandbox payments" aria-busy={loading}>
       <SandboxAlert>{error}</SandboxAlert>
       {loading ? <div role="status">Loading stored sandbox payments…</div> : null}
       {error && result ? <small>Showing the last successful result. Refresh to retry.</small> : null}

@@ -11,10 +11,13 @@ export function SandboxHistoryLink({ businessId, accountId, apiKeyId, children =
   return <Link href={sandboxHistoryHref({ businessId, accountId, apiKeyId })} className={className} style={{ textDecoration: 'none' }}>{children}</Link>;
 }
 
-export const formatSandboxTime = (value) => {
+export const formatSandboxTime = (value, { compact = false } = {}) => {
   if (!value) return '—';
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? String(value) : `${date.toISOString().replace('T', ' ').replace('Z', '')} UTC`;
+  if (Number.isNaN(date.getTime())) return String(value);
+  return compact
+    ? date.toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' })
+    : `${date.toISOString().replace('T', ' ').replace('Z', '')} UTC`;
 };
 export const sandboxAmount = (value, currency) => value == null ? '—' : `${value} ${currency || ''}`.trim();
 
@@ -25,7 +28,13 @@ export function SandboxAlert({ children }) {
   return children ? <div className="alert alert-error" role="alert">{children}</div> : null;
 }
 export function SandboxStatus({ status }) {
-  return <span className={`sandbox-status sandbox-status--${status?.toLowerCase()}`}>{status || 'Unavailable'}</span>;
+  const descriptions = {
+    ACCEPTED: 'Queued; processing has not started.',
+    PROCESSING: 'Processing has started or is awaiting confirmation.',
+    COMPLETED: 'The sandbox payment completed.',
+    FAILED: 'The sandbox payment failed, was canceled or expired.'
+  };
+  return <span className={`sandbox-status sandbox-status--${status?.toLowerCase()}`} title={descriptions[status]}>{status || 'Unavailable'}</span>;
 }
 export function SandboxHeader({ title = 'Business API sandbox history', children }) {
   return <header className="card sandbox-card"><div className="sandbox-heading"><div><span className="sandbox-environment">SANDBOX · Test data</span><h1>{title}</h1></div><div className="sandbox-actions">{children}</div></div>
