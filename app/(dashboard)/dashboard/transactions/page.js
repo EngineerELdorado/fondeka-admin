@@ -208,12 +208,12 @@ const initialFilters = {
   endDate: ''
 };
 
-const Modal = ({ title, onClose, children }) => (
+const Modal = ({ title, onClose, children, className = '' }) => (
   <div className="modal-backdrop">
-    <div className="modal-surface">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ fontWeight: 800 }}>{title}</div>
-        <button type="button" onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: '18px', cursor: 'pointer', color: 'var(--text)' }}>
+    <div className={`modal-surface ${className}`}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}>
+        <div style={{ fontWeight: 800, minWidth: 0, overflowWrap: 'anywhere' }}>{title}</div>
+        <button type="button" aria-label="Close" onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: '18px', cursor: 'pointer', color: 'var(--text)', flexShrink: 0 }}>
           ×
         </button>
       </div>
@@ -517,6 +517,7 @@ const investigationPayloadSections = (item) => {
 
 const ProviderBadge = ({ children, tone }) => (
   <span
+    className="transaction-provider-badge"
     style={{
       display: 'inline-flex',
       alignItems: 'center',
@@ -1344,6 +1345,20 @@ export default function TransactionsPage() {
             .trim()
             .replace(/[_\s]+/g, ' ')
             .toUpperCase();
+          const productKey = [row.billProductCode, row.billProductDisplayName, rawBillProductName]
+            .map((name) => String(name || '').toUpperCase().replace(/\+/g, 'PLUS').replace(/[^A-Z0-9]/g, ''))
+            .find((name) => name && name !== 'CANALPLUS');
+          const shortProductName = {
+            CANALPLUSRWANDA: 'Canal+ RW',
+            CANALPLUSRW: 'Canal+ RW',
+            CANALPLUSDRC: 'Canal+ RDC',
+            CANALPLUSRDC: 'Canal+ RDC',
+            CANALPLUSCD: 'Canal+ RDC',
+            CANALPLUSDRCONGO: 'Canal+ RDC'
+          }[productKey];
+          if (normalizeEnumKey(row.action) === 'PAY_TV_SUBSCRIPTION' && shortProductName) {
+            return <span title={`${actionLabel} (${normalizedBillProductName})`}>Pay {shortProductName}</span>;
+          }
           return (
             <span>
               {actionLabel}{' '}
@@ -3532,6 +3547,7 @@ export default function TransactionsPage() {
 
       {showInvestigation && (
         <Modal
+          className="transaction-investigation-modal"
           title={`Investigation ${investigation?.reference || selected?.reference || selected?.transactionId || selected?.id || ''}`}
           onClose={() => (!investigationLoading ? setShowInvestigation(false) : null)}
         >
@@ -3558,7 +3574,7 @@ export default function TransactionsPage() {
 
             <CommerceContextPanel commerce={investigation?.transaction?.commerce} formatDate={formatDateTime} formatMoney={formatMoneyWithCurrency} />
 
-            <div className="card" style={{ padding: '1rem' }}>
+            <div className="card transaction-timeline-panel">
               {investigation?.providerEventCount > 0 && !(Array.isArray(investigation?.timeline) && investigation.timeline.some((event) => normalizeEnumKey(event?.type) === 'PROVIDER_REQUEST')) && (
                 <div style={{ marginBottom: '0.85rem', padding: '0.75rem', border: '1px solid #FDE68A', borderRadius: '8px', background: '#FFFBEB', color: '#92400E', fontWeight: 700 }}>
                   Provider trace incomplete. Provider events exist, but this flow has not yet been instrumented for exact provider request/response capture.
@@ -3603,17 +3619,12 @@ export default function TransactionsPage() {
                         return (
                           <div
                             key={`${item?.sourceType || 'timeline'}-${item?.sourceId ?? index}-${item?.type || 'event'}`}
-                            style={{
-                              display: 'grid',
-                              gridTemplateColumns: 'minmax(110px, 150px) 28px minmax(0, 1fr)',
-                              columnGap: '0.65rem',
-                              alignItems: 'start'
-                            }}
+                            className="transaction-timeline-event"
                           >
-                            <div style={{ paddingTop: '0.12rem', color: 'var(--muted)', fontSize: '12px', lineHeight: 1.35 }}>
+                            <div className="transaction-timeline-event-time">
                               <div style={{ fontWeight: 800, color: 'var(--text)' }}>{formatDateTime(item?.occurredAt)}</div>
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: '100%' }}>
+                            <div className="transaction-timeline-rail">
                               <div
                                 style={{
                                   width: 14,
@@ -3626,7 +3637,7 @@ export default function TransactionsPage() {
                               />
                               {!isLast && <div style={{ width: 2, flex: 1, minHeight: 42, background: '#CBD5E1', marginTop: 4 }} />}
                             </div>
-                            <div style={{ padding: '0 0 1rem', minWidth: 0 }}>
+                            <div className="transaction-timeline-content" style={{ padding: '0 0 1rem', minWidth: 0 }}>
                               <div
                                 style={{
                                   padding: '0.65rem 0.8rem',
@@ -3646,19 +3657,14 @@ export default function TransactionsPage() {
                       return (
                         <div
                           key={`${item?.sourceType || 'timeline'}-${item?.sourceId ?? index}-${item?.type || 'event'}`}
-                          style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'minmax(110px, 150px) 28px minmax(0, 1fr)',
-                            columnGap: '0.65rem',
-                            alignItems: 'start'
-                          }}
+                          className="transaction-timeline-event"
                         >
-                          <div style={{ paddingTop: '0.12rem', color: 'var(--muted)', fontSize: '12px', lineHeight: 1.35 }}>
+                          <div className="transaction-timeline-event-time">
                             <div style={{ fontWeight: 800, color: 'var(--text)' }}>{formatDateTime(item?.occurredAt)}</div>
                             <div>Event {index + 1}</div>
                             {item?.sequenceNumber !== null && item?.sequenceNumber !== undefined ? <div>Provider #{item.sequenceNumber}</div> : null}
                           </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: '100%' }}>
+                          <div className="transaction-timeline-rail">
                             <div
                               style={{
                                 width: 14,
@@ -3672,6 +3678,7 @@ export default function TransactionsPage() {
                             {!isLast && <div style={{ width: 2, flex: 1, minHeight: 86, background: tone.border, marginTop: 4 }} />}
                           </div>
                           <div
+                            className="transaction-timeline-content"
                             style={{
                               display: 'grid',
                               gap: '0.6rem',
@@ -3680,10 +3687,10 @@ export default function TransactionsPage() {
                             }}
                           >
                             <div
+                              className="transaction-timeline-event-card"
                               style={{
                                 display: 'grid',
                                 gap: '0.55rem',
-                                padding: '0.8rem',
                                 border: `1px solid ${tone.border}`,
                                 borderRadius: '8px',
                                 background: hasAnyError ? '#FEF2F2' : 'var(--surface)',
@@ -3691,7 +3698,7 @@ export default function TransactionsPage() {
                               }}
                             >
                               <div style={{ display: 'grid', gap: '0.2rem' }}>
-                                <div style={{ fontWeight: 900, fontSize: '15px', overflowWrap: 'anywhere' }}>
+                                <div style={{ fontWeight: 900, fontSize: 'var(--font-body)', overflowWrap: 'anywhere' }}>
                                   {item?.title || formatEnumLabel(item?.type)}
                                 </div>
                                 <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
@@ -3714,7 +3721,7 @@ export default function TransactionsPage() {
                                 />
                               )}
                               {hasPayload || hasError || hasLastError ? (
-                                <details>
+                                <details className="transaction-timeline-payload">
                                   <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Payload</summary>
                                   <div style={{ marginTop: '0.6rem', display: 'grid', gap: '0.6rem' }}>
                                     {payloadSections.map((section) => (
