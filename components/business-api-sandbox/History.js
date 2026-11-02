@@ -58,7 +58,7 @@ export default function SandboxHistory({ initialSearch }) {
     catch (err) { setFilterError(err.message); }
   }
   const columns = [
-    { key: 'business', label: 'Business', priority: 0, render: (row) => <Link href={`/dashboard/businesses/${encodeURIComponent(row.businessId)}`}>{row.businessName || `Business ${row.businessId}`}</Link> },
+    { key: 'business', label: 'Business', priority: 0, render: (row) => <Link href={`/dashboard/businesses/${encodeURIComponent(row.businessId)}`}>{row.businessName?.trim().replace(/^Business\s+/i, '') || String(row.businessId)}</Link> },
     { key: 'action', label: 'Type', priority: 1, render: (row) => row.transaction.action === 'BUSINESS_API_COLLECTION' ? 'Collection' : 'Payout' },
     { key: 'amount', label: 'Amount', priority: 1, render: (row) => sandboxAmount(row.transaction.amount, row.transaction.currency) },
     { key: 'status', label: 'Status', priority: 1, render: (row) => <SandboxStatus status={row.transaction.status} /> },
