@@ -17,7 +17,7 @@ const LABELS = {
   'crypto.external.collection.allow_public_endpoints': 'Allow public crypto payment links',
   'kyc.allow_gallery_upload': 'Allow KYC gallery upload',
   avecLoanRequestReasonEnabled: 'AVEC loan request reason',
-  enableRegulatorMode: 'Regulator mode',
+  enableRegulatorMode: 'Review mode',
   'customer_service.enabled': 'Customer service FAB',
   'commerce.enabled': 'Commerce',
   'commerce.storefront.enabled': 'Commerce Storefront',
@@ -47,7 +47,7 @@ const WARNINGS = {
   auto_refund: 'Warning: Disabling auto refunds will route failed refunds to manual review.',
   'kyc.allow_gallery_upload': 'If disabled, customers must capture KYC documents directly instead of uploading from their gallery.',
   avecLoanRequestReasonEnabled: 'If disabled, the client app hides the AVEC loan request reason field and does not send notes in loan request payloads.',
-  enableRegulatorMode: 'Controls regulator-mode presentation in compatible customer clients and the admin dashboard. Defaults to off. Manage customer overrides here and admin overrides under Admins.',
+  enableRegulatorMode: 'Controls review-mode presentation in compatible customer clients and the admin dashboard. Defaults to off. Manage customer overrides here and admin overrides under Admins.',
   'customer_service.enabled': 'If disabled, the client app hides the customer service floating action button.',
   'business_tools.access.enforced': 'Enforcement is separate from plan availability and entitlement. Enable only after pricing, migration, client rollout and exception review are complete. Public marketplace and payer checkout remain outside this requirement.',
   'business_tools.pricing.per_tool': 'Keep disabled for bundle compatibility until compatible app and web clients can handle independent tool offers. This flag does not change access enforcement.'
@@ -76,7 +76,7 @@ const BUSINESS_TOOLS_ENFORCEMENT_KEY = 'business_tools.access.enforced';
 const BUSINESS_TOOLS_PER_TOOL_KEY = 'business_tools.pricing.per_tool';
 const BUSINESS_API_LIVE_PAYMENTS_KEY = 'business_api.live_payments.enabled';
 const REGULATOR_MODE_KEY = 'enableRegulatorMode';
-const REGULATOR_MODE_HELP = 'An explicit account override takes priority in both directions. Disabled forces regulator mode off; delete the override to follow the global setting again. Changing the global setting preserves account overrides. Country overrides do not apply.';
+const REGULATOR_MODE_HELP = 'An explicit account override takes priority in both directions. Disabled forces review mode off; delete the override to follow the global setting again. Changing the global setting preserves account overrides. Country overrides do not apply.';
 const COMMERCE_ENABLED_KEY = 'commerce.enabled';
 const COMMERCE_SURFACE_FLAGS = [
   {
@@ -1073,7 +1073,7 @@ export default function FeatureFlagsPage() {
   const handleCreateFlag = async () => {
     const key = draftKey.trim();
     if (key === REGULATOR_MODE_KEY && !canManageRegulatorMode) {
-      setError('Permission denied. Only administrators can change Regulator mode.');
+      setError('Permission denied. Only administrators can change Review mode.');
       return;
     }
     if (key === BUSINESS_API_LIVE_PAYMENTS_KEY) {
@@ -1512,7 +1512,7 @@ export default function FeatureFlagsPage() {
               {t('featureFlags.overrides')}
             </button>
             {flag.key !== REGULATOR_MODE_KEY || canManageRegulatorMode ? <RegulatorField field={flag}><label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
-              <input type="checkbox" aria-label={flag.key === REGULATOR_MODE_KEY ? 'Regulator mode global setting' : undefined} style={flag.key === REGULATOR_MODE_KEY ? { width: 'auto' } : undefined} checked={Boolean(flag.enabled)} onChange={() => handleToggle(flag.key)} disabled={loading || savingKey === flag.key} />
+              <input type="checkbox" aria-label={flag.key === REGULATOR_MODE_KEY ? 'Review mode global setting' : undefined} style={flag.key === REGULATOR_MODE_KEY ? { width: 'auto' } : undefined} checked={Boolean(flag.enabled)} onChange={() => handleToggle(flag.key)} disabled={loading || savingKey === flag.key} />
               {flag.enabled ? t('featureFlags.enabled') : t('featureFlags.disabled')}
             </label></RegulatorField> : null}
             {flag.key !== REGULATOR_MODE_KEY ? <button
@@ -1537,7 +1537,7 @@ export default function FeatureFlagsPage() {
           <div>{warning}</div>
           <div>{REGULATOR_MODE_HELP}</div>
           <div>Allow up to 30 seconds for other processes to refresh their caches, then refresh account data in the client.</div>
-          {!canManageRegulatorMode ? <div>Read only. An administrator can change Regulator mode.</div> : null}
+          {!canManageRegulatorMode ? <div>Read only. An administrator can change Review mode.</div> : null}
         </div> : null}
         {flag.key !== REGULATOR_MODE_KEY && !flag.enabled && warning && <div style={{ color: '#b45309', fontWeight: 600 }}>{warning}</div>}
         {flag.key === CUSTOMER_SERVICE_ENABLED_KEY && (
@@ -1725,10 +1725,10 @@ export default function FeatureFlagsPage() {
         </div>
       )}
 
-      <CollapsibleSection title="Regulator mode" subtitle="Global presentation setting and customer overrides">
-        {loading ? <div role="status">Loading Regulator mode…</div> : regulatorModeFlag
+      <CollapsibleSection title="Review mode" subtitle="Global presentation setting and customer overrides">
+        {loading ? <div role="status">Loading Review mode…</div> : regulatorModeFlag
           ? renderFlag(regulatorModeFlag)
-          : <div role="alert">Regulator mode settings are unavailable. Refresh the feature flags to retry.</div>}
+          : <div role="alert">Review mode settings are unavailable. Refresh the feature flags to retry.</div>}
       </CollapsibleSection>
 
       <CollapsibleSection title="API LIVE payments" subtitle="Default for new LIVE API collections and payouts">
@@ -2865,7 +2865,7 @@ export default function FeatureFlagsPage() {
 
       {editDialog && canPresentFlag(editDialog.key) && (
         <div className="modal-backdrop">
-          <div role="dialog" aria-modal="true" aria-label={editDialog.key === REGULATOR_MODE_KEY ? 'Regulator mode global setting' : 'Edit feature flag'} className="modal-surface" style={{ width: 'min(760px, 96vw)', display: 'grid', gap: '0.85rem' }}>
+          <div role="dialog" aria-modal="true" aria-label={editDialog.key === REGULATOR_MODE_KEY ? 'Review mode global setting' : 'Edit feature flag'} className="modal-surface" style={{ width: 'min(760px, 96vw)', display: 'grid', gap: '0.85rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.25rem', borderBottom: '1px solid var(--border)' }}>
               <div style={{ fontWeight: 800 }}>Edit feature flag</div>
               <button
@@ -2890,7 +2890,7 @@ export default function FeatureFlagsPage() {
                 <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
                   <input
                     type="checkbox"
-                    aria-label={editDialog.key === REGULATOR_MODE_KEY ? 'Enable Regulator mode globally' : undefined}
+                    aria-label={editDialog.key === REGULATOR_MODE_KEY ? 'Enable Review mode globally' : undefined}
                     style={editDialog.key === REGULATOR_MODE_KEY ? { width: 'auto' } : undefined}
                     checked={editDraftEnabled}
                     onChange={(e) => setEditDraftEnabled(e.target.checked)}
@@ -3009,9 +3009,9 @@ export default function FeatureFlagsPage() {
 
       {overrideDialog && canPresentFlag(overrideDialog.key) && (
         <div className="modal-backdrop">
-          <div role="dialog" aria-modal="true" aria-label={overrideDialog.key === REGULATOR_MODE_KEY ? 'Regulator mode overrides' : 'Feature flag overrides'} className="modal-surface" style={{ width: 'min(920px, 96vw)', display: 'grid', gap: '0.85rem' }}>
+          <div role="dialog" aria-modal="true" aria-label={overrideDialog.key === REGULATOR_MODE_KEY ? 'Review mode overrides' : 'Feature flag overrides'} className="modal-surface" style={{ width: 'min(920px, 96vw)', display: 'grid', gap: '0.85rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.25rem', borderBottom: '1px solid var(--border)' }}>
-              <div style={{ fontWeight: 800 }}>{overrideDialog.key === REGULATOR_MODE_KEY ? 'Regulator mode overrides' : overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? t('featureFlags.cryptoVerifiedTitle') : overrideDialog.key === TRUSTED_DEVICE_WEB_KEY ? 'Web portal device approval overrides' : t('featureFlags.overrideModal')}</div>
+              <div style={{ fontWeight: 800 }}>{overrideDialog.key === REGULATOR_MODE_KEY ? 'Review mode overrides' : overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? t('featureFlags.cryptoVerifiedTitle') : overrideDialog.key === TRUSTED_DEVICE_WEB_KEY ? 'Web portal device approval overrides' : t('featureFlags.overrideModal')}</div>
               <button
                 type="button"
                 disabled={overridesSaving}
@@ -3140,7 +3140,7 @@ export default function FeatureFlagsPage() {
                 <button type="button" className="btn-primary" onClick={() => void handleSaveWebPortalPolicy('account')} disabled={!overrideAccountId.trim() || overridesSaving}>{overridesSaving ? 'Saving…' : 'Apply account policy'}</button>
               </> : <>
                 <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
-                  <input type="checkbox" aria-label={overrideDialog.key === REGULATOR_MODE_KEY ? 'Regulator mode for account' : undefined} style={overrideDialog.key === REGULATOR_MODE_KEY ? { width: 'auto' } : undefined} checked={overrideEnabled} onChange={(e) => setOverrideEnabled(e.target.checked)} disabled={overridesSaving} />
+                  <input type="checkbox" aria-label={overrideDialog.key === REGULATOR_MODE_KEY ? 'Review mode for account' : undefined} style={overrideDialog.key === REGULATOR_MODE_KEY ? { width: 'auto' } : undefined} checked={overrideEnabled} onChange={(e) => setOverrideEnabled(e.target.checked)} disabled={overridesSaving} />
                   {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? (overrideEnabled ? 'Enforce gate (verified only)' : 'Allow crypto collection') : overrideEnabled ? t('featureFlags.enabled') : t('featureFlags.disabled')}
                 </label>
                 {!overrideEnabled && overrideDialog.key !== REGULATOR_MODE_KEY ? <ClientPresentationSelect id="overrideClientPresentation" value={overrideClientPresentation} onChange={setOverrideClientPresentation} disabled={overridesSaving} /> : null}
@@ -3169,7 +3169,7 @@ export default function FeatureFlagsPage() {
                 <button type="button" className="btn-primary" onClick={() => void handleSaveWebPortalPolicy('email')} disabled={!overrideEmail.trim() || overridesSaving}>{overridesSaving ? 'Saving…' : 'Apply email policy'}</button>
               </> : <>
                 <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
-                  <input type="checkbox" aria-label={overrideDialog.key === REGULATOR_MODE_KEY ? 'Regulator mode for email' : undefined} style={overrideDialog.key === REGULATOR_MODE_KEY ? { width: 'auto' } : undefined} checked={overrideEmailEnabled} onChange={(e) => setOverrideEmailEnabled(e.target.checked)} disabled={overridesSaving} />
+                  <input type="checkbox" aria-label={overrideDialog.key === REGULATOR_MODE_KEY ? 'Review mode for email' : undefined} style={overrideDialog.key === REGULATOR_MODE_KEY ? { width: 'auto' } : undefined} checked={overrideEmailEnabled} onChange={(e) => setOverrideEmailEnabled(e.target.checked)} disabled={overridesSaving} />
                   {overrideDialog.key === CRYPTO_COLLECTION_GATE_KEY ? (overrideEmailEnabled ? 'Enforce gate (verified only)' : 'Allow crypto collection') : overrideEmailEnabled ? t('featureFlags.enabled') : t('featureFlags.disabled')}
                 </label>
                 {!overrideEmailEnabled && overrideDialog.key !== REGULATOR_MODE_KEY ? <ClientPresentationSelect id="overrideEmailClientPresentation" value={overrideEmailClientPresentation} onChange={setOverrideEmailClientPresentation} disabled={overridesSaving} /> : null}

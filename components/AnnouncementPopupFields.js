@@ -40,7 +40,7 @@ export function AnnouncementPopupFields({ draft, setDraft, notification = true }
             <span>HTTPS web destination *</span>
             <input type="url" value={draft.ctaUrl} onChange={field('ctaUrl')} placeholder="https://" />
           </label>}
-          {draft.ctaType === 'SHARE_APP' && <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Requires an enabled referral summary and personal invitation code. Hidden in native regulator mode.</div>}
+          {draft.ctaType === 'SHARE_APP' && <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Requires an enabled referral summary and personal invitation code. Hidden in native review mode.</div>}
           <div style={{ color: 'var(--muted)', fontSize: '12px' }}>The popup uses this primary action. A legacy link or download update flag alone creates no popup button.</div>
         </fieldset>
       )}

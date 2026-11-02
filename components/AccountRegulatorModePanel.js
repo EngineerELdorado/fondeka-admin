@@ -31,7 +31,7 @@ function AccountRegulatorModeSettings({ accountId, refreshKey, accountLoading = 
 
   const showError = useCallback(async (err, prefix = '') => {
     if (err?.status === 401) await refreshSession(true);
-    const message = err?.message || 'Unable to load or save Regulator mode. Please retry.';
+    const message = err?.message || 'Unable to load or save Review mode. Please retry.';
     setError(`${prefix}${err?.status === 403 ? 'Permission denied. ' : ''}${message}`);
   }, [refreshSession]);
 
@@ -42,7 +42,7 @@ function AccountRegulatorModeSettings({ accountId, refreshKey, accountLoading = 
     ]);
     const settings = accountRegulatorModeSettings(flag, overrides, accountId);
     if (!settings) {
-      const unavailable = new Error('Status unavailable. Refresh Regulator mode to check the saved settings.');
+      const unavailable = new Error('Status unavailable. Refresh Review mode to check the saved settings.');
       unavailable.code = 'REGULATOR_MODE_SETTINGS_UNAVAILABLE';
       throw unavailable;
     }
@@ -100,11 +100,11 @@ function AccountRegulatorModeSettings({ accountId, refreshKey, accountLoading = 
         committed = true;
         if (String(response?.accountId) !== String(accountId) || typeof response?.enabled !== 'boolean') {
           setSaved(null);
-          throw new Error('Status unavailable. Refresh Regulator mode to check the saved override.');
+          throw new Error('Status unavailable. Refresh Review mode to check the saved override.');
         }
         applySaved({ ...saved, overrideEnabled: response.enabled, enabled: response.enabled });
       }
-      setInfo(draft === 'inherit' ? 'Override removed. This account follows the global setting.' : 'Account Regulator mode override saved.');
+      setInfo(draft === 'inherit' ? 'Override removed. This account follows the global setting.' : 'Account Review mode override saved.');
       router.refresh();
       applySaved(await readSettings());
     } catch (err) {
@@ -115,36 +115,38 @@ function AccountRegulatorModeSettings({ accountId, refreshKey, accountLoading = 
     }
   };
 
-  return <section id="regulator-mode" className="card" aria-labelledby="account-regulator-mode-title" style={{ display: 'grid', gap: '0.85rem', minWidth: 0 }}>
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-      <h2 id="account-regulator-mode-title" style={{ margin: 0, fontSize: '1.1rem' }}>Regulator mode</h2>
-      <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
-        <strong data-testid="account-regulator-mode-status" role="status" style={{ color: !saved ? 'var(--muted)' : saved.enabled ? '#15803d' : '#b45309' }}>
-          {saved ? saved.enabled ? 'Enabled' : 'Disabled' : 'Status unavailable'}
-        </strong>
-        <button type="button" className="btn-neutral btn-sm" onClick={load} disabled={loading || saving || accountLoading}>{loading ? 'Refreshing…' : 'Refresh Regulator mode'}</button>
+  return <details id="regulator-mode" className="card" aria-labelledby="account-regulator-mode-title" style={{ minWidth: 0 }}>
+    <summary style={{ cursor: 'pointer' }}>
+      <h2 id="account-regulator-mode-title" style={{ display: 'inline', margin: 0, fontSize: '1.1rem' }}>Review mode</h2>{' '}
+      <strong data-testid="account-regulator-mode-status" role="status" style={{ marginLeft: '0.6rem', color: !saved ? 'var(--muted)' : saved.enabled ? '#15803d' : '#b45309' }}>
+        {saved ? saved.enabled ? 'Enabled' : 'Disabled' : 'Status unavailable'}
+      </strong>
+    </summary>
+    <div style={{ display: 'grid', gap: '0.85rem', marginTop: '0.85rem', minWidth: 0 }}>
+      <div>
+        <button type="button" className="btn-neutral btn-sm" onClick={load} disabled={loading || saving || accountLoading}>{loading ? 'Refreshing…' : 'Refresh Review mode'}</button>
       </div>
+      {error ? <div role="alert" className="alert alert-error">{error}</div> : null}
+      {info ? <div role="status" className="alert alert-success">{info}</div> : null}
+      <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+        Global setting: <strong>{saved ? saved.globalEnabled ? 'Enabled' : 'Disabled' : 'Unavailable'}</strong>.{' '}
+        {saved ? saved.overrideEnabled == null ? 'This account follows the global setting.' : 'This account has an explicit override.' : 'Refresh to check this account’s saved setting.'}{' '}
+        <Link href="/dashboard/feature-flags">View Feature flags</Link>
+      </div>
+      {canManage ? <>
+        <label htmlFor="account-regulator-mode-choice" style={{ display: 'grid', gap: '0.35rem', maxWidth: '460px', minWidth: 0 }}>
+          <span>Review mode for this account</span>
+          <select id="account-regulator-mode-choice" aria-label="Review mode for this account" value={draft} onChange={(event) => setDraft(event.target.value)} disabled={disabled} style={{ width: '100%', minWidth: 0 }}>
+            <option value="inherit">Follow global setting</option>
+            <option value="enabled">Enable</option>
+            <option value="disabled">Disable</option>
+          </select>
+        </label>
+        {draft === 'inherit' && savedChoice !== 'inherit' ? <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Saving removes the override. The account adopts the current global setting.</div> : null}
+        <div><button type="button" className="btn-primary" onClick={save} disabled={disabled || draft === savedChoice}>{saving ? 'Saving…' : 'Save Review mode'}</button></div>
+      </> : <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Read only. An administrator can change this account’s Review mode.</div>}
+      <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Enabled and disabled are explicit account overrides and remain in effect when the global setting changes. This is the same override managed by account ID or email in Feature flags.</div>
+      <div style={{ padding: '0.7rem', background: 'var(--accent-soft)', borderRadius: '10px', fontSize: '13px' }}>Controls presentation in compatible clients. Backend payment authorization and service eligibility are unchanged. Allow up to 30 seconds for caches to refresh, then refresh account data in the client.</div>
     </div>
-    {error ? <div role="alert" className="alert alert-error">{error}</div> : null}
-    {info ? <div role="status" className="alert alert-success">{info}</div> : null}
-    <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-      Global setting: <strong>{saved ? saved.globalEnabled ? 'Enabled' : 'Disabled' : 'Unavailable'}</strong>.{' '}
-      {saved ? saved.overrideEnabled == null ? 'This account follows the global setting.' : 'This account has an explicit override.' : 'Refresh to check this account’s saved setting.'}{' '}
-      <Link href="/dashboard/feature-flags">View Feature flags</Link>
-    </div>
-    {canManage ? <>
-      <label htmlFor="account-regulator-mode-choice" style={{ display: 'grid', gap: '0.35rem', maxWidth: '460px', minWidth: 0 }}>
-        <span>Regulator mode for this account</span>
-        <select id="account-regulator-mode-choice" aria-label="Regulator mode for this account" value={draft} onChange={(event) => setDraft(event.target.value)} disabled={disabled} style={{ width: '100%', minWidth: 0 }}>
-          <option value="inherit">Follow global setting</option>
-          <option value="enabled">Enable</option>
-          <option value="disabled">Disable</option>
-        </select>
-      </label>
-      {draft === 'inherit' && savedChoice !== 'inherit' ? <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Saving removes the override. The account adopts the current global setting.</div> : null}
-      <div><button type="button" className="btn-primary" onClick={save} disabled={disabled || draft === savedChoice}>{saving ? 'Saving…' : 'Save Regulator mode'}</button></div>
-    </> : <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Read only. An administrator can change this account’s Regulator mode.</div>}
-    <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Enabled and disabled are explicit account overrides and remain in effect when the global setting changes. This is the same override managed by account ID or email in Feature flags.</div>
-    <div style={{ padding: '0.7rem', background: 'var(--accent-soft)', borderRadius: '10px', fontSize: '13px' }}>Controls presentation in compatible clients. Backend payment authorization and service eligibility are unchanged. Allow up to 30 seconds for caches to refresh, then refresh account data in the client.</div>
-  </section>;
+  </details>;
 }

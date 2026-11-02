@@ -98,7 +98,7 @@ export default function AdminsPage() {
     { key: 'email', label: 'Email' },
     { key: 'phoneNumber', label: 'Phone' },
     { key: 'role', label: 'Role', render: (row) => formatRoleLabel(row.role) },
-    { key: 'enableRegulatorMode', label: 'Regulator mode', render: (row) => typeof row.enableRegulatorMode === 'boolean' ? `${row.enableRegulatorMode ? 'Enabled' : 'Disabled'} (${row.regulatorModeOverride == null ? 'global' : 'override'})` : 'Unavailable' },
+    { key: 'enableRegulatorMode', label: 'Review mode', render: (row) => typeof row.enableRegulatorMode === 'boolean' ? `${row.enableRegulatorMode ? 'Enabled' : 'Disabled'} (${row.regulatorModeOverride == null ? 'global' : 'override'})` : 'Unavailable' },
     {
       key: 'actions',
       label: 'Actions',
@@ -106,7 +106,7 @@ export default function AdminsPage() {
         <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
           <button type="button" onClick={() => openDetail(row)} className="btn-neutral">View</button>
           <button type="button" onClick={() => openEdit(row)} className="btn-neutral">Edit</button>
-          {canManageRegulatorMode && <button type="button" onClick={() => openRegulatorMode(row)} disabled={typeof row.enableRegulatorMode !== 'boolean'} className="btn-neutral">Regulator mode</button>}
+          {canManageRegulatorMode && <button type="button" onClick={() => openRegulatorMode(row)} disabled={typeof row.enableRegulatorMode !== 'boolean'} className="btn-neutral">Review mode</button>}
           <button type="button" onClick={() => setConfirmDelete(row)} className="btn-danger">Delete</button>
         </div>
       )
@@ -139,10 +139,10 @@ export default function AdminsPage() {
         setRows((previous) => previous.map((row) => (modeTarget.id != null ? String(row.id) === String(modeTarget.id) : row.email?.trim().toLowerCase() === modeTarget.email.trim().toLowerCase()) ? { ...row, enableRegulatorMode: undefined } : row));
       }
       setModeTarget(null);
-      setInfo('Admin Regulator mode saved.');
+      setInfo('Admin Review mode saved.');
       await Promise.all([fetchRows(), refreshAdminProfile()]);
     } catch (err) {
-      setModeError(err.message || 'Unable to save admin Regulator mode.');
+      setModeError(err.message || 'Unable to save admin Review mode.');
     } finally {
       setModeSaving(false);
     }
@@ -280,7 +280,7 @@ export default function AdminsPage() {
         <button type="button" onClick={openCreate} className="btn-success">
           Add admin
         </button>
-        {canManageRegulatorMode && <button type="button" onClick={() => openRegulatorMode(null)} className="btn-neutral">Regulator mode by email</button>}
+        {canManageRegulatorMode && <button type="button" onClick={() => openRegulatorMode(null)} className="btn-neutral">Review mode by email</button>}
       </div>
 
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
@@ -289,15 +289,15 @@ export default function AdminsPage() {
       <DataTable columns={columns} rows={rows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No admins found" />
 
       {modeTarget && (
-        <Modal title="Admin Regulator mode" onClose={() => { if (!modeSaving) setModeTarget(null); }}>
+        <Modal title="Admin Review mode" onClose={() => { if (!modeSaving) setModeTarget(null); }}>
           {modeError && <div role="alert" className="alert alert-error">{modeError}</div>}
           {modeTarget.id != null ? <div>{modeTarget.email || `Admin ${modeTarget.id}`}</div> : (
             <label style={{ display: 'grid', gap: '0.35rem' }}>Admin email
               <input type="email" value={modeTarget.email} disabled={modeSaving} onChange={(event) => setModeTarget({ email: event.target.value })} />
             </label>
           )}
-          <label style={{ display: 'grid', gap: '0.35rem' }}>Regulator mode for this admin
-            <select aria-label="Regulator mode for this admin" value={modeChoice} onChange={(event) => setModeChoice(event.target.value)} disabled={modeSaving}>
+          <label style={{ display: 'grid', gap: '0.35rem' }}>Review mode for this admin
+            <select aria-label="Review mode for this admin" value={modeChoice} onChange={(event) => setModeChoice(event.target.value)} disabled={modeSaving}>
               <option value="inherit">Follow global setting</option>
               <option value="enabled">Enable</option>
               <option value="disabled">Disable</option>
@@ -306,7 +306,7 @@ export default function AdminsPage() {
           <div style={{ color: 'var(--muted)' }}>Enable and Disable override the global setting for this admin. Follow global setting removes the override.</div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" onClick={() => setModeTarget(null)} disabled={modeSaving} className="btn-neutral">Cancel</button>
-            <button type="button" onClick={saveRegulatorMode} disabled={modeSaving || (modeTarget.id == null ? !modeTarget.email.trim() : modeChoice === (modeTarget.regulatorModeOverride == null ? 'inherit' : modeTarget.regulatorModeOverride ? 'enabled' : 'disabled'))} className="btn-primary">{modeSaving ? 'Saving…' : 'Save Regulator mode'}</button>
+            <button type="button" onClick={saveRegulatorMode} disabled={modeSaving || (modeTarget.id == null ? !modeTarget.email.trim() : modeChoice === (modeTarget.regulatorModeOverride == null ? 'inherit' : modeTarget.regulatorModeOverride ? 'enabled' : 'disabled'))} className="btn-primary">{modeSaving ? 'Saving…' : 'Save Review mode'}</button>
           </div>
         </Modal>
       )}

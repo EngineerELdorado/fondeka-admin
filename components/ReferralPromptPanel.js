@@ -120,7 +120,7 @@ function ReferralPromptSettings({ campaignId, onSaved, onBusyChange }) {
     {loading ? <div role="status">Loading popup settings…</div> : null}
     {error ? <div role="alert" className="alert alert-error">{error}</div> : null}
     {info ? <div role="status" className="alert alert-success">{info}</div> : null}
-    {saved ? <div style={{ color: 'var(--muted)', fontSize: '13px' }}><strong>{saved.name}</strong>{' · Referral campaign #' + saved.id + ' · ' + saved.status}. Enabled popup settings still require the program switch, an unambiguous ACTIVE campaign within its dates, and an eligible account. Regulator-mode accounts are excluded.</div> : null}
+    {saved ? <div style={{ color: 'var(--muted)', fontSize: '13px' }}><strong>{saved.name}</strong>{' · Referral campaign #' + saved.id + ' · ' + saved.status}. Enabled popup settings still require the program switch, an unambiguous ACTIVE campaign within its dates, and an eligible account. Accounts in review mode are excluded.</div> : null}
     {!canManage ? <div>Read only. Admin or Super Admin access is required to edit invitation popups.</div> : null}
     <fieldset disabled={disabled} style={{ display: 'grid', gap: '0.8rem', border: 0, padding: 0, margin: 0, minWidth: 0 }}>
       <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}><input type="checkbox" style={{ width: '18px', height: '18px', margin: 0 }} checked={draft.enabled} onChange={(event) => update('enabled', event.target.checked)} />Enable invitation popup</label>
