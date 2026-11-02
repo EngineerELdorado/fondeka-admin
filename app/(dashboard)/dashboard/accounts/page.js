@@ -1,9 +1,12 @@
 'use client';
 
 import { PresentationLink as Link } from '@/components/RegulatorPresentation';
+import { useAuth } from '@/contexts/AuthContext';
+import { canExportContacts } from '@/lib/contact-exports';
 
 const sections = [
   { href: '/dashboard/accounts/accounts', title: 'Accounts', blurb: 'Search and review accounts, run AML check.' },
+  { href: '/dashboard/accounts/contact-exports', title: 'Contact exports', blurb: 'Export selected contact columns for all accounts or a campaign audience.', contactExports: true },
   { href: '/dashboard/accounts/custom-fees', title: 'Accounts with Custom Fees', blurb: 'Find accounts that have per-account fee overrides and remove stale configs.' },
   { href: '/dashboard/fiat-wallets', title: 'Fiat Wallets', blurb: 'Search fiat wallet balances across accounts and currencies.' },
   { href: '/dashboard/accounts/balances', title: 'Account Balances', blurb: 'Manage balances per account.' },
@@ -12,6 +15,7 @@ const sections = [
 ];
 
 export default function AccountsHubPage() {
+  const { session } = useAuth();
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -19,7 +23,7 @@ export default function AccountsHubPage() {
         <div style={{ color: 'var(--muted)' }}>Pick an accounts area to manage with focused UIs.</div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '1rem' }}>
-        {sections.map((item) => (
+        {sections.filter((item) => !item.contactExports || canExportContacts(session)).map((item) => (
           <Link
             key={item.href}
             href={item.href}

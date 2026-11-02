@@ -37,6 +37,16 @@ The login screen implements the same passwordless email + code flow used in the 
 
 The `lib/api.js` helper maps to the Spring Boot admin endpoints that manage accounts, admins, KYC, loans, transactions, and aggregated reports. Set `NEXT_PUBLIC_ADMIN_API_BASE` to the base path of the admin API (e.g., `https://api.example.com/admin`).
 
+## Contact exports
+
+Admin and Super Admin users can open **Accounts → Contact exports**, or **Export contacts** on the account directory, at `/dashboard/accounts/contact-exports`.
+
+Choose and reorder CSV columns supplied by `GET /accounts/exports/contacts/fields`, then select all accounts or the same account audience filters used by push campaigns. Any/Yes/No controls preserve explicit false values, and count filters preserve zero. Starting an export sends only the selected fields and audience to `POST /accounts/exports/contacts`.
+
+The page polls queued/running jobs every four seconds while visible. The job ID stays in the URL and the latest ID is remembered per admin on that browser; refresh or reopen the page to resume. Only job IDs are persisted locally. Failed/expired jobs allow another export; concurrent-job conflicts retain the draft. Download CSV opens the HTTPS signed URL directly without the admin Authorization header. Refresh download link obtains a new link until the file's 24-hour expiry.
+
+The backend migration `20261217_admin_account_contact_exports.sql`, private export bucket configuration and worker must be deployed separately. The dashboard creates no campaign or email. Contact exports do not establish marketing subscription status.
+
 ## Responsive layouts
 
 Dashboard content, controls and grids shrink to their available width. Use `minmax(min(100%, 220px), 1fr)` for automatic grids so a field's preferred minimum cannot widen a narrow panel. Long references and JSON wrap, and action groups and tabs wrap onto another line.

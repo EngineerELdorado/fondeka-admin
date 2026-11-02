@@ -17,6 +17,7 @@ import { useLocale } from '@/contexts/LocaleContext';
 import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
 import { paymentMethodRouteAdminLabel } from '@/lib/payment-method-labels';
+import { canExportContacts } from '@/lib/contact-exports';
 
 const initialFilters = {
   accountId: '',
@@ -200,7 +201,7 @@ const ReferralBadge = ({ referred }) => (
 );
 
 export default function AccountsListPage() {
-  const { enableRegulatorMode } = useAuth();
+  const { enableRegulatorMode, session } = useAuth();
   const { t } = useLocale();
   const { pushToast } = useToast();
   const [rows, setRows] = useState([]);
@@ -1127,9 +1128,12 @@ export default function AccountsListPage() {
           <div style={{ fontWeight: 800, fontSize: '20px' }}>{t('accounts.accounts')}</div>
           <div style={{ color: 'var(--muted)' }}>{t('accounts.findAccounts')}</div>
         </div>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        {canExportContacts(session) ? <Link href="/dashboard/accounts/contact-exports" className="btn-neutral">Export contacts</Link> : null}
         <Link href="/dashboard/accounts" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
           ← {t('accounts.accountsHub')}
         </Link>
+        </div>
       </div>
 
       <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
