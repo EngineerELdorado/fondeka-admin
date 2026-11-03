@@ -1,6 +1,7 @@
 'use client';
 
 import ResponsiveTable from '@/components/ResponsiveTable';
+import { TableCellLines } from '@/components/TableCell';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/api';
@@ -83,7 +84,13 @@ export default function OperationsPanel({ capabilities, onHistory, initialTransa
       <div className="failover-table"><ResponsiveTable><thead><tr>{['Payment / customer', 'Original amount / gross', 'Provider attempt', 'Resolution', 'Actions'].map((label) => <th key={label}>{label}</th>)}</tr></thead><tbody>
         {(result?.content || []).map((operation) => {
           const current = operation.attempts?.find((attempt) => attempt.number === operation.currentAttempt);
-          return <tr key={operation.transactionId}><td><strong>#{operation.transactionId} · {operation.internalReference || '—'}</strong><div>Account {operation.accountId ?? '—'} · {operation.transactionStatus || 'Missing transaction'}</div><small>{formatInstant(operation.createdAt)}</small></td><td>{operation.amount ?? '—'} {operation.currency}<div>Gross: {operation.grossAmount ?? '—'} {operation.currency}</div></td><td>#{operation.currentAttempt} · {current?.provider || '—'}<div>{attemptLabel(current?.state)} · route #{current?.routeId ?? '—'}</div></td><td>{operation.conflicted ? <strong>Conflicted</strong> : null}<div>{operation.unresolved ? 'Pending resolution' : 'Resolved'}</div></td><td><button type="button" className="btn-neutral btn-sm" aria-label={'Investigate transaction ' + operation.transactionId} onClick={() => setSelected(operation.transactionId)}>Investigate</button></td></tr>;
+          return <tr key={operation.transactionId}>
+            <td><TableCellLines primary={`#${operation.transactionId} · ${operation.internalReference || '—'}`} secondary={`Account ${operation.accountId ?? '—'} · ${operation.transactionStatus || 'Missing transaction'} · ${formatInstant(operation.createdAt)}`} strong label="Payout payment / customer" /></td>
+            <td><TableCellLines primary={`${operation.amount ?? '—'} ${operation.currency}`} secondary={`Gross: ${operation.grossAmount ?? '—'} ${operation.currency}`} /></td>
+            <td><TableCellLines primary={`#${operation.currentAttempt} · ${current?.provider || '—'}`} secondary={`${attemptLabel(current?.state)} · route #${current?.routeId ?? '—'}`} label="Provider attempt" /></td>
+            <td><TableCellLines primary={operation.conflicted ? 'Conflicted' : operation.unresolved ? 'Pending resolution' : 'Resolved'} secondary={operation.conflicted ? operation.unresolved ? 'Pending resolution' : 'Resolved' : null} strong={operation.conflicted} /></td>
+            <td><button type="button" className="btn-neutral btn-sm" aria-label={'Investigate transaction ' + operation.transactionId} onClick={() => setSelected(operation.transactionId)}>Investigate</button></td>
+          </tr>;
         })}
       </tbody></ResponsiveTable></div>
       {result?.content.length === 0 && !loading ? <EmptyPayments kind="payout" /> : null}

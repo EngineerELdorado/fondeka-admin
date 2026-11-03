@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PresentationLink as Link } from '@/components/RegulatorPresentation';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
+import TableText, { TableCellLines } from '@/components/TableCell';
 
 const DEFAULT_PAGE_SIZE = 50;
 const MAX_PAGE_SIZE = 200;
@@ -79,12 +80,6 @@ const toEpochMillis = (value) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
   return date.getTime();
-};
-
-const truncate = (value, max = 32) => {
-  const text = String(value || '');
-  if (!text) return '-';
-  return text.length <= max ? text : `${text.slice(0, max - 1)}...`;
 };
 
 const statusTone = (value) => {
@@ -207,13 +202,12 @@ export default function WhatsappMessageDeliveriesPage() {
       key: 'messagePreview',
       label: 'Message',
       render: (row) => {
-        const preview = row.messageType === 'TEMPLATE'
-          ? [row.templateName, row.templateLanguage].filter(Boolean).join(' · ')
-          : row.messageBody;
-        return <span title={preview || ''}>{truncate(preview, 42)}</span>;
+        return row.messageType === 'TEMPLATE'
+          ? <TableCellLines primary={row.templateName || '—'} secondary={row.templateLanguage} label="Template name" />
+          : <TableText value={row.messageBody} label="Message" />;
       }
     },
-    { key: 'metaMessageId', label: 'Meta message ID', render: (row) => <span title={row.metaMessageId || ''}>{truncate(row.metaMessageId, 28)}</span> },
+    { key: 'metaMessageId', label: 'Meta message ID', render: (row) => row.metaMessageId || '-' },
     { key: 'providerTimestamp', label: 'Meta event time', render: (row) => formatDateTime(row.providerTimestamp) },
     {
       key: 'actions',

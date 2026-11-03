@@ -7,6 +7,7 @@ import { PresentationSelect, PresentationLink as Link } from '@/components/Regul
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
+import TableText from '@/components/TableCell';
 import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
 
 const initialFilters = {
@@ -38,29 +39,13 @@ const providerName = (provider) =>
 const renderMethodList = (items) => {
   const list = toList(items);
   if (!list.length) return '—';
-  return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-      {list.map((item, index) => (
-        <span key={`${methodName(item)}-${index}`} style={{ border: '1px solid var(--border)', borderRadius: '999px', padding: '0.2rem 0.5rem', fontSize: '12px', fontWeight: 700 }}>
-          {methodName(item)}
-        </span>
-      ))}
-    </div>
-  );
+  return <TableText value={list.map(methodName).join(', ')} label="Payment methods" />;
 };
 
 const renderProviderList = (items) => {
   const list = toList(items);
   if (!list.length) return '—';
-  return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-      {list.map((item, index) => (
-        <span key={`${providerName(item)}-${index}`} style={{ border: '1px solid var(--border)', borderRadius: '999px', padding: '0.2rem 0.5rem', fontSize: '12px', fontWeight: 700 }}>
-          {providerName(item)}
-        </span>
-      ))}
-    </div>
-  );
+  return <TableText value={list.map(providerName).join(', ')} label="Provider names" />;
 };
 
 const SharedBadge = ({ shared, uniqueProviderName }) => (

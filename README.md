@@ -49,13 +49,15 @@ The backend migration `20261217_admin_account_contact_exports.sql`, private expo
 
 ## Responsive layouts
 
-Dashboard content, controls and grids shrink to their available width. Use `minmax(min(100%, 220px), 1fr)` for automatic grids so a field's preferred minimum cannot widen a narrow panel. Long references and JSON wrap, and action groups and tabs wrap onto another line.
+Dashboard content, controls and grids shrink to their available width. Use `minmax(min(100%, 220px), 1fr)` for automatic grids so a field's preferred minimum cannot widen a narrow panel. Long references and JSON in details wrap, and action groups and tabs can wrap.
 
-Use `components/ResponsiveTable.js` for custom tables; shared `DataTable` uses it automatically. Tables fit their container on larger screens and become labelled record grids when space is limited, including inside popups and split panels. Headers supply the record labels. Cells, links, inputs, actions, pagination and expanded rows remain available, with native table roles and header associations preserved. Avoid fixed minimum table widths and horizontal swipe instructions. `scripts/responsive-table.test.cjs` checks labels, controls, grouped headers and full-width rows.
+Use `components/ResponsiveTable.js` for custom tables; shared `DataTable` uses it automatically. Keep native table rows on every device. Overflow stays inside the table container. Column headings may wrap, and `DataTable` provides column selection and a Fit to screen action.
 
-Table values use 16px text with 14px secondary text and record labels at the default root size. Layout changes use the rendered font size and column count, giving dense tables more room before switching to records. Keep fonts readable; fit content by wrapping and reflowing it.
+Long plain-text values in `DataTable` use up to two lines through `components/TableCell.js`. Text that exceeds the available space has a Read more modal containing its complete original value. Amounts and dates keep their existing precision and formatting. A column can set `wrap: false` when it needs a single-line value. Use `TableText` explicitly for long text in custom cells and native tables; inside an existing link use `expandable={false}` so the original link remains the action and no nested button is created.
 
-`DataTable` columns can supply a CSS `width` hint. Transaction status reserves more width when the current page contains long codes. All transaction status badges use consistent 14px normal-weight text; long statuses take a full field row in the record layout. The complete code remains visible, with breaks at underscores when a narrow screen requires them. Other values retain their normal font size.
+Use `TableCellLines` for related primary/secondary information, such as a plan and version, a route and provider, or an amount and its USD equivalent. It preserves JSX links and controls. Keep table typography at the shared body/small sizes instead of shrinking it to force a fit. Multiple row actions belong in `TableActions`.
+
+`DataTable` columns can supply a width hint and a priority for fitting. Transaction status reserves enough width for long codes and retains its complete badge text. Visibility wrappers and Review mode filtering remain authoritative before any text preview is rendered.
 
 ## Business API LIVE payment settings
 

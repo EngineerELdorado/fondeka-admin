@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 export function ContentModal({ title, onClose, children, width = 'min(760px, 95vw)' }) {
   const surface = useRef(null);
@@ -27,7 +28,8 @@ export function ContentModal({ title, onClose, children, width = 'min(760px, 95v
       }
     }
   };
-  return <div className="modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+  if (typeof document === 'undefined') return null;
+  return createPortal(<div className="modal-backdrop" onClick={(event) => { event.stopPropagation(); if (event.target === event.currentTarget) onClose(); }}>
     <div ref={surface} tabIndex={-1} onKeyDown={onKeyDown} className="modal-surface" role="dialog" aria-modal="true" aria-label={title} style={{ width }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}>
         <h2 style={{ margin: 0, fontSize: '1.1rem', overflowWrap: 'anywhere', whiteSpace: 'pre-wrap' }}>{title}</h2>
@@ -36,5 +38,5 @@ export function ContentModal({ title, onClose, children, width = 'min(760px, 95v
       {children}
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}><button type="button" className="btn-neutral" onClick={onClose}>Close</button></div>
     </div>
-  </div>;
+  </div>, document.body);
 }

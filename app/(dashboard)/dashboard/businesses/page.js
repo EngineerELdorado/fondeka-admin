@@ -5,6 +5,7 @@ import { regulatorVisibleFields } from '@/lib/regulator-presentation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PresentationLink as Link } from '@/components/RegulatorPresentation';
 import { DataTable } from '@/components/DataTable';
+import TableText from '@/components/TableCell';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { livePaymentMode, livePaymentSettingsAvailable } from '@/lib/business-live-payments';
@@ -151,7 +152,7 @@ export default function BusinessesPage() {
       key: 'business',
       label: 'Business',
       priority: 0,
-      render: (row) => <Link href={`/dashboard/businesses/${encodeURIComponent(row.id)}`} style={{ fontWeight: 700 }}>{row.name || `Business ${row.id}`}</Link>
+      render: (row) => <Link href={`/dashboard/businesses/${encodeURIComponent(row.id)}`} title={row.name || undefined} style={{ fontWeight: 700 }}><TableText value={row.name || `Business ${row.id}`} label="Business" expandable={false} /></Link>
     },
     {
       key: 'account',

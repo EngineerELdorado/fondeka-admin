@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
+import TableText from '@/components/TableCell';
 
 const emptyState = {
   name: '',
@@ -249,7 +250,7 @@ export default function BillProductsPage() {
       label: 'Display',
       render: (row) => (
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
-          <span>{row.displayName || '—'}</span>
+          <TableText value={row.displayName} label="Bill product" />
           {row.available === false && (
             <span
               style={{

@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DataTable } from '@/components/DataTable';
+import { TableCellLines } from '@/components/TableCell';
 import { api } from '@/lib/api';
 import { useLocale } from '@/contexts/LocaleContext';
 
@@ -306,13 +307,7 @@ export default function CommerceStoresPage() {
         label: 'Store',
         render: (row) => {
           const storeId = getStoreId(row);
-          return (
-            <div style={{ display: 'grid', gap: '0.2rem' }}>
-              <div style={{ fontWeight: 800 }}>{asText(row?.name, row?.storeName, row?.displayName, `Store ${storeId || ''}`)}</div>
-              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{asText(row?.slug, row?.handle, row?.publicName)}</div>
-              {storeId ? <div style={{ color: 'var(--muted)', fontSize: '12px' }}>ID {storeId}</div> : null}
-            </div>
-          );
+          return <TableCellLines primary={asText(row?.name, row?.storeName, row?.displayName, `Store ${storeId || ''}`)} secondary={`${asText(row?.slug, row?.handle, row?.publicName)}${storeId ? ` · ID ${storeId}` : ''}`} strong label="Store" />;
         }
       },
       { key: 'owner', label: 'Owner', render: (row) => getOwnerLabel(row) },

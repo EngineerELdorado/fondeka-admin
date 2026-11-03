@@ -2,20 +2,22 @@
 
 import ResponsiveTable from '@/components/ResponsiveTable';
 import TableActions from '@/components/TableActions';
+import TableText from '@/components/TableCell';
 
 import Link from 'next/link';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { isRegulatorRestrictedRecord, regulatorVisibleFields } from '@/lib/regulator-presentation';
 import { fitTableColumns, tableColumnWidth } from '@/lib/table-columns';
+import { shouldWrapTableValue } from '@/lib/table-content';
 
-function TableValue({ children }) {
+function TableValue({ children, column }) {
   const value = useRef(null);
   useEffect(() => {
     const element = value.current;
-    if (element) element.title = element.textContent?.trim() || '';
+    if (element) element.title = typeof children === 'string' ? children : element.textContent?.trim() || '';
   }, [children]);
-  return <div ref={value} className="data-table__value">{children}</div>;
+  return <div ref={value} className="data-table__value">{shouldWrapTableValue(children, column) ? <TableText value={children} label={typeof column?.label === 'string' && column.label ? column.label : 'Full value'} /> : children}</div>;
 }
 
 const resolveAccountId = (row) => {
@@ -282,7 +284,7 @@ export function DataTable({
                 const value = col.render ? formatValue(col.render(row)) : String(formatValue(row[col.key]));
                 const actions = String(col.key).toLowerCase() === 'actions';
                 return <td key={String(col.key)} className={`data-table__cell${actions ? ' data-table__cell--actions' : ''}`} style={{ padding: '0.65rem' }}>
-                  {actions ? <TableActions>{value}</TableActions> : <TableValue>{value}</TableValue>}
+                  {actions ? <TableActions>{value}</TableActions> : <TableValue column={col}>{value}</TableValue>}
                 </td>;
               })}
             </tr>

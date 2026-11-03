@@ -8,6 +8,7 @@ import { RegulatorRecord, PresentationSelect, NonRegulatorContent, PresentationL
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DataTable } from '@/components/DataTable';
+import TableText, { TableCellLines } from '@/components/TableCell';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 
@@ -171,26 +172,26 @@ export default function BusinessToolsCustomersPage() {
   };
 
   const subscriberColumns = useMemo(() => [
-    { key: 'account', label: 'Customer', render: (row) => { const account = accountOf(row); const id = accountIdOf(row); return <strong>{account.name || [account.firstName, account.lastName].filter(Boolean).join(' ') || account.email || `Account ${id}`}</strong>; } },
+    { key: 'account', label: 'Customer', render: (row) => { const account = accountOf(row); const id = accountIdOf(row); return <strong><TableText value={account.name || [account.firstName, account.lastName].filter(Boolean).join(' ') || account.email || `Account ${id}`} label="Customer" /></strong>; } },
     { key: 'country', label: 'Country', render: (row) => accountOf(row).countryCode || accountOf(row).country || '—' },
     { key: 'businesses', label: 'Businesses', render: (row) => (row.businesses || []).map((business) => business.name || `#${business.id}`).join(', ') || '—' },
     { key: 'entitlements', label: 'Recorded access', render: (row) => (row.entitlements || []).map((entry) => `${formatEnum(entry.tool || 'BUNDLE')}: ${formatEnum(entry.effectiveStatus || entry.status)}`).join(', ') || '—' },
-    { key: 'payments', label: 'Verified payments', render: (row) => <div><strong>{row.payments?.paidPurchaseCount ?? 0}</strong><div style={{ fontSize: '12px' }}>{verifiedTotals(row.payments)}</div></div> },
-    { key: 'legacy', label: 'Legacy store payment', render: (row) => row.legacyStorePayment ? <div>{formatMoney(row.legacyStorePayment.amount, row.legacyStorePayment.currency)}{row.legacyStorePayment.transactionId ? <div><Link href={`/dashboard/transactions?transactionId=${encodeURIComponent(row.legacyStorePayment.transactionId)}`}>{row.legacyStorePayment.transactionReference || `Transaction ${row.legacyStorePayment.transactionId}`}</Link></div> : <div style={{ fontSize: '12px' }}>{row.legacyStorePayment.transactionReference || 'Verified evidence'}</div>}</div> : '—' },
+    { key: 'payments', label: 'Verified payments', render: (row) => <TableCellLines primary={<strong>{row.payments?.paidPurchaseCount ?? 0}</strong>} secondary={verifiedTotals(row.payments)} label="Verified payments" /> },
+    { key: 'legacy', label: 'Legacy store payment', render: (row) => row.legacyStorePayment ? <TableCellLines primary={formatMoney(row.legacyStorePayment.amount, row.legacyStorePayment.currency)} secondary={row.legacyStorePayment.transactionId ? <Link href={`/dashboard/transactions?transactionId=${encodeURIComponent(row.legacyStorePayment.transactionId)}`}>{row.legacyStorePayment.transactionReference || `Transaction ${row.legacyStorePayment.transactionId}`}</Link> : row.legacyStorePayment.transactionReference || 'Verified evidence'} label="Legacy store payment" /> : '—' },
     { key: 'lastPaidAt', label: 'Last paid', render: (row) => formatDateTime(row.lastPaidAt) },
     { key: 'actions', label: '', render: (row) => <div style={{ display: 'flex', gap: '0.4rem' }}><button type="button" className="btn-neutral btn-sm" disabled={detailLoading} onClick={() => void openSubscriber(row)}>Details</button><Link className="btn-neutral btn-sm" style={{ textDecoration: 'none' }} href={`/dashboard/accounts/accounts/${encodeURIComponent(accountIdOf(row))}#business-tools-access`}>Manage</Link></div> }
   ], [detailLoading]);
 
   const purchaseColumns = useMemo(() => [
     { key: 'purchase', label: 'Purchase', render: (row) => purchaseOf(row).id || '—' },
-    { key: 'payer', label: 'Payer', render: (row) => { const account = accountOf(row); return <div><strong>{account.name || account.email || `Account ${accountIdOf(row) || '—'}`}</strong><div style={{ fontSize: '12px' }}>{account.email || '—'}</div></div>; } },
-    { key: 'scope', label: 'Scope / plan', render: (row) => { const purchase = purchaseOf(row); return <div>{formatEnum(purchase.tool || 'BUNDLE')}<div style={{ fontSize: '12px' }}>{purchase.planCode || purchase.plan?.code || '—'} · v{purchase.planVersion ?? '—'}</div></div>; } },
-    { key: 'status', label: 'Outcome', render: (row) => { const purchase = purchaseOf(row); return <div>{formatEnum(purchase.status)}<div style={{ fontSize: '12px' }}>{purchase.failureCode ? formatEnum(purchase.failureCode) : '—'}</div></div>; } },
+    { key: 'payer', label: 'Payer', render: (row) => { const account = accountOf(row); const name = account.name || account.email || `Account ${accountIdOf(row) || '—'}`; return <TableCellLines primary={name} secondary={account.email && account.email !== name ? account.email : null} strong label="Payer" />; } },
+    { key: 'scope', label: 'Scope / plan', render: (row) => { const purchase = purchaseOf(row); return <TableCellLines primary={formatEnum(purchase.tool || 'BUNDLE')} secondary={`${purchase.planCode || purchase.plan?.code || '—'} · v${purchase.planVersion ?? '—'}`} label="Scope / plan" />; } },
+    { key: 'status', label: 'Outcome', render: (row) => { const purchase = purchaseOf(row); return <TableCellLines primary={formatEnum(purchase.status)} secondary={purchase.failureCode ? formatEnum(purchase.failureCode) : null} label="Purchase outcome" />; } },
     { key: 'amount', label: 'Gross charged', render: (row) => { const purchase = purchaseOf(row); return formatMoney(purchase.amount, purchase.currency); } },
-    { key: 'snapshot', label: 'Accepted offer', render: (row) => { const purchase = purchaseOf(row); return <div>{formatMoney(purchase.planAmount, purchase.planCurrency)}<div style={{ fontSize: '12px' }}>{formatEnum(purchase.billingMode)} · {formatEnum(purchase.priceSource)}</div></div>; } },
+    { key: 'snapshot', label: 'Accepted offer', render: (row) => { const purchase = purchaseOf(row); return <TableCellLines primary={formatMoney(purchase.planAmount, purchase.planCurrency)} secondary={`${formatEnum(purchase.billingMode)} · ${formatEnum(purchase.priceSource)}`} label="Accepted offer" />; } },
     { key: 'method', label: 'Method', render: (row) => formatEnum(purchaseOf(row).paymentMethodType) },
     { key: 'transaction', label: 'Transaction', render: (row) => { const purchase = purchaseOf(row); return purchase.paymentTransactionId ? <Link href={`/dashboard/transactions?transactionId=${encodeURIComponent(purchase.paymentTransactionId)}`}>{purchase.paymentTransactionId}</Link> : '—'; } },
-    { key: 'createdAt', label: 'Created / paid', render: (row) => { const purchase = purchaseOf(row); return <div>{formatDateTime(purchase.createdAt)}<div style={{ fontSize: '12px' }}>{formatDateTime(purchase.completedAt || purchase.paidAt)}</div></div>; } },
+    { key: 'createdAt', label: 'Created / paid', render: (row) => { const purchase = purchaseOf(row); return <TableCellLines primary={formatDateTime(purchase.createdAt)} secondary={formatDateTime(purchase.completedAt || purchase.paidAt)} />; } },
     { key: 'actions', label: '', render: (row) => { const purchase = purchaseOf(row); return <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}><button type="button" className="btn-neutral btn-sm" disabled={detailLoading} onClick={() => void openPurchase(row)}>Details</button>{isSuperAdmin ? <><button type="button" className="btn-neutral btn-sm" onClick={() => setMutation({ type: 'reconcile', purchaseId: purchase.id, reason: 'Review Business Tools purchase against verified transaction state' })}>Reconcile</button><button type="button" className="btn-danger btn-sm" onClick={() => setMutation({ type: 'refund', purchaseId: purchase.id, reason: 'Refund verified Business Tools purchase to wallet' })}>Refund</button></> : null}</div>; } }
   ], [detailLoading, isSuperAdmin]);
 

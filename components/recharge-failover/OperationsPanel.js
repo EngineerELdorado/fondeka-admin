@@ -1,6 +1,7 @@
 'use client';
 
 import ResponsiveTable from '@/components/ResponsiveTable';
+import { TableCellLines } from '@/components/TableCell';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/api';
@@ -57,7 +58,13 @@ export default function OperationsPanel({ onHistory, initialTransactionId, view 
       {loading ? <span role="status">Loading managed purchases…</span> : null}<Alert>{error}</Alert>{error && rows ? <small>Previous results are retained; refresh to retry.</small> : null}
       <div className="failover-table"><ResponsiveTable><thead><tr>{['Original purchase', 'Customer quote', 'Provider attempt', 'Resolution / refund', 'Actions'].map((label) => <th key={label}>{label}</th>)}</tr></thead><tbody>{(rows || []).map((operation) => {
         const purchase = operation.purchase, attempt = operation.attempts?.find((entry) => entry.number === operation.currentAttempt);
-        return <tr key={operation.transactionId}><td>#{operation.transactionId}<div>Account {purchase?.accountId ?? '—'} · {purchase?.country} · {purchase?.type}</div><small>Rule {purchase?.rule?.id} · revision {purchase?.policyRevision}</small></td><td>{purchase?.quote?.amount ?? '—'} {purchase?.quote?.currency}<div>Gross {purchase?.quote?.grossAmount ?? '—'} {purchase?.quote?.currency}</div></td><td>#{operation.currentAttempt} · {attempt?.provider}<div>{attemptLabel(attempt?.outcome)}</div><small>{attempt?.code || '—'} · {attempt?.queryCount ?? '—'} scheduled reads</small></td><td>{operation.conflicted ? <strong>CONFLICTED</strong> : 'No conflict'}<div>{operation.refundReserved ? 'Refund reserved — verify original transaction' : 'No refund reservation'}</div></td><td><button type="button" className="btn-neutral btn-sm" aria-label={'Investigate recharge transaction ' + operation.transactionId} onClick={() => setSelected(operation.transactionId)}>Investigate recharge</button></td></tr>;
+        return <tr key={operation.transactionId}>
+          <td><TableCellLines primary={`#${operation.transactionId} · Account ${purchase?.accountId ?? '—'} · ${purchase?.country || '—'} · ${purchase?.type || '—'}`} secondary={`Rule ${purchase?.rule?.id || '—'} · revision ${purchase?.policyRevision ?? '—'}`} label="Original recharge purchase" /></td>
+          <td><TableCellLines primary={`${purchase?.quote?.amount ?? '—'} ${purchase?.quote?.currency || ''}`} secondary={`Gross ${purchase?.quote?.grossAmount ?? '—'} ${purchase?.quote?.currency || ''}`} /></td>
+          <td><TableCellLines primary={`#${operation.currentAttempt} · ${attempt?.provider || '—'} · ${attemptLabel(attempt?.outcome)}`} secondary={`${attempt?.code || '—'} · ${attempt?.queryCount ?? '—'} scheduled reads`} label="Recharge provider attempt" /></td>
+          <td><TableCellLines primary={operation.conflicted ? 'CONFLICTED' : 'No conflict'} secondary={operation.refundReserved ? 'Refund reserved — verify original transaction' : 'No refund reservation'} strong={operation.conflicted} label="Resolution / refund" /></td>
+          <td><button type="button" className="btn-neutral btn-sm" aria-label={'Investigate recharge transaction ' + operation.transactionId} onClick={() => setSelected(operation.transactionId)}>Investigate recharge</button></td>
+        </tr>;
       })}</tbody></ResponsiveTable></div>
       {rows?.length === 0 && !loading ? <EmptyPayments kind="recharge" /> : null}
       {rows ? <ArrayPager page={page} size={size} length={rows.length} busy={loading} onChange={setPage} /> : null}

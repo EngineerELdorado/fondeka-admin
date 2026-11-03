@@ -6,13 +6,14 @@ const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
 const { transform } = require('next/dist/build/swc');
 const h = React.createElement;
-const loadComponent = (file) => transform(readFileSync(path.join(__dirname, '../components', file), 'utf8'), {
+const loadExports = (file, modules = {}) => transform(readFileSync(path.join(__dirname, '../components', file), 'utf8'), {
   filename: file, jsc: { parser: { syntax: 'ecmascript', jsx: true }, target: 'es2020', transform: { react: { runtime: 'classic' } } }, module: { type: 'commonjs' }
 }).then(({ code }) => {
   const module = { exports: {} };
-  new Function('require', 'module', 'exports', code)(require, module, module.exports);
-  return module.exports.default;
+  new Function('require', 'module', 'exports', code)((name) => modules[name] || require(name), module, module.exports);
+  return module.exports;
 });
+const loadComponent = (file, modules) => loadExports(file, modules).then((exports) => exports.default);
 const component = loadComponent('ResponsiveTable.js');
 
 const loadDataTable = async (regulatorMode = false) => {
@@ -24,9 +25,11 @@ const loadDataTable = async (regulatorMode = false) => {
   const modules = {
     '@/components/ResponsiveTable': { __esModule: true, default: await component },
     '@/components/TableActions': { __esModule: true, default: await loadComponent('TableActions.js') },
+    '@/components/TableCell': await loadExports('TableCell.js', { '@/components/ContentModal': await loadExports('ContentModal.js') }),
     '@/contexts/AuthContext': { useAuth: () => ({ enableRegulatorMode: regulatorMode }) },
     '@/lib/regulator-presentation': await load('regulator-presentation.js'),
     '@/lib/table-columns': await load('table-columns.js'),
+    '@/lib/table-content': await load('table-content.js'),
     'next/link': { __esModule: true, default: ({ children, ...props }) => h('a', props, children) }
   };
   const module = { exports: {} };
@@ -137,4 +140,43 @@ test('explicit status column widths survive responsive-table enhancement', async
     h('tbody', null, h('tr', null, h('td', null, 'MANUAL_INTERVENTION_REQUIRED')))));
   assert.match(html, /width:19rem/);
   assert.match(html, />MANUAL_INTERVENTION_REQUIRED</);
+});
+
+test('long table text retains complete Unicode values and does not reformat amounts or bypass presentation rules', async () => {
+  const Table = await loadDataTable(true);
+  const reference = 'SBX-11111111-1111-4111-8111-111111111111';
+  const name = 'Équipe de Kinshasa 👋 avec un nom complet et plusieurs mots';
+  const amount = '1,234,567,890,123,456,789.012345 USD';
+  const html = renderToStaticMarkup(h(Table, {
+    columns: [{ key: 'reference', label: 'Reference' }, { key: 'name', label: 'Name' }, { key: 'amount', label: 'Amount' }, { key: 'cryptoBalance', label: 'Crypto balance' }],
+    rows: [{ reference, name, amount, cryptoBalance: 'restricted-data-that-must-never-appear-in-a-preview' }],
+    showAccountQuickNav: false
+  }));
+  for (const value of [reference, name, amount]) assert.ok(html.includes(value));
+  assert.doesNotMatch(html, /restricted-data-that-must-never-appear/);
+  assert.doesNotMatch(html, /Read full Amount/);
+});
+
+test('paired cells preserve zero metadata and links without nested preview buttons', async () => {
+  const { TableCellLines, default: TableText } = await loadExports('TableCell.js', { '@/components/ContentModal': await loadExports('ContentModal.js') });
+  const name = 'A business with a long name that links to its original details page';
+  const html = renderToStaticMarkup(h(TableCellLines, {
+    primary: h('a', { href: '/dashboard/businesses/42' }, h(TableText, { value: name, expandable: false })),
+    secondary: 0
+  }));
+  assert.match(html, /href="\/dashboard\/businesses\/42"/);
+  assert.ok(html.includes(name));
+  assert.match(html, /<small[^>]*>0<\/small>/);
+  assert.doesNotMatch(html, /<button/);
+});
+
+test('text wrapping leaves currency precision, dates and explicit single-line columns alone', async () => {
+  const source = readFileSync(path.join(__dirname, '../lib/table-content.js'), 'utf8');
+  const { shouldWrapTableValue } = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
+  assert.equal(shouldWrapTableValue('A long payment method label with enough words to wrap', { key: 'paymentMethodName' }), true);
+  assert.equal(shouldWrapTableValue('First line\nSecond line', { key: 'description' }), true);
+  assert.equal(shouldWrapTableValue('1,234,567,890,123,456,789.012345 USD', { key: 'value' }), false);
+  assert.equal(shouldWrapTableValue('2026-11-03T19:30:00.000Z with full timezone', { key: 'createdAt' }), false);
+  assert.equal(shouldWrapTableValue('An intentionally wide value that must keep its current rendering', { wrap: false }), false);
+  assert.equal(shouldWrapTableValue(h('button', null, 'An existing interactive control remains untouched')), false);
 });

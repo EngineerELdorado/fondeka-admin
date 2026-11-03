@@ -11,6 +11,7 @@ import { isRegulatorRestrictedRecord, regulatorVisibleFields } from '@/lib/regul
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { DataTable } from '@/components/DataTable';
+import TableText, { TableCellLines } from '@/components/TableCell';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
@@ -898,7 +899,7 @@ export default function TransactionsPage() {
     return formatMoneyWithCurrency(displayAmount, currency);
   }, [formatMoneyWithCurrency]);
 
-  const formatLocalAndUsd = useCallback((row, localField, localCurrencyField = 'currency', usdField = `usd${localField.charAt(0).toUpperCase()}${localField.slice(1)}`) => {
+  const formatLocalAndUsd = useCallback((row, localField, localCurrencyField = 'currency', usdField = `usd${localField.charAt(0).toUpperCase()}${localField.slice(1)}`, stacked = false) => {
     const local = formatMoneyWithCurrency(row?.[localField], row?.[localCurrencyField]);
     const usd = row?.[usdField];
     const localCurrency = normalizeCurrency(row?.[localCurrencyField]);
@@ -906,6 +907,7 @@ export default function TransactionsPage() {
     const localNumber = Number(row?.[localField]);
     const hasUsableUsd = hasValue(usd) && !(usdNumber === 0 && localCurrency !== 'USD' && Number.isFinite(localNumber) && localNumber !== 0);
     if (!hasUsableUsd || localCurrency === 'USD') return local;
+    if (stacked) return <TableCellLines primary={<span>{local}</span>} secondary={<span>({formatUsdAmount(usd)})</span>} />;
     return (
       <span>
         <span>{local}</span>
@@ -1359,12 +1361,7 @@ export default function TransactionsPage() {
           if (normalizeEnumKey(row.action) === 'PAY_TV_SUBSCRIPTION' && shortProductName) {
             return <span title={`${actionLabel} (${normalizedBillProductName})`}>Pay {shortProductName}</span>;
           }
-          return (
-            <span>
-              {actionLabel}{' '}
-              <span style={{ fontWeight: 800, color: 'var(--text)' }}>({normalizedBillProductName})</span>
-            </span>
-          );
+          return <TableCellLines primary={actionLabel} secondary={<strong><TableText value={normalizedBillProductName} label="Bill product" lines={1} /></strong>} label="Action" />;
         }
       },
       {
@@ -1378,7 +1375,7 @@ export default function TransactionsPage() {
         key: 'amount',
         label: 'Amount',
         priority: 1,
-        render: (row) => formatLocalAndUsd(row, 'amount', 'currency', 'usdAmount')
+        render: (row) => formatLocalAndUsd(row, 'amount', 'currency', 'usdAmount', true)
       },
       {
         key: 'paymentMethodName',
@@ -1397,7 +1394,7 @@ export default function TransactionsPage() {
           const accountHint = hasDirectAccountId ? String(accountId).trim() : accountReference;
           return (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
-              <span>{customerLabel}</span>
+              <TableText value={customerLabel} label="Customer" />
               <button
                 type="button"
                 onClick={(e) => {
