@@ -11,10 +11,17 @@ import { RegulatorRecord, PresentationSelect, NonRegulatorContent, PresentationL
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { useToast } from '@/contexts/ToastContext';
+import { ContentModal } from '@/components/ContentModal';
 
 const TARGET_TYPES = ['ACTION', 'EVENT'];
 const LANGUAGE_OPTIONS = ['fr', 'en'];
 const META_CATEGORIES = ['UTILITY', 'MARKETING', 'AUTHENTICATION'];
+const selectionStyle = { width: '18px', height: '18px', padding: 0, margin: 0, flexShrink: 0 };
+const compactText = (value, max = 32) => {
+  const characters = Array.from(String(value || '').replace(/\s+/g, ' ').trim());
+  return characters.length > max ? `${characters.slice(0, max - 1).join('').trimEnd()}…` : characters.join('') || '—';
+};
+const needsReadMore = (value, max = 24) => Boolean(String(value || '').trim()) && (Array.from(String(value || '').replace(/\s+/g, ' ').trim()).length > max || /[\r\n]/.test(String(value || '')));
 const emptyForm = {
   id: null,
   targetType: 'ACTION',
@@ -402,7 +409,7 @@ export default function WhatsappTemplateCatalogPage() {
             </PresentationSelect>
           </label>
           <label style={{ display: 'inline-flex', gap: '0.5rem', alignItems: 'center', alignSelf: 'end', minHeight: '42px' }}>
-            <input type="checkbox" checked={form.active} onChange={(e) => updateForm({ active: e.target.checked })} />
+            <input type="checkbox" style={selectionStyle} checked={form.active} onChange={(e) => updateForm({ active: e.target.checked })} />
             Active
           </label>
           <label style={{ display: 'grid', gap: '0.35rem' }}>
@@ -487,7 +494,7 @@ export default function WhatsappTemplateCatalogPage() {
         <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
           <span style={{ color: 'var(--muted)', fontSize: '13px' }}>{filteredRows.length} shown · {selectedIds.length} selected</span>
           <label style={{ display: 'inline-flex', gap: '0.5rem', alignItems: 'center', color: 'var(--muted)', fontSize: '13px' }}>
-            <input type="checkbox" checked={batchActiveOnly} onChange={(e) => setBatchActiveOnly(e.target.checked)} />
+            <input type="checkbox" style={selectionStyle} checked={batchActiveOnly} onChange={(e) => setBatchActiveOnly(e.target.checked)} />
             Active only for matching sync
           </label>
         </div>
@@ -534,6 +541,7 @@ export default function WhatsappTemplateCatalogPage() {
               <th style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '1px solid var(--border)' }}>
                 <input
                   type="checkbox"
+                  style={selectionStyle}
                   checked={allVisibleSelected}
                   onChange={toggleAllVisibleSelection}
                   disabled={selectableFilteredRows.length === 0}
@@ -551,6 +559,7 @@ export default function WhatsappTemplateCatalogPage() {
                 <td style={{ padding: '0.75rem', verticalAlign: 'top' }}>
                   <input
                     type="checkbox"
+                    style={selectionStyle}
                     checked={selectedIdSet.has(String(row.id))}
                     onChange={() => toggleRowSelection(row.id)}
                     disabled={row?.id === undefined || row?.id === null}
@@ -558,22 +567,21 @@ export default function WhatsappTemplateCatalogPage() {
                   />
                 </td>
                 <td style={{ padding: '0.75rem', verticalAlign: 'top', minWidth: 'min(240px, 100%)' }}>
-                  <div style={{ fontWeight: 700, overflowWrap: 'anywhere' }}>{row.templateName || '—'}</div>
-                  <div style={{ color: 'var(--muted)', fontSize: '12px', marginTop: '0.15rem' }}>
-                    {row.bodyText ? `${String(row.bodyText).replace(/\s+/g, ' ').slice(0, 96)}${String(row.bodyText).replace(/\s+/g, ' ').length > 96 ? '...' : ''}` : 'No body text'}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <strong>{compactText(row.templateName, 32)}</strong>
+                    <button type="button" className="btn-neutral btn-sm" aria-haspopup="dialog" aria-label="Read full WhatsApp template" onClick={() => setDetailModal(row)}>Read more</button>
                   </div>
                 </td>
                 <td style={{ padding: '0.75rem', verticalAlign: 'top' }}>
-                  <div style={{ fontWeight: 700 }}>{row.targetType || '—'}</div>
-                  <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{row.targetKey || '—'}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <strong>{row.targetType || '—'}</strong><span title={row.targetKey || ''}>{compactText(row.targetKey, 24)}</span>
+                  </div>
                 </td>
                 <td style={{ padding: '0.75rem', verticalAlign: 'top' }}>{row.languageCode || '—'}</td>
                 <td style={{ padding: '0.75rem', verticalAlign: 'top' }}>{row.metaCategory || '—'}</td>
                 <td style={{ padding: '0.75rem', verticalAlign: 'top', minWidth: 'min(190px, 100%)' }}>
-                  <div style={{ display: 'grid', gap: '0.25rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <div style={{ fontWeight: 700 }}>{row.metaLastSyncStatus || 'Not synced'}</div>
-                    <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{row.metaLastSyncedAt ? new Date(row.metaLastSyncedAt).toLocaleString() : 'No sync date'}</div>
-                    <div style={{ color: 'var(--muted)', fontSize: '12px' }}>ID: {row.metaTemplateId || '—'}</div>
                     {row.metaLastSyncResponse ? (
                       <button
                         type="button"
@@ -587,7 +595,9 @@ export default function WhatsappTemplateCatalogPage() {
                 </td>
                 <td style={{ padding: '0.75rem', verticalAlign: 'top' }}>{row.active ? 'Yes' : 'No'}</td>
                 <td style={{ padding: '0.75rem', verticalAlign: 'top', minWidth: 'min(160px, 100%)' }}>
-                  {row.adminNotes ? `${String(row.adminNotes).slice(0, 90)}${String(row.adminNotes).length > 90 ? '...' : ''}` : '—'}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    {needsReadMore(row.adminNotes, 24) ? <button type="button" className="btn-neutral btn-sm" aria-haspopup="dialog" aria-label="Read full template notes" onClick={() => setDetailModal(row)}>{compactText(row.adminNotes, 24)}</button> : <span>{compactText(row.adminNotes, 24)}</span>}
+                  </div>
                 </td>
                 <td className="data-table__cell--actions" style={{ padding: '0.75rem', verticalAlign: 'top' }}>
                   <TableActions><div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
@@ -629,68 +639,58 @@ export default function WhatsappTemplateCatalogPage() {
       </div>
 
       {detailModal ? (
-        <div className="modal-backdrop" onClick={() => setDetailModal(null)}>
-          <div className="modal-surface" onClick={(event) => event.stopPropagation()} style={{ width: 'min(860px, 96vw)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center' }}>
-              <div>
-                <div style={{ fontWeight: 800, fontSize: '18px' }}>{detailModal.templateName || 'Template details'}</div>
-                <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-                  {detailModal.targetType || '—'} · {detailModal.targetKey || '—'} · {detailModal.languageCode || '—'}
-                </div>
-              </div>
-              <button type="button" className="btn-neutral btn-sm" onClick={() => setDetailModal(null)}>
-                Close
-              </button>
-            </div>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <button type="button" className="btn-neutral btn-sm" onClick={() => copyText('template name', detailModal.templateName)}>Copy name</button>
-              <button type="button" className="btn-neutral btn-sm" onClick={() => copyText('body text', detailModal.bodyText)}>Copy body</button>
-              <button type="button" className="btn-neutral btn-sm" onClick={() => copyText('variable samples', detailModal.sampleValuesJson)}>Copy samples</button>
-              <button type="button" className="btn-neutral btn-sm" onClick={() => copyPolicyRule(detailModal)}>Copy policy rule</button>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Meta</div>
-                <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Category: {detailModal.metaCategory || '—'}</div>
-                <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Meta ID: {detailModal.metaTemplateId || '—'}</div>
-                <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Status: {detailModal.metaLastSyncStatus || 'Not synced'}</div>
-              </div>
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>State</div>
-                <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Active: {detailModal.active ? 'Yes' : 'No'}</div>
-                <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-                  Last synced: {detailModal.metaLastSyncedAt ? new Date(detailModal.metaLastSyncedAt).toLocaleString() : '—'}
-                </div>
-              </div>
+        <ContentModal title={detailModal.templateName || 'Template details'} onClose={() => setDetailModal(null)} width="min(860px, 95vw)">
+          <div style={{ color: 'var(--muted)', fontSize: '13px', overflowWrap: 'anywhere' }}>
+            {detailModal.targetType || '—'} · {detailModal.targetKey || '—'} · {detailModal.languageCode || '—'}
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button type="button" className="btn-neutral btn-sm" onClick={() => copyText('template name', detailModal.templateName)}>Copy name</button>
+            <button type="button" className="btn-neutral btn-sm" onClick={() => copyText('body text', detailModal.bodyText)}>Copy body</button>
+            <button type="button" className="btn-neutral btn-sm" onClick={() => copyText('variable samples', detailModal.sampleValuesJson)}>Copy samples</button>
+            <button type="button" className="btn-neutral btn-sm" onClick={() => copyPolicyRule(detailModal)}>Copy policy rule</button>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
+            <div>
+              <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Meta</div>
+              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Category: {detailModal.metaCategory || '—'}</div>
+              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Meta ID: {detailModal.metaTemplateId || '—'}</div>
+              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Status: {detailModal.metaLastSyncStatus || 'Not synced'}</div>
             </div>
             <div>
-              <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Body text</div>
-              <NonRegulatorContent><pre style={{ margin: 0, whiteSpace: 'pre-wrap', font: 'inherit', background: 'color-mix(in srgb, var(--surface) 86%, var(--accent-soft) 14%)', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.75rem' }}>
-                {detailModal.bodyText || '—'}
-              </pre></NonRegulatorContent>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '0.75rem' }}>
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Body parameter keys</div>
-                <NonRegulatorContent><pre style={{ margin: 0, whiteSpace: 'pre-wrap', maxHeight: '180px', overflow: 'auto' }}>{formatJsonString(detailModal.bodyParameterKeysJson) || '—'}</pre></NonRegulatorContent>
-              </div>
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Variable types</div>
-                <NonRegulatorContent><pre style={{ margin: 0, whiteSpace: 'pre-wrap', maxHeight: '180px', overflow: 'auto' }}>{formatJsonString(detailModal.variableTypesJson) || '—'}</pre></NonRegulatorContent>
-              </div>
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Sample values</div>
-                <NonRegulatorContent><pre style={{ margin: 0, whiteSpace: 'pre-wrap', maxHeight: '180px', overflow: 'auto' }}>{formatJsonString(detailModal.sampleValuesJson) || '—'}</pre></NonRegulatorContent>
+              <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>State</div>
+              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Active: {detailModal.active ? 'Yes' : 'No'}</div>
+              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                Last synced: {detailModal.metaLastSyncedAt ? new Date(detailModal.metaLastSyncedAt).toLocaleString() : '—'}
               </div>
             </div>
-            {detailModal.adminNotes ? (
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Admin notes</div>
-                <div style={{ color: 'var(--muted)' }}>{detailModal.adminNotes}</div>
-              </div>
-            ) : null}
           </div>
-        </div>
+          <div>
+            <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Body text</div>
+            <NonRegulatorContent><pre style={{ margin: 0, whiteSpace: 'pre-wrap', font: 'inherit', background: 'color-mix(in srgb, var(--surface) 86%, var(--accent-soft) 14%)', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.75rem' }}>
+              {detailModal.bodyText || '—'}
+            </pre></NonRegulatorContent>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '0.75rem' }}>
+            <div>
+              <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Body parameter keys</div>
+              <NonRegulatorContent><pre style={{ margin: 0, whiteSpace: 'pre-wrap', maxHeight: '180px', overflow: 'auto' }}>{formatJsonString(detailModal.bodyParameterKeysJson) || '—'}</pre></NonRegulatorContent>
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Variable types</div>
+              <NonRegulatorContent><pre style={{ margin: 0, whiteSpace: 'pre-wrap', maxHeight: '180px', overflow: 'auto' }}>{formatJsonString(detailModal.variableTypesJson) || '—'}</pre></NonRegulatorContent>
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Sample values</div>
+              <NonRegulatorContent><pre style={{ margin: 0, whiteSpace: 'pre-wrap', maxHeight: '180px', overflow: 'auto' }}>{formatJsonString(detailModal.sampleValuesJson) || '—'}</pre></NonRegulatorContent>
+            </div>
+          </div>
+          {detailModal.adminNotes ? (
+            <div>
+              <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Admin notes</div>
+              <div style={{ color: 'var(--muted)', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{detailModal.adminNotes}</div>
+            </div>
+          ) : null}
+        </ContentModal>
       ) : null}
 
       {metaResponseModal ? (

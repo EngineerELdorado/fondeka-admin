@@ -214,9 +214,6 @@ export default function WhatsappMessageDeliveriesPage() {
       }
     },
     { key: 'metaMessageId', label: 'Meta message ID', render: (row) => <span title={row.metaMessageId || ''}>{truncate(row.metaMessageId, 28)}</span> },
-    { key: 'conversationId', label: 'Conversation', render: (row) => <span title={row.conversationId || ''}>{truncate(row.conversationId, 24)}</span> },
-    { key: 'pricingCategory', label: 'Pricing' },
-    { key: 'errorCode', label: 'Error', render: (row) => row.errorCode || '-' },
     { key: 'providerTimestamp', label: 'Meta event time', render: (row) => formatDateTime(row.providerTimestamp) },
     {
       key: 'actions',

@@ -476,9 +476,8 @@ export default function CardsPage() {
       }
     },
     { key: 'status', label: 'Status', render: (row) => <CardStatusSummary card={row} /> },
-    { key: 'createdAt', label: 'Created', render: (row) => formatDateTime(row.createdAt) },
+    { key: 'createdAt', label: 'Created', priority: 1, render: (row) => formatDateTime(row.createdAt) },
     { key: 'last4', label: 'Last 4', render: (row) => row.last4 || '—' },
-    { key: 'cardProviderName', label: 'Provider', render: (row) => cardProviderLabel(row) },
     { key: 'issued', label: 'Issued', render: (row) => (row.issued ? 'Yes' : 'No') },
     { key: 'internalReference', label: 'Internal ref' },
     {

@@ -256,6 +256,13 @@ const formatFeeModeLabel = (value) => {
   return 'Global default';
 };
 
+const FeeConfigCell = ({ primary, secondary, strong = false, secondaryColor = 'var(--muted)' }) => (
+  <span className="fee-config-cell" style={{ display: 'grid', gap: '0.15rem', lineHeight: 1.3 }}>
+    <span style={strong ? { fontWeight: 700 } : undefined}>{primary}</span>
+    {secondary ? <small style={{ color: secondaryColor }}>{secondary}</small> : null}
+  </span>
+);
+
 const toPayload = (state) => {
   const paymentMethodTypeScope = isPaymentMethodTypeScope(state);
   const hasRouteOrCountryScope = [
@@ -705,39 +712,28 @@ export default function FeeConfigsPage() {
         key: 'scope',
         label: 'Scope',
         render: (row) => (
-          <div style={{ display: 'grid', gap: '0.15rem' }}>
-            <div style={{ fontWeight: 700 }}>{scopeTypeLabel(resolveScopeType(row))}</div>
-            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{row.paymentMethodType || 'All payment methods'}</div>
-          </div>
+          <FeeConfigCell primary={scopeTypeLabel(resolveScopeType(row))} secondary={row.paymentMethodType || 'All payment methods'} strong />
         )
       },
       {
         key: 'serviceAction',
         label: 'Service / action',
         render: (row) => (
-          <div style={{ display: 'grid', gap: '0.15rem' }}>
-            <div style={{ fontWeight: 700 }}>{row.action || row.feeContext || 'Default'}</div>
-            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{row.service || 'All services'}</div>
-          </div>
+          <FeeConfigCell primary={row.action || row.feeContext || 'Default'} secondary={row.service || 'All services'} strong />
         )
       },
       {
         key: 'market',
         label: 'Market',
         render: (row) => (
-          <div style={{ display: 'grid', gap: '0.15rem' }}>
-            <div>{getCountryLabel(row)}</div>
-            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-              {formatAmountRange(row?.minAmount, row?.maxAmount)}{row?.amountRangeCurrency ? ` ${row.amountRangeCurrency}` : ''}
-            </div>
-          </div>
+          <FeeConfigCell primary={getCountryLabel(row)} secondary={`${formatAmountRange(row?.minAmount, row?.maxAmount)}${row?.amountRangeCurrency ? ` ${row.amountRangeCurrency}` : ''}`} />
         )
       },
       {
         key: 'target',
         label: 'Target',
         render: (row) => {
-          const primary =
+          let primary =
             row.paymentMethodPaymentProviderId ? getPmpLabel(row)
               : row.billProductBillProviderId ? getBpbpLabel(row)
                 : row.paymentProviderId ? getPaymentProviderLabel(row)
@@ -745,16 +741,17 @@ export default function FeeConfigsPage() {
                     : row.fromCryptoProductId || row.toCryptoProductId
                       ? `${getCryptoProductLabel(row.fromCryptoProductId)} → ${getCryptoProductLabel(row.toCryptoProductId)}`
                       : 'Global';
-          const secondary = [
+          let secondary = [
             row.paymentMethodPaymentProviderId && row.billProductBillProviderId ? getBpbpLabel(row) : null,
             row.paymentProviderId && row.billProviderId ? getBillProviderLabel(row) : null
           ].filter(Boolean).join(' · ');
-          return (
-            <div style={{ display: 'grid', gap: '0.15rem' }}>
-              <div>{primary}</div>
-              {secondary && <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{secondary}</div>}
-            </div>
-          );
+          const separator = row.paymentMethodPaymentProviderId ? ' → ' : row.billProductBillProviderId ? ' — ' : null;
+          const splitAt = separator && !secondary ? primary.lastIndexOf(separator) : -1;
+          if (splitAt > 0) {
+            secondary = `Provider: ${primary.slice(splitAt + separator.length)}`;
+            primary = primary.slice(0, splitAt);
+          }
+          return <FeeConfigCell primary={primary} secondary={secondary} />;
         }
       },
       {
@@ -770,10 +767,7 @@ export default function FeeConfigsPage() {
               : null
           ].filter(Boolean).join(' + ');
           return (
-            <div style={{ display: 'grid', gap: '0.15rem' }}>
-              <div><strong>Our:</strong> {ourParts || '—'}</div>
-              <div style={{ color: 'var(--muted)', fontSize: '12px' }}><strong>Provider:</strong> {providerParts || '—'}</div>
-            </div>
+            <FeeConfigCell primary={<><strong>Our:</strong> {ourParts || '—'}</>} secondary={<><strong>Provider:</strong> {providerParts || '—'}</>} />
           );
         }
       },
@@ -781,10 +775,7 @@ export default function FeeConfigsPage() {
         key: 'mode',
         label: 'Mode',
         render: (row) => (
-          <div style={{ display: 'grid', gap: '0.15rem' }}>
-            <div>{formatFeeModeLabel(row.feeApplicationMode)}</div>
-            {row.overrideSpecificFees && <div style={{ color: '#b45309', fontSize: '12px', fontWeight: 700 }}>Override specific</div>}
-          </div>
+          <FeeConfigCell primary={formatFeeModeLabel(row.feeApplicationMode)} secondary={row.overrideSpecificFees ? <strong>Override specific</strong> : null} secondaryColor="#b45309" />
         )
       },
       {

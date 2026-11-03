@@ -196,7 +196,7 @@ export default function NotificationProvidersPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <label>Activation</label>
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
-                <input type="checkbox" checked={newActive} onChange={(e) => setNewActive(e.target.checked)} />
+                <input type="checkbox" style={{ width: '18px', height: '18px', padding: 0, margin: 0, flexShrink: 0 }} checked={newActive} onChange={(e) => setNewActive(e.target.checked)} />
                 Make active immediately
               </label>
             </div>
@@ -249,18 +249,19 @@ export default function NotificationProvidersPage() {
                 >
                   <input
                     type="radio"
+                    style={{ width: '18px', height: '18px', padding: 0, margin: 0, flexShrink: 0 }}
                     name={`provider-${channel}`}
                     checked={Boolean(item.active)}
                     onChange={() => setActiveProvider({ channel, providerName: item.providerName })}
                     disabled={loading || (savingKey !== '' && savingKey !== key)}
                   />
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem', flex: 1 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem', flex: '1 1 0', minWidth: 0, overflowWrap: 'anywhere' }}>
                     <span style={{ fontWeight: 700 }}>{item.providerName}</span>
                     <span style={{ fontSize: '12px', color: 'var(--muted)' }}>
                       {item.active ? 'Currently active' : 'Inactive'}
                     </span>
                   </div>
-                  {isSaving && <span style={{ fontSize: '12px', color: 'var(--muted)' }}>Saving…</span>}
+                  {isSaving && <span style={{ fontSize: '12px', color: 'var(--muted)', flexShrink: 0 }}>Saving…</span>}
                 </label>
               );
             })}

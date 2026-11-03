@@ -9,6 +9,7 @@ import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 import { announcementPopupDraft, announcementPopupPayload, announcementCopyPayload, announcementDateInput, announcementSchedulePayload } from '@/lib/announcement-popup';
 import { AnnouncementPopupFields } from '@/components/AnnouncementPopupFields';
+import { ContentModal } from '@/components/ContentModal';
 
 const emptyDraft = {
   ...announcementPopupDraft(),
@@ -193,6 +194,7 @@ export default function AnnouncementsPage() {
   const [showEdit, setShowEdit] = useState(false);
   const [draft, setDraft] = useState(emptyDraft);
   const [selected, setSelected] = useState(null);
+  const [previewAnnouncement, setPreviewAnnouncement] = useState(null);
   const [pageMeta, setPageMeta] = useState({ totalElements: null, totalPages: null });
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -485,24 +487,29 @@ export default function AnnouncementsPage() {
     }
   };
 
+  const renderContentPreview = (row, key) => {
+    const original = String(row[key] || '');
+    const text = original.replace(/\s+/g, ' ').trim();
+    const characters = Array.from(text);
+    const preview = characters.length > 50 ? `${characters.slice(0, 49).join('').trimEnd()}…` : text || '—';
+    const canReadMore = Boolean(text) && (characters.length > 50 || /[\r\n]/.test(original));
+    return <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+      <span style={key === 'title' ? { fontWeight: 700 } : undefined}>{preview}</span>
+      {canReadMore ? <button type="button" className="btn-neutral btn-sm" aria-haspopup="dialog" aria-label={`Read full announcement ${key}`} onClick={(event) => { event.stopPropagation(); setPreviewAnnouncement(row); }}>Read more</button> : null}
+      {key === 'title' ? <small style={{ color: 'var(--muted)' }}>#{row.id ?? '—'}</small> : null}
+    </div>;
+  };
+
   const columns = [
       {
         key: 'title',
         label: 'Title',
-        render: (row) => (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-            <div style={{ fontWeight: 700 }}>{row.title || '-'}</div>
-            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>#{row.id ?? '-'}</div>
-          </div>
-        )
+        render: (row) => renderContentPreview(row, 'title')
       },
       {
         key: 'body',
         label: 'Body',
-        render: (row) => {
-          const text = String(row.body || '');
-          return text.length > 120 ? `${text.slice(0, 120)}...` : text || '-';
-        }
+        render: (row) => renderContentPreview(row, 'body')
       },
       {
         key: 'presentation',
@@ -789,6 +796,13 @@ export default function AnnouncementsPage() {
         emptyLabel="No announcements found"
         showIndex={false}
       />
+
+      {previewAnnouncement && (
+        <ContentModal title="Announcement content" onClose={() => setPreviewAnnouncement(null)}>
+          <h2 style={{ margin: 0, fontSize: '1.1rem', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{previewAnnouncement.title || '—'}</h2>
+          <div style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{previewAnnouncement.body || '—'}</div>
+        </ContentModal>
+      )}
 
       {showCreate && (
         <Modal title="New announcement" busy={saving} onClose={closeEditor}>
