@@ -180,3 +180,21 @@ test('text wrapping leaves currency precision, dates and explicit single-line co
   assert.equal(shouldWrapTableValue('An intentionally wide value that must keep its current rendering', { wrap: false }), false);
   assert.equal(shouldWrapTableValue(h('button', null, 'An existing interactive control remains untouched')), false);
 });
+
+test('column minimum widths keep announcement headings readable with empty and populated rows', async () => {
+  const Table = await loadDataTable();
+  const columns = [
+    { key: 'title', label: 'Title', minWidth: '12rem' },
+    { key: 'body', label: 'Body', minWidth: '14rem' },
+    { key: 'presentation', label: 'Format', minWidth: '8rem' },
+    { key: 'actions', label: 'Actions', minWidth: '6rem', render: () => h('button', null, 'Edit') }
+  ];
+  for (const rows of [[], [{ title: 'Announcement', body: 'A full announcement body', presentation: 'Popup' }]]) {
+    const html = renderToStaticMarkup(h(Table, { columns, rows, showIndex: false, showAccountQuickNav: false }));
+    for (const [label, width] of [['Title', 12], ['Body', 14], ['Format', 8], ['Actions', 6]]) {
+      assert.match(html, new RegExp(`<th[^>]+min-width:${width}rem[^>]*>${label}<\\/th>`));
+    }
+    assert.equal((html.match(/<th(?:\s|>)/g) || []).length, columns.length);
+    assert.ok(rows.length ? html.includes('A full announcement body') : html.includes('No data to display.'));
+  }
+});

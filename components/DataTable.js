@@ -255,7 +255,7 @@ export function DataTable({
               <th
                 key={String(col.key)}
                 className="data-table__cell"
-                style={{ textAlign: 'left', padding: '0.65rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)', width: col.key === '__account_quick_nav__' ? '3.5rem' : undefined }}
+                style={{ textAlign: 'left', padding: '0.65rem', borderBottom: '1px solid var(--border)', color: 'var(--muted)', minWidth: col.minWidth, width: col.key === '__account_quick_nav__' ? '3.5rem' : undefined }}
               >
                 {col.label}
               </th>

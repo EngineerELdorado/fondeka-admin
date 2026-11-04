@@ -7,6 +7,7 @@ import { PresentationSelect, PresentationLink as Link, RegulatorField } from '@/
 import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
+import { TableCellLines } from '@/components/TableCell';
 import { announcementPopupDraft, announcementPopupPayload, announcementCopyPayload, announcementDateInput, announcementSchedulePayload } from '@/lib/announcement-popup';
 import { AnnouncementPopupFields } from '@/components/AnnouncementPopupFields';
 import { ContentModal } from '@/components/ContentModal';
@@ -492,58 +493,75 @@ export default function AnnouncementsPage() {
     const text = original.replace(/\s+/g, ' ').trim();
     const characters = Array.from(text);
     const preview = characters.length > 50 ? `${characters.slice(0, 49).join('').trimEnd()}…` : text || '—';
-    const canReadMore = Boolean(text) && (characters.length > 50 || /[\r\n]/.test(original));
-    return <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-      <span style={key === 'title' ? { fontWeight: 700 } : undefined}>{preview}</span>
-      {canReadMore ? <button type="button" className="btn-neutral btn-sm" aria-haspopup="dialog" aria-label={`Read full announcement ${key}`} onClick={(event) => { event.stopPropagation(); setPreviewAnnouncement(row); }}>Read more</button> : null}
-      {key === 'title' ? <small style={{ color: 'var(--muted)' }}>#{row.id ?? '—'}</small> : null}
-    </div>;
+    return <span className="announcement-content-preview" style={{ width: key === 'title' ? '14rem' : '16rem' }}>
+      <span className="table-text__content" style={{ WebkitLineClamp: 2, lineClamp: 2, fontWeight: key === 'title' ? 700 : undefined }}>{preview}</span>
+      <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        {key === 'title' ? <small style={{ color: 'var(--muted)' }}>#{row.id ?? '—'}</small> : null}
+        {text ? <button type="button" className="btn-neutral btn-sm" aria-haspopup="dialog" aria-label={`Read full announcement ${key}`} onClick={(event) => { event.stopPropagation(); setPreviewAnnouncement(row); }}>Read more</button> : null}
+      </span>
+    </span>;
   };
 
   const columns = [
       {
         key: 'title',
         label: 'Title',
+        width: '15rem',
+        minWidth: '12rem',
         render: (row) => renderContentPreview(row, 'title')
       },
       {
         key: 'body',
         label: 'Body',
+        width: '17rem',
+        minWidth: '14rem',
         render: (row) => renderContentPreview(row, 'body')
       },
       {
         key: 'presentation',
-        label: 'Format / primary action',
-        render: (row) => row.presentation === 'POPUP' ? `Popup / ${row.cta?.type || 'NONE'}` : 'Current format'
+        label: 'Format',
+        width: '10rem',
+        minWidth: '8rem',
+        render: (row) => row.presentation === 'POPUP' ? <TableCellLines primary="Popup" secondary={row.cta?.type || 'NONE'} /> : 'Current format'
       },
       {
         key: 'severity',
         label: 'Severity',
+        width: '7rem',
+        minWidth: '6rem',
         render: (row) => <SeverityBadge value={row.severity} />
       },
       {
         key: 'active',
         label: 'Active',
+        width: '6rem',
+        minWidth: '5rem',
         render: (row) => <ActiveBadge active={isActiveNow(row)} />
       },
       {
         key: 'downloadUpdate',
         label: 'Update CTA',
+        width: '8rem',
+        minWidth: '6rem',
         render: (row) => (row?.downloadUpdate ? 'Enabled' : '—')
       },
       {
         key: 'viewCount',
         label: 'Views',
+        width: '5rem',
+        minWidth: '4rem',
         render: (row) => formatCount(row.viewCount)
       },
       {
         key: 'createdAt',
         label: 'Created',
+        minWidth: '10rem',
         render: (row) => formatUtcDateTime(row.createdAt)
       },
       {
         key: 'actions',
         label: 'Actions',
+        minWidth: '6rem',
         render: (row) => (
           <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
             <button type="button" onClick={() => openEdit(row)} className="btn-neutral">
