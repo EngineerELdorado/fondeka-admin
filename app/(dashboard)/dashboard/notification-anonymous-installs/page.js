@@ -51,13 +51,6 @@ const formatDateTime = (value) => {
 };
 
 const pickCountry = (row) => row?.lastSeenCountry || row?.lastSeenCountryClient || '—';
-const getAudienceBadge = (row) => {
-  if (row?.claimed) return statusBadge('Logged back in', { bg: '#EFF6FF', fg: '#1D4ED8' });
-  if (String(row?.audienceType || '').toUpperCase() === 'SIGNED_OUT_REENGAGEMENT') {
-    return statusBadge('Signed out', { bg: '#FFF7ED', fg: '#C2410C' });
-  }
-  return statusBadge('Pre-signup', { bg: '#ECFDF3', fg: '#15803D' });
-};
 
 const Modal = ({ title, onClose, children }) => (
   <div className="modal-backdrop">
@@ -144,19 +137,14 @@ export default function NotificationAnonymousInstallsPage() {
 
   const columns = useMemo(
     () => [
-      { key: 'platform', label: 'Platform', render: (row) => String(row?.platform || '—').toUpperCase() },
-      { key: 'deviceName', label: 'Device name', render: (row) => row?.deviceName || '—' },
-      { key: 'preferredLanguage', label: 'Language', render: (row) => row?.preferredLanguage || '—' },
-      { key: 'audienceType', label: 'Audience type', render: (row) => getAudienceBadge(row) },
-      { key: 'country', label: 'Country', render: (row) => pickCountry(row) },
-      {
-        key: 'hasPushToken',
-        label: 'Push status',
-        render: (row) =>
-          row?.hasPushToken
-            ? statusBadge('Push Ready', { bg: '#ECFDF3', fg: '#15803D' })
-            : statusBadge('No Token', { bg: '#F3F4F6', fg: '#374151' })
-      },
+      { key: 'platform', label: 'Platform', width: '6rem', priority: 2, render: (row) => String(row?.platform || '—').toUpperCase() },
+      { key: 'deviceName', label: 'Device name', width: '12rem', priority: 0, render: (row) => row?.deviceName || '—' },
+      { key: 'preferredLanguage', label: 'Language', width: '6rem', render: (row) => row?.preferredLanguage || '—' },
+      { key: 'country', label: 'Country', width: '6rem', render: (row) => pickCountry(row) },
+      { key: 'createdAt', label: 'Created', width: '11rem', priority: 1, render: (row) => formatDateTime(row?.createdAt) },
+      { key: 'lastSeenAt', label: 'Last seen', width: '11rem', priority: 1, render: (row) => formatDateTime(row?.lastSeenAt) },
+      { key: 'lastAuthenticatedAt', label: 'Last authenticated', width: '11rem', priority: 1, render: (row) => formatDateTime(row?.lastAuthenticatedAt) },
+      { key: 'lastLogoutAt', label: 'Last logout', width: '11rem', priority: 1, render: (row) => formatDateTime(row?.lastLogoutAt) },
       { key: 'pushTokenType', label: 'Push token type', render: (row) => row?.pushTokenType || '—' },
       {
         key: 'claimed',
@@ -168,10 +156,6 @@ export default function NotificationAnonymousInstallsPage() {
       },
       { key: 'claimedAccountId', label: 'Claimed account', render: (row) => row?.claimedAccountId ?? '—' },
       { key: 'lastAuthenticatedAccountId', label: 'Last auth account', render: (row) => row?.lastAuthenticatedAccountId ?? '—' },
-      { key: 'lastAuthenticatedAt', label: 'Last authenticated', render: (row) => formatDateTime(row?.lastAuthenticatedAt) },
-      { key: 'lastLogoutAt', label: 'Last logout', render: (row) => formatDateTime(row?.lastLogoutAt) },
-      { key: 'lastSeenAt', label: 'Last seen', render: (row) => formatDateTime(row?.lastSeenAt) },
-      { key: 'createdAt', label: 'Created', render: (row) => formatDateTime(row?.createdAt) },
       {
         key: 'actions',
         label: 'Actions',
