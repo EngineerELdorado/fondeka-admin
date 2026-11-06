@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
+import { RestrictionPreviewDialog, RecoveryAccountDialog } from '@/components/RefundRecoveryDialog';
 import { activeAudit, auditCsv, auditMoney, auditOutcomes, auditQuery, auditScope, canReadRefundAudit, creditTotals, outcomeInfo } from '@/lib/payout-refund-audit';
 import styles from './page.module.css';
 
@@ -94,6 +95,7 @@ function Workspace() {
   const [reload, setReload] = useState(0), [denied, setDenied] = useState(false), [selected, setSelected] = useState(null);
   const [newAudit, setNewAudit] = useState(false), [scope, setScope] = useState({ label: '', from: '', to: '', accountId: '' }), [starting, setStarting] = useState(false), [startError, setStartError] = useState('');
   const [exporting, setExporting] = useState(false), [stopping, setStopping] = useState(false);
+  const [restrictionPreview, setRestrictionPreview] = useState(false), [recoveryAccount, setRecoveryAccount] = useState(null);
   const wantedRun = search.get('run');
 
   useEffect(() => {
@@ -110,7 +112,7 @@ function Workspace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, identity, reload]);
 
-  useEffect(() => { setRun(null); setRows([]); setPage(0); setSelected(null); }, [runId]);
+  useEffect(() => { setRun(null); setRows([]); setPage(0); setSelected(null); setRestrictionPreview(false); setRecoveryAccount(null); }, [runId]);
   useEffect(() => {
     if (!visible || !runId || denied) return undefined;
     let active = true, timer;
@@ -193,7 +195,7 @@ function Workspace() {
     { key: 'payoutCount', label: 'Matched payouts', render: (row) => <strong>{row.payoutCount}</strong> },
     { key: 'payoutTotals', label: 'Payout principal', render: (row) => <Money totals={row.payoutTotals} /> },
     { key: 'confirmedRefundTotals', label: 'Confirmed refunds', render: (row) => <Money totals={row.confirmedRefundTotals} /> },
-    { key: 'details', label: '', render: (row) => <button className={styles.textButton} onClick={() => { const next = { ...filters, accountId: String(row.accountId) }; setFilters(next); setDraft(next); setView('transactions'); setPage(0); }}>View payouts →</button> }
+    { key: 'details', label: '', render: (row) => <span className={styles.cellStack}><button className={styles.textButton} onClick={() => { const next = { ...filters, accountId: String(row.accountId) }; setFilters(next); setDraft(next); setView('transactions'); setPage(0); }}>View payouts →</button><button className={styles.textButton} onClick={() => setRecoveryAccount(row.accountId)}>Recovery details</button></span> }
   ];
   const transactionRows = [
     { key: 'reference', label: 'Payout', minWidth: '12rem', render: (row) => <span className={styles.cellStack}><button className={styles.referenceButton} onClick={() => setSelected(row.transactionId)}>{row.reference}</button><small>{dateOnly(row.createdAt)} · {row.localStatus}</small></span> },
@@ -212,7 +214,7 @@ function Workspace() {
   return <div className={styles.workspace}>
     <header className={styles.heading}>
       <div><div className={styles.eyebrow}>PAYMENTS / RECONCILIATION</div><h1>Payout refund audit</h1><p>Compare ArakaPay payout status with recorded wallet refunds.</p></div>
-      <div className={styles.headerActions}><button className={styles.button} onClick={() => setReload((v) => v + 1)} disabled={loading}>↻ Refresh</button><button className={styles.primary} onClick={() => { setNewAudit(true); setStartError(''); }} disabled={denied}>+ Run audit</button></div>
+      <div className={styles.headerActions}><Link className={styles.button} href="/dashboard/payout-refund-audits/restricted-accounts">Restricted accounts</Link><button className={styles.button} onClick={() => setReload((v) => v + 1)} disabled={loading}>↻ Refresh</button><button className={styles.primary} onClick={() => { setNewAudit(true); setStartError(''); }} disabled={denied}>+ Run audit</button></div>
     </header>
     {error && <div className={styles.error} role="alert">{error}</div>}
     {notice && <div className={styles.notice} role="status">{notice}</div>}
@@ -244,7 +246,7 @@ function Workspace() {
         <p className={styles.contextNote}>Not-found and declined results do not prove that a recipient was unpaid. Refund totals are historical credits; later recoveries are not deducted.</p>
       </section>
       <section className={styles.results} aria-label="Audit results">
-        <div className={styles.sectionTop}><div className={styles.tabs} role="tablist" aria-label="Results view">{['accounts', 'transactions'].map((value) => <button key={value} role="tab" aria-selected={view === value} onClick={() => { setView(value); setPage(0); }}>{value === 'accounts' ? 'Accounts' : 'Transactions'}</button>)}</div><div className={styles.exports}><Link className={styles.button} style={{ textDecoration: 'none' }} href={providerReportHref()}>Provider document</Link><button className={styles.button} disabled={exporting || denied} onClick={() => exportReport('csv')}>{exporting ? 'Exporting…' : 'Export CSV'}</button><button className={styles.button} disabled={exporting || denied} onClick={() => exportReport('json')}>Evidence JSON</button></div></div>
+        <div className={styles.sectionTop}><div className={styles.tabs} role="tablist" aria-label="Results view">{['accounts', 'transactions'].map((value) => <button key={value} role="tab" aria-selected={view === value} onClick={() => { setView(value); setPage(0); }}>{value === 'accounts' ? 'Accounts' : 'Transactions'}</button>)}</div><div className={styles.exports}><button className={styles.button} disabled={run.status !== 'COMPLETED' || denied} onClick={() => setRestrictionPreview(true)}>Restrict confirmed accounts</button><Link className={styles.button} style={{ textDecoration: 'none' }} href={providerReportHref()}>Provider document</Link><button className={styles.button} disabled={exporting || denied} onClick={() => exportReport('csv')}>{exporting ? 'Exporting…' : 'Export CSV'}</button><button className={styles.button} disabled={exporting || denied} onClick={() => exportReport('json')}>Evidence JSON</button></div></div>
         <form className={styles.filters} onSubmit={apply}>
           <label className={styles.search}><span>Search</span><input aria-label="Search accounts or payouts" placeholder="Name, email, reference or ID" value={draft.query} maxLength={200} onChange={(e) => setDraft({ ...draft, query: e.target.value })} /></label>
           <label><span>Outcome</span><select aria-label="Outcome" value={draft.outcome} onChange={(e) => setDraft({ ...draft, outcome: e.target.value })}><option value="ALL">All outcomes</option>{auditOutcomes.map((o) => <option value={o.value} key={o.value}>{o.label}</option>)}</select></label>
@@ -267,6 +269,8 @@ function Workspace() {
       {startError && <div className={styles.error} role="alert">{startError}</div>}
       <div className={styles.dialogActions}><button type="button" className={styles.button} disabled={starting} onClick={() => setNewAudit(false)}>Cancel</button><button type="submit" className={styles.primary} disabled={starting}>{starting ? 'Preparing audit…' : 'Start audit'}</button></div>
     </form></Dialog>}
+    {restrictionPreview && runId && <RestrictionPreviewDialog runId={runId} onClose={() => setRestrictionPreview(false)} onApplied={(result) => { setNotice(`Restrictions applied to ${result.restrictedAccounts} accounts. Deposits and admin wallet debits remain available.`); setReload((value) => value + 1); }} />}
+    {recoveryAccount != null && <RecoveryAccountDialog accountId={recoveryAccount} onClose={() => setRecoveryAccount(null)} onChanged={() => setReload((value) => value + 1)} />}
     {selected != null && runId && <Detail runId={runId} transactionId={selected} onClose={() => setSelected(null)} />}
   </div>;
 }
