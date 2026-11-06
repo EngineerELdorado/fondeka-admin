@@ -1,5 +1,7 @@
 'use client';
 
+import { CountryListField } from '@/components/CountrySelect';
+
 import { cloneElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
@@ -171,7 +173,7 @@ export default function MobileMaintenancePage() {
             <div style={grid}>
               {MAINTENANCE_AUDIENCE_LISTS.map(([key, label]) => {
                 const choices = key === 'transactionServices' ? MAINTENANCE_TRANSACTION_SERVICES : key === 'transactionActions' ? MAINTENANCE_TRANSACTION_ACTIONS : null;
-                return <TextField key={key} label={label}>{choices ? <PresentationSelect multiple size={5} value={tokens(rule.audience?.[key])} disabled={disabled} onChange={(event) => updateAudience(index, key, Array.from(event.target.selectedOptions, (option) => option.value).length ? Array.from(event.target.selectedOptions, (option) => option.value) : '')}>
+                return <TextField key={key} label={label}>{key === 'countryIds' || key === 'countryCodes' ? <CountryListField valueType={key === 'countryIds' ? 'id' : 'code'} value={maintenanceListText(rule.audience?.[key])} disabled={disabled} onChange={(value) => updateAudience(index, key, value)} /> : choices ? <PresentationSelect multiple size={5} value={tokens(rule.audience?.[key])} disabled={disabled} onChange={(event) => updateAudience(index, key, Array.from(event.target.selectedOptions, (option) => option.value).length ? Array.from(event.target.selectedOptions, (option) => option.value) : '')}>
                   {[...new Set([...choices, ...tokens(rule.audience?.[key])])].map((value) => <option key={value} value={value}>{value}</option>)}
                 </PresentationSelect> : <input value={maintenanceListText(rule.audience?.[key])} disabled={disabled} onChange={(event) => updateAudience(index, key, event.target.value)} />}</TextField>;
               })}

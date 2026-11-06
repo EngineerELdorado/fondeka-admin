@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/api';
+import { CountryListField } from '@/components/CountrySelect';
 import { useAuth } from '@/contexts/AuthContext';
 import { NonRegulatorContent } from '@/components/RegulatorPresentation';
 import { isRegulatorRestrictedService } from '@/lib/regulator-presentation';
@@ -142,7 +143,7 @@ function ReferralPromptSettings({ campaignId, onSaved, onBusyChange }) {
         {groups.map(([heading, keys]) => <details key={heading} open><summary style={{ cursor: 'pointer', fontWeight: 700 }}>{heading}</summary><div style={{ ...grid, marginTop: '0.7rem' }}>
           {referralPromptAudienceFields.filter(([key]) => keys.includes(key)).map(([key, label, kind, placeholder]) => {
             if (enableRegulatorMode !== false && ['transactionServices', 'transactionActions'].includes(key) && isRegulatorRestrictedService(draft.filters[key])) return null;
-            const control = <label style={labelStyle}><span>{label}</span>{kind === 'boolean'
+            const control = <label style={labelStyle}><span>{label}</span>{key === 'countryIds' || key === 'countryCodes' ? <CountryListField aria-label={label} valueType={key === 'countryIds' ? 'id' : 'code'} value={draft.filters[key]} disabled={disabled} onChange={(value) => updateFilter(key, value)} /> : kind === 'boolean'
               ? <select aria-label={label} value={draft.filters[key]} onChange={(event) => updateFilter(key, event.target.value)}><option value="">Any</option><option value="true">Yes</option><option value="false">No</option></select>
               : <input aria-label={label} type={kind === 'date' ? 'date' : ['number', 'positive'].includes(kind) ? 'number' : 'text'} min={kind === 'positive' ? 1 : kind === 'number' ? 0 : undefined} step={['number', 'positive'].includes(kind) ? 1 : undefined} value={draft.filters[key]} placeholder={placeholder || (kind === 'ids' ? 'Comma-separated IDs' : undefined)} onChange={(event) => updateFilter(key, event.target.value)} />}</label>;
             return restrictedOwnership.has(key) ? <NonRegulatorContent key={key}>{control}</NonRegulatorContent> : <div key={key}>{control}</div>;

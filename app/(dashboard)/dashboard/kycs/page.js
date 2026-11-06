@@ -1,5 +1,7 @@
 'use client';
 
+import { CountrySelect } from '@/components/CountrySelect';
+
 import { regulatorVisibleFields } from '@/lib/regulator-presentation';
 
 import { useAuth } from '@/contexts/AuthContext';
@@ -935,7 +937,7 @@ export default function KycsPage() {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="country">Country</label>
-            <input id="country" value={filters.country} onChange={(e) => setFilters((p) => ({ ...p, country: e.target.value }))} placeholder="ISO alpha2" />
+            <CountrySelect emptyLabel="Any country" id="country" value={filters.country} onChange={(e) => setFilters((p) => ({ ...p, country: e.target.value }))} />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="accountRef">Account ref</label>

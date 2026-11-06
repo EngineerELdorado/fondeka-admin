@@ -1,5 +1,7 @@
 'use client';
 
+import { CountrySelect } from '@/components/CountrySelect';
+
 import { regulatorVisibleFields } from '@/lib/regulator-presentation';
 
 import { useAuth } from '@/contexts/AuthContext';
@@ -277,7 +279,7 @@ export default function NotificationAnonymousInstallsPage() {
           </div>
           <div style={{ display: 'grid', gap: '0.25rem' }}>
             <label htmlFor="country">Country</label>
-            <input id="country" value={filters.country} onChange={(e) => setFilters((prev) => ({ ...prev, country: e.target.value }))} placeholder="CD" />
+            <CountrySelect emptyLabel="Any country" id="country" value={filters.country} onChange={(e) => setFilters((prev) => ({ ...prev, country: e.target.value }))} />
           </div>
           <div style={{ display: 'grid', gap: '0.25rem' }}>
             <label htmlFor="hasPushToken">Has push token</label>

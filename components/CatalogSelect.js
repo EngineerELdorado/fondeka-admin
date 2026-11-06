@@ -5,11 +5,11 @@ import { createPortal } from 'react-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocale } from '@/contexts/LocaleContext';
 import { isRegulatorRestrictedRecord, isRegulatorRestrictedService } from '@/lib/regulator-presentation';
-import { catalogOptionDetails, filterCatalogOptions, groupCatalogOptions } from '@/lib/catalog-options';
+import { catalogOptionDetails, countryOptionDetails, filterCatalogOptions, groupCatalogOptions } from '@/lib/catalog-options';
 
 const copy = {
-  en: { method: 'Payment method', product: 'Bill product', paymentRoute: 'Payment method route', billRoute: 'Bill product route', search: 'Search name, code, ID, currency or country…', country: 'Country', all: 'All countries', global: 'Global / all countries', selected: 'selected', selectedOnly: 'Selected only', clear: 'Clear selection', clearVisible: 'Clear visible selections', done: 'Done', close: 'Close picker', noMatch: 'No matches', tryAgain: 'Try another search or country.', reset: 'Reset filters', empty: 'No options available', loading: 'Loading options…', hidden: 'Selection hidden in this presentation', protected: 'Hidden selections are preserved.', unknown: 'Unavailable selection', inactive: 'Inactive', unavailable: 'Unavailable', remove: 'Remove', of: 'of', results: 'options' },
-  fr: { method: 'Moyen de paiement', product: 'Produit de facturation', paymentRoute: 'Route de paiement', billRoute: 'Route de facturation', search: 'Rechercher un nom, code, ID, devise ou pays…', country: 'Pays', all: 'Tous les pays', global: 'Global / tous les pays', selected: 'sélectionné(s)', selectedOnly: 'Sélection uniquement', clear: 'Effacer la sélection', clearVisible: 'Effacer la sélection visible', done: 'Terminé', close: 'Fermer la sélection', noMatch: 'Aucun résultat', tryAgain: 'Essayez une autre recherche ou un autre pays.', reset: 'Réinitialiser les filtres', empty: 'Aucune option disponible', loading: 'Chargement…', hidden: 'Sélection masquée dans cette présentation', protected: 'Les sélections masquées sont conservées.', unknown: 'Sélection indisponible', inactive: 'Inactif', unavailable: 'Indisponible', remove: 'Retirer', of: 'sur', results: 'options' }
+  en: { method: 'Payment method', product: 'Bill product', paymentRoute: 'Payment method route', billRoute: 'Bill product route', search: 'Search name, code, ID, currency or country…', country: 'Country', countries: 'Countries', countrySearch: 'Search country name, code or ID…', countryTryAgain: 'Try another country name or code.', all: 'All countries', global: 'Global / all countries', selected: 'selected', selectedOnly: 'Selected only', clear: 'Clear selection', clearVisible: 'Clear visible selections', done: 'Done', close: 'Close picker', noMatch: 'No matches', tryAgain: 'Try another search or country.', reset: 'Reset filters', empty: 'No options available', loading: 'Loading options…', hidden: 'Selection hidden in this presentation', protected: 'Hidden selections are preserved.', unknown: 'Unavailable selection', inactive: 'Inactive', unavailable: 'Unavailable', remove: 'Remove', of: 'of', results: 'options' },
+  fr: { method: 'Moyen de paiement', product: 'Produit de facturation', paymentRoute: 'Route de paiement', billRoute: 'Route de facturation', search: 'Rechercher un nom, code, ID, devise ou pays…', country: 'Pays', countries: 'Pays', countrySearch: 'Rechercher un pays, code ou ID…', countryTryAgain: 'Essayez un autre nom ou code de pays.', all: 'Tous les pays', global: 'Global / tous les pays', selected: 'sélectionné(s)', selectedOnly: 'Sélection uniquement', clear: 'Effacer la sélection', clearVisible: 'Effacer la sélection visible', done: 'Terminé', close: 'Fermer la sélection', noMatch: 'Aucun résultat', tryAgain: 'Essayez une autre recherche ou un autre pays.', reset: 'Réinitialiser les filtres', empty: 'Aucune option disponible', loading: 'Chargement…', hidden: 'Sélection masquée dans cette présentation', protected: 'Les sélections masquées sont conservées.', unknown: 'Sélection indisponible', inactive: 'Inactif', unavailable: 'Indisponible', remove: 'Retirer', of: 'sur', results: 'options' }
 };
 const textContent = (children) => Children.toArray(children).map((child) => typeof child === 'string' || typeof child === 'number' ? String(child) : isValidElement(child) ? textContent(child.props.children) : '').join('').replace(/\s+/g, ' ').trim();
 const readOptions = (children, inheritedDisabled = false) => Children.toArray(children).flatMap((child) => {
@@ -20,12 +20,14 @@ const readOptions = (children, inheritedDisabled = false) => Children.toArray(ch
 });
 const EMPTY = [];
 
-export const CatalogSelect = forwardRef(function CatalogSelect({ children, records = EMPTY, countries = EMPTY, kind = 'payment-method', value, onChange, id, name, multiple = false, disabled = false, loading = false, required = false, className = '', style, onBlur, 'aria-label': ariaLabel, 'aria-describedby': describedBy, ...rest }, ref) {
+export const CatalogSelect = forwardRef(function CatalogPicker({ children, records = EMPTY, countries = EMPTY, kind = 'payment-method', portal = true, value, onChange, id, name, multiple = false, disabled = false, loading = false, required = false, className = '', style, onBlur, 'aria-label': ariaLabel, 'aria-describedby': describedBy, ...rest }, ref) {
   const { enableRegulatorMode, adminProfileLoading, adminProfileError } = useAuth();
   const { locale: language } = useLocale();
   const locale = language === 'fr' ? 'fr' : 'en';
   const t = copy[locale];
-  const label = ariaLabel || (kind === 'bill-product' ? multiple ? locale === 'fr' ? 'Produits de facturation' : 'Bill products' : t.product : kind === 'payment-route' ? t.paymentRoute : kind === 'bill-route' ? t.billRoute : multiple ? locale === 'fr' ? 'Moyens de paiement' : 'Payment methods' : t.method);
+  const isCountry = kind === 'country';
+  const searchLabel = isCountry ? t.countrySearch : t.search;
+  const label = ariaLabel || (isCountry ? multiple ? t.countries : t.country : kind === 'bill-product' ? multiple ? locale === 'fr' ? 'Produits de facturation' : 'Bill products' : t.product : kind === 'payment-route' ? t.paymentRoute : kind === 'bill-route' ? t.billRoute : multiple ? locale === 'fr' ? 'Moyens de paiement' : 'Payment methods' : t.method);
   const generatedId = useId();
   const pickerId = id || `catalog-${generatedId}`;
   const listId = `${pickerId}-options`;
@@ -39,15 +41,15 @@ export const CatalogSelect = forwardRef(function CatalogSelect({ children, recor
   useImperativeHandle(ref, () => trigger.current);
 
   const options = useMemo(() => {
-    const byId = new Map(records.map((record) => [String(record.id ?? record.value), record]));
+    const byId = new Map(records.flatMap((record) => (isCountry ? [record.id, record.value, record.alpha2Code, record.cca2, record.countryCode, record.code, record.key] : [record.id ?? record.value]).filter((key) => key != null).map((key) => [String(key), record])));
     return [...new Map(readOptions(children).map((option) => {
       const record = byId.get(option.value) || {};
-      const details = catalogOptionDetails(record, kind, locale, countries);
+      const details = isCountry ? countryOptionDetails(record, option, locale) : catalogOptionDetails(record, kind, locale, countries);
       const restricted = option.restricted || isRegulatorRestrictedRecord(record) || isRegulatorRestrictedRecord(record.__catalogEntity)
         || isRegulatorRestrictedService(option.label);
       return [option.value, { ...option, ...details, restricted }];
     })).values()];
-  }, [children, records, kind, locale, countries]);
+  }, [children, records, kind, locale, countries, isCountry]);
   const empty = options.find((option) => option.value === '');
   const entries = useMemo(() => options.filter((option) => option.value !== '' && (enableRegulatorMode === false || !option.restricted)), [options, enableRegulatorMode]);
   const selected = useMemo(() => (multiple ? Array.isArray(value) ? value : [] : value == null || value === '' ? [] : [value]).map(String), [multiple, value]);
@@ -55,7 +57,7 @@ export const CatalogSelect = forwardRef(function CatalogSelect({ children, recor
   const selectedEntries = selected.filter((item) => !protectedValues.includes(item)).map((item) => entries.find((option) => option.value === item) || { value: item, label: `${t.unknown} · #${item}`, name: `${t.unknown} · #${item}` });
   const countryOptions = useMemo(() => [...new Map(entries.flatMap((option) => option.countries).map((item) => [item.key, item])).values()].sort((a, b) => a.label.localeCompare(b.label, locale)), [entries, locale]);
   const filtered = useMemo(() => filterCatalogOptions(selectedOnly ? entries.filter((option) => selected.includes(option.value)) : entries, query, country), [entries, query, country, selectedOnly, selected]);
-  const groups = useMemo(() => groupCatalogOptions(filtered, country, locale), [filtered, country, locale]);
+  const groups = useMemo(() => isCountry ? [{ key: '__countries', label: t.countries, options: [...filtered].sort((a, b) => (a.name || a.label).localeCompare(b.name || b.label, locale, { sensitivity: 'base', numeric: true })) }] : groupCatalogOptions(filtered, country, locale), [filtered, country, locale, isCountry, t.countries]);
   const results = useMemo(() => groups.flatMap((group) => group.options), [groups]);
   const enabledResults = results.filter((option) => !option.disabled);
   const active = enabledResults.find((option) => option.value === activeValue) || enabledResults.find((option) => selected.includes(option.value)) || enabledResults[0];
@@ -103,8 +105,8 @@ export const CatalogSelect = forwardRef(function CatalogSelect({ children, recor
     return () => { window.removeEventListener('resize', update); window.removeEventListener('scroll', update, true); window.visualViewport?.removeEventListener('resize', update); document.removeEventListener('pointerdown', outside); };
   }, [open]);
   useEffect(() => {
-    if (open && active) panel.current?.querySelector(`[data-option-index="${results.indexOf(active)}"]`)?.scrollIntoView({ block: 'nearest' });
-  }, [open, active, results]);
+    if (open && active) panel.current?.querySelector(`[id="${listId}-${results.indexOf(active)}"]`)?.scrollIntoView({ block: 'nearest' });
+  }, [open, active, results, listId]);
 
   const onSearchKeyDown = (event) => {
     if (['ArrowDown', 'ArrowUp', 'Home', 'End', 'Enter'].includes(event.key)) {
@@ -115,6 +117,7 @@ export const CatalogSelect = forwardRef(function CatalogSelect({ children, recor
       setActiveValue(enabledResults[next]?.value || null);
     }
   };
+  const renderPanel = (content) => portal ? createPortal(content, document.body) : content;
   return <div className={`catalog-select ${className}`} style={multiple ? { ...style, minHeight: undefined, height: undefined } : style}>
     <select ref={native} hidden aria-hidden="true" tabIndex={-1} name={name} value={multiple ? selected : selected[0] ?? ''} multiple={multiple} disabled={disabled || loading} onChange={onChange}>
       {!multiple && !empty ? <option value="" /> : null}
@@ -126,20 +129,20 @@ export const CatalogSelect = forwardRef(function CatalogSelect({ children, recor
       <span className="catalog-select__value" id={`${pickerId}-value`}><span>{loading ? t.loading : title}</span>{selectedEntries.length === 1 && selectedEntries[0].details?.length ? <small>{[selectedEntries[0].countries?.map((item) => item.label).join(', '), ...selectedEntries[0].details].filter(Boolean).join(' · ')}</small> : null}</span>
       <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 7.5 5 5 5-5" stroke="currentColor" strokeWidth="1.5" /></svg>
     </button>
-    {open && !adminProfileLoading && !adminProfileError && typeof enableRegulatorMode === 'boolean' && createPortal(<div id={`${pickerId}-dialog`} ref={panel} className="catalog-select__panel" role="dialog" aria-label={`${label} — ${locale === 'fr' ? 'sélection' : 'picker'}`} style={{ ...position, visibility: position ? 'visible' : 'hidden' }} onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); } }} onBlur={(event) => { if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget) && !trigger.current?.contains(event.relatedTarget)) close(false); }}>
+    {open && !adminProfileLoading && !adminProfileError && typeof enableRegulatorMode === 'boolean' && renderPanel(<div id={`${pickerId}-dialog`} ref={panel} className="catalog-select__panel" role="dialog" aria-label={`${label} — ${locale === 'fr' ? 'sélection' : 'picker'}`} style={{ ...position, visibility: position ? 'visible' : 'hidden' }} onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); } }} onBlur={(event) => { if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget) && !trigger.current?.contains(event.relatedTarget)) close(false); }}>
       <div className="catalog-select__heading"><strong>{label}</strong><button type="button" className="catalog-select__icon" aria-label={t.close} onClick={() => close()}>×</button></div>
-      <div className="catalog-select__search"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" strokeWidth="1.5"/><path d="m13 13 4 4" stroke="currentColor" strokeWidth="1.5"/></svg><input ref={search} role="combobox" aria-label={t.search} aria-controls={listId} aria-expanded="true" aria-autocomplete="list" aria-activedescendant={active ? `${listId}-${results.indexOf(active)}` : undefined} placeholder={t.search} value={query} autoComplete="off" onChange={(event) => { setQuery(event.target.value); setActiveValue(null); }} onKeyDown={onSearchKeyDown}/></div>
-      <div className="catalog-select__filters"><select aria-label={t.country} value={country} onChange={(event) => { setCountry(event.target.value); setActiveValue(null); }}><option value="">{t.all}</option>{entries.some((option) => !option.countries.length) ? <option value="__global">{t.global}</option> : null}{countryOptions.map((item) => <option key={item.key} value={item.key}>{item.label}{item.code ? ` (${item.code})` : ''}</option>)}</select>{multiple ? <label><input type="checkbox" checked={selectedOnly} onChange={(event) => setSelectedOnly(event.target.checked)}/>{t.selectedOnly}</label> : null}</div>
+      <div className="catalog-select__search"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" strokeWidth="1.5"/><path d="m13 13 4 4" stroke="currentColor" strokeWidth="1.5"/></svg><input ref={search} role="combobox" aria-label={searchLabel} aria-controls={listId} aria-expanded="true" aria-autocomplete="list" aria-activedescendant={active ? `${listId}-${results.indexOf(active)}` : undefined} placeholder={searchLabel} value={query} autoComplete="off" onChange={(event) => { setQuery(event.target.value); setActiveValue(null); }} onKeyDown={onSearchKeyDown}/></div>
+      {!isCountry || multiple ? <div className="catalog-select__filters">{!isCountry ? <CatalogSelect kind="country" portal={false} records={countryOptions} aria-label={t.country} value={country} onChange={(event) => { setCountry(event.target.value); setActiveValue(null); }}><option value="">{t.all}</option>{entries.some((option) => !option.countries.length) ? <option value="__global">{t.global}</option> : null}{countryOptions.map((item) => <option key={item.key} value={item.key}>{item.label}{item.code ? ` (${item.code})` : ''}</option>)}</CatalogSelect> : null}{multiple ? <label><input type="checkbox" checked={selectedOnly} onChange={(event) => setSelectedOnly(event.target.checked)}/>{t.selectedOnly}</label> : null}</div> : null}
       {multiple && selectedEntries.length ? <div className="catalog-select__chips">{selectedEntries.slice(0, 3).map((option) => <button type="button" key={option.value} aria-label={`${t.remove} ${option.name || option.label}`} onClick={() => change(selected.filter((item) => item !== option.value))}><span>{option.name || option.label}</span><span aria-hidden="true">×</span></button>)}{selectedEntries.length > 3 ? <span>+{selectedEntries.length - 3}</span> : null}</div> : null}
       <div className="catalog-select__count" role="status" aria-live="polite">{results.length} {t.of} {entries.length} {t.results}{multiple ? ` · ${selectedEntries.length} ${t.selected}` : ''}</div>
       <div id={listId} role="listbox" aria-label={label} aria-multiselectable={multiple || undefined} className="catalog-select__results">
         {groups.map((group) => <div key={group.key} role="group" aria-label={group.label}><div className="catalog-select__group" aria-hidden="true"><span>{group.label}</span><span>{group.options.length}</span></div>{group.options.map((option) => <div key={option.value} id={`${listId}-${results.indexOf(option)}`} role="option" aria-selected={selected.includes(option.value)} aria-disabled={option.disabled || undefined} data-option-index={results.indexOf(option)} className={`catalog-select__option${active?.value === option.value ? ' is-active' : ''}`} onPointerMove={() => setActiveValue(option.value)} onPointerDown={(event) => event.preventDefault()} onClick={() => choose(option)}>
           <span className={`catalog-select__check${selected.includes(option.value) ? ' is-selected' : ''}`} aria-hidden="true">{selected.includes(option.value) ? '✓' : ''}</span><span className="catalog-select__option-copy"><strong>{option.name || option.label}</strong><small>{[...option.details, option.countries.length > 1 ? option.countries.map((item) => item.label).join(', ') : null].filter(Boolean).join(' · ') || option.label}</small>{option.inactive || option.unavailable ? <small>{[option.inactive ? t.inactive : null, option.unavailable ? t.unavailable : null].filter(Boolean).join(' · ')}</small> : null}</span>
         </div>)}</div>)}
-        {!results.length ? <div className="catalog-select__empty"><strong>{entries.length ? t.noMatch : t.empty}</strong>{entries.length ? <><span>{t.tryAgain}</span><button type="button" className="btn-neutral btn-sm" onClick={resetFilters}>{t.reset}</button></> : null}</div> : null}
+        {!results.length ? <div className="catalog-select__empty"><strong>{entries.length ? t.noMatch : t.empty}</strong>{entries.length ? <><span>{isCountry ? t.countryTryAgain : t.tryAgain}</span><button type="button" className="btn-neutral btn-sm" onClick={resetFilters}>{t.reset}</button></> : null}</div> : null}
       </div>
       <div className="catalog-select__footer">{(!required && (multiple || empty)) ? <button type="button" className="catalog-select__clear" disabled={!selectedEntries.length} onClick={() => { change([]); if (!multiple) close(); }}>{protectedValues.length ? t.clearVisible : empty?.label || t.clear}</button> : <span/>}<button type="button" className="btn-neutral btn-sm" onClick={() => close()}>{t.done}</button></div>
       {protectedValues.length ? <div className="catalog-select__count">{t.protected}</div> : null}
-    </div>, document.body)}
+    </div>)}
   </div>;
 });

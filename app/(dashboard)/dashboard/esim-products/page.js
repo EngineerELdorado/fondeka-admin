@@ -1,5 +1,7 @@
 'use client';
 
+import { CountrySelect } from '@/components/CountrySelect';
+
 import { regulatorVisibleFields } from '@/lib/regulator-presentation';
 
 import { useAuth } from '@/contexts/AuthContext';
@@ -382,7 +384,7 @@ export default function EsimProductsPage() {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="countryIso2">Country ISO2</label>
-        <input id="countryIso2" value={draft.countryIso2} onChange={(e) => setDraft((p) => ({ ...p, countryIso2: e.target.value.toUpperCase() }))} />
+        <CountrySelect emptyLabel="Any country" id="countryIso2" value={draft.countryIso2} onChange={(e) => setDraft((p) => ({ ...p, countryIso2: e.target.value.toUpperCase() }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="region">Region</label>
@@ -599,7 +601,7 @@ export default function EsimProductsPage() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="filterCountry">Country ISO2</label>
-                <input id="filterCountry" value={filters.country} onChange={(e) => setFilters((p) => ({ ...p, country: e.target.value.toUpperCase() }))} />
+                <CountrySelect emptyLabel="Any country" id="filterCountry" value={filters.country} onChange={(e) => setFilters((p) => ({ ...p, country: e.target.value.toUpperCase() }))} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="filterRegion">Region</label>

@@ -1,5 +1,7 @@
 'use client';
 
+import { CountrySelect } from '@/components/CountrySelect';
+
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
@@ -396,7 +398,7 @@ export default function EnhancedKycRequirementsPage() {
           </label>
           <label style={{ display: 'grid', gap: '0.25rem' }}>
             <span>Country</span>
-            <input value={filters.countryCode} onChange={(e) => setFilters((prev) => ({ ...prev, countryCode: e.target.value }))} placeholder="US" />
+            <CountrySelect emptyLabel="Any country" value={filters.countryCode} onChange={(e) => setFilters((prev) => ({ ...prev, countryCode: e.target.value }))} />
           </label>
           <label style={{ display: 'grid', gap: '0.25rem' }}>
             <span>Account ID</span>
@@ -533,7 +535,7 @@ function RequirementForm({ draft, updateDraft, saving }) {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
           <label style={{ display: 'grid', gap: '0.25rem' }}>
             <span>Country</span>
-            <input value={draft.countryCode} onChange={(e) => updateDraft('countryCode', e.target.value)} placeholder="US" disabled={saving} />
+            <CountrySelect emptyLabel="Any country" value={draft.countryCode} onChange={(e) => updateDraft('countryCode', e.target.value)} disabled={saving} />
           </label>
           <label style={{ display: 'grid', gap: '0.25rem' }}>
             <span>Account ID</span>

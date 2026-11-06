@@ -1,5 +1,7 @@
 'use client';
 
+import { CountrySelect } from '@/components/CountrySelect';
+
 import ResponsiveTable from '@/components/ResponsiveTable';
 
 import { RegulatorRecord, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
@@ -349,7 +351,7 @@ export default function BusinessToolsPlansPage() {
           ) : <div style={{ color: 'var(--muted)' }}>No country overrides.</div>}
           {isSuperAdmin ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))', gap: '0.75rem', alignItems: 'end' }}>
-              <label style={{ display: 'grid', gap: '0.25rem' }}><span>Country code</span><input maxLength={2} placeholder="CD" value={priceDraft.countryCode} onChange={(e) => setPriceDraft((p) => ({ ...p, countryCode: e.target.value.toUpperCase() }))} /></label>
+              <label style={{ display: 'grid', gap: '0.25rem' }}><span>Country code</span><CountrySelect required emptyLabel="Select country" value={priceDraft.countryCode} onChange={(e) => setPriceDraft((p) => ({ ...p, countryCode: e.target.value.toUpperCase() }))} /></label>
               <label style={{ display: 'grid', gap: '0.25rem' }}><span>Amount</span><input type="number" min="0" step="0.01" value={priceDraft.amount} onChange={(e) => setPriceDraft((p) => ({ ...p, amount: e.target.value }))} /></label>
               <label style={{ display: 'grid', gap: '0.25rem' }}><span>Currency</span><input maxLength={3} value={priceDraft.currency} onChange={(e) => setPriceDraft((p) => ({ ...p, currency: e.target.value.toUpperCase() }))} /></label>
               <button type="button" className="btn-primary" onClick={requestPriceSave}>Review country price</button>

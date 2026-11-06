@@ -1,5 +1,7 @@
 'use client';
 
+import { CountrySelect } from '@/components/CountrySelect';
+
 import ResponsiveTable from '@/components/ResponsiveTable';
 
 import { CatalogSelect } from '@/components/CatalogSelect';
@@ -547,7 +549,7 @@ export default function FeeConfigsPage() {
       try {
         const [pmpRes, countryRes, pmRes, provRes, bpbpRes, billProductRes, billProviderRes, cryptoProductRes] = await Promise.all([
           api.paymentMethodPaymentProviders.options(new URLSearchParams({ page: '0', size: '200' })),
-          api.countries.list(new URLSearchParams({ page: '0', size: '200' })),
+          api.countries.options(),
           api.paymentMethods.options(new URLSearchParams({ page: '0', size: '200' })),
           api.paymentProviders.list(new URLSearchParams({ page: '0', size: '200' })),
           api.billProductBillProviders.options(new URLSearchParams({ page: '0', size: '200' })),
@@ -1364,14 +1366,14 @@ export default function FeeConfigsPage() {
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="countryId">Country</label>
-        <PresentationSelect id="countryId" value={draft.countryId} onChange={(e) => setDraft((p) => ({ ...p, countryId: e.target.value }))}>
+        <CountrySelect records={countries} id="countryId" value={draft.countryId} onChange={(e) => setDraft((p) => ({ ...p, countryId: e.target.value }))}>
           <option value="">All countries (global)</option>
           {countries.map((c) => (
             <option data-regulator-restricted={isRegulatorRestrictedRecord(c)} key={c.id} value={c.id}>
               {c.name} ({c.alpha2Code}) #{c.id}
             </option>
           ))}
-        </PresentationSelect>
+        </CountrySelect>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="paymentMethodPaymentProviderId">Payment Method Route</label>
@@ -1754,14 +1756,14 @@ export default function FeeConfigsPage() {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="filterCountry">Country</label>
-            <PresentationSelect id="filterCountry" value={filters.countryId} onChange={(e) => setFilters((p) => ({ ...p, countryId: e.target.value }))}>
+            <CountrySelect records={countries} id="filterCountry" value={filters.countryId} onChange={(e) => setFilters((p) => ({ ...p, countryId: e.target.value }))}>
               <option value="">All</option>
               {countries.map((c) => (
                 <option data-regulator-restricted={isRegulatorRestrictedRecord(c)} key={c.id} value={c.id}>
                   {c.name} ({c.alpha2Code})
                 </option>
               ))}
-            </PresentationSelect>
+            </CountrySelect>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="filterPaymentMethod">Payment Method</label>
@@ -2026,7 +2028,7 @@ export default function FeeConfigsPage() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="bulkCountryId">Country filter</label>
-                <PresentationSelect
+                <CountrySelect records={countries}
                   id="bulkCountryId"
                   value={bulkProviderDraft.countryId}
                   onChange={(e) => setBulkProviderDraft((p) => ({ ...p, countryId: e.target.value }))}
@@ -2038,7 +2040,7 @@ export default function FeeConfigsPage() {
                       {country.name} ({country.alpha2Code}) #{country.id}
                     </option>
                   ))}
-                </PresentationSelect>
+                </CountrySelect>
               </div>
             </div>
 

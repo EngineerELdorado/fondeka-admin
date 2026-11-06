@@ -1,5 +1,7 @@
 'use client';
 
+import { CountrySelect } from '@/components/CountrySelect';
+
 import { useEffect, useMemo, useState } from 'react';
 import { PresentationLink as Link } from '@/components/RegulatorPresentation';
 import { api } from '@/lib/api';
@@ -225,7 +227,7 @@ export default function CardHolderCountryPoliciesPage() {
           <div style={{ display: 'grid', gap: '0.85rem', marginTop: '0.75rem' }}>
             <div style={{ display: 'grid', gap: '0.25rem' }}>
               <label htmlFor="countryCode">Country</label>
-              <select
+              <CountrySelect records={COUNTRY_OPTIONS}
                 id="countryCode"
                 value={draft.countryCode}
                 onChange={(e) => setDraft((prev) => ({ ...prev, countryCode: e.target.value }))}
@@ -237,7 +239,7 @@ export default function CardHolderCountryPoliciesPage() {
                     {codeToFlag(country.cca2)} {country.name} ({country.cca2})
                   </option>
                 ))}
-              </select>
+              </CountrySelect>
             </div>
 
             <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

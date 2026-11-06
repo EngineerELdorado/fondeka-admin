@@ -1,5 +1,7 @@
 'use client';
 
+import { CountrySelect } from '@/components/CountrySelect';
+
 import { regulatorVisibleFields } from '@/lib/regulator-presentation';
 
 import { useAuth } from '@/contexts/AuthContext';
@@ -180,7 +182,7 @@ export default function RechargeCatalogPage() {
   useEffect(() => {
     const loadCountries = async () => {
       try {
-        const res = await api.countries.list(new URLSearchParams({ page: '0', size: '250' }));
+        const res = await api.countries.options();
         const list = Array.isArray(res) ? res : res?.content || [];
         setCountries(list || []);
       } catch {
@@ -295,7 +297,7 @@ export default function RechargeCatalogPage() {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="countryCode">Country</label>
-            <select id="countryCode" value={filters.countryCode} onChange={(e) => { setPage(0); setFilters((p) => ({ ...p, countryCode: e.target.value })); }}>
+            <CountrySelect records={countries} id="countryCode" value={filters.countryCode} onChange={(e) => { setPage(0); setFilters((p) => ({ ...p, countryCode: e.target.value })); }}>
               <option value="">All</option>
               {countries.map((country) => {
                 const code = country.alpha2Code || country.countryCode || '';
@@ -306,7 +308,7 @@ export default function RechargeCatalogPage() {
                   </option>
                 );
               })}
-            </select>
+            </CountrySelect>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="operatorName">Operator name</label>

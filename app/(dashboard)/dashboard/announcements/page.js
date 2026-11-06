@@ -1,5 +1,7 @@
 'use client';
 
+import { CountryListField } from '@/components/CountrySelect';
+
 import { isRegulatorRestrictedRecord } from '@/lib/regulator-presentation';
 
 import { PresentationSelect, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
@@ -732,7 +734,7 @@ export default function AnnouncementsPage() {
               ].map(([field, label]) => (
                 <label key={field} style={{ display: 'grid', gap: '0.25rem' }}>
                   <span>{label}</span>
-                  <input value={draft[field]} onChange={(e) => setDraft((p) => ({ ...p, [field]: e.target.value }))} placeholder="Comma separated" />
+                  {field === 'countryIds' || field === 'countryCodes' ? <CountryListField aria-label={label} valueType={field === 'countryIds' ? 'id' : 'code'} value={draft[field]} disabled={saving || editLoading} onChange={(value) => setDraft((previous) => ({ ...previous, [field]: value }))} /> : <input value={draft[field]} onChange={(e) => setDraft((p) => ({ ...p, [field]: e.target.value }))} placeholder="Comma separated" />}
                 </label>
               ))}
             </div>

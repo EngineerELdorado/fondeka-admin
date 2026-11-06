@@ -1,5 +1,7 @@
 'use client';
 
+import { CountrySelect } from '@/components/CountrySelect';
+
 import { PresentationSelect, NonRegulatorContent, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
 
 import { Fragment, useEffect, useMemo, useState } from 'react';
@@ -3064,9 +3066,8 @@ export default function FeatureFlagsPage() {
                 <div style={{ fontWeight: 700 }}>{t('featureFlags.overrideByCountry')}</div>
                 <div style={{ display: 'grid', gap: '0.5rem' }}>
                   <label htmlFor="overrideCountryCode">{t('featureFlags.countryCode')}</label>
-                  <input
+                  <CountrySelect required emptyLabel="Select country"
                     id="overrideCountryCode"
-                    placeholder="CD"
                     value={overrideCountryCode}
                     onChange={(e) => setOverrideCountryCode(e.target.value.toUpperCase())}
                     disabled={overridesSaving}

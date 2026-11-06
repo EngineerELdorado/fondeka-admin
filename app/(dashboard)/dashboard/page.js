@@ -1,5 +1,7 @@
 'use client';
 
+import { CountrySelect } from '@/components/CountrySelect';
+
 import TableActions from '@/components/TableActions';
 
 import ResponsiveTable from '@/components/ResponsiveTable';
@@ -576,7 +578,7 @@ export default function DashboardPage() {
           api.paymentProviders.list(new URLSearchParams({ page: '0', size: '200' })),
           api.billProducts.options(new URLSearchParams({ page: '0', size: '200' })),
           api.billProviders.list(new URLSearchParams({ page: '0', size: '200' })),
-          api.countries.list(new URLSearchParams({ page: '0', size: '200' }))
+          api.countries.options()
         ]);
         const toList = (res) => (Array.isArray(res) ? res : res?.content || []);
         setPaymentMethods(toList(pmRes));
@@ -1169,14 +1171,14 @@ export default function DashboardPage() {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   <label htmlFor="countryId" style={{ color: 'var(--muted)', fontSize: '12px' }}>{t('common.country')}</label>
-                  <select id="countryId" value={filters.countryId} onChange={(e) => setFilters((p) => ({ ...p, countryId: e.target.value }))}>
+                  <CountrySelect records={countries} id="countryId" value={filters.countryId} onChange={(e) => setFilters((p) => ({ ...p, countryId: e.target.value }))}>
                     <option value="">{t('common.any')}</option>
                     {countries.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name} {c.alpha2Code ? `(${c.alpha2Code})` : ''}
                       </option>
                     ))}
-                  </select>
+                  </CountrySelect>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   <label htmlFor="accountId" style={{ color: 'var(--muted)', fontSize: '12px' }}>{t('common.accountId')}</label>

@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
+import { countryOptionDetails, filterCatalogOptions } from '@/lib/catalog-options';
 
 const emptyState = { name: '', alpha2Code: '', alpha3Code: '', defaultKycLevel: '', registrationBlocked: false };
 const SAVINGS_ENABLED_KEY = 'savings.enabled';
@@ -58,6 +59,7 @@ export default function CountriesPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
+  const [countrySearch, setCountrySearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
@@ -76,12 +78,9 @@ export default function CountriesPage() {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams();
-      params.set('page', String(page));
-      params.set('size', String(size));
-      const res = await api.countries.list(params);
-      const list = Array.isArray(res) ? res : res?.content || [];
-      setRows(list || []);
+      const list = await api.countries.options();
+      setRows(list);
+      setPage((previous) => Math.min(previous, Math.max(0, Math.ceil(list.length / size) - 1)));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -91,7 +90,10 @@ export default function CountriesPage() {
 
   useEffect(() => {
     fetchRows();
-  }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const matchingRows = useMemo(() => filterCatalogOptions(rows.map((row) => ({ record: row, value: String(row.id), label: row.name, ...countryOptionDetails(row) })), countrySearch).map((option) => option.record), [rows, countrySearch]);
+  const totalPages = Math.max(1, Math.ceil(matchingRows.length / size));
 
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
@@ -335,12 +337,12 @@ export default function CountriesPage() {
 
       <div className="card" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
         <div>
-          <label htmlFor="page">Page</label>
-          <input id="page" type="number" min={0} value={page} onChange={(e) => setPage(Number(e.target.value))} />
+          <label htmlFor="countrySearch">Find a country</label>
+          <input id="countrySearch" type="search" placeholder="Name, ISO code or ID" value={countrySearch} onChange={(event) => { setCountrySearch(event.target.value); setPage(0); }} />
         </div>
         <div>
           <label htmlFor="size">Size</label>
-          <input id="size" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
+          <input id="size" type="number" min={1} value={size} onChange={(event) => { setSize(Math.max(1, Number(event.target.value) || 20)); setPage(0); }} />
         </div>
         <button type="button" onClick={fetchRows} disabled={loading} className="btn-primary">
           {loading ? 'Loading…' : 'Refresh'}
@@ -353,7 +355,7 @@ export default function CountriesPage() {
       {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
       {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
-      <DataTable columns={columns} rows={rows} page={page} pageSize={size} onPageChange={setPage} emptyLabel="No countries found" />
+      <DataTable columns={columns} rows={matchingRows.slice(page * size, (page + 1) * size)} page={page} pageSize={size} onPageChange={setPage} totalElements={matchingRows.length} totalPages={totalPages} canNext={page + 1 < totalPages} emptyLabel="No countries found" />
 
       {showCreate && (
         <Modal title="Add country" onClose={() => setShowCreate(false)}>

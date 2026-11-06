@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { CatalogSelect } from '@/components/CatalogSelect';
+import { CountryListField } from '@/components/CountrySelect';
 import { useAuth } from '@/contexts/AuthContext';
 import { isRegulatorRestrictedRecord, isRegulatorRestrictedService } from '@/lib/regulator-presentation';
 import { contactAudienceGroups } from '@/lib/contact-exports';
@@ -21,7 +22,7 @@ export function ContactExportAudience({ filters, onChange, disabled }) {
     if (!transactionOpen) return undefined;
     let cancelled = false;
     setLoading(true); setError('');
-    Promise.all([api.countries.list(new URLSearchParams({ size: '400' })), api.paymentMethods.options(), api.billProducts.options()])
+    Promise.all([api.countries.options(), api.paymentMethods.options(), api.billProducts.options()])
       .then(([countries, methods, products]) => { if (!cancelled) setCatalogs({ countries: list(countries), methods: list(methods), products: list(products) }); })
       .catch(() => { if (!cancelled) setError('Catalog options could not be loaded. Retry, or enter exact IDs below.'); })
       .finally(() => { if (!cancelled) setLoading(false); });
@@ -31,6 +32,7 @@ export function ContactExportAudience({ filters, onChange, disabled }) {
   const renderField = ([key, label, kind, placeholder]) => {
     if (enableRegulatorMode !== false && isRegulatorRestrictedService(key)) return null;
     const input = filters[key] ?? '';
+    if (key === 'countryIds' || key === 'countryCodes') return <label key={key} style={{ display: 'grid', gap: '.3rem', minWidth: 0 }}><span>{label}</span><CountryListField aria-label={label} valueType={key === 'countryIds' ? 'id' : 'code'} value={input} disabled={disabled} onChange={(value) => onChange(key, value)} /></label>;
     if (['paymentMethodIds', 'billProductIds'].includes(key)) {
       const records = key === 'paymentMethodIds' ? catalogs.methods : catalogs.products;
       const values = Array.isArray(input) ? input.map(String) : String(input).split(',').map((value) => value.trim()).filter(Boolean);

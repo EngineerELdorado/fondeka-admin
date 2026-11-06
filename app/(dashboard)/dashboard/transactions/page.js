@@ -12,6 +12,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { DataTable } from '@/components/DataTable';
 import TableText, { TableCellLines } from '@/components/TableCell';
+import ResellerTransactionPanel from '@/components/resellers/TransactionInspector';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
@@ -2689,6 +2690,7 @@ export default function TransactionsPage() {
             {detailLoading ? (
               <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Refreshing transaction details…</div>
             ) : null}
+            <ResellerTransactionPanel key={selected?.id} transaction={selected} />
             <DetailGrid
               rows={[
                 { label: 'Transaction ID', value: selected?.transactionId || selected?.id },

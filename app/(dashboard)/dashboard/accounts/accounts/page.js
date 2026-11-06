@@ -1,5 +1,7 @@
 'use client';
 
+import { CountrySelect } from '@/components/CountrySelect';
+
 import TableActions from '@/components/TableActions';
 
 import ResponsiveTable from '@/components/ResponsiveTable';
@@ -452,7 +454,7 @@ export default function AccountsListPage() {
   useEffect(() => {
     const fetchCountries = async () => {
       try {
-        const res = await api.countries.list(new URLSearchParams({ page: '0', size: '200' }));
+        const res = await api.countries.options();
         const list = Array.isArray(res) ? res : res?.content || [];
         setCountries(list);
       } catch {
@@ -1179,14 +1181,14 @@ export default function AccountsListPage() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="countryId">Country</label>
-                <PresentationSelect id="countryId" value={filters.countryId} onChange={(e) => setFilters((p) => ({ ...p, countryId: e.target.value }))}>
+                <CountrySelect records={countries} id="countryId" value={filters.countryId} onChange={(e) => setFilters((p) => ({ ...p, countryId: e.target.value }))}>
                   <option value="">All</option>
                   {countries.map((c) => (
                     <option data-regulator-restricted={isRegulatorRestrictedRecord(c)} key={c.id} value={c.id}>
                       {c.name} ({c.alpha2Code})
                     </option>
                   ))}
-                </PresentationSelect>
+                </CountrySelect>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="blacklisted">{t('accounts.blacklistedFilter')}</label>
@@ -2066,14 +2068,14 @@ export default function AccountsListPage() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="feeCountryId">{t('accounts.countryOptional')}</label>
-                <PresentationSelect id="feeCountryId" value={feeCountryId} onChange={(e) => setFeeCountryId(e.target.value)}>
+                <CountrySelect records={countries} id="feeCountryId" value={feeCountryId} onChange={(e) => setFeeCountryId(e.target.value)}>
                   <option value="">{t('common.any')}</option>
                   {countries.map((c) => (
                     <option data-regulator-restricted={isRegulatorRestrictedRecord(c)} key={c.id} value={c.id}>
                       {c.name} {c.alpha2Code ? `(${c.alpha2Code})` : ''}
                     </option>
                   ))}
-                </PresentationSelect>
+                </CountrySelect>
               </div>
             </div>
 

@@ -1,5 +1,7 @@
 'use client';
 
+import { CountrySelect, CountryListField } from '@/components/CountrySelect';
+
 
 import { CatalogSelect } from '@/components/CatalogSelect';
 import { isRegulatorRestrictedRecord, isRegulatorRestrictedService } from '@/lib/regulator-presentation';
@@ -177,7 +179,7 @@ export default function NotificationPushCampaignsPage() {
       setCountryLoading(true);
       try {
         const [countryRes, paymentMethodRes, paymentProviderRes, billProductRes] = await Promise.all([
-          api.countries.list(new URLSearchParams({ page: '0', size: '400' })),
+          api.countries.options(),
           api.paymentMethods.options(new URLSearchParams({ page: '0', size: '200' })),
           api.paymentProviders.list(new URLSearchParams({ page: '0', size: '200' })),
           api.billProducts.options(new URLSearchParams({ page: '0', size: '200' }))
@@ -600,7 +602,7 @@ export default function NotificationPushCampaignsPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '0.75rem' }}>
               <label style={{ display: 'grid', gap: '0.35rem' }}>
                 <span>Countries ({countryLoading ? 'loading...' : `${countries.length} available`})</span>
-                <PresentationSelect
+                <CountrySelect records={countries} loading={countryLoading}
                   multiple
                   value={selectedCountryIds}
                   onChange={(e) => {
@@ -619,12 +621,12 @@ export default function NotificationPushCampaignsPage() {
                       </option>
                     );
                   })}
-                </PresentationSelect>
+                </CountrySelect>
               </label>
               <div style={{ display: 'grid', gap: '0.75rem' }}>
                 <label style={{ display: 'grid', gap: '0.35rem' }}>
                   <span>Country codes override</span>
-                  <input value={countryCodesOverride} onChange={(e) => setCountryCodesOverride(e.target.value)} placeholder="cd, rw" />
+                  <CountryListField aria-label="Country codes override" value={countryCodesOverride} onChange={setCountryCodesOverride} />
                 </label>
                 <label style={{ display: 'grid', gap: '0.35rem' }}>
                   <span>Device languages</span>

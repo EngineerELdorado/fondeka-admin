@@ -1,5 +1,7 @@
 'use client';
 
+import { CountrySelect } from '@/components/CountrySelect';
+
 import TableActions from '@/components/TableActions';
 
 import ResponsiveTable from '@/components/ResponsiveTable';
@@ -19,6 +21,7 @@ import { announcementPopupDraft, notificationAnnouncementPayload } from '@/lib/a
 
 import { useToast } from '@/contexts/ToastContext';
 import { BusinessToolsAccountPanel } from '@/components/BusinessToolsAccountPanel';
+import ResellerAccountPanel from '@/components/resellers/AccountWorkspace';
 import { SandboxHistoryLink } from '@/components/business-api-sandbox/Common';
 import { AccountRegulatorModePanel } from '@/components/AccountRegulatorModePanel';
 import COUNTRIES from '@/data/countries';
@@ -2923,7 +2926,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         const [pmpRes, billProductsRes, countryRes, cardProductProvidersRes, loanProductsRes, cryptoProductsRes, cryptoNetworksRes] = await Promise.all([
           api.paymentMethodPaymentProviders.options(new URLSearchParams({ page: '0', size: '200' })),
           api.billProducts.options(new URLSearchParams({ page: '0', size: '500' })),
-          api.countries.list(new URLSearchParams({ page: '0', size: '200' })),
+          api.countries.options(),
           api.cardProductCardProviders.list(new URLSearchParams({ page: '0', size: '200' })),
           api.loanProducts.list(new URLSearchParams({ page: '0', size: '200' })),
           api.cryptoProducts.list(new URLSearchParams({ page: '0', size: '200' })),
@@ -4237,6 +4240,8 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         <BusinessToolsAccountPanel accountId={resolvedAccountId} />
       ) : null}
 
+      {resolvedAccountId !== null && resolvedAccountId !== undefined ? <ResellerAccountPanel key={`reseller-${resolvedAccountId}`} accountId={resolvedAccountId} /> : null}
+
       <details className="card" style={{ padding: '1rem' }}>
         <summary style={{ cursor: 'pointer', listStyle: 'none' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -4566,14 +4571,14 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'end' }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minWidth: 'min(240px, 100%)', flex: 1 }}>
             <span>Country (ISO alpha-2)</span>
-            <PresentationSelect value={countryCodeDraft} onChange={(e) => setCountryCodeDraft(e.target.value)}>
+            <CountrySelect records={COUNTRIES} value={countryCodeDraft} onChange={(e) => setCountryCodeDraft(e.target.value)}>
               <option value="">Select country</option>
               {COUNTRIES.map((country) => (
                 <option data-regulator-restricted={isRegulatorRestrictedRecord(country)} key={country.cca2} value={country.cca2}>
                   {country.flag} {country.name} ({country.cca2})
                 </option>
               ))}
-            </PresentationSelect>
+            </CountrySelect>
           </label>
           <button
             type="button"
@@ -8016,14 +8021,14 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="feeCountryId">Country (optional)</label>
-                <PresentationSelect id="feeCountryId" value={feeCountryId} onChange={(e) => setFeeCountryId(e.target.value)}>
+                <CountrySelect records={countries} id="feeCountryId" value={feeCountryId} onChange={(e) => setFeeCountryId(e.target.value)}>
                   <option value="">Any</option>
                   {countries.map((c) => (
                     <option data-regulator-restricted={isRegulatorRestrictedRecord(c)} key={c.id} value={c.id}>
                       {c.name} {c.alpha2Code ? `(${c.alpha2Code})` : ''}
                     </option>
                   ))}
-                </PresentationSelect>
+                </CountrySelect>
               </div>
             </div>
 

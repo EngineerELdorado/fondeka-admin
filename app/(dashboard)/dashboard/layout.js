@@ -88,6 +88,7 @@ const navItems = [
   { href: '/dashboard/notification-anonymous-installs', labelKey: 'layout.nav.anonymousInstalls' },
   { href: '/dashboard/notification-push-campaign-history', labelKey: 'layout.nav.pushCampaignHistory' },
   { href: '/dashboard/referral-campaigns', labelKey: 'layout.nav.referralCampaigns' },
+  { href: '/dashboard/resellers', labelKey: 'layout.nav.resellers', label: 'Reseller program', adminOnly: true },
   { href: '/dashboard/provider-tokens', labelKey: 'layout.nav.providerTokens' },
   { href: '/dashboard/providers/maplerad/bank-codes', labelKey: 'layout.nav.mapleradBankCodes' },
   { href: '/dashboard/providers/maplerad/sandbox', labelKey: 'layout.nav.mapleradSandbox' },

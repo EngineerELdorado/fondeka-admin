@@ -1,5 +1,7 @@
 'use client';
 
+import { CountrySelect } from '@/components/CountrySelect';
+
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
@@ -1064,7 +1066,7 @@ export default function CurrencyProductsPage() {
   const renderCountryMultiSelect = (id, label, value, onChange) => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
       <label htmlFor={id}>{label}</label>
-      <select
+      <CountrySelect records={countryOptions} aria-label={label}
         id={id}
         multiple
         value={normalizeCountryCodes(value)}
@@ -1076,7 +1078,7 @@ export default function CurrencyProductsPage() {
             {country.cca2} - {country.name}
           </option>
         ))}
-      </select>
+      </CountrySelect>
     </div>
   );
 

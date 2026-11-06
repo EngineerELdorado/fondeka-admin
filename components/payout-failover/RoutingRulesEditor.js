@@ -1,5 +1,7 @@
 'use client';
 
+import { CountrySelect } from '@/components/CountrySelect';
+
 import { useState } from 'react';
 import { CatalogSelect } from '@/components/CatalogSelect';
 import { newPayoutScope, payoutOrderExecutable, payoutScopeLabel } from '@/lib/payout-failover';
@@ -22,7 +24,7 @@ export default function RoutingRulesEditor({ rules, methods, capabilities, disab
           <Field label={`Scope ${index + 1} name (optional)`}><input maxLength={120} value={rule.name || ''} onChange={(event) => update(index, 'name', event.target.value)} /></Field>
           <Field label={`Scope ${index + 1} behavior`} tip="Block is an explicit override: it prevents broader defaults from being used. Removing this scope restores inheritance. A disabled provider preference still blocks inheritance for its matching scope."><select value={String(rule.enabled)} onChange={(event) => update(index, 'enabled', event.target.value === 'true')}><option value="true">Allow backups for this scope</option><option value="false">Block backups for this scope</option></select></Field>
           <Field label={`Scope ${index + 1} payment method`} help="Any method leaves this filter unrestricted."><CatalogSelect kind="payment-method" records={options} value={rule.paymentMethod || ''} disabled={disabled} onChange={(event) => update(index, 'paymentMethod', event.target.value || null)}><option value="">Any payment method</option>{options.map((method) => <option key={method.name} value={method.name}>{method.displayName || method.name}</option>)}{rule.paymentMethod && !options.some((method) => method.name === rule.paymentMethod) ? <option value={rule.paymentMethod}>{rule.paymentMethod} · saved method unavailable in catalog</option> : null}</CatalogSelect></Field>
-          <Field label={`Scope ${index + 1} destination country`} help="ISO alpha-2, e.g. BJ. Blank means any country." tip="This is the payment method's destination country. It is independent of the customer account's country."><input maxLength={2} placeholder="Any country" value={rule.countryCode || ''} onChange={(event) => update(index, 'countryCode', event.target.value.toUpperCase())} /></Field>
+          <Field label={`Scope ${index + 1} destination country`} help="ISO alpha-2, e.g. BJ. Blank means any country." tip="This is the payment method's destination country. It is independent of the customer account's country."><CountrySelect emptyLabel="Any country" value={rule.countryCode || ''} onChange={(event) => update(index, 'countryCode', event.target.value.toUpperCase())} /></Field>
           <Field label={`Scope ${index + 1} payout currency`} help="Three-letter currency, e.g. XOF. Blank means any currency."><input maxLength={3} placeholder="Any currency" value={rule.currency || ''} onChange={(event) => update(index, 'currency', event.target.value.toUpperCase())} /></Field>
         </div>
         <div className="failover-card"><strong>Provider order</strong><details className="failover-technical"><summary>Provider limits & evidence</summary><p>At most {capabilities.maximumProviders} distinct providers can execute, including the original. Every provider before the last must support reviewed non-payment evidence. An alternate-only provider belongs last. Unsupported orders can be stored only with this scope blocked. Primary routing ranks are unchanged.</p></details>

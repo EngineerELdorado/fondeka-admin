@@ -1,5 +1,7 @@
 'use client';
 
+import { CountrySelect as CountryPicker } from '@/components/CountrySelect';
+
 import ResponsiveTable from '@/components/ResponsiveTable';
 
 import { useEffect, useMemo, useState } from 'react';
@@ -12,14 +14,14 @@ const COUNTRY_OPTIONS = COUNTRIES.filter((country, index, list) => (
 ));
 
 const CountrySelect = ({ value, onChange, disabled, emptyLabel = 'Select country' }) => (
-  <select value={value || ''} onChange={(e) => onChange(e.target.value)} disabled={disabled}>
+  <CountryPicker records={COUNTRY_OPTIONS} value={value || ''} onChange={(e) => onChange(e.target.value)} disabled={disabled}>
     <option value="">{emptyLabel}</option>
     {COUNTRY_OPTIONS.map((country) => (
       <option key={country.cca2} value={country.cca2}>
         {codeToFlag(country.cca2)} {country.name} ({country.cca2})
       </option>
     ))}
-  </select>
+  </CountryPicker>
 );
 
 const emptyDraft = {

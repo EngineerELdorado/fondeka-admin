@@ -1,5 +1,7 @@
 'use client';
 
+import { CountrySelect } from '@/components/CountrySelect';
+
 import { PresentationSelect, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
 
 import { regulatorVisibleFields, isRegulatorRestrictedRecord } from '@/lib/regulator-presentation';
@@ -891,14 +893,14 @@ export default function PaymentMethodsPage() {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="countryId">Country</label>
-        <PresentationSelect id="countryId" value={draft.countryId} onChange={(e) => setDraft((p) => ({ ...p, countryId: e.target.value }))}>
+        <CountrySelect records={countries} id="countryId" value={draft.countryId} onChange={(e) => setDraft((p) => ({ ...p, countryId: e.target.value }))}>
           <option value="">GLOBAL</option>
           {countries.map((c) => (
             <option data-regulator-restricted={isRegulatorRestrictedRecord(c)} key={c.id} value={c.id}>
               {c.name} ({c.alpha2Code || c.alpha3Code || c.id})
             </option>
           ))}
-        </PresentationSelect>
+        </CountrySelect>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="currency">Currency</label>
@@ -1142,7 +1144,7 @@ export default function PaymentMethodsPage() {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="filter-country-code">Country</label>
-            <PresentationSelect id="filter-country-code" value={filters.countryCode} onChange={(e) => setFilterValue('countryCode', e.target.value)}>
+            <CountrySelect records={countries} id="filter-country-code" value={filters.countryCode} onChange={(e) => setFilterValue('countryCode', e.target.value)}>
               <option value="">Any</option>
               {countries.map((country) => {
                 const code = country.alpha2Code || country.alpha3Code || '';
@@ -1153,7 +1155,7 @@ export default function PaymentMethodsPage() {
                   </option>
                 );
               })}
-            </PresentationSelect>
+            </CountrySelect>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="filter-active">Active</label>

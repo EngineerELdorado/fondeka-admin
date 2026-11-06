@@ -1,5 +1,7 @@
 'use client';
 
+import { CountrySelect } from '@/components/CountrySelect';
+
 import { NonRegulatorContent, PresentationLink as Link } from '@/components/RegulatorPresentation';
 
 import { useEffect, useMemo, useState } from 'react';
@@ -73,7 +75,7 @@ export default function NotificationAnonymousPushCampaignsPage() {
     const loadCountries = async () => {
       setCountryLoading(true);
       try {
-        const res = await api.countries.list(new URLSearchParams({ page: '0', size: '400' }));
+        const res = await api.countries.options();
         if (!cancelled) setCountries(toList(res));
       } catch {
         if (!cancelled) setCountries([]);
@@ -232,7 +234,7 @@ export default function NotificationAnonymousPushCampaignsPage() {
           </div>
           <div style={{ display: 'grid', gap: '0.25rem' }}>
             <label htmlFor="countries">Country codes</label>
-            <select
+            <CountrySelect records={countries} loading={countryLoading}
               id="countries"
               multiple
               value={selectedCountryCodes}
@@ -248,7 +250,7 @@ export default function NotificationAnonymousPushCampaignsPage() {
                   </option>
                 );
               })}
-            </select>
+            </CountrySelect>
             <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
               {countryLoading ? 'Loading countries…' : 'Leave empty to target all countries.'}
             </div>

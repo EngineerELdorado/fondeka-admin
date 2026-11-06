@@ -1,5 +1,7 @@
 'use client';
 
+import { CountrySelect } from '@/components/CountrySelect';
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PresentationLink as Link } from '@/components/RegulatorPresentation';
 import { DataTable } from '@/components/DataTable';
@@ -208,7 +210,7 @@ export default function UtilityBillCatalogSyncPage() {
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="countryFilter">Country</label>
-          <input id="countryFilter" value={countryFilter} onChange={(e) => setCountryFilter(e.target.value.toUpperCase())} placeholder="CD" maxLength={2} />
+          <CountrySelect emptyLabel="Any country" id="countryFilter" value={countryFilter} onChange={(e) => setCountryFilter(e.target.value.toUpperCase())} />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="cronEnabledFilter">Cron Enabled</label>

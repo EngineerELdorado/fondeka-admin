@@ -408,8 +408,10 @@ label {
 .catalog-select__search input { width: 100%; min-width: 0; height: 42px; padding: .5rem; background: transparent; border: 0; outline: none; box-shadow: none; color: var(--text); font: inherit; }
 .catalog-select__filters { display: flex; align-items: center; gap: .65rem; padding: 0 .75rem .5rem; flex-shrink: 0; }
 .catalog-select__filters select { width: 100%; min-width: 0; min-height: 38px; font: inherit; border-radius: 8px; }
-.catalog-select__filters label { display: flex; align-items: center; gap: .35rem; white-space: nowrap; font-size: 12px; }
-.catalog-select__filters input { width: 16px; height: 16px; margin: 0; }
+.catalog-select__filters > .catalog-select { flex: 1; min-width: 0; }
+.catalog-select__filters > .catalog-select > .catalog-select__trigger { min-height: 38px; padding: .4rem .6rem; }
+.catalog-select__filters > label { display: flex; align-items: center; gap: .35rem; white-space: nowrap; font-size: 12px; }
+.catalog-select__filters > label > input { width: 16px; height: 16px; margin: 0; }
 .catalog-select__count { color: var(--muted); font-size: 12px; padding: .1rem .85rem .5rem; flex-shrink: 0; }
 .catalog-select__results { overflow-y: auto; overscroll-behavior: contain; min-height: 70px; flex: 1 1 auto; }
 .catalog-select__group { position: sticky; top: 0; background: var(--surface-muted, var(--bg)); color: var(--muted); padding: .5rem .85rem; font-size: 12px; font-weight: 700; display: flex; justify-content: space-between; gap: .5rem; z-index: 1; }

@@ -4,6 +4,9 @@
 import { CatalogSelect } from '@/components/CatalogSelect';
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
+import AutoRefundPolicyPanel from '@/components/AutoRefundPolicyPanel';
+import { refundPermissions } from '@/lib/auto-refund-policy';
 import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
 
 const MIN_COOLDOWN = 1;
@@ -94,6 +97,7 @@ const TAB_ITEMS = [
   { key: 'overview', label: 'Overview' },
   { key: 'fees', label: 'Fees & Actions' },
   { key: 'operations', label: 'Operations' },
+  { key: 'auto-refunds', label: 'Automatic refunds' },
   { key: 'crypto', label: 'Crypto & Payouts' },
   { key: 'app', label: 'App, KYC & Loans' }
 ];
@@ -132,24 +136,6 @@ const normalizeDepositPromptThresholdAmounts = (value) => {
     Object.entries(value)
       .map(([currency, amount]) => [normalizeCurrencyCode(currency), formatUsdValue(amount)])
       .filter(([currency, amount]) => currency && amount !== '')
-      .sort(([left], [right]) => left.localeCompare(right))
-  );
-};
-const normalizeAutoRefundAllowedAccountIdsByAction = (value) => {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
-  return Object.fromEntries(
-    Object.entries(value)
-      .map(([action, accountIds]) => [
-        String(action || '').trim(),
-        Array.from(
-          new Set(
-            (Array.isArray(accountIds) ? accountIds : [])
-              .map((accountId) => String(accountId ?? '').trim())
-              .filter(Boolean)
-          )
-        )
-      ])
-      .filter(([action, accountIds]) => action && accountIds.length > 0)
       .sort(([left], [right]) => left.localeCompare(right))
   );
 };
@@ -235,21 +221,12 @@ const normalizeCollectionSourceRiskRulesFromResponse = (value) => {
     .filter((rule) => rule && (rule.action || rule.paymentMethodType || rule.paymentMethodId || rule.thresholds.length));
 };
 
-const autoRefundChipStyle = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: '0.35rem',
-  padding: '0.35rem 0.65rem',
-  borderRadius: '999px',
-  border: '1px solid color-mix(in srgb, var(--accent) 22%, var(--border))',
-  background: 'var(--accent-soft)',
-  color: 'var(--text)',
-  fontSize: '12px',
-  fontWeight: 700
-};
-
 export default function WalletPolicyConfigPage() {
+  const { session } = useAuth();
+  const { canWrite } = refundPermissions(session);
+  const [configLoaded, setConfigLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
+  const [refundVisited, setRefundVisited] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -282,39 +259,12 @@ export default function WalletPolicyConfigPage() {
   const [depositPromptThresholdAmounts, setDepositPromptThresholdAmounts] = useState({});
   const [transactionsEligibleForLoanEligibility, setTransactionsEligibleForLoanEligibility] = useState(true);
   const [forceSameCurrencyActions, setForceSameCurrencyActions] = useState([]);
-  const [autoRefundBlockedActions, setAutoRefundBlockedActions] = useState([]);
-  const [autoRefundTimeoutAllowedActions, setAutoRefundTimeoutAllowedActions] = useState([]);
-  const [autoRefundAllowedAccountIdsByAction, setAutoRefundAllowedAccountIdsByAction] = useState({});
-  const [autoRefundActionSearch, setAutoRefundActionSearch] = useState('');
   const [globalFeeApplicationMode, setGlobalFeeApplicationMode] = useState('EXCLUSIVE');
   const [actionFeeApplicationModes, setActionFeeApplicationModes] = useState({});
   const [actionMinimumAmounts, setActionMinimumAmounts] = useState({});
   const [actionMaximumAmounts, setActionMaximumAmounts] = useState({});
   const [collectionSourceRiskRules, setCollectionSourceRiskRules] = useState([]);
   const [walletActionDefaults, setWalletActionDefaults] = useState(DEFAULT_WALLET_ACTION_DEFAULTS);
-
-  const autoRefundActionOptions = useMemo(() => {
-    const known = new Set(ACTION_OPTIONS);
-    for (const action of autoRefundBlockedActions) {
-      if (action) known.add(String(action));
-    }
-    return Array.from(known).sort();
-  }, [autoRefundBlockedActions]);
-
-  const filteredAutoRefundActionOptions = useMemo(() => {
-    const query = autoRefundActionSearch.trim().toLowerCase();
-    if (!query) return autoRefundActionOptions;
-    return autoRefundActionOptions.filter((action) => {
-      const raw = String(action);
-      return raw.toLowerCase().includes(query) || humanizeEnum(raw).toLowerCase().includes(query);
-    });
-  }, [autoRefundActionOptions, autoRefundActionSearch]);
-
-  const selectedAutoRefundBlockedActions = useMemo(
-    () =>
-      Array.from(new Set((Array.isArray(autoRefundBlockedActions) ? autoRefundBlockedActions : []).map((action) => String(action)).filter(Boolean))).sort(),
-    [autoRefundBlockedActions]
-  );
 
   const actionFeeModeEntries = useMemo(
     () =>
@@ -447,6 +397,7 @@ export default function WalletPolicyConfigPage() {
 
   const loadConfig = async () => {
     setLoading(true);
+    setConfigLoaded(false);
     setError(null);
     setInfo(null);
     try {
@@ -467,11 +418,6 @@ export default function WalletPolicyConfigPage() {
       const incomingActions = Array.isArray(res?.payoutRateLimitActions) ? res.payoutRateLimitActions : [];
       setPayoutRateLimitActions(incomingActions.filter((action) => ALLOWED_PAYOUT_ACTIONS.includes(String(action))));
       setForceSameCurrencyActions(normalizeForceSameCurrencyActions(res?.forceSameCurrencyActions));
-      setAutoRefundBlockedActions(Array.isArray(res?.autoRefundBlockedActions) ? res.autoRefundBlockedActions.map((action) => String(action)).filter(Boolean) : []);
-      setAutoRefundTimeoutAllowedActions(
-        Array.isArray(res?.autoRefundTimeoutAllowedActions) ? res.autoRefundTimeoutAllowedActions.map((action) => String(action)).filter(Boolean) : []
-      );
-      setAutoRefundAllowedAccountIdsByAction(normalizeAutoRefundAllowedAccountIdsByAction(res?.autoRefundAllowedAccountIdsByAction));
       setCryptoProviderCollectionMinimumUsd(formatUsdValue(res?.cryptoProviderCollectionMinimumUsd));
       setCryptoProviderCollectionMaximumUsd(formatUsdValue(res?.cryptoProviderCollectionMaximumUsd));
       setSendCryptoMinimumUsd(formatUsdValue(res?.sendCryptoMinimumUsd));
@@ -535,6 +481,7 @@ export default function WalletPolicyConfigPage() {
         walletWithdrawActionSubtitleFr: res?.walletWithdrawActionSubtitleFr ?? DEFAULT_WALLET_ACTION_DEFAULTS.walletWithdrawActionSubtitleFr,
         walletWithdrawActionShowSubText: res?.walletWithdrawActionShowSubText !== false
       });
+      setConfigLoaded(true);
     } catch (err) {
       setError(err?.message || 'Failed to load wallet policy config');
     } finally {
@@ -547,6 +494,7 @@ export default function WalletPolicyConfigPage() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const save = async () => {
+    if (!configLoaded || loading || saving || !canWrite) return;
     const parsed = Number(cooldown);
     if (!Number.isInteger(parsed) || parsed < MIN_COOLDOWN || parsed > MAX_COOLDOWN) {
       setError(`Inter-transfer cooldown must be an integer between ${MIN_COOLDOWN} and ${MAX_COOLDOWN}.`);
@@ -560,43 +508,6 @@ export default function WalletPolicyConfigPage() {
       )
     );
     const normalizedForceSameCurrencyActions = normalizeForceSameCurrencyActions(forceSameCurrencyActions);
-    const normalizedAutoRefundBlockedActions = Array.from(
-      new Set(
-        (Array.isArray(autoRefundBlockedActions) ? autoRefundBlockedActions : [])
-          .map((action) => String(action || '').trim())
-          .filter(Boolean)
-      )
-    );
-    const normalizedAutoRefundTimeoutAllowedActions = Array.from(
-      new Set(
-        (Array.isArray(autoRefundTimeoutAllowedActions) ? autoRefundTimeoutAllowedActions : [])
-          .map((action) => String(action || '').trim())
-          .filter(Boolean)
-      )
-    );
-    const normalizedAutoRefundAllowedAccountIdsByAction = {};
-    for (const [action, accountIds] of Object.entries(autoRefundAllowedAccountIdsByAction || {})) {
-      const normalizedAction = String(action || '').trim();
-      if (!normalizedAction) continue;
-      const normalizedAccountIds = [];
-      const seenAccountIds = new Set();
-      for (const accountId of Array.isArray(accountIds) ? accountIds : []) {
-        const rawAccountId = String(accountId ?? '').trim();
-        if (!rawAccountId) continue;
-        const parsedAccountId = Number(rawAccountId);
-        if (!Number.isInteger(parsedAccountId) || parsedAccountId <= 0) {
-          setError(`Allowed account ID for ${humanizeEnum(normalizedAction)} must be a positive integer.`);
-          return;
-        }
-        if (!seenAccountIds.has(parsedAccountId)) {
-          seenAccountIds.add(parsedAccountId);
-          normalizedAccountIds.push(parsedAccountId);
-        }
-      }
-      if (normalizedAccountIds.length > 0) {
-        normalizedAutoRefundAllowedAccountIdsByAction[normalizedAction] = normalizedAccountIds;
-      }
-    }
     const normalizedActionFeeModes = Object.fromEntries(
       Object.entries(actionFeeApplicationModes || {})
         .map(([action, mode]) => [String(action || '').trim(), String(mode || '').toUpperCase()])
@@ -839,9 +750,6 @@ export default function WalletPolicyConfigPage() {
         transactionsEligibleForLoanEligibility: Boolean(transactionsEligibleForLoanEligibility),
         reviewPromptCompletedTransactionsThreshold:
           reviewPromptThresholdRaw === '' ? null : reviewPromptThresholdParsed,
-        autoRefundBlockedActions: normalizedAutoRefundBlockedActions,
-        autoRefundTimeoutAllowedActions: normalizedAutoRefundTimeoutAllowedActions,
-        autoRefundAllowedAccountIdsByAction: normalizedAutoRefundAllowedAccountIdsByAction,
         globalFeeApplicationMode: globalFeeApplicationMode || 'EXCLUSIVE',
         actionFeeApplicationModes: normalizedActionFeeModes,
         actionMinimumAmounts: normalizedActionMinimumAmounts,
@@ -864,15 +772,12 @@ export default function WalletPolicyConfigPage() {
       <div className="card" style={{ display: 'grid', gap: '0.3rem' }}>
         <div style={{ fontSize: '20px', fontWeight: 800 }}>Wallet Policy Config</div>
         <div style={{ color: 'var(--muted)' }}>
-          Controls INTER_TRANSFER protection: same sender cannot transfer again to the same recipient until cooldown expires.
-        </div>
-        <div style={{ color: 'var(--muted)' }}>
-          Also controls payout anti-fraud gate for repeated payouts to the same recipient within the cooldown window.
+          Configure wallet limits, payment safeguards, fees and automatic refund policy.
         </div>
       </div>
 
-      {error && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
-      {info && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
+      {error && activeTab !== 'auto-refunds' && <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
+      {info && activeTab !== 'auto-refunds' && <div className="card" style={{ color: '#15803d', fontWeight: 700 }}>{info}</div>}
 
       <div className="config-tabs-shell">
         <div className="config-tabs" role="tablist" aria-label="Wallet policy sections">
@@ -886,7 +791,7 @@ export default function WalletPolicyConfigPage() {
               aria-controls={`wallet-policy-panel-${tab.key}`}
               tabIndex={activeTab === tab.key ? 0 : -1}
               className={`config-tab${activeTab === tab.key ? ' is-active' : ''}`}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => { setActiveTab(tab.key); if (tab.key === 'auto-refunds') setRefundVisited(true); }}
               disabled={loading || saving}
             >
               {tab.label}
@@ -1408,6 +1313,8 @@ export default function WalletPolicyConfigPage() {
           </>
         )}
 
+        {refundVisited ? <div hidden={activeTab !== 'auto-refunds'}><AutoRefundPolicyPanel onRecovered={() => { setError(null); setInfo('Refund rules repaired. Refresh wallet settings before editing other sections.'); }} /></div> : null}
+
         {activeTab === 'operations' && (
           <>
         <div style={{ display: 'grid', gap: '0.75rem' }}>
@@ -1516,196 +1423,6 @@ export default function WalletPolicyConfigPage() {
                 </label>
               );
             })}
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gap: '0.5rem' }}>
-          <div style={{ fontWeight: 700 }}>Fund Card Provider Timeout Auto Refunds</div>
-          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-            Controls only FUND_CARD provider-timeout handling. Normal failed FUND_CARD refunds still follow the standard auto-refund block rules below.
-          </div>
-          <div style={{ display: 'grid', gap: '0.75rem', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '12px' }}>
-            <label style={{ display: 'flex', gap: '0.55rem', alignItems: 'flex-start', fontWeight: 700 }}>
-              <input
-                type="checkbox"
-                checked={autoRefundTimeoutAllowedActions.includes('FUND_CARD')}
-                onChange={(e) => {
-                  const isChecked = e.target.checked;
-                  setAutoRefundTimeoutAllowedActions((prev) => {
-                    const set = new Set((Array.isArray(prev) ? prev : []).map((action) => String(action)));
-                    if (isChecked) set.add('FUND_CARD');
-                    else set.delete('FUND_CARD');
-                    return Array.from(set);
-                  });
-                }}
-                disabled={loading || saving}
-                style={{ marginTop: '0.15rem' }}
-              />
-              <span>
-                Enable timeout auto-refund for all eligible FUND_CARD transactions
-                <span style={{ display: 'block', color: 'var(--muted)', fontSize: '12px', fontWeight: 500, marginTop: '0.2rem' }}>
-                  Saves FUND_CARD in <code>autoRefundTimeoutAllowedActions</code>. When off, only the account exceptions below can auto-refund on provider timeout.
-                </span>
-              </span>
-            </label>
-
-            <label style={{ display: 'grid', gap: '0.3rem' }}>
-              <span style={{ fontWeight: 700 }}>FUND_CARD account exceptions</span>
-              <input
-                type="text"
-                value={(autoRefundAllowedAccountIdsByAction?.FUND_CARD || []).join(', ')}
-                onChange={(e) => {
-                  const accountIds = e.target.value
-                    .split(/[,\s]+/)
-                    .map((accountId) => accountId.trim())
-                    .filter(Boolean);
-                  setAutoRefundAllowedAccountIdsByAction((prev) => ({
-                    ...(prev || {}),
-                    FUND_CARD: accountIds
-                  }));
-                }}
-                placeholder="Example: 7, 1"
-                disabled={loading || saving}
-              />
-              <span style={{ color: 'var(--muted)', fontSize: '12px' }}>
-                These accounts can auto-refund FUND_CARD provider timeouts even when global timeout auto-refund is off.
-              </span>
-            </label>
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gap: '0.5rem' }}>
-          <div style={{ fontWeight: 700 }}>Block Auto Refund For Actions</div>
-          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-            If an action is selected here, failed transactions for that action will not be auto-refunded. They will be marked for manual refund instead.
-          </div>
-          <div style={{ display: 'grid', gap: '0.6rem', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-              <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-                {selectedAutoRefundBlockedActions.length > 0
-                  ? `${selectedAutoRefundBlockedActions.length} action${selectedAutoRefundBlockedActions.length === 1 ? '' : 's'} blocked from auto-refund`
-                  : 'No actions blocked from auto-refund'}
-              </div>
-              {selectedAutoRefundBlockedActions.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAutoRefundBlockedActions([]);
-                  }}
-                  disabled={loading || saving}
-                  style={{
-                    border: 'none',
-                    background: 'transparent',
-                    color: 'var(--accent)',
-                    cursor: 'pointer',
-                    fontWeight: 700,
-                    padding: 0
-                  }}
-                >
-                  Clear all
-                </button>
-              )}
-            </div>
-
-            {selectedAutoRefundBlockedActions.length > 0 ? (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem' }}>
-                {selectedAutoRefundBlockedActions.map((action) => (
-                  <span key={action} style={autoRefundChipStyle}>
-                    <span>{humanizeEnum(action)}</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAutoRefundBlockedActions((prev) => prev.filter((item) => String(item) !== action));
-                      }}
-                      disabled={loading || saving}
-                      aria-label={`Remove ${humanizeEnum(action)}`}
-                      style={{
-                        border: 'none',
-                        background: 'transparent',
-                        color: 'inherit',
-                        cursor: 'pointer',
-                        padding: 0,
-                        fontWeight: 900,
-                        lineHeight: 1
-                      }}
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-            ) : null}
-
-            <details>
-              <summary style={{ cursor: 'pointer', fontWeight: 700, color: 'var(--accent)' }}>
-                Add or remove actions
-              </summary>
-              <div style={{ display: 'grid', gap: '0.5rem', marginTop: '0.65rem' }}>
-                <input
-                  type="search"
-                  value={autoRefundActionSearch}
-                  onChange={(e) => setAutoRefundActionSearch(e.target.value)}
-                  placeholder="Search actions"
-                  disabled={loading || saving}
-                />
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr',
-                    gap: 0,
-                    maxHeight: '220px',
-                    overflow: 'auto',
-                    padding: 0,
-                    border: '1px solid var(--border)',
-                    borderRadius: '12px',
-                    background: 'color-mix(in srgb, var(--surface) 96%, var(--bg) 4%)'
-                  }}
-                >
-                  {filteredAutoRefundActionOptions.map((action) => {
-                    const checked = selectedAutoRefundBlockedActions.includes(action);
-                    return (
-                      <label
-                        key={action}
-                        style={{
-                          display: 'grid',
-                          gap: 0,
-                          minWidth: 0,
-                          padding: 0,
-                          borderRadius: '6px',
-                          background: checked ? 'var(--accent-soft)' : 'transparent'
-                        }}
-                      >
-                        <span style={{ overflowWrap: 'anywhere', lineHeight: 1 }}>
-                          {humanizeEnum(action)} <span style={{ color: 'var(--muted)' }}>({action})</span>
-                        </span>
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={(e) => {
-                            const isChecked = e.target.checked;
-                            setAutoRefundBlockedActions((prev) => {
-                              const set = new Set(prev.map((item) => String(item)));
-                              if (isChecked) set.add(action);
-                              else set.delete(action);
-                              return Array.from(set);
-                            });
-                          }}
-                          disabled={loading || saving}
-                          style={{ margin: 0 }}
-                        />
-                      </label>
-                    );
-                  })}
-                  {filteredAutoRefundActionOptions.length === 0 ? (
-                    <div style={{ color: 'var(--muted)', fontSize: '12px' }}>No matching actions.</div>
-                  ) : null}
-                </div>
-              </div>
-            </details>
-
-            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-              Empty selection means no actions are blocked from auto-refund.
-            </div>
           </div>
         </div>
 
@@ -2651,14 +2368,16 @@ export default function WalletPolicyConfigPage() {
           </>
         )}
 
+        {activeTab !== 'auto-refunds' ? <>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button type="button" className="btn-neutral" onClick={loadConfig} disabled={loading || saving}>
             {loading ? 'Refreshing…' : 'Refresh'}
           </button>
-          <button type="button" className="btn-primary" onClick={save} disabled={loading || saving}>
+          <button type="button" className="btn-primary" onClick={save} disabled={loading || saving || !configLoaded || !canWrite}>
             {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
+        </> : null}
         </div>
       </div>
     </div>

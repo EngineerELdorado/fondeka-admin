@@ -1,5 +1,7 @@
 'use client';
 
+import { CountrySelect } from '@/components/CountrySelect';
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { failoverFingerprint, failoverUtcInput, failoverUtcValue, newFailoverRule } from '@/lib/payout-failover';
@@ -69,7 +71,7 @@ export default function ProductsPanel({ capabilities, selectedRule, canPublish, 
     <p>Choose the exact products that deliver equivalent benefits on the same real network. Inspect both, record your review, then add the approved pair to the setup draft. Nothing here saves or enables failover.</p>
     <SetupStep number="1" title="Choose and inspect both products">Find operator and offer IDs in Recharge Catalog. Inspection reads supplier terms and never purchases.</SetupStep>
     <div className="failover-grid">
-      <Field label="Country" help="ISO alpha-2, for example CD."><input maxLength={2} value={country} onChange={(event) => { setCountry(event.target.value.toUpperCase()); resetReview(); }} /></Field>
+      <Field label="Country" help="ISO alpha-2, for example CD."><CountrySelect required emptyLabel="Select country" value={country} onChange={(event) => { setCountry(event.target.value.toUpperCase()); resetReview(); }} /></Field>
       <Field label="Product type"><select value={type} onChange={(event) => { setType(event.target.value); resetReview(); }}><option value="">Choose a product type</option>{capabilities.productTypes.map((entry) => <option key={entry} value={entry}>{entry}</option>)}</select></Field>
     </div>
     {selectedRule ? <div className="failover-grid"><ProductSummary product={selectedRule.source} title="Previously approved primary product" /><ProductSummary product={selectedRule.target} title="Previously approved backup product" /></div> : null}

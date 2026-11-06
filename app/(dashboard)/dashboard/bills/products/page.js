@@ -1,6 +1,8 @@
 'use client';
 
-import { PresentationSelect, NonRegulatorContent, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
+import { CountrySelect } from '@/components/CountrySelect';
+
+import { PresentationSelect, NonRegulatorContent, PresentationLink as Link } from '@/components/RegulatorPresentation';
 
 import { regulatorVisibleFields, isRegulatorRestrictedRecord } from '@/lib/regulator-presentation';
 
@@ -192,8 +194,7 @@ export default function BillProductsPage() {
   const [countries, setCountries] = useState([]);
   const [countriesLoading, setCountriesLoading] = useState(false);
   const [countriesError, setCountriesError] = useState(null);
-  const [showCountryPicker, setShowCountryPicker] = useState(false);
-  const [countrySearch, setCountrySearch] = useState('');
+  const [countriesRevision, setCountriesRevision] = useState(0);
   const [filterFeedback, setFilterFeedback] = useState('');
 
   const fetchRows = async () => {
@@ -232,7 +233,7 @@ export default function BillProductsPage() {
       setCountriesError(null);
       setCountriesLoading(true);
       try {
-        const res = await api.countries.list(new URLSearchParams({ page: '0', size: '200' }));
+        const res = await api.countries.options();
         const list = Array.isArray(res) ? res : res?.content || [];
         setCountries(list || []);
       } catch (err) {
@@ -242,7 +243,7 @@ export default function BillProductsPage() {
       setCountriesLoading(false);
     };
     loadCountries();
-  }, []);
+  }, [countriesRevision]);
 
   const columns = useMemo(() => [
     {
@@ -375,8 +376,6 @@ export default function BillProductsPage() {
     setShowCreate(false);
     setDraft(emptyState);
     setFormError(null);
-    setCountrySearch('');
-    setShowCountryPicker(false);
   };
 
   const closeEdit = () => {
@@ -384,8 +383,6 @@ export default function BillProductsPage() {
     setDraft(emptyState);
     setSelected(null);
     setFormError(null);
-    setCountrySearch('');
-    setShowCountryPicker(false);
   };
 
   const openDetail = (row) => {
@@ -399,7 +396,6 @@ export default function BillProductsPage() {
     setError(null);
     setInfo(null);
     setFormError(null);
-    setShowCountryPicker(false);
     setFormSaving(true);
     try {
       await api.billProducts.create(toPayload(draft));
@@ -418,7 +414,6 @@ export default function BillProductsPage() {
     setError(null);
     setInfo(null);
     setFormError(null);
-    setShowCountryPicker(false);
     setFormSaving(true);
     try {
       await api.billProducts.update(selected.id, toPayload(draft));
@@ -455,7 +450,7 @@ export default function BillProductsPage() {
       return (
         <div key={field.key} style={{ display: 'grid', gap: '0.25rem' }}>
           <label htmlFor={inputId}>{field.label}</label>
-          <PresentationSelect id={inputId} value={value} onChange={(e) => update(e.target.value)} disabled={countriesLoading}>
+          <CountrySelect records={countries} id={inputId} value={value} onChange={(e) => update(e.target.value)} disabled={countriesLoading}>
             <option value="">Any</option>
             {countries.map((country) => {
               const code = country?.alpha2Code || country?.alpha3Code || country?.isoCode || country?.code || country?.countryCode || '';
@@ -467,7 +462,7 @@ export default function BillProductsPage() {
                 </option>
               );
             })}
-          </PresentationSelect>
+          </CountrySelect>
           {countriesError && <div style={{ color: '#b91c1c', fontSize: '12px', fontWeight: 700 }}>{countriesError}</div>}
         </div>
       );
@@ -678,100 +673,11 @@ export default function BillProductsPage() {
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', position: 'relative' }}>
         <label htmlFor="countryIds">Countries (optional)</label>
-        <button
-          type="button"
-          id="countryIds"
-          className="btn-neutral"
-          style={{ justifyContent: 'space-between', display: 'flex', alignItems: 'center' }}
-          onClick={() => {
-            if (!showCountryPicker && countries.length === 0 && !countriesLoading) {
-              // retry fetch if nothing loaded yet
-              setCountriesError(null);
-              (async () => {
-                setCountriesLoading(true);
-                try {
-                  const res = await api.countries.list(new URLSearchParams({ page: '0', size: '200' }));
-                  const list = Array.isArray(res) ? res : res?.content || [];
-                  setCountries(list || []);
-                } catch (err) {
-                  setCountries([]);
-                  setCountriesError(err.message || 'Failed to load countries');
-                }
-                setCountriesLoading(false);
-              })();
-            }
-            setShowCountryPicker((v) => !v);
-          }}
-        >
-          {draft.countryIds.length === 0
-            ? 'Global (no countries selected)'
-            : `${draft.countryIds.length} selected`}
-          <span style={{ marginLeft: '0.5rem' }}>{showCountryPicker ? '▲' : '▼'}</span>
-        </button>
-        {showCountryPicker && (
-          <div
-            style={{
-              position: 'relative',
-              background: 'var(--surface)',
-              border: `1px solid var(--border)`,
-              borderRadius: '10px',
-              padding: '0.5rem',
-              marginTop: '0.25rem',
-          boxShadow: '0 8px 16px rgba(0,0,0,0.08)',
-          minWidth: 'min(240px, 100%)',
-          maxHeight: '220px',
-          overflowY: 'auto',
-          display: 'grid',
-          gap: '0.35rem'
-        }}
-      >
-        <input
-          type="text"
-          placeholder="Search country"
-          value={countrySearch}
-          onChange={(e) => setCountrySearch(e.target.value)}
-          style={{ width: '100%', padding: '0.4rem 0.6rem', border: '1px solid var(--border)', borderRadius: '8px' }}
-        />
-        {countriesLoading && <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Loading countries…</div>}
-        {countriesError && <div style={{ color: '#b91c1c', fontSize: '13px' }}>{countriesError}</div>}
-        {!countriesLoading && !countriesError && countries.length === 0 && (
-          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>No countries found.</div>
-        )}
-        {countries
-          .filter((c) => {
-            const term = countrySearch.trim().toLowerCase();
-            if (!term) return true;
-            return (
-              c.name?.toLowerCase().includes(term) ||
-              c.alpha2Code?.toLowerCase().includes(term) ||
-              String(c.id).includes(term)
-            );
-          })
-          .map((c) => {
-          const checked = draft.countryIds.includes(String(c.id)) || draft.countryIds.includes(Number(c.id));
-          return (
-            <RegulatorField field={c} key={c.id}><label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', justifyContent: 'space-between' }}>
-              <span>
-                {c.name} {c.alpha2Code ? `(${c.alpha2Code})` : ''}
-              </span>
-              <input
-                type="checkbox"
-                checked={checked}
-                onChange={(e) => {
-                  const value = String(c.id);
-                  setDraft((p) => {
-                    const set = new Set(p.countryIds.map(String));
-                    if (e.target.checked) set.add(value);
-                    else set.delete(value);
-                    return { ...p, countryIds: Array.from(set) };
-                  });
-                }}
-              />
-            </label></RegulatorField>
-          );
-        })}
-      </div>
-    )}
+        <CountrySelect id="countryIds" aria-label="Product countries" records={countries} multiple value={draft.countryIds.map(String)} loading={countriesLoading} disabled={formSaving} onChange={(event) => setDraft((previous) => ({ ...previous, countryIds: Array.from(event.target.selectedOptions, (option) => option.value) }))}>
+          <option value="">Global (no countries selected)</option>
+          {countries.map((country) => <option key={country.id} value={country.id} data-regulator-restricted={isRegulatorRestrictedRecord(country)}>{country.name} ({country.alpha2Code})</option>)}
+        </CountrySelect>
+        {countriesError ? <div role="alert">{countriesError} <button type="button" className="btn-neutral btn-sm" onClick={() => setCountriesRevision((value) => value + 1)}>Retry countries</button></div> : null}
         <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Leave empty for a global product.</div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -779,14 +685,14 @@ export default function BillProductsPage() {
         <input
           id="logoUrl"
           value={draft.logoUrl}
-          onFocus={() => setShowCountryPicker(false)}
+
           onChange={(e) => setDraft((p) => ({ ...p, logoUrl: e.target.value }))}
           placeholder="https://..."
         />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="rank">Rank</label>
-        <input id="rank" type="number" value={draft.rank} onFocus={() => setShowCountryPicker(false)} onChange={(e) => setDraft((p) => ({ ...p, rank: e.target.value }))} />
+        <input id="rank" type="number" value={draft.rank}  onChange={(e) => setDraft((p) => ({ ...p, rank: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <input id="active" type="checkbox" checked={draft.active} onChange={(e) => setDraft((p) => ({ ...p, active: e.target.checked }))} />
