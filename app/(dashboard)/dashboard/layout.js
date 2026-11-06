@@ -20,6 +20,7 @@ const navItems = [
   { href: '/dashboard/payments', labelKey: 'layout.nav.paymentMethods' },
   { href: '/dashboard/payments/provider-coverage', labelKey: 'layout.nav.paymentProviderCoverage', label: 'Provider Coverage Map' },
   { href: '/dashboard/payout-failover', labelKey: 'layout.nav.payoutFailover', label: 'Payout failover', adminOnly: true },
+  { href: '/dashboard/payout-refund-audits', labelKey: 'layout.nav.payoutRefundAudits', label: 'Payout refund audit', adminOnly: true },
   // Products cluster
   { href: '/dashboard/loans', labelKey: 'layout.nav.loansProducts' },
   { href: '/dashboard/savings', labelKey: 'layout.nav.savingsProducts' },
