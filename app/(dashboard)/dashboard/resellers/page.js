@@ -19,14 +19,15 @@ export default function ResellersPage() {
   const { canRead, canWrite } = resellerPermissions(session);
   const search = useSearchParams();
   const [accountId, setAccountId] = useState(() => { try { return search.get('accountId') ? resellerId(search.get('accountId')) : null; } catch { return null; } });
-  const [tab, setTab] = useState('accounts');
+  const [tab, setTab] = useState(accountId == null ? 'rules' : 'accounts');
   const [settingsTab, setSettingsTab] = useState('setup');
   if (!canRead) return <Card title="Reseller program"><Alert>Permission denied. Admin or Super Admin access is required.</Alert></Card>;
   return <div className={styles.workspace}>
-    <header className={styles.heading}><div><h1>Resellers</h1><p>Manage enrollment, commissions and rewards.</p></div>{!canWrite ? <small>Read only · Super Admin required to make changes.</small> : null}</header>
+    <header className={styles.heading}><div><h1>Resellers</h1><p>Configure products once. Enrolled resellers inherit global rates automatically.</p></div>{!canWrite ? <small>Read only · Super Admin required to make changes.</small> : null}</header>
     <Navigation label="Reseller administration" items={[
-      ['accounts', 'Resellers'], ['settings', 'Program settings'], ['recovery', 'Purchase lookup']
+      ['rules', 'Commission rates'], ['accounts', 'Resellers'], ['settings', 'Program settings'], ['recovery', 'Purchase lookup']
     ]} value={tab} onChange={setTab} />
+    {tab === 'rules' ? <ConfigurationPanel kind="rule" canWrite={canWrite} /> : null}
     {tab === 'accounts' ? accountId == null ? <>
       <Card title="Find an account"><p className={styles.scope}>Open any existing customer to enroll them or manage their reseller settings.</p><AccountLookup onSelect={setAccountId} /></Card>
       <EnrollmentDirectory onSelect={setAccountId} />
@@ -37,9 +38,9 @@ export default function ResellersPage() {
     {tab === 'settings' ? <>
       <p className={styles.scope}>Global defaults · account overrides take priority.</p>
       <Navigation label="Program settings" items={[
-        ['setup', 'Enrollment & earning'], ['rules', 'Commission rates'], ['policies', 'Reward behavior']
+        ['setup', 'Enrollment & earning'], ['policies', 'Reward behavior']
       ]} value={settingsTab} onChange={setSettingsTab} />
-      {settingsTab === 'setup' ? <SetupPanel canWrite={canWrite} /> : <ConfigurationPanel key={settingsTab} kind={settingsTab === 'rules' ? 'rule' : 'policy'} canWrite={canWrite} />}
+      {settingsTab === 'setup' ? <SetupPanel canWrite={canWrite} /> : <ConfigurationPanel kind="policy" canWrite={canWrite} />}
     </> : null}
     {tab === 'recovery' ? <RecoveryPanel canWrite={canWrite} /> : null}
   </div>;

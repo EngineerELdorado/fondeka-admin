@@ -26,7 +26,7 @@ export default function SetupPanel({ canWrite }) {
   const editorRecord = editing && record && program.ready && requirements.ready && !mismatch ? resellerSetupReview(editing, program.data, requirements.data) : record;
   return <Card>
       <div className={styles.heading}><h2 style={{ margin: 0 }}>Enrollment & earning</h2><button type="button" className="btn-neutral btn-sm" disabled={program.loading || requirements.loading} onClick={refresh}>Refresh settings</button></div>
-      <p className={styles.scope}>Set commission rates first, then open enrollment and enable earning.</p>
+      <p className={styles.scope}>Configure global product rates once, then open enrollment and enable earning. Joining does not create account-specific rates.</p>
       {!canWrite ? <small>Read only — Super Admin required for changes.</small> : null}
       <Alert>{mismatch ? 'Program and requirements were read at different versions. Refresh settings before editing.' : ''}</Alert>
       <div className={styles.setting}>

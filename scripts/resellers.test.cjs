@@ -31,6 +31,41 @@ test('commission payloads keep zero, nullable scopes, numeric percentages and in
   for (const patch of [{ percentage: '2.50001' }, { percentage: '-1' }, { percentage: '101' }, { percentage: '' }, { percentage: 'NaN' }, { maxPoints: '0' }, { maxPoints: '1.001' }, { service: 'AIRTIME_AND_DATA' }, { basis: 'GROSS_AMOUNT' }, { enabled: null }, { billProductId: '-4' }]) assert.throws(() => resellerRulePayload({ ...draft, ...patch }, rule));
 });
 
+test('new commission rules require a specific product unless a service default is explicitly chosen', async () => {
+  const { resellerDraft, resellerRulePayload } = await load('lib/resellers.js');
+  const draft = { ...resellerDraft('rule'), percentage: '3', enabled: true };
+  assert.equal(draft.accountId, null); assert.equal(draft.productScope, 'PRODUCT');
+  assert.throws(() => resellerRulePayload(draft), /Choose a bill product/);
+  const product = resellerRulePayload({ ...draft, billProductId: '12' });
+  assert.equal(product.accountId, null); assert.equal(product.billProductId, 12);
+  assert.equal(product.maxPoints, null); assert.equal(Object.hasOwn(product, 'productScope'), false);
+  const service = resellerRulePayload({ ...draft, productScope: 'SERVICE' });
+  assert.equal(service.billProductId, null); assert.equal(Object.hasOwn(service, 'version'), false);
+  const existing = { ...rule, billProductId: null, enabled: false, percentage: 0 };
+  const savedDefault = resellerDraft('rule', existing);
+  assert.equal(savedDefault.productScope, 'SERVICE');
+  const expected = { ...existing }; delete expected.id;
+  assert.deepEqual(resellerRulePayload(savedDefault, existing), expected);
+});
+
+test('commission rule filters find products and exclusions without changing their order or values', async () => {
+  const { filterResellerRules } = await load('lib/resellers.js');
+  const rows = [
+    { ...rule, id: 3, billProductCode: 'CANAL_PLUS_DRC', billProductName: 'Canal Plus Congo' },
+    { ...rule, id: 4, billProductId: 77, billProductCode: 'SOCODEE', enabled: false },
+    { ...rule, id: 5, billProductId: 88, billProductName: 'Électricité locale', percentage: 0 },
+    { ...rule, id: 6, billProductId: null, enabled: false, percentage: 0 }
+  ];
+  assert.deepEqual(filterResellerRules(rows), rows);
+  assert.deepEqual(filterResellerRules(rows, { search: 'canal plus' }), [rows[0]]);
+  assert.deepEqual(filterResellerRules(rows, { search: 'electricite' }), [rows[2]]);
+  assert.deepEqual(filterResellerRules(rows, { search: '77', status: 'disabled' }), [rows[1]]);
+  assert.deepEqual(filterResellerRules(rows, { search: 'service default' }), [rows[3]]);
+  assert.deepEqual(filterResellerRules(rows, { status: 'enabled' }), [rows[0]]);
+  assert.deepEqual(filterResellerRules(rows, { status: 'zero' }), [rows[2]]);
+  assert.deepEqual(filterResellerRules(rows, { status: 'disabled' }), [rows[1], rows[3]]);
+});
+
 test('sparse policies preserve false and null independently, and cannot offer a combined reward path', async () => {
   const { resellerDraft, resellerPolicyPayload } = await load('lib/resellers.js');
   const draft = resellerDraft('policy', {}, 35418);
@@ -155,9 +190,26 @@ test('conflicts preserve drafts and require explicit review before submitting a 
 test('duplicate-scope creation adopts an existing record only after the operator reviews it', async () => {
   let first = true, target;
   const view = await editor({ record: {}, onReload: async () => rule, onSave: async (payload, base) => { target = base.id; if (first) throw Object.assign(new Error('Duplicate scope'), { status: 409 }); return { ...rule, ...payload, version: 8 }; } });
+  view.field('Bill product').props.onChange('12'); await view.flush();
   view.change('Percentage', '4'); await view.click('Save'); assert.equal(target, undefined);
   await view.click('Refresh latest saved settings'); await view.click('I reviewed version 7 — apply my draft');
   first = false; await view.click('Save'); assert.equal(target, rule.id);
+});
+
+test('a new global product rule never silently saves an all-products default', async () => {
+  let submitted;
+  const view = await editor({ record: {}, onSave: async (payload) => { submitted = payload; return { ...rule, ...payload, version: 0 }; } });
+  view.change('Percentage', '3'); view.change('Commission rule', 'true');
+  await view.click('Save'); assert.equal(submitted, undefined); assert.match(view.text(), /Choose a bill product/);
+  view.field('Bill product').props.onChange('12'); await view.flush();
+  await view.click('Save');
+  assert.equal(submitted.billProductId, 12); assert.equal(submitted.accountId, null);
+  assert.equal(submitted.percentage, 3); assert.equal(submitted.enabled, true);
+  const service = await editor({ record: {}, onSave: async (payload) => { submitted = payload; return { ...rule, ...payload, version: 0 }; } });
+  service.change('Percentage', '0'); service.change('Product scope', 'SERVICE');
+  assert.ok(!service.nodes().some((node) => node.props.label === 'Bill product'));
+  await service.click('Save');
+  assert.equal(submitted.billProductId, null); assert.equal(submitted.enabled, false); assert.equal(submitted.percentage, 0);
 });
 
 test('retention changes and first enrollment require an impact acknowledgement', async () => {
@@ -419,16 +471,20 @@ async function resellerWorkspace(role = 'SUPER_ADMIN', initialAccount = null) {
 
 test('main reseller tasks isolate global settings from a selected account and retain the account when returning', async () => {
   const { view, select } = await resellerWorkspace();
-  assert.ok(!view.nodes().some((node) => ['setup', 'configuration', 'recovery'].includes(node.type)));
+  const defaults = view.nodes().find((node) => node.type === 'configuration').props;
+  assert.equal(defaults.kind, 'rule'); assert.equal(defaults.accountId, undefined); assert.equal(defaults.canWrite, true);
+  assert.ok(!view.nodes().some((node) => ['account', 'setup', 'recovery'].includes(node.type)));
+  await select('Reseller administration', 'accounts');
   view.nodes().find((node) => node.type?.name === 'AccountLookup').props.onSelect(42); await view.flush();
   assert.equal(view.nodes().find((node) => node.type === 'account').props.accountId, 42);
   assert.equal(view.nodes().find((node) => node.type === 'account').props.manageConfiguration, true);
   await select('Reseller administration', 'settings');
   assert.ok(view.nodes().some((node) => node.type === 'setup'));
   assert.ok(!view.nodes().some((node) => node.type === 'account'));
-  await select('Program settings', 'rules');
+  await select('Reseller administration', 'rules');
   const global = view.nodes().find((node) => node.type === 'configuration').props;
   assert.equal(global.kind, 'rule'); assert.equal(global.accountId, undefined);
+  await select('Reseller administration', 'settings');
   await select('Program settings', 'policies');
   assert.equal(view.nodes().find((node) => node.type === 'configuration').props.kind, 'policy');
   await select('Reseller administration', 'recovery');
@@ -442,6 +498,8 @@ test('main reseller tasks isolate global settings from a selected account and re
 });
 
 test('account deep links open the scoped workspace and unauthorized roles never mount reseller tools', async () => {
+  const reader = await resellerWorkspace('ADMIN');
+  assert.equal(reader.view.nodes().find((node) => node.type === 'configuration').props.canWrite, false);
   const linked = await resellerWorkspace('ADMIN', 42);
   assert.equal(linked.view.nodes().find((node) => node.type === 'account').props.accountId, 42);
   assert.equal(linked.view.nodes().find((node) => node.type === 'account').props.canWrite, false);
@@ -452,6 +510,67 @@ test('account deep links open the scoped workspace and unauthorized roles never 
     assert.match(view.text(), /Permission denied/);
     assert.ok(!view.nodes().some((node) => ['navigation', 'setup', 'configuration', 'account', 'recovery'].includes(node.type)));
   }
+});
+
+async function commissionPanel({ accountId = null, canWrite = true, rows = [rule] } = {}) {
+  const { mountComponent, compileComponent } = require('./helpers/component-harness.cjs');
+  const helpers = await load('lib/resellers.js');
+  const compiledCommon = await compileComponent(path.join(__dirname, '../components/resellers/Common.js'));
+  const state = { rows }, reads = [], writes = [], refreshSession = async () => {};
+  const api = { resellers: { rules: {
+    list: async (scope) => { reads.push(scope); return state.rows; },
+    create: async (payload) => { writes.push(payload); return { ...payload, id: 90, version: 0 }; },
+    update: async (id, payload) => { writes.push({ id, ...payload }); return { id, ...payload, version: payload.version + 1 }; }
+  } } };
+  const view = await mountComponent(path.join(__dirname, '../components/resellers/ConfigurationPanel.js'), {
+    props: { kind: 'rule', accountId, canWrite }, modules: (hooks) => ({
+      '@/lib/api': { api }, '@/lib/resellers': helpers, '@/components/DataTable': { DataTable: 'table' },
+      '@/components/ContentModal': { ContentModal: 'dialog' }, './Editor': { __esModule: true, default: 'editor' },
+      './EffectivePolicy': { __esModule: true, default: 'effective' }, './resellers.module.css': { __esModule: true, default: {} },
+      './Common': {
+        ...compiledCommon(hooks, { '@/contexts/AuthContext': { useAuth: () => ({ refreshSession }) }, '@/lib/api': { api }, '@/lib/resellers': helpers, '@/components/CountrySelect': { CountrySelect: 'country-picker' }, '@/components/CatalogSelect': { CatalogSelect: 'picker' }, '@/lib/regulator-presentation': {} }),
+        Card: 'section', Field: 'field', Badge: 'badge', Alert: 'alert', ResourceStatus: 'status'
+      }
+    })
+  });
+  await view.flush();
+  return { view, reads, writes, state, helpers };
+}
+
+test('global commission management works without selecting an account and never enrolls or copies rules', async () => {
+  const { view, reads, writes, helpers, state } = await commissionPanel();
+  assert.deepEqual(reads, [null]); assert.equal(writes.length, 0);
+  assert.match(view.text(), /no product assignment is needed/);
+  await view.click('New rule');
+  const editor = view.nodes().find((node) => node.type === 'editor').props;
+  assert.equal(editor.accountId, null); assert.deepEqual(editor.record, {});
+  const payload = helpers.resellerRulePayload({ ...helpers.resellerDraft('rule'), billProductId: 12, enabled: true, percentage: '3' });
+  const saved = await editor.onSave(payload, {});
+  assert.deepEqual(writes, [payload]); assert.equal(writes[0].accountId, null);
+  state.rows = [saved];
+  editor.onSaved(saved); await view.flush();
+  assert.deepEqual(reads, [null, null]); assert.equal(writes.length, 1);
+  assert.deepEqual(view.nodes().find((node) => node.type === 'table').props.rows, [saved]);
+});
+
+test('commission lists combine product filters and prevent editing records from a different account scope', async () => {
+  const rows = [{ ...rule, billProductCode: 'SOCODEE' }, { ...rule, id: 13, billProductId: null, enabled: false, percentage: 0 }];
+  const { view, writes } = await commissionPanel({ rows });
+  const table = () => view.nodes().find((node) => node.type === 'table').props;
+  view.change('Find a product', 'SOCODEE'); view.change('Rule status', 'enabled');
+  assert.deepEqual(table().rows, [rows[0]]);
+  view.change('Rule status', 'disabled'); assert.deepEqual(table().rows, []);
+  await view.click('Clear rate filters'); assert.deepEqual(table().rows, rows); assert.equal(writes.length, 0);
+  await view.click('New rule');
+  const editor = view.nodes().find((node) => node.type === 'editor').props;
+  await assert.rejects(editor.onSave({ ...rule, accountId: 42 }, {}), /scope changed/);
+  assert.equal(writes.length, 0);
+  const wrongScope = await commissionPanel({ rows: [{ ...rule, accountId: 42 }] });
+  assert.equal(wrongScope.view.button('New rule').disabled, true);
+  assert.match(wrongScope.view.nodes().find((node) => node.type === 'status').props.resource.error, /does not match/);
+  const reader = await commissionPanel({ canWrite: false });
+  assert.ok(!reader.view.nodes().some((node) => node.type === 'button' && node.props.children === 'New rule'));
+  assert.deepEqual(reader.reads, [null]); assert.equal(reader.writes.length, 0);
 });
 
 test('commission and behavior views inside an account keep its scope and read-only permissions', async () => {
@@ -556,7 +675,7 @@ test('market changes preserve backend product order and all currency balances, i
   assert.match(view.text(), /1 of 3 products/);
   await view.click('Clear product filters'); assert.equal(products().props.rows, defaultProducts);
   const actions = products().props.columns.find((column) => column.key === 'actions').render(defaultProducts[0]);
-  require('react').Children.toArray(actions.props.children).find((node) => node.props.children === 'Set account rate').props.onClick(); await view.flush();
+  require('react').Children.toArray(actions.props.children).find((node) => node.props.children === 'Set account override').props.onClick(); await view.flush();
   const rateEditor = view.nodes().find((node) => node.type === 'rate-editor').props;
   assert.equal(rateEditor.accountId, 42); assert.equal(rateEditor.product, defaultProducts[0]);
   rateEditor.onClose(); await view.flush();
