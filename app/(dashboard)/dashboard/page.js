@@ -13,7 +13,6 @@ import { useRouter } from 'next/navigation';
 import { useLocale } from '@/contexts/LocaleContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { RegulatorOverview } from '@/components/RegulatorOverview';
-import PayoutRefundAuditCard from '@/components/PayoutRefundAuditCard';
 import { api } from '@/lib/api';
 import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
 
@@ -982,7 +981,6 @@ export default function DashboardPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      <PayoutRefundAuditCard />
       <div className="card" style={{ display: 'grid', gap: '0.9rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
