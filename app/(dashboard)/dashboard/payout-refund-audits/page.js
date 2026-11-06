@@ -145,6 +145,13 @@ function Workspace() {
   }, [visible, runId, run?.id, run?.checkedCount, run?.lastProgressAt, view, filters, page, denied, reload]);
 
   const chooseRun = (id) => { setRunId(id); setFilters(emptyFilters); setDraft(emptyFilters); setPage(0); setError(''); setNotice(''); router.replace(`/dashboard/payout-refund-audits?run=${encodeURIComponent(id)}`, { scroll: false }); };
+  const providerReportHref = () => {
+    const query = new URLSearchParams({ provider: 'ARAKAPAY', issue: 'ALL', auditRunId: runId, auditOutcome: filters.outcome });
+    if (filters.query) query.set('auditQuery', filters.query);
+    if (filters.accountId) query.set('accountId', filters.accountId);
+    if (filters.currency) query.set('currency', filters.currency);
+    return `/dashboard/provider-investigations?${query}`;
+  };
   const outcomeFilter = (outcome) => { const next = { ...filters, outcome }; setFilters(next); setDraft(next); setPage(0); };
   const apply = (event) => { event.preventDefault(); if (draft.accountId && !/^[1-9]\d*$/.test(draft.accountId)) { setError('Enter a positive account ID.'); return; } setFilters({ ...draft }); setPage(0); setError(''); };
   const start = async (event) => {
@@ -237,7 +244,7 @@ function Workspace() {
         <p className={styles.contextNote}>Not-found and declined results do not prove that a recipient was unpaid. Refund totals are historical credits; later recoveries are not deducted.</p>
       </section>
       <section className={styles.results} aria-label="Audit results">
-        <div className={styles.sectionTop}><div className={styles.tabs} role="tablist" aria-label="Results view">{['accounts', 'transactions'].map((value) => <button key={value} role="tab" aria-selected={view === value} onClick={() => { setView(value); setPage(0); }}>{value === 'accounts' ? 'Accounts' : 'Transactions'}</button>)}</div><div className={styles.exports}><button className={styles.button} disabled={exporting || denied} onClick={() => exportReport('csv')}>{exporting ? 'Exporting…' : 'Export CSV'}</button><button className={styles.button} disabled={exporting || denied} onClick={() => exportReport('json')}>Evidence JSON</button></div></div>
+        <div className={styles.sectionTop}><div className={styles.tabs} role="tablist" aria-label="Results view">{['accounts', 'transactions'].map((value) => <button key={value} role="tab" aria-selected={view === value} onClick={() => { setView(value); setPage(0); }}>{value === 'accounts' ? 'Accounts' : 'Transactions'}</button>)}</div><div className={styles.exports}><Link className={styles.button} style={{ textDecoration: 'none' }} href={providerReportHref()}>Provider document</Link><button className={styles.button} disabled={exporting || denied} onClick={() => exportReport('csv')}>{exporting ? 'Exporting…' : 'Export CSV'}</button><button className={styles.button} disabled={exporting || denied} onClick={() => exportReport('json')}>Evidence JSON</button></div></div>
         <form className={styles.filters} onSubmit={apply}>
           <label className={styles.search}><span>Search</span><input aria-label="Search accounts or payouts" placeholder="Name, email, reference or ID" value={draft.query} maxLength={200} onChange={(e) => setDraft({ ...draft, query: e.target.value })} /></label>
           <label><span>Outcome</span><select aria-label="Outcome" value={draft.outcome} onChange={(e) => setDraft({ ...draft, outcome: e.target.value })}><option value="ALL">All outcomes</option>{auditOutcomes.map((o) => <option value={o.value} key={o.value}>{o.label}</option>)}</select></label>
