@@ -60,6 +60,6 @@ This guide explains how the Admin Dashboard can query transactions with rich fil
 ```
 
 ## Notes
-- Endpoint is read-only; approval/rejection flows have been removed.
+- The transaction-list endpoint is read-only. **Retry payout** opens the separately authorized payout-failover manual approval flow for supported wallet/Business API payouts; it does not execute a generic status change or provider resend. See [manual payout approvals](provider-failover-guide.md#11-approve-one-manual-payout-retry).
 - Filters can be combined freely to trace transactions from any available identifier (references, PMP, user/account, amounts, refund state).
 - `startDate`/`endDate` default to the widest range if not provided.

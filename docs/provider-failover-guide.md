@@ -4,7 +4,7 @@ This is the team operating guide for payout and recharge failover. It covers the
 
 ## 1. The mental model
 
-**One customer transaction and one original quote/debit.** Payout failover allows at most three distinct providers in total (the original plus up to two alternates). Recharge remains limited to two providers in total. A provider cannot be attempted twice.
+**One customer transaction and one original quote/debit.** Automatic payout failover allows at most three distinct providers in total (the original plus up to two alternates). Recharge remains limited to two providers in total. Automatic failover cannot repeat a provider. Separately, an explicitly approved manual payout retry can reuse the original provider with a new request ID, within the same three-total-attempt limit.
 
 An attempt is an external provider request with its own recorded identity. It is not another customer purchase. The journal remembers every attempt so a restart, callback, policy change or repeated request cannot authorize an extra payment.
 
@@ -338,6 +338,32 @@ Payout **Review environment defaults and coverage** uses `GET /payout-failover/d
 Payout activation can omit `createdAfter`: the backend normally chooses a safe future boundary about 30 seconds ahead while respecting existing future schedules/floors. Automatic mode sends no timestamp and displays the returned time. Pausing or repeating an already-enabled toggle does not move the boundary.
 
 Recharge `GET /defaults` and `POST /defaults/prepare` remain backend conveniences not wired into this dashboard. Suggestions still require explicit product-equivalence review. The recharge dashboard keeps its manual product-review flow and explicit future UTC activation time.
+
+## 11. Approve one manual payout retry
+
+Open **Transactions → Retry payout**, or **Payout failover → Payment activity → Retry a payout**. Admins and Super Admins can use this flow when `/capabilities` advertises `allowsManualResubmit:true`. An older backend hides the action. This also supports eligible historical payouts without a journal; it does not adopt them into automatic failover.
+
+1. Enter the numeric transaction ID and choose **Check payout status**. This GET reads the saved payment, provider evidence, available routes, blockers and recent approvals without sending a payout.
+2. Review the saved beneficiary, net amount, gross original debit, currency and customer reference. These cannot be edited. Attempt 0 means the payout has not been journaled; the original becomes attempt 1 when managed.
+3. Leave **Payout provider** on the original provider to retry it, or deliberately select an available alternate. After a previous failover, the default still means the first attempt's provider using its current scoped mapping. An unavailable original is never silently replaced.
+4. Enter a reason of 3–1,000 characters, confirm the details and choose **Approve one retry**. HTTP 202 records one approval and queues a worker; it does not prove that a provider was called or paid.
+5. Use **Refresh retry status** for the approval outcome, then inspect the financial transaction and attempt timeline. Another attempt requires a fresh provider preview and explicit approval.
+
+| Approval state | What it means |
+| --- | --- |
+| QUEUED | Approval saved; no durable provider dispatch claimed yet. |
+| DISPATCHED | Request claimed before the provider call; response may still be outstanding. |
+| RETURNED | Submit returned; inspect its outcome and the transaction for settlement. |
+| UNCERTAIN | Unconfirmed provider outcome; keep funds reserved and reconcile. |
+| REFUSED | Fresh checks refused the approval before any payout call. |
+
+A timeout retains the approval's idempotency key. **Check payout status** recovers a matching receipt from `retries`; the same pending request is also retained in tab-scoped storage for that admin and transaction. If no receipt is visible, **Resend same approval** requires confirmation and submits the identical key and body. It never changes the provider, version, attempt or reason and never generates another approval automatically. A version conflict requires a new preview and fresh confirmation.
+
+Manual approval bypasses the automatic switch, old cutover and rollout cohort. It still requires the original verified wallet debit, conclusive non-payment for every prior attempt, unchanged quote/beneficiary, current routing/funding preflight and an inactive emergency stop. Pending, unknown, paid, refunded, canceled or conflicting payouts cannot be retried. ArakaPay negative/error/missing evidence does not prove irreversible non-payment. There are at most three total attempts, including the original; manual control never silently advances through automatic failover later.
+
+The overview's **Retried payouts** count includes payouts reaching a second or third attempt, including a manually approved retry with the original provider. It does not prove a provider switch or settlement. Attempt rows show the actual provider and request identity.
+
+Deploy `20270101_manual_payout_retry.sql` and matching web/event workers before using these controls. The audit action is `PAYOUT_MANUAL_RETRY_QUEUED`, target type `TRANSACTION`. Approval never clears journal guards, refunds the customer or charges another debit. No new environment switch is required.
 
 ## References
 

@@ -11,6 +11,7 @@ import { FailoverIntro, FailoverNavigation, FailoverOverview } from '@/component
 import PolicyPanel from '@/components/payout-failover/PolicyPanel';
 import OperationsPanel from '@/components/payout-failover/OperationsPanel';
 import HistoryPanel from '@/components/payout-failover/HistoryPanel';
+import ManualRetryPanel from '@/components/payout-failover/ManualRetryPanel';
 
 export default function PayoutFailoverPage() {
   const { session, enableRegulatorMode } = useAuth();
@@ -41,6 +42,7 @@ export default function PayoutFailoverPage() {
     {capabilities ? <>
       <FailoverNavigation kind="payout" view={tab} onChange={setTab} />
       <div hidden={tab !== 'overview'}><FailoverOverview kind="payout" snapshot={snapshot} canPublish={canPublish} onSetup={() => setTab('setup')} onActivation={() => setTab('activation')} onActivity={() => setTab('operations')} /></div>
+      {capabilities.allowsManualResubmit === true ? <div hidden={tab !== 'operations'}><ManualRetryPanel key={`${session?.tokens?.accessToken?.payload?.sub || session?.tokens?.idToken?.payload?.sub || ''}:${search.get('transactionId') || ''}`} initialTransactionId={search.get('transactionId')} enabled={capabilitiesReady} active={tab === 'operations'} /></div> : null}
       <div hidden={!['overview', 'operations'].includes(tab)}><OperationsPanel view={tab === 'overview' ? 'overview' : 'operations'} capabilities={capabilities} onHistory={showHistory} initialTransactionId={search.get('transactionId')} /></div>
       <div hidden={!['setup', 'activation'].includes(tab)}><PolicyPanel view={tab === 'activation' ? 'activation' : 'setup'} capabilities={capabilities} capabilitiesReady={capabilitiesReady} canPublish={canPublish} onRevision={setRevision} onPolicy={setSnapshot} active={['setup', 'activation'].includes(tab)} /></div>
       <div hidden={tab !== 'history'}><HistoryPanel active={tab === 'history'} latestRevision={revision} focusRevision={historyRevision} /></div>

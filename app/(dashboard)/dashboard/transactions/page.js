@@ -17,6 +17,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
 import { paymentMethodAdminLabel, paymentMethodRouteAdminLabel } from '@/lib/payment-method-labels';
+import { payoutCapabilities } from '@/lib/payout-failover';
 
 const serviceOptions = ['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'COMMERCE', 'PAYMENT_REQUEST', 'BUSINESS_TOOLS', 'BUSINESS_API', 'E_SIM', 'AIRTIME_AND_DATA', 'OTHER'];
 const actionOptions = [
@@ -702,6 +703,17 @@ export default function TransactionsPage() {
   const { pushToast } = useToast();
   const adminRoles = useMemo(() => getAdminRoles(session), [session]);
   const isSuperAdmin = adminRoles.has('SUPER_ADMIN');
+  const canInspectPayoutRetry = enableRegulatorMode === false && (isSuperAdmin || adminRoles.has('ADMIN'));
+  const [manualRetrySupported, setManualRetrySupported] = useState(false);
+  useEffect(() => {
+    let active = true;
+    setManualRetrySupported(false);
+    if (canInspectPayoutRetry) Promise.resolve().then(() => api.payoutFailover.capabilities()).then((value) => {
+      const supported = payoutCapabilities(value).allowsManualResubmit === true;
+      if (active) setManualRetrySupported(supported);
+    }).catch(() => { if (active) setManualRetrySupported(false); });
+    return () => { active = false; };
+  }, [canInspectPayoutRetry, session]);
   const queryFilters = useMemo(() => {
     const transactionId = searchParams.get('transactionId');
     const referenceParam = searchParams.get('reference');
@@ -1319,6 +1331,61 @@ export default function TransactionsPage() {
     }
   }, [pushToast, router]);
 
+  const openDetail = useCallback((row) => {
+    if (enableRegulatorMode !== false && isRegulatorRestrictedRecord(row)) { setError('This transaction is unavailable in the current dashboard presentation.'); return; }
+    setSelected(row);
+    setShowDetail(true);
+    setInfo(null);
+    setError(null);
+    setShowRefund(false);
+    setRefundNote('');
+    setRefundError(null);
+    setRefundLookupResult(null);
+    setRefundLookupError(null);
+    setRefundLookupLoading(null);
+    setRefundLookupInternalRef(row?.internalReference || row?.reference || '');
+    setRefundLookupTransactionId(String(row?.transactionId || row?.id || ''));
+    setShowPawapayDepositRefund(false);
+    setPawapayDepositRefundNote('');
+    setPawapayDepositRefundError(null);
+    setAccountSummary(null);
+    setReceipt(null);
+    setReceiptError(null);
+    setShowPostWebhookRetry(false);
+    setPostWebhookError(null);
+    setPostWebhookRailLabel('');
+    setPostWebhookExternalReference(row?.externalReference || '');
+    setPostWebhookForce(false);
+    setShowReceiptForm(false);
+    setReceiptPayload('{}');
+    setShowReceiptDelete(false);
+    setReceiptTemplateKey('');
+    setBillStatusAuditLogs([]);
+    setBillStatusAuditError(null);
+    setMomoStatusResult(null);
+    setMomoStatusError(null);
+    setForceCardOrderResult(null);
+    setForceCardOrderError(null);
+    setCardHolderVerification(emptyCardHolderVerification);
+    setShowBankPayoutComplete(false);
+    setBankPayoutMessage('');
+    setBankPayoutError(null);
+    setShowPublishHashConfirm(false);
+    setPublishHashValue('');
+    setPublishHashError(null);
+    setShowManualReconciliationConfirm(false);
+    setManualReconciliationAction(null);
+    setManualReconciliationMessage('');
+    setManualReconciliationSubmitError(null);
+    setShowStatusChange(false);
+    setStatusChangeValue('');
+    setStatusChangeNextExpirationDate('');
+    setStatusChangeError(null);
+    setShowInvestigation(false);
+    setInvestigation(null);
+    setInvestigationError(null);
+  }, [enableRegulatorMode]);
+
   const statusLength = rows.reduce((longest, row) => Math.max(longest, String(row.status || '').length), 0);
   const statusColumnWidth = statusLength > 20 ? '19rem' : statusLength > 12 ? '14rem' : '10rem';
   const columns = useMemo(
@@ -1435,67 +1502,18 @@ export default function TransactionsPage() {
             <button type="button" onClick={() => openDetail(row)} className="btn-neutral">
               View
             </button>
+            {canInspectPayoutRetry && manualRetrySupported
+              && ['WITHDRAW_FROM_WALLET', 'BUSINESS_API_PAYOUT'].includes(row.action)
+              && !row.refundedAt && !['COMPLETED', 'CANCELED'].includes(row.status) ? <Link className="btn-neutral"
+                href={`/dashboard/payout-failover?tab=operations&transactionId=${encodeURIComponent(row.transactionId || row.id)}#manual-payout-retry`}>Retry payout</Link> : null}
           </div>
         )
       }
     ],
-    [formatLocalAndUsd, openTransactionOwnerAccount, statusColumnWidth]
+    [formatLocalAndUsd, openTransactionOwnerAccount, openDetail, statusColumnWidth, canInspectPayoutRetry, manualRetrySupported]
   );
 
-  const openDetail = (row) => {
-    if (enableRegulatorMode !== false && isRegulatorRestrictedRecord(row)) { setError('This transaction is unavailable in the current dashboard presentation.'); return; }
-    setSelected(row);
-    setShowDetail(true);
-    setInfo(null);
-    setError(null);
-    setShowRefund(false);
-    setRefundNote('');
-    setRefundError(null);
-    setRefundLookupResult(null);
-    setRefundLookupError(null);
-    setRefundLookupLoading(null);
-    setRefundLookupInternalRef(row?.internalReference || row?.reference || '');
-    setRefundLookupTransactionId(String(row?.transactionId || row?.id || ''));
-    setShowPawapayDepositRefund(false);
-    setPawapayDepositRefundNote('');
-    setPawapayDepositRefundError(null);
-    setAccountSummary(null);
-    setReceipt(null);
-    setReceiptError(null);
-    setShowPostWebhookRetry(false);
-    setPostWebhookError(null);
-    setPostWebhookRailLabel('');
-    setPostWebhookExternalReference(row?.externalReference || '');
-    setPostWebhookForce(false);
-    setShowReceiptForm(false);
-    setReceiptPayload('{}');
-    setShowReceiptDelete(false);
-    setReceiptTemplateKey('');
-    setBillStatusAuditLogs([]);
-    setBillStatusAuditError(null);
-    setMomoStatusResult(null);
-    setMomoStatusError(null);
-    setForceCardOrderResult(null);
-    setForceCardOrderError(null);
-    setCardHolderVerification(emptyCardHolderVerification);
-    setShowBankPayoutComplete(false);
-    setBankPayoutMessage('');
-    setBankPayoutError(null);
-    setShowPublishHashConfirm(false);
-    setPublishHashValue('');
-    setPublishHashError(null);
-    setShowManualReconciliationConfirm(false);
-    setManualReconciliationAction(null);
-    setManualReconciliationMessage('');
-    setManualReconciliationSubmitError(null);
-    setShowStatusChange(false);
-    setStatusChangeValue('');
-    setStatusChangeNextExpirationDate('');
-    setStatusChangeError(null);
-    setShowInvestigation(false);
-    setInvestigation(null);
-    setInvestigationError(null);
-  };
+
 
   const loadInvestigationTimeline = async (transaction = selected) => {
     const transactionId = transaction?.transactionId || transaction?.id;
