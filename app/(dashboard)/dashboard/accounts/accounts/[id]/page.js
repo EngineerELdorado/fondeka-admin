@@ -4240,7 +4240,7 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
         <BusinessToolsAccountPanel accountId={resolvedAccountId} />
       ) : null}
 
-      {resolvedAccountId !== null && resolvedAccountId !== undefined ? <ResellerAccountPanel key={`reseller-${resolvedAccountId}`} accountId={resolvedAccountId} /> : null}
+      {resolvedAccountId !== null && resolvedAccountId !== undefined ? <ResellerAccountPanel key={`reseller-${resolvedAccountId}`} accountId={resolvedAccountId} onEnrollmentChanged={loadAccount} /> : null}
 
       <details className="card" style={{ padding: '1rem' }}>
         <summary style={{ cursor: 'pointer', listStyle: 'none' }}>

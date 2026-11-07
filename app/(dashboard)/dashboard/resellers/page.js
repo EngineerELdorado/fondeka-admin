@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
-import { resellerId, resellerPermissions, resellerRecord, resellerPage, resellerDate } from '@/lib/resellers';
+import { resellerId, resellerPermissions, resellerRecord, resellerPage, resellerDate, resellerEnrollmentStatus } from '@/lib/resellers';
 import { Card, Alert, Badge, Field, ResourceStatus, actionStyle, useMounted, useResellerError, useResellerResource } from '@/components/resellers/Common';
 import SetupPanel from '@/components/resellers/SetupPanel';
 import ConfigurationPanel from '@/components/resellers/ConfigurationPanel';
@@ -77,7 +77,7 @@ function EnrollmentDirectory({ onSelect }) {
   }, [filter, page]);
   const resource = useResellerResource(load);
   return <Card title="Enrolled accounts"><div style={{ ...actionStyle, justifyContent: 'space-between' }}><Field label="Enrollment status"><select value={filter} onChange={(event) => { setFilter(event.target.value); setPage(0); }}><option value="true">Enabled</option><option value="false">Suspended / disabled</option><option value="">All records</option></select></Field><button type="button" className="btn-neutral" disabled={resource.loading} onClick={resource.reload}>Refresh list</button></div><ResourceStatus resource={resource} />{resource.data ? <DataTable columns={[
-    { key: 'account', label: 'Account', priority: 0, render: (row) => `Account ${row.accountId}` }, { key: 'reseller', label: 'Enrollment', render: (row) => <Badge enabled={row.reseller} yes="Enabled" no="Suspended" /> },
+    { key: 'account', label: 'Account', priority: 0, render: (row) => `Account ${row.accountId}` }, { key: 'reseller', label: 'Enrollment', render: (row) => <Badge enabled={row.reseller} yes="Enrolled" no={resellerEnrollmentStatus(row)} /> },
     { key: 'enabledSince', label: 'First activation', priority: 1, render: (row) => resellerDate(row.enabledSince) },
     { key: 'actions', label: 'Actions', render: (row) => <button type="button" className="btn-neutral btn-sm" onClick={() => onSelect(row.accountId)}>Open account</button> }
   ]} rows={resource.data.content} page={page} pageSize={20} totalElements={resource.data.totalElements} totalPages={resource.data.totalPages} onPageChange={setPage} canNext={page + 1 < resource.data.totalPages} showAccountQuickNav={false} showIndex={false} emptyLabel="No accounts match this status. Use Find an account to enroll a customer." /> : null}</Card>;

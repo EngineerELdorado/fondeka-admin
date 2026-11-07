@@ -6,15 +6,15 @@ import { regulatorVisibleFields } from '@/lib/regulator-presentation';
 
 import { useAuth } from '@/contexts/AuthContext';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DataTable } from '@/components/DataTable';
 import { TableCellLines } from '@/components/TableCell';
 import { api } from '@/lib/api';
 import { useLocale } from '@/contexts/LocaleContext';
 
 const VERIFICATION_STATUSES = ['UNVERIFIED', 'VERIFIED', 'REJECTED'];
-const STORE_STATUSES = ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'CLOSED'];
-const VISIBILITIES = ['PUBLIC', 'PRIVATE', 'UNLISTED'];
+const STORE_STATUSES = ['DRAFT', 'ACTIVE', 'SUSPENDED', 'ARCHIVED'];
+const VISIBILITIES = ['PUBLIC', 'PRIVATE'];
 const DELETED_STATE_OPTIONS = [
   { value: '', label: 'All' },
   { value: 'active', label: 'Active only' },
@@ -124,6 +124,9 @@ export default function CommerceStoresPage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
+  const [creatorEmail, setCreatorEmail] = useState('');
+  const [creatorEmailFilter, setCreatorEmailFilter] = useState('');
+  const storeRequest = useRef(0);
   const [verificationStatus, setVerificationStatus] = useState('');
   const [status, setStatus] = useState('');
   const [visibility, setVisibility] = useState('');
@@ -136,17 +139,22 @@ export default function CommerceStoresPage() {
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
 
-  const fetchRows = async () => {
+  const fetchRows = useCallback(async () => {
+    const request = ++storeRequest.current;
     setLoading(true);
     setError(null);
+    setRows([]);
+    setPageMeta({ totalElements: null, totalPages: null });
     try {
       const params = new URLSearchParams({ page: String(page), size: String(size) });
+      if (creatorEmailFilter) params.set('creatorEmail', creatorEmailFilter);
       if (verificationStatus) params.set('verificationStatus', verificationStatus);
       if (status) params.set('status', status);
       if (visibility) params.set('visibility', visibility);
       if (deletedState === 'active') params.set('deleted', 'false');
       if (deletedState === 'deleted') params.set('deleted', 'true');
       const res = await api.commerceStores.list(params);
+      if (request !== storeRequest.current) return;
       const list = Array.isArray(res) ? res : res?.content || res?.stores || [];
       setRows(list || []);
       setPageMeta({
@@ -154,17 +162,33 @@ export default function CommerceStoresPage() {
         totalPages: typeof res?.totalPages === 'number' ? res.totalPages : null
       });
     } catch (err) {
+      if (request !== storeRequest.current) return;
       setError(err?.message || 'Failed to load commerce stores.');
       setRows([]);
       setPageMeta({ totalElements: null, totalPages: null });
     } finally {
-      setLoading(false);
+      if (request === storeRequest.current) setLoading(false);
     }
+  }, [page, size, creatorEmailFilter, verificationStatus, status, visibility, deletedState]);
+  const invalidateRowsRequest = useCallback(() => { storeRequest.current++; }, []);
+
+  useEffect(() => {
+    const next = creatorEmail.trim();
+    if (next === creatorEmailFilter) return;
+    const timer = setTimeout(() => { setCreatorEmailFilter(next); setPage(0); }, 300);
+    return () => clearTimeout(timer);
+  }, [creatorEmail, creatorEmailFilter]);
+
+  const refreshRows = () => {
+    const next = creatorEmail.trim();
+    if (next !== creatorEmailFilter) { setCreatorEmailFilter(next); setPage(0); }
+    else fetchRows();
   };
 
   useEffect(() => {
-    fetchRows();
-  }, [page, size, verificationStatus, status, visibility, deletedState]); // eslint-disable-line react-hooks/exhaustive-deps
+    void fetchRows();
+    return invalidateRowsRequest;
+  }, [fetchRows, invalidateRowsRequest]);
 
   useEffect(() => {
     if (!info && !error) return;
@@ -293,6 +317,8 @@ export default function CommerceStoresPage() {
   };
 
   const clearFilters = () => {
+    setCreatorEmail('');
+    setCreatorEmailFilter('');
     setVerificationStatus('');
     setStatus('');
     setVisibility('');
@@ -452,6 +478,21 @@ export default function CommerceStoresPage() {
       <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: '0.75rem', alignItems: 'end' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label htmlFor="creatorEmail">Creator email</label>
+            <input
+              id="creatorEmail"
+              type="search"
+              inputMode="email"
+              autoComplete="off"
+              spellCheck={false}
+              maxLength={254}
+              placeholder="Full or partial email"
+              value={creatorEmail}
+              onChange={(event) => setCreatorEmail(event.target.value)}
+              onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); refreshRows(); } }}
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="verificationStatus">Verification</label>
             <select
               id="verificationStatus"
@@ -538,12 +579,13 @@ export default function CommerceStoresPage() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <button type="button" className="btn-primary" onClick={fetchRows} disabled={loading || Boolean(savingId)}>
-            {loading ? 'Loading...' : 'Refresh'}
+          <button type="button" className="btn-primary" onClick={refreshRows} disabled={Boolean(savingId)} aria-busy={loading}>
+            Refresh
           </button>
-          <button type="button" className="btn-neutral" onClick={clearFilters} disabled={loading || Boolean(savingId)}>
+          <button type="button" className="btn-neutral" onClick={clearFilters} disabled={Boolean(savingId)}>
             Clear filters
           </button>
+          {loading ? <span role="status">Loading stores…</span> : null}
           {pageMeta.totalElements !== null ? (
             <span style={{ color: 'var(--muted)', fontSize: '13px' }}>
               {pageMeta.totalElements} stores total

@@ -282,8 +282,8 @@ test('currency balances keep held/deficit/earned/redeemed/reversed independent w
   const view = await mountComponent(path.join(__dirname, '../components/resellers/AccountWorkspace.js'), {
     exportName: 'AccountWorkspace', props: { accountId: 42, canWrite: false }, modules: {
       '@/contexts/AuthContext': { useAuth: () => ({}) }, '@/components/RegulatorPresentation': { PresentationLink: 'a' }, '@/lib/api': { api: { resellers: {} } }, '@/components/DataTable': { DataTable: 'table' },
-      '@/components/ContentModal': { ContentModal: 'dialog' }, '@/components/TableCell': { TableCellLines: 'paired' }, '@/lib/resellers': helpers, './Editor': { __esModule: true, default: 'editor' }, './TransactionInspector': { TransactionInspector: 'inspector' }, './ProductRateEditor': { __esModule: true, default: 'rate-editor' }, './ConfigurationPanel': { __esModule: true, default: 'configuration' }, './Navigation': { __esModule: true, default: 'navigation' }, './resellers.module.css': { __esModule: true, default: {} },
-      './Common': { Card: 'section', Facts: 'facts', Badge: 'badge', BehaviorFacts: 'behavior', ProductMarketPicker: 'market', Field: 'field', ResourceStatus: 'status', actionStyle: {}, useResellerResource: () => ({ data: { accountId: 42, reseller: false, upstreamEarningsBlocked: true, version: 0, countryCode: '', summary: { pointsByCurrency: rows, billProducts: [], earningEnabled: false } }, ready: true }) }
+      '@/components/ContentModal': { ContentModal: 'dialog' }, '@/components/TableCell': { TableCellLines: 'paired' }, '@/lib/resellers': helpers, './Editor': { __esModule: true, default: 'editor' }, './TransactionInspector': { TransactionInspector: 'inspector' }, './ProductRateEditor': { __esModule: true, default: 'rate-editor' }, './EnrollmentRemoval': { __esModule: true, default: 'removal' }, './ConfigurationPanel': { __esModule: true, default: 'configuration' }, './Navigation': { __esModule: true, default: 'navigation' }, './resellers.module.css': { __esModule: true, default: {} },
+      './Common': { Card: 'section', Alert: 'alert', Facts: 'facts', Badge: 'badge', BehaviorFacts: 'behavior', ProductMarketPicker: 'market', Field: 'field', ResourceStatus: 'status', actionStyle: {}, useResellerResource: () => ({ data: { accountId: 42, reseller: false, upstreamEarningsBlocked: true, version: 0, countryCode: '', summary: { pointsByCurrency: rows, billProducts: [], earningEnabled: false } }, ready: true }) }
     }
   });
   const balances = view.nodes().find((node) => node.type === 'table' && node.props.rows === rows);
@@ -580,9 +580,9 @@ test('commission and behavior views inside an account keep its scope and read-on
     exportName: 'AccountWorkspace', props: { accountId: 42, canWrite: false, manageConfiguration: true }, modules: {
       '@/contexts/AuthContext': { useAuth: () => ({}) }, '@/components/RegulatorPresentation': { PresentationLink: 'a' }, '@/lib/api': { api: {} }, '@/lib/resellers': helpers,
       '@/components/DataTable': { DataTable: 'table' }, '@/components/ContentModal': { ContentModal: 'dialog' }, '@/components/TableCell': { TableCellLines: 'paired' },
-      './Editor': { __esModule: true, default: 'editor' }, './TransactionInspector': { TransactionInspector: 'inspector' }, './ProductRateEditor': { __esModule: true, default: 'rate-editor' },
+      './Editor': { __esModule: true, default: 'editor' }, './TransactionInspector': { TransactionInspector: 'inspector' }, './ProductRateEditor': { __esModule: true, default: 'rate-editor' }, './EnrollmentRemoval': { __esModule: true, default: 'removal' },
       './ConfigurationPanel': { __esModule: true, default: 'configuration' }, './Navigation': { __esModule: true, default: 'navigation' }, './resellers.module.css': { __esModule: true, default: {} },
-      './Common': { Card: 'section', Facts: 'facts', Badge: 'badge', BehaviorFacts: 'behavior', ProductMarketPicker: 'market', Field: 'field', ResourceStatus: 'status', actionStyle: {}, useResellerResource: () => ({ data: { accountId: 42, reseller: false, upstreamEarningsBlocked: true, version: 0, countryCode: '', summary: { pointsByCurrency: [], billProducts: [], earningEnabled: false } }, ready: true }) }
+      './Common': { Card: 'section', Alert: 'alert', Facts: 'facts', Badge: 'badge', BehaviorFacts: 'behavior', ProductMarketPicker: 'market', Field: 'field', ResourceStatus: 'status', actionStyle: {}, useResellerResource: () => ({ data: { accountId: 42, reseller: false, upstreamEarningsBlocked: true, version: 0, countryCode: '', summary: { pointsByCurrency: [], billProducts: [], earningEnabled: false } }, ready: true }) }
     }
   });
   for (const [tab, kind] of [['rules', 'rule'], ['policies', 'policy']]) {
@@ -654,11 +654,11 @@ test('market changes preserve backend product order and all currency balances, i
     exportName: 'AccountWorkspace', props: { accountId: 42, canWrite: true, manageConfiguration: true }, modules: (hooks) => ({
       '@/contexts/AuthContext': { useAuth: () => ({ refreshSession }) }, '@/components/RegulatorPresentation': { PresentationLink: 'a' }, '@/lib/api': { api }, '@/lib/resellers': helpers,
       '@/components/DataTable': { DataTable: 'table' }, '@/components/ContentModal': { ContentModal: 'dialog' }, '@/components/TableCell': { TableCellLines: 'paired' },
-      './Editor': { __esModule: true, default: 'editor' }, './TransactionInspector': { TransactionInspector: 'inspector' }, './ProductRateEditor': { __esModule: true, default: 'rate-editor' },
+      './Editor': { __esModule: true, default: 'editor' }, './TransactionInspector': { TransactionInspector: 'inspector' }, './ProductRateEditor': { __esModule: true, default: 'rate-editor' }, './EnrollmentRemoval': { __esModule: true, default: 'removal' },
       './ConfigurationPanel': { __esModule: true, default: 'configuration' }, './Navigation': { __esModule: true, default: 'navigation' }, './resellers.module.css': { __esModule: true, default: {} },
       './Common': {
         ...compiledCommon(hooks, { '@/contexts/AuthContext': { useAuth: () => ({ refreshSession }) }, '@/lib/api': { api }, '@/lib/resellers': helpers, '@/components/CountrySelect': { CountrySelect: 'country-picker' }, '@/components/CatalogSelect': { CatalogSelect: 'picker' }, '@/lib/regulator-presentation': {} }),
-        Card: 'section', Facts: 'facts', Badge: 'badge', BehaviorFacts: 'behavior', ProductMarketPicker: 'market', Field: 'field', ResourceStatus: 'status'
+        Card: 'section', Alert: 'alert', Facts: 'facts', Badge: 'badge', BehaviorFacts: 'behavior', ProductMarketPicker: 'market', Field: 'field', ResourceStatus: 'status'
       }
     })
   });

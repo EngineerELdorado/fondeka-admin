@@ -7,16 +7,17 @@ import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 import { ContentModal } from '@/components/ContentModal';
 import { TableCellLines } from '@/components/TableCell';
-import { resellerPermissions, resellerRecord, resellerPage, resellerDate, resellerLabel, resellerNumber, filterResellerProducts } from '@/lib/resellers';
+import { resellerPermissions, resellerRecord, resellerPage, resellerDate, resellerLabel, resellerNumber, resellerEnrollmentStatus, filterResellerProducts } from '@/lib/resellers';
 import ResellerEditor from './Editor';
+import EnrollmentRemoval from './EnrollmentRemoval';
 import ProductRateEditor from './ProductRateEditor';
 import ConfigurationPanel from './ConfigurationPanel';
 import Navigation from './Navigation';
 import styles from './resellers.module.css';
 import { TransactionInspector } from './TransactionInspector';
-import { Card, Facts, Badge, BehaviorFacts, Field, ResourceStatus, ProductMarketPicker, actionStyle, gridStyle, useResellerResource } from './Common';
+import { Card, Alert, Facts, Badge, BehaviorFacts, Field, ResourceStatus, ProductMarketPicker, actionStyle, gridStyle, useResellerResource } from './Common';
 
-export function AccountWorkspace({ accountId, canWrite, onConfigure, manageConfiguration = false }) {
+export function AccountWorkspace({ accountId, canWrite, onConfigure, onEnrollmentChanged, manageConfiguration = false }) {
   const [countryCode, setCountryCode] = useState('');
   const loadEnrollment = useCallback(async () => {
     const enrollment = await api.resellers.enrollment(accountId);
@@ -31,18 +32,36 @@ export function AccountWorkspace({ accountId, canWrite, onConfigure, manageConfi
   }, [accountId, countryCode]);
   const enrollmentResource = useResellerResource(loadEnrollment), summaryResource = useResellerResource(loadSummary);
   const [tab, setTab] = useState('summary'), [editing, setEditing] = useState(false), [behavior, setBehavior] = useState(null);
+  const [removing, setRemoving] = useState(false), [notice, setNotice] = useState('');
   const [productFilters, setProductFilters] = useState({ search: '', eligibility: '', source: '' }), [rateProduct, setRateProduct] = useState(null);
   const enrollment = enrollmentResource.data, summary = summaryResource.data?.summary;
+  const showRemoval = enrollment?.enrollmentPresent === true || enrollment?.enrollmentPresent == null && (enrollment?.reseller || enrollment?.enabledSince);
+  const removalSupported = ['enrollmentPresent', 'removed', 'selfEnrollmentSuspended'].every((field) => typeof enrollment?.[field] === 'boolean');
+  const removalUnavailable = !removalSupported ? 'This backend needs an update before enrollment removal is available.' : '';
   const products = summaryResource.data?.countryCode === countryCode ? summary?.billProducts : null;
   const filteredProducts = useMemo(() => products ? Object.values(productFilters).some(Boolean) ? filterResellerProducts(products, productFilters) : products : [], [products, productFilters]);
   const sources = useMemo(() => [...new Set((products || []).map((product) => product.source).filter(Boolean))], [products]);
   const refresh = () => { enrollmentResource.reload(); summaryResource.reload(); };
   return <div style={{ display: 'grid', gap: '1rem' }}>
     <Card title={`Reseller account ${accountId}`}>
-      <div style={{ ...actionStyle, justifyContent: 'space-between' }}><Link href={`/dashboard/accounts/accounts/${accountId}`}>Open account details ↗</Link><div style={actionStyle}><button type="button" className="btn-neutral" disabled={enrollmentResource.loading || summaryResource.loading} onClick={refresh}>Refresh</button>{canWrite ? <button type="button" className="btn-primary" disabled={!enrollmentResource.ready} onClick={() => setEditing(true)}>Manage enrollment</button> : <span>Read only — Super Admin required.</span>}</div></div>
+      <div style={{ ...actionStyle, justifyContent: 'space-between' }}>
+        <Link href={`/dashboard/accounts/accounts/${accountId}`}>Open account details ↗</Link>
+        <div style={actionStyle}>
+          <button type="button" className="btn-neutral" disabled={enrollmentResource.loading || summaryResource.loading} onClick={refresh}>Refresh</button>
+          {canWrite ? <>
+            <button type="button" className="btn-primary" disabled={!enrollmentResource.ready || removing} onClick={() => setEditing(true)}>Manage enrollment</button>
+            {showRemoval ? <div style={{ display: 'grid', gap: '.35rem', maxWidth: '26rem' }}>
+              <button type="button" className="btn-danger" disabled={!enrollmentResource.ready || editing || Boolean(removalUnavailable)} title={removalUnavailable || undefined} aria-describedby={removalUnavailable ? `removal-unavailable-${accountId}` : undefined} onClick={() => { if (!removalUnavailable && enrollmentResource.ready && !editing) setRemoving(true); }}>Remove reseller enrollment</button>
+              {removalUnavailable ? <small id={`removal-unavailable-${accountId}`} style={{ color: 'var(--muted)' }}>{removalUnavailable}</small> : null}
+            </div> : null}
+          </> : <span>Read only — Super Admin required.</span>}
+        </div>
+      </div>
       <ResourceStatus resource={enrollmentResource} />
+      <Alert success>{notice}</Alert>
       {enrollment ? <Facts rows={[
-        ['Enrollment', <Badge key="enrollment" enabled={enrollment.reseller} yes="Enrolled" no={enrollment.enabledSince ? 'Suspended' : 'Not enrolled'} />],
+        ['Enrollment', <Badge key="enrollment" enabled={enrollment.reseller} yes="Enrolled" no={resellerEnrollmentStatus(enrollment)} />],
+        ...(!enrollment.reseller && typeof enrollment.selfEnrollmentSuspended === 'boolean' ? [['Customer self-enrollment', enrollment.selfEnrollmentSuspended ? 'Blocked by suspension' : 'Permitted when current eligibility is met']] : []),
         ['New own earning', summaryResource.loading ? 'Refreshing…' : summary ? <Badge key="earning" enabled={summary.earningEnabled} yes="Enabled" no="Not enabled" /> : 'Unavailable'],
         ...(!manageConfiguration ? [['First activation', resellerDate(enrollment.enabledSince)], ['Upstream earnings (general context)', enrollment.upstreamEarningsBlocked ? 'Blocked' : 'Not blocked'], ['Version', enrollment.version], ['Admin notes', enrollment.notes]] : [])
       ]} /> : null}
@@ -83,7 +102,8 @@ export function AccountWorkspace({ accountId, canWrite, onConfigure, manageConfi
       ]} rows={filteredProducts} showIndex={false} showAccountQuickNav={false} emptyLabel={products.length ? 'No products match these filters.' : 'No products are available in this market.'} /></> : null}</Card>
     </> : null}
     {['rewards', 'entries'].includes(tab) ? <AccountHistory key={`${accountId}:${tab}`} kind={tab} accountId={accountId} canWrite={canWrite} onChanged={refresh} /> : null}
-    {editing && enrollment ? <ResellerEditor kind="enrollment" record={enrollment} canWrite={canWrite} onClose={() => setEditing(false)} onReload={() => api.resellers.enrollment(accountId)} onSave={(payload) => api.resellers.updateEnrollment(accountId, payload)} onSaved={(next) => { enrollmentResource.accept(next); refresh(); }} /> : null}
+    {editing && enrollment ? <ResellerEditor kind="enrollment" record={enrollment} canWrite={canWrite} onClose={() => setEditing(false)} onReload={() => api.resellers.enrollment(accountId)} onSave={(payload) => api.resellers.updateEnrollment(accountId, payload)} onSaved={(next) => { enrollmentResource.accept(next); setNotice('Enrollment updated.'); refresh(); onEnrollmentChanged?.(); }} /> : null}
+    {removing ? <EnrollmentRemoval key={accountId} accountId={accountId} canWrite={canWrite} onClose={() => setRemoving(false)} onObserved={(next) => { enrollmentResource.accept(next); summaryResource.reload(); }} onRemoved={() => { setNotice('Enrollment removal confirmed. Refreshing current account state.'); refresh(); onEnrollmentChanged?.(); }} /> : null}
     {behavior ? <ContentModal title={`Effective behavior · ${behavior.billProductCode || behavior.billProductId}`} onClose={() => setBehavior(null)}><BehaviorFacts values={behavior.behavior} /></ContentModal> : null}
     {rateProduct ? <ProductRateEditor accountId={accountId} product={rateProduct} canWrite={canWrite} onClose={() => setRateProduct(null)} onSaved={refresh} /> : null}
   </div>;
@@ -112,10 +132,10 @@ function AccountHistory({ kind, accountId, canWrite, onChanged }) {
   </Card>;
 }
 
-export default function ResellerAccountPanel({ accountId }) {
+export default function ResellerAccountPanel({ accountId, onEnrollmentChanged }) {
   const { session } = useAuth();
   const { canRead, canWrite } = resellerPermissions(session);
   const [expanded, setExpanded] = useState(false);
   if (!canRead) return null;
-  return <details className="card" onToggle={(event) => setExpanded(event.currentTarget.open)}><summary style={{ cursor: 'pointer', fontWeight: 700 }}>Reseller program</summary>{expanded ? <div style={{ marginTop: '1rem' }}><AccountWorkspace key={accountId} accountId={Number(accountId)} canWrite={canWrite} /></div> : null}</details>;
+  return <details className="card" onToggle={(event) => setExpanded(event.currentTarget.open)}><summary style={{ cursor: 'pointer', fontWeight: 700 }}>Reseller program</summary>{expanded ? <div style={{ marginTop: '1rem' }}><AccountWorkspace key={accountId} accountId={Number(accountId)} canWrite={canWrite} onEnrollmentChanged={onEnrollmentChanged} /></div> : null}</details>;
 }
