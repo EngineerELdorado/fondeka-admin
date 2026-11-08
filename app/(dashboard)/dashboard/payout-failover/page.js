@@ -38,11 +38,16 @@ export default function PayoutFailoverPage() {
   if (!canRead) return <Card title="Payout failover"><Alert>Permission denied. Admin or Super Admin access is required.</Alert></Card>;
   if (enableRegulatorMode !== false) return <Card title="Payout failover">This area is unavailable in the current dashboard presentation.</Card>;
   return <div className="payout-failover failover-workspace">
-    <FailoverIntro kind="payout" capabilities={capabilities} canPublish={canPublish} loading={loading} onRefresh={() => setReload((value) => value + 1)}><Alert>{error}</Alert></FailoverIntro>
+    <FailoverIntro kind="payout" capabilities={capabilities} canPublish={canPublish} loading={loading} onRefresh={() => setReload((value) => value + 1)}>
+      <Alert>{error}</Alert>
+      {capabilitiesReady && capabilities?.allowsManualResubmit === true ? <div className="failover-actions"><button type="button" className="btn-primary" onClick={() => setTab('operations')}>Retry a payout</button><small>Review a saved payment and choose its provider. Automatic failover can stay off.</small></div> : null}
+      {!loading && capabilitiesReady && capabilities?.allowsManualResubmit !== true ? <p role="status">Manual payout retries are unavailable on the connected backend.</p> : null}
+    </FailoverIntro>
     {capabilities ? <>
       <FailoverNavigation kind="payout" view={tab} onChange={setTab} />
       <div hidden={tab !== 'overview'}><FailoverOverview kind="payout" snapshot={snapshot} canPublish={canPublish} onSetup={() => setTab('setup')} onActivation={() => setTab('activation')} onActivity={() => setTab('operations')} /></div>
       {capabilities.allowsManualResubmit === true ? <div hidden={tab !== 'operations'}><ManualRetryPanel key={`${session?.tokens?.accessToken?.payload?.sub || session?.tokens?.idToken?.payload?.sub || ''}:${search.get('transactionId') || ''}`} initialTransactionId={search.get('transactionId')} enabled={capabilitiesReady} active={tab === 'operations'} /></div> : null}
+      {capabilitiesReady && capabilities.allowsManualResubmit !== true && tab === 'operations' ? <Card title="Manual payout retry unavailable"><p>The connected backend does not advertise manual payout retry support. Deploy the matching backend and worker release before using this action.</p><small>Turning on automatic failover does not enable manual retries.</small></Card> : null}
       <div hidden={!['overview', 'operations'].includes(tab)}><OperationsPanel view={tab === 'overview' ? 'overview' : 'operations'} capabilities={capabilities} onHistory={showHistory} initialTransactionId={search.get('transactionId')} /></div>
       <div hidden={!['setup', 'activation'].includes(tab)}><PolicyPanel view={tab === 'activation' ? 'activation' : 'setup'} capabilities={capabilities} capabilitiesReady={capabilitiesReady} canPublish={canPublish} onRevision={setRevision} onPolicy={setSnapshot} active={['setup', 'activation'].includes(tab)} /></div>
       <div hidden={tab !== 'history'}><HistoryPanel active={tab === 'history'} latestRevision={revision} focusRevision={historyRevision} /></div>

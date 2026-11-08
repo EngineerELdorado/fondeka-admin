@@ -217,12 +217,18 @@ test('manual retry is capability-gated for Admins and Super Admins, unavailable 
     const run = await payoutPage({ role });
     let retry = run.view.nodes().find(node => node.type === 'ManualRetryPanel').props;
     assert.equal(retry.enabled, true); assert.equal(retry.active, true); assert.equal(retry.initialTransactionId, '91');
+    run.view.nodes().find(node => node.type === 'navigation').props.onChange('overview'); await run.view.flush();
+    assert.equal(run.view.nodes().find(node => node.type === 'ManualRetryPanel').props.active, false);
+    await run.view.click('Retry a payout');
+    assert.equal(run.view.nodes().find(node => node.type === 'ManualRetryPanel').props.active, true);
     run.failNext(); run.view.nodes().find(node => node.type === 'intro').props.onRefresh(); await run.view.flush();
     retry = run.view.nodes().find(node => node.type === 'ManualRetryPanel').props;
     assert.equal(retry.enabled, false);
   }
   const older = await payoutPage({ supports: false });
   assert.ok(!older.view.nodes().some(node => node.type === 'ManualRetryPanel'));
+  assert.match(older.view.text(), /connected backend does not advertise/);
+  assert.match(older.view.text(), /Turning on automatic failover does not enable manual retries/);
   for (const role of ['ASSISTANT', 'STAFF', 'CUSTOMER']) {
     const denied = await payoutPage({ role }); assert.equal(denied.requests(), 0);
     assert.ok(!denied.view.nodes().some(node => node.type === 'ManualRetryPanel'));
@@ -236,4 +242,49 @@ test('saved approval recovery retains only the exact immutable request and rejec
   assert.equal(h.savedManualRetry(value, 92), null);
   assert.equal(h.savedManualRetry({ ...value, payload: { ...payload, confirmed: false } }, 91), null);
   assert.notEqual(h.manualRetryStorageKey('admin-A', 91), h.manualRetryStorageKey('admin-B', 91));
+});
+
+test('retry entry links keep the payment identity and exclude completed, canceled, refunded and non-payout rows', async () => {
+  const h = await helpers, row = { transactionId: 91, action: 'WITHDRAW_FROM_WALLET', status: 'FAILED' };
+  assert.equal(h.manualRetryCandidate(row), true);
+  assert.equal(h.manualRetryCandidate({ ...row, action: 'BUSINESS_API_PAYOUT' }), true);
+  assert.equal(h.manualRetryHref(row), '/dashboard/payout-failover?tab=operations&transactionId=91#manual-payout-retry');
+  for (const patch of [{ transactionId: null }, { status: 'COMPLETED' }, { status: 'CANCELED' }, { refunded: true }, { refundedAt: '2026-11-08T10:00:00Z' }, { action: 'FUND_WALLET' }]) assert.equal(h.manualRetryCandidate({ ...row, ...patch }), false);
+});
+
+async function transactions({ supported = true, role = 'ADMIN' } = {}) {
+  const h = await helpers;
+  const load = file => import('data:text/javascript;base64,' + Buffer.from(readFileSync(path.join(__dirname, '..', file), 'utf8')).toString('base64'));
+  const row = { transactionId: 91, reference: 'TX91', action: 'WITHDRAW_FROM_WALLET', service: 'WALLET', status: 'FAILED', amount: 100, grossAmount: 105, currency: 'GHS' };
+  const session = { tokens: { accessToken: { payload: { sub: 'admin-1', 'cognito:groups': [role] } } } }, params = new URLSearchParams();
+  const view = await mountComponent(path.join(__dirname, '../app/(dashboard)/dashboard/transactions/page.js'), { modules: {
+    'next/navigation': { useRouter: () => ({ push() {}, replace() {} }), useSearchParams: () => params },
+    '@/contexts/AuthContext': { useAuth: () => ({ session, enableRegulatorMode: false }) }, '@/contexts/ToastContext': { useToast: () => ({ pushToast() {} }) },
+    '@/lib/payout-failover': await load('lib/payout-failover.js'), '@/lib/payout-manual-retry': h,
+    '@/lib/api': { api: { payoutFailover: { capabilities: async () => ({ providers: [{ provider: 'PAWAPAY', sourceSupported: true, targetSupported: true }], errorCodes: [], actions: ['WITHDRAW_FROM_WALLET'], maximumProviders: 3, requiresConfirmedNonPayment: true, allowsManualResubmit: supported }) },
+      transactions: { list: async () => ({ content: [row], totalPages: 1, totalElements: 1 }), get: async () => row, getReceipt: async () => null },
+      accounts: { list: async () => [] }, auditLogs: { list: async () => [] }, paymentMethods: { options: async () => [] }, paymentProviders: { list: async () => [] }, paymentMethodPaymentProviders: { options: async () => [] }, billProducts: { options: async () => [] }, billProviders: { list: async () => [] } } },
+    '@/components/ResponsiveTable': { __esModule: true, default: 'responsive' }, '@/components/TransactionStatusBadge': { __esModule: true, default: 'badge' },
+    '@/components/CatalogSelect': { CatalogSelect: 'select' }, '@/components/RegulatorPresentation': { RegulatorRecord: 'record', PresentationSelect: 'select', NonRegulatorContent: 'normal', PresentationLink: 'a', RegulatorField: 'field' },
+    '@/lib/regulator-presentation': { isRegulatorRestrictedRecord: () => false, regulatorVisibleFields: rows => rows },
+    '@/components/DataTable': { DataTable: 'table' }, '@/components/TableCell': { __esModule: true, default: 'text-cell', TableCellLines: 'lines' },
+    '@/components/resellers/TransactionInspector': { __esModule: true, default: 'reseller' }, '@/lib/payment-method-labels': { paymentMethodAdminLabel: row => row?.name || '', paymentMethodRouteAdminLabel: row => row?.name || '' }
+  } });
+  await view.flush();
+  const table = view.nodes().find(node => node.type === 'table').props;
+  const actions = table.columns.find(column => column.key === 'actions').render(row);
+  require('react').Children.toArray(actions.props.children).find(node => node.type === 'button' && node.props.children === 'View').props.onClick();
+  await view.flush(); return view;
+}
+
+test('transaction details offer the same provider-selection entry point and explain unavailable backend support', async () => {
+  const supported = await transactions();
+  assert.match(supported.text(), /Payout retry and provider selection/);
+  const entry = supported.nodes().find(node => node.type === 'a' && node.props.children === 'Retry payout');
+  assert.equal(entry.props.href, '/dashboard/payout-failover?tab=operations&transactionId=91#manual-payout-retry');
+  const older = await transactions({ supported: false });
+  assert.match(older.text(), /Manual retry support has not been confirmed/);
+  assert.ok(!older.nodes().some(node => node.props.children === 'Retry payout'));
+  const assistant = await transactions({ role: 'ASSISTANT' });
+  assert.doesNotMatch(assistant.text(), /Payout retry and provider selection/);
 });

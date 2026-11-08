@@ -18,6 +18,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
 import { paymentMethodAdminLabel, paymentMethodRouteAdminLabel } from '@/lib/payment-method-labels';
 import { payoutCapabilities } from '@/lib/payout-failover';
+import { manualRetryCandidate, manualRetryHref } from '@/lib/payout-manual-retry';
 
 const serviceOptions = ['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'COMMERCE', 'PAYMENT_REQUEST', 'BUSINESS_TOOLS', 'BUSINESS_API', 'E_SIM', 'AIRTIME_AND_DATA', 'OTHER'];
 const actionOptions = [
@@ -1502,10 +1503,7 @@ export default function TransactionsPage() {
             <button type="button" onClick={() => openDetail(row)} className="btn-neutral">
               View
             </button>
-            {canInspectPayoutRetry && manualRetrySupported
-              && ['WITHDRAW_FROM_WALLET', 'BUSINESS_API_PAYOUT'].includes(row.action)
-              && !row.refundedAt && !['COMPLETED', 'CANCELED'].includes(row.status) ? <Link className="btn-neutral"
-                href={`/dashboard/payout-failover?tab=operations&transactionId=${encodeURIComponent(row.transactionId || row.id)}#manual-payout-retry`}>Retry payout</Link> : null}
+            {canInspectPayoutRetry && manualRetrySupported && manualRetryCandidate(row) ? <Link className="btn-neutral" href={manualRetryHref(row)}>Retry payout</Link> : null}
           </div>
         )
       }
@@ -2708,6 +2706,10 @@ export default function TransactionsPage() {
             {detailLoading ? (
               <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Refreshing transaction details…</div>
             ) : null}
+            {canInspectPayoutRetry && manualRetryCandidate(selected) ? <div className="card" style={{ display: 'grid', gap: '.6rem' }}>
+              <strong>Payout retry and provider selection</strong>
+              {manualRetrySupported ? <><span>Review this payout, then choose the original provider or an eligible alternate before approving one attempt.</span><div><Link className="btn-primary" href={manualRetryHref(selected)}>Retry payout</Link></div></> : <><span>Manual retry support has not been confirmed for this backend.</span><Link href="/dashboard/payout-failover?tab=operations">Check retry availability</Link></>}
+            </div> : null}
             <ResellerTransactionPanel key={selected?.id} transaction={selected} />
             <DetailGrid
               rows={[

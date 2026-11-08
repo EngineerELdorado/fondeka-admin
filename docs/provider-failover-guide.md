@@ -341,7 +341,7 @@ Recharge `GET /defaults` and `POST /defaults/prepare` remain backend convenience
 
 ## 11. Approve one manual payout retry
 
-Open **Transactions → Retry payout**, or **Payout failover → Payment activity → Retry a payout**. Admins and Super Admins can use this flow when `/capabilities` advertises `allowsManualResubmit:true`. An older backend hides the action. This also supports eligible historical payouts without a journal; it does not adopt them into automatic failover.
+Open **Transactions → Actions → Retry payout**, **View → Retry payout** in transaction details, or **Payout failover → Payment activity → Retry a payout**. The Payout failover header also has a shortcut. Admins and Super Admins can use this flow when `/capabilities` advertises `allowsManualResubmit:true`. An older backend hides the approval form and shows an availability explanation in Payment activity. This also supports eligible historical payouts without a journal; it does not adopt them into automatic failover.
 
 1. Enter the numeric transaction ID and choose **Check payout status**. This GET reads the saved payment, provider evidence, available routes, blockers and recent approvals without sending a payout.
 2. Review the saved beneficiary, net amount, gross original debit, currency and customer reference. These cannot be edited. Attempt 0 means the payout has not been journaled; the original becomes attempt 1 when managed.
