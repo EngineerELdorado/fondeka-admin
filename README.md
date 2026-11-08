@@ -162,11 +162,29 @@ Edits keep the same announcement ID and do not reset the device's per-account pr
 
 Apply backend migration `20261210_announcement_popup.sql` and deploy the updated API before the dashboard. Existing records keep the current format until explicitly changed to Popup. For request fields, localization, compatibility and native presentation behavior, see the [announcement popup integration contract](../../backend/docs/mobile-announcement-popup.md).
 
+### Business account audiences
+
+Open **Push campaigns → Advanced audience → Product ownership**, or **Announcements → New / Edit → Audience targeting**. Both editors share these Any/Yes/No filters:
+
+| Label | API field | Yes matches |
+| --- | --- | --- |
+| Is reseller | `isReseller` | Enabled enrollment that has not been removed; suspended enrollments are excluded. |
+| Has store | `hasStores` | Owns a non-deleted, non-archived store, including draft/active/suspended stores. |
+| Has POS plan | `hasPos` | Active POS customer access from a grant, qualifying bundle or grandfathered paid access. |
+| Has payment link / request | `hasPaymentRequests` | Has created a payment request, including historical requests. |
+| Has API plan | `hasApi` | Active API customer access from a grant, qualifying bundle or grandfathered paid access; no key is required. |
+
+Any omits the property; Yes sends literal true and No sends literal false. No includes accounts that never enrolled or created a matching resource. All selected criteria combine with AND, together with the existing country, language, KYC, dates and transaction filters. The shared **How business accounts are matched** help explains these meanings. A business-only audience is valid. Announcement reads restore false values, and editing another field retains business criteria, scheduling, account targets, app-version rules and popup settings. Attached campaign announcements inherit the campaign audience.
+
+POS/API matching uses recorded customer access, not a free catalog offer. Future, expired, revoked and payment-required grants do not qualify on their own. Qualifying bundle access can cover an expired individual grant; individual revocation/payment requirements block bundle inheritance. A valid individual grant can stand independently of a blocked bundle. Legacy migration grants cover POS/API only in bundle pricing mode, unless a still-valid historical bundle purchase grants access. Account pricing-mode overrides win. Store employees/customers and payers of someone else's request do not qualify as owners/creators. Audience matching does not grant permission to operate a tool or change business data.
+
+Deploy backend support before the dashboard because older servers can ignore new audience properties. No migration is required. These are authenticated account filters; anonymous-install audiences remain separate. Contact exports accept the same criteria through their existing account-audience contract. No campaign is resent and no announcement is published by adding these controls.
+
 ## Referral invitation popup
 
 On **Referral campaigns**, each row has **Invitation popup**. The dedicated editor fetches the numeric campaign record and saves the complete popup configuration to `/admin-api/referral-campaigns/{id}/referral-prompt`. It does not submit reward rules, campaign status, schedules or a version. Admins and Super Admins can edit; Assistants can inspect the saved settings. Null `referralPrompt` means unconfigured/off; a missing or malformed property keeps editing disabled until refreshed.
 
-The popup's string campaign ID is separate from the numeric referral campaign ID. Keep it stable across copy, language, targeting and off/on changes. Disabling retains the complete copy and targeting. All eligible users explicitly clears both audience and account-ID restrictions; selected users require an ID list or a meaningful filter. The audience editor includes all push/announcement selectors, preserves false and zero, and validates list sizes, positive IDs, numeric/date ranges and plain-text limits. Responses must confirm the complete saved configuration before success is shown. Failed saves retain the draft and last confirmed status; stale responses from another campaign are ignored. Popup audits can be filtered using `REFERRAL_PROMPT_` on the same page.
+The popup's string campaign ID is separate from the numeric referral campaign ID. Keep it stable across copy, language, targeting and off/on changes. Disabling retains the complete copy and targeting. All eligible users explicitly clears both audience and account-ID restrictions; selected users require an ID list or a meaningful filter. The audience editor retains its country, ownership, activity and transaction selectors, preserves false and zero, and validates list sizes, positive IDs, numeric/date ranges and plain-text limits. Responses must confirm the complete saved configuration before success is shown. Failed saves retain the draft and last confirmed status; stale responses from another campaign are ignored. Popup audits can be filtered using `REFERRAL_PROMPT_` on the same page.
 
 Apply backend migration `20261206_referral_invitation_prompt.sql` and deploy the backend before the dashboard. Existing campaigns remain unconfigured/off. A saved enabled setting still requires the referral program switch, an unambiguous ACTIVE campaign within its dates, and an eligible non-regulator account. Clients see changes on successful account refreshes; no push, referral binding, reward or financial transaction is created. Presentation memory remains per account, campaign and device.
 

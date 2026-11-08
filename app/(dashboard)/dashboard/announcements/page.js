@@ -13,6 +13,8 @@ import { TableCellLines } from '@/components/TableCell';
 import { announcementPopupDraft, announcementPopupPayload, announcementCopyPayload, announcementDateInput, announcementSchedulePayload } from '@/lib/announcement-popup';
 import { AnnouncementPopupFields } from '@/components/AnnouncementPopupFields';
 import { ContentModal } from '@/components/ContentModal';
+import { businessAudienceFields, businessAudienceDraft, businessAudiencePayload } from '@/lib/notification-business-audience';
+import BusinessAudienceHelp from '@/components/BusinessAudienceHelp';
 
 const emptyDraft = {
   ...announcementPopupDraft(),
@@ -37,7 +39,7 @@ const emptyDraft = {
   hasGroupSavings: 'ANY',
   hasLoans: 'ANY',
   hasEsims: 'ANY',
-  hasPaymentRequests: 'ANY',
+  ...businessAudienceDraft(),
   hasCompletedTransactions: 'ANY',
   minCompletedTransactions: '',
   maxCompletedTransactions: '',
@@ -276,7 +278,7 @@ export default function AnnouncementsPage() {
       hasGroupSavings: audience.hasGroupSavings === true ? 'YES' : audience.hasGroupSavings === false ? 'NO' : 'ANY',
       hasLoans: audience.hasLoans === true ? 'YES' : audience.hasLoans === false ? 'NO' : 'ANY',
       hasEsims: audience.hasEsims === true ? 'YES' : audience.hasEsims === false ? 'NO' : 'ANY',
-      hasPaymentRequests: audience.hasPaymentRequests === true ? 'YES' : audience.hasPaymentRequests === false ? 'NO' : 'ANY',
+      ...businessAudienceDraft(audience),
       hasCompletedTransactions: audience.hasCompletedTransactions === true ? 'YES' : audience.hasCompletedTransactions === false ? 'NO' : 'ANY',
       minCompletedTransactions: audience.minCompletedTransactions ?? '',
       maxCompletedTransactions: audience.maxCompletedTransactions ?? '',
@@ -333,7 +335,7 @@ export default function AnnouncementsPage() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const buildAudiencePayload = () => {
-    const audience = {};
+    const audience = businessAudiencePayload(draft);
     [
       'hasCryptoWallets',
       'hasCards',
@@ -341,7 +343,6 @@ export default function AnnouncementsPage() {
       'hasGroupSavings',
       'hasLoans',
       'hasEsims',
-      'hasPaymentRequests',
       'hasCompletedTransactions'
     ].forEach((field) => {
       const value = triStateToBoolean(draft[field]);
@@ -674,6 +675,9 @@ export default function AnnouncementsPage() {
         <details>
           <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Audience targeting</summary>
           <div style={{ display: 'grid', gap: '0.75rem', marginTop: '0.65rem' }}>
+            <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+              Any = do not filter. Yes = must match. No = must not match. Multiple filters must all match.
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))', gap: '0.75rem' }}>
               {[
                 ['hasCryptoWallets', 'Has crypto wallets'],
@@ -682,7 +686,7 @@ export default function AnnouncementsPage() {
                 ['hasGroupSavings', 'Has group savings'],
                 ['hasLoans', 'Has loans'],
                 ['hasEsims', 'Has eSIMs'],
-                ['hasPaymentRequests', 'Has payment requests'],
+                ...businessAudienceFields.map(({ key, label }) => [key, label]),
                 ['hasCompletedTransactions', 'Has completed transactions']
               ].map(([field, label]) => (
                 <RegulatorField key={field} field={field}><label style={{ display: 'grid', gap: '0.25rem' }}>
@@ -695,6 +699,7 @@ export default function AnnouncementsPage() {
                 </label></RegulatorField>
               ))}
             </div>
+            <BusinessAudienceHelp />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
               {[
                 ['minCompletedTransactions', 'Min completed'],

@@ -9,6 +9,8 @@ import { isRegulatorRestrictedRecord, isRegulatorRestrictedService } from '@/lib
 import { PresentationSelect, NonRegulatorContent, PresentationLink as Link } from '@/components/RegulatorPresentation';
 
 import { useAuth } from '@/contexts/AuthContext';
+import { businessAudienceFields, businessAudienceDraft, businessAudiencePayload } from '@/lib/notification-business-audience';
+import BusinessAudienceHelp from '@/components/BusinessAudienceHelp';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/api';
@@ -146,7 +148,7 @@ export default function NotificationPushCampaignsPage() {
   const [hasCards, setHasCards] = useState('ANY');
   const [hasLoans, setHasLoans] = useState('ANY');
   const [hasEsims, setHasEsims] = useState('ANY');
-  const [hasPaymentRequests, setHasPaymentRequests] = useState('ANY');
+  const [businessAudience, setBusinessAudience] = useState(() => businessAudienceDraft());
   const [selectedBillProductIds, setSelectedBillProductIds] = useState([]);
   const [selectedPaymentMethodIds, setSelectedPaymentMethodIds] = useState([]);
   const [selectedPaymentProviderIds, setSelectedPaymentProviderIds] = useState([]);
@@ -271,7 +273,7 @@ export default function NotificationPushCampaignsPage() {
       hasCards: triStateToBoolean(hasCards),
       hasLoans: triStateToBoolean(hasLoans),
       hasEsims: triStateToBoolean(hasEsims),
-      hasPaymentRequests: triStateToBoolean(hasPaymentRequests)
+      ...businessAudiencePayload(businessAudience)
     };
     Object.entries(ownershipFilters).forEach(([key, value]) => {
       if (value !== undefined) audience[key] = value;
@@ -304,7 +306,7 @@ export default function NotificationPushCampaignsPage() {
     hasCards,
     hasLoans,
     hasEsims,
-    hasPaymentRequests,
+    businessAudience,
     selectedBillProductIds,
     selectedPaymentMethodIds,
     selectedPaymentProviderIds,
@@ -691,7 +693,7 @@ export default function NotificationPushCampaignsPage() {
                 <div style={{ display: 'grid', gap: '0.35rem' }}>
                   <div style={{ fontWeight: 700 }}>Product ownership</div>
                   <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-                    These are account-level filters. Any = do not filter. Yes = must have at least one. No = must have none.
+                    These are account-level filters. Any = do not filter. Yes = must match. No = must not match. Multiple filters must all match.
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
                     {[
@@ -701,7 +703,8 @@ export default function NotificationPushCampaignsPage() {
                       ['Has card', hasCards, setHasCards],
                       ['Has loan', hasLoans, setHasLoans],
                       ['Has eSIM', hasEsims, setHasEsims],
-                      ['Has payment request', hasPaymentRequests, setHasPaymentRequests]
+                      ...businessAudienceFields.map(({ key, label }) => [label, businessAudience[key], (value) =>
+                        setBusinessAudience((previous) => ({ ...previous, [key]: value }))])
                     ].filter(([label]) => enableRegulatorMode === false || !isRegulatorRestrictedService(label)).map(([label, value, setter]) => (
                       <label key={label} style={{ display: 'grid', gap: '0.35rem' }}>
                         <span>{label}</span>
@@ -715,6 +718,7 @@ export default function NotificationPushCampaignsPage() {
                       </label>
                     ))}
                   </div>
+                  <BusinessAudienceHelp />
                 </div>
 
                 <div style={{ display: 'grid', gap: '0.35rem' }}>
