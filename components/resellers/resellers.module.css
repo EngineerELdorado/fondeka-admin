@@ -22,6 +22,18 @@
 .scope { margin: 0; color: var(--muted); }
 .accountMeta { padding-top: .65rem; border-top: 1px solid var(--border); }
 .accountMeta dl { margin-top: .75rem !important; }
+.copyLayout { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 1.25rem; align-items: start; }
+.copyFields { display: grid; gap: 1.25rem; min-width: 0; border: 0; padding: 0; margin: 0; }
+.copySection { display: grid; gap: .65rem; min-width: 0; }
+.copySection h3, .copySection p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.copySection h3 { font-size: 1rem; }
+.copyFields textarea { width: 100%; min-width: 0; resize: vertical; }
+.copyPreview { display: grid; gap: 1.25rem; min-width: 0; padding: 1.25rem; border: 1px solid var(--border); border-radius: 14px; background: var(--accent-soft); }
+.copyPreview small { color: var(--muted); }
+.copyComparison { display: grid; gap: .75rem; }
+.copyComparison dt { font-weight: 600; }
+.copyComparison dd { margin: .25rem 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 900px) { .copyLayout { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 640px) {
   .lookup > label { flex-basis: 100%; }
   .setting { gap: .75rem; }

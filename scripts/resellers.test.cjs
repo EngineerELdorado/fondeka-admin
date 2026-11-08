@@ -459,6 +459,7 @@ async function resellerWorkspace(role = 'SUPER_ADMIN', initialAccount = null) {
       '@/lib/api': { api: {} }, '@/components/DataTable': { DataTable: 'table' },
       '@/components/resellers/Common': { Card: 'section', Alert: 'alert', actionStyle: {} },
       '@/components/resellers/SetupPanel': { __esModule: true, default: 'setup' },
+      '@/components/resellers/StockFundingPanel': { __esModule: true, default: 'stock-copy' },
       '@/components/resellers/ConfigurationPanel': { __esModule: true, default: 'configuration' },
       '@/components/resellers/AccountWorkspace': { AccountWorkspace: 'account' },
       '@/components/resellers/TransactionInspector': { RecoveryPanel: 'recovery' },
@@ -487,6 +488,9 @@ test('main reseller tasks isolate global settings from a selected account and re
   await select('Reseller administration', 'settings');
   await select('Program settings', 'policies');
   assert.equal(view.nodes().find((node) => node.type === 'configuration').props.kind, 'policy');
+  await select('Program settings', 'copy');
+  assert.equal(view.nodes().find((node) => node.type === 'stock-copy').props.canWrite, true);
+  assert.ok(!view.nodes().some((node) => ['configuration', 'setup', 'account'].includes(node.type)));
   await select('Reseller administration', 'recovery');
   assert.ok(view.nodes().some((node) => node.type === 'recovery'));
   assert.ok(!view.nodes().some((node) => ['configuration', 'setup', 'account'].includes(node.type)));
@@ -505,10 +509,12 @@ test('account deep links open the scoped workspace and unauthorized roles never 
   assert.equal(linked.view.nodes().find((node) => node.type === 'account').props.canWrite, false);
   await linked.select('Reseller administration', 'settings');
   assert.equal(linked.view.nodes().find((node) => node.type === 'setup').props.canWrite, false);
+  await linked.select('Program settings', 'copy');
+  assert.equal(linked.view.nodes().find((node) => node.type === 'stock-copy').props.canWrite, false);
   for (const role of ['ASSISTANT', 'STAFF']) {
     const { view } = await resellerWorkspace(role);
     assert.match(view.text(), /Permission denied/);
-    assert.ok(!view.nodes().some((node) => ['navigation', 'setup', 'configuration', 'account', 'recovery'].includes(node.type)));
+    assert.ok(!view.nodes().some((node) => ['navigation', 'setup', 'configuration', 'account', 'recovery', 'stock-copy'].includes(node.type)));
   }
 });
 
