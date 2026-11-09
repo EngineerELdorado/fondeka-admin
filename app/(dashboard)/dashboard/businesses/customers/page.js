@@ -106,7 +106,7 @@ export default function BusinessToolsCustomersPage() {
     return [...normalizeGroups(access['cognito:groups'] || access.groups), ...normalizeGroups(id['cognito:groups'] || id.groups)];
   }, [session]);
   const isSuperAdmin = adminGroups.includes('SUPER_ADMIN');
-  const canRead = isSuperAdmin || adminGroups.includes('ADMIN');
+  const canRead = adminGroups.some((role) => ['SUPER_ADMIN', 'ADMIN', 'ASSISTANT', 'STAFF'].includes(role));
 
   const filters = filtersByTab[tab];
   const applied = appliedByTab[tab];
@@ -159,6 +159,7 @@ export default function BusinessToolsCustomersPage() {
   };
 
   const submitMutation = async () => {
+    if (!isSuperAdmin || saving) return;
     const reason = mutation?.reason?.trim();
     if (!reason || reason.length > 1000) { setError('Enter an audit reason of 1–1,000 characters.'); return; }
     setSaving(true); setError(''); setInfo('');
@@ -205,7 +206,7 @@ export default function BusinessToolsCustomersPage() {
   const detailTransaction = purchaseDetail?.financialTransaction || purchaseDetail?.paymentTransaction || purchaseDetail?.transaction || {};
   const canNext = meta.totalPages === null ? rows.length === size && rows.length > 0 : page + 1 < meta.totalPages;
 
-  if (!canRead) return <div className="card"><h1 style={{ marginTop: 0 }}>Business Tools customers</h1><div className="alert alert-error">This directory is available to Admin and Super Admin roles.</div></div>;
+  if (!canRead) return <div className="card"><h1 style={{ marginTop: 0 }}>Business Tools customers</h1><div className="alert alert-error">An admin account is required to view this directory.</div></div>;
 
   return <div style={{ display: 'grid', gap: '1rem' }}>
     <div className="card" style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}><div><h1 style={{ margin: 0 }}>Business Tools customers</h1><p style={{ color: 'var(--muted)', margin: '0.35rem 0 0' }}>Customer access records and verified Business Tools purchase attempts. Legacy store payments remain separate evidence.</p></div><div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}><Link href="/dashboard/businesses/plans" className="btn-neutral" style={{ textDecoration: 'none' }}>Plans</Link><Link href="/dashboard/businesses/migration" className="btn-neutral" style={{ textDecoration: 'none' }}>Migration</Link><button type="button" className="btn-neutral" disabled={loading} onClick={() => void loadRows()}>{loading ? 'Refreshing…' : 'Refresh'}</button></div></div>

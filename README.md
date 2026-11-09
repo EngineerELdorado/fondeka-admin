@@ -115,6 +115,10 @@ Country, payment-method, bill-product, and provider-route selectors use a shared
 
 Catalog `options()` API helpers load every page and enrich routes with their method/product and country metadata. Ordinary directory `list()` requests remain paginated. These pickers retain existing IDs and change handlers, support keyboard navigation and mobile layouts, and follow the current admin's Regulator presentation without silently removing hidden selections.
 
+## Business Tools customers
+
+The **Business Tools Customers** menu and `/dashboard/businesses/customers` directory are available to every admin role: ADMIN, SUPER_ADMIN, ASSISTANT and STAFF. All can view customer lists, purchase history and individual details. Reconciliation, refunds and access changes remain SUPER_ADMIN-only. Deploy the matching backend permissions update for `GET /admin-api/business-tools/subscribers`, `/subscribers/{accountId}`, `/purchases` and `/purchases/{purchaseId}` alongside the dashboard. No database migration is required.
+
 ## Business Tools purchase notices
 
 Open **Businesses → Business Tools plans**, select the bundle or an individual tool, and use **Purchase notices & FAQ**. Super Admins can save English/French benefits and an optional FAQ link with an audit reason. Admins and Assistants can read the settings. The editor also works for inactive offers and in BUNDLE pricing mode; every returned plan keeps its own code and settings. Benefit text allows 4,000 characters per language; blank restores the localized default and `{0}` inserts the localized plan name.

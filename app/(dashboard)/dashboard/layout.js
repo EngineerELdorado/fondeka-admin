@@ -39,7 +39,7 @@ const navItems = [
   { href: '/dashboard/esim-products', labelKey: 'layout.nav.esimProducts' },
   { href: '/dashboard/businesses', labelKey: 'layout.nav.businesses', label: 'Businesses' },
   { href: '/dashboard/business-api/sandbox-transactions', labelKey: 'layout.nav.businessApiSandbox', label: 'Business API sandbox history', sandboxReadOnly: true },
-  { href: '/dashboard/businesses/customers', labelKey: 'layout.nav.businessToolsCustomers', label: 'Business Tools Customers', adminOnly: true },
+  { href: '/dashboard/businesses/customers', labelKey: 'layout.nav.businessToolsCustomers', label: 'Business Tools Customers' },
   { href: '/dashboard/businesses/plans', labelKey: 'layout.nav.businessToolsPlans', label: 'Business Tools Plans' },
   { href: '/dashboard/businesses/migration', labelKey: 'layout.nav.businessToolsMigration', label: 'Business Tools Migration' },
   { href: '/dashboard/commerce/stores', labelKey: 'layout.nav.commerceStores', label: 'Commerce Stores' },
