@@ -70,6 +70,46 @@ export function RestrictionPreviewDialog({ runId, onClose, onApplied }) {
   </Dialog>;
 }
 
+function RecoveryAccountLink({ link, accountId, busy, onDismiss }) {
+  const [dismissing, setDismissing] = useState(false);
+  const [note, setNote] = useState('');
+  const showingOriginal = link.sourceAccountId === accountId;
+  const relatedId = showingOriginal ? link.linkedAccountId : link.sourceAccountId;
+  const canReview = link.active && link.adminNote;
+  const status = link.dismissedAt ? 'Dismissed' : !link.active ? 'Recovery closed' :
+    link.restrictsServices ? 'Same restrictions applied' : 'Needs review';
+
+  const submit = async (event) => {
+    event.preventDefault();
+    if (await onDismiss(link, note.trim())) {
+      setNote('');
+      setDismissing(false);
+    }
+  };
+
+  return <div className={styles.evidence}>
+    <p><strong>{status}</strong> · <Link href={'/dashboard/accounts/accounts/' + relatedId} target="_blank" rel="noopener noreferrer">
+      {showingOriginal ? 'Linked' : 'Original'} account #{relatedId}
+    </Link></p>
+    {link.adminNote && <p>{link.adminNote}</p>}
+    {link.confirmationNote && <p><strong>Confirmation note</strong><br />{link.confirmationNote}</p>}
+    {link.dismissalNote && <p><strong>Dismissal note</strong><br />{link.dismissalNote}</p>}
+    {canReview && !dismissing && <div className={styles.dialogActions}>
+      <button type="button" className={styles.button} disabled={busy} onClick={() => setDismissing(true)}>Dismiss match</button>
+    </div>}
+    {canReview && dismissing && <form onSubmit={submit}>
+      <label>
+        <span>Why you are dismissing the match</span>
+        <textarea required disabled={busy} value={note} maxLength={1000} rows={3} onChange={(event) => setNote(event.target.value)} />
+      </label>
+      <div className={styles.dialogActions}>
+        <button type="button" className={styles.button} disabled={busy} onClick={() => { setDismissing(false); setNote(''); }}>Cancel</button>
+        <button type="submit" className={styles.primary} disabled={busy || !note.trim()}>Dismiss match</button>
+      </div>
+    </form>}
+  </div>;
+}
+
 export function RecoveryAccountDialog({ accountId, onClose, onChanged }) {
   const [account, setAccount] = useState(null), [error, setError] = useState(''), [notice, setNotice] = useState('');
   const [debits, setDebits] = useState(''), [note, setNote] = useState(''), [busy, setBusy] = useState(false);
@@ -78,6 +118,23 @@ export function RecoveryAccountDialog({ accountId, onClose, onChanged }) {
     api.payoutRefundAudits.recoveryAccount(accountId).then((value) => { if (current) setAccount(value); }).catch((err) => { if (current) setError(err.message); });
     return () => { current = false; };
   }, [accountId]);
+  const hasOutstandingCases = account?.cases.some((item) => item.status === 'OPEN');
+  const dismissLink = async (link, dismissalNote) => {
+    setBusy(true); setError(''); setNotice('');
+    try {
+      const { sourceAccountId, linkedAccountId, matchType } = link;
+      const result = await api.payoutRefundAudits.dismissRecoveryLink(sourceAccountId, linkedAccountId, matchType, dismissalNote);
+      onChanged?.();
+      setAccount(sourceAccountId === accountId ? result : await api.payoutRefundAudits.recoveryAccount(accountId));
+      setNotice('Match dismissed.');
+      return true;
+    } catch (err) {
+      setError(err.message);
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
   const release = async (event) => {
     event.preventDefault(); setError(''); setNotice('');
     try {
@@ -85,7 +142,7 @@ export function RecoveryAccountDialog({ accountId, onClose, onChanged }) {
       setBusy(true);
       const result = await api.payoutRefundAudits.releaseRestriction(accountId, { debitTransactionIds, note: note.trim() });
       setAccount(result); setDebits(''); setNote(''); onChanged?.();
-      setNotice(result.customerStatus.restricted ? 'Repayment recorded. Other amounts remain outstanding, so the account is still restricted.' : 'Recovery verified and this refund restriction lifted. Separate loan or security restrictions still apply.');
+      setNotice(result.customerStatus.restricted ? 'Repayment recorded. An outstanding recovery case or an account link still restricts this account.' : 'Recovery verified and this refund restriction lifted. Separate loan or security restrictions still apply.');
     } catch (err) { setError(err.message); }
     finally { setBusy(false); }
   };
@@ -95,11 +152,17 @@ export function RecoveryAccountDialog({ accountId, onClose, onChanged }) {
       {notice && <div className={styles.notice} role="status">{notice}</div>}
       {!account && !error && <p role="status">Loading recovery details…</p>}
       {account && <>
-        <p><strong>{account.customerStatus.restricted ? 'Restricted · amount still owed' : 'No active refund restriction'}</strong></p>
+        <p><strong>{account.customerStatus.restricted ? (hasOutstandingCases ? 'Restricted · amount still owed' : 'Restricted · linked account') : 'No active refund restriction'}</strong></p>
         <RecoveryMoney totals={account.customerStatus.totalOwed} />
         {account.customerStatus.message && <details className={styles.evidence}><summary>Message shown to the customer</summary><p style={{ whiteSpace: 'pre-wrap' }}>{account.customerStatus.message}</p></details>}
         <div className={styles.creditList}>{account.cases.map((item) => <div key={item.id}><div><strong>{item.evidence.reference}</strong><strong>{auditMoney(item.amount, item.currency)}</strong></div><p>{item.status === 'OPEN' ? 'Outstanding' : 'Recovered'} · Refund #{item.evidence.credits?.[0]?.refundTransactionId || '—'}</p></div>)}</div>
-        {account.customerStatus.restricted && <form onSubmit={release}>
+        {!!account.accountLinks?.length && <section aria-label="Linked accounts">
+          <h3>Linked accounts</h3>
+          {account.accountLinks.map((link) => <RecoveryAccountLink
+            key={[link.sourceAccountId, link.linkedAccountId, link.matchType].join(':')}
+            link={link} accountId={accountId} busy={busy} onDismiss={dismissLink} />)}
+        </section>}
+        {hasOutstandingCases && <form onSubmit={release}>
           <div className={styles.notice}>First debit the deposited funds using the existing admin wallet debit action. Then enter the resulting transaction IDs below to verify recovery and lift this restriction. This action does not make another debit. A deposit, pending debit, or customer payment cannot clear it.</div>
           <p><Link href={`/dashboard/accounts/accounts/${accountId}`} target="_blank" rel="noopener noreferrer">Open account to debit wallet ↗</Link></p>
           <label><span>Completed admin debit transaction IDs</span><input required disabled={busy} value={debits} maxLength={2000} placeholder="e.g. 12345, 12346" onChange={(event) => setDebits(event.target.value)} /></label>
