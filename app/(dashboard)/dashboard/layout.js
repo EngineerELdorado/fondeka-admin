@@ -30,6 +30,7 @@ const navItems = [
   { href: '/dashboard/loans/service-restrictions', labelKey: 'layout.nav.loanServiceRestrictions', label: 'Loan Service Restrictions' },
   { href: '/dashboard/loans/untrusted-borrowers', labelKey: 'layout.nav.untrustedBorrowers' },
   { href: '/dashboard/bills', labelKey: 'layout.nav.billsProducts' },
+  { href: '/dashboard/bills/manual-tv', labelKey: 'layout.nav.manualTv', label: 'Manual TV fulfillment' },
   { href: '/dashboard/bills/cegaweb-profiles', labelKey: 'layout.nav.cegawebProfiles' },
   { href: '/dashboard/cards', labelKey: 'layout.nav.cardsProducts' },
   { href: '/dashboard/cards/card-policy-config', labelKey: 'layout.nav.cardPolicyConfig' },

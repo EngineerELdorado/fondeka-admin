@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { isRegulatorRestrictedService, isRegulatorRestrictedRecord } from '@/lib/regulator-presentation';
 import { api } from '@/lib/api';
 import BusinessApiLivePaymentsPanel from '@/components/BusinessApiLivePaymentsPanel';
+import CardVisibilityPanel from '@/components/resellers/CardVisibilityPanel';
 
 const LABELS = {
   trusted_device_enforcement: 'Enforce Trusted Device',
@@ -32,6 +33,7 @@ const LABELS = {
   'commerce.pos.enabled': 'Commerce POS',
   'business_tools.access.enforced': 'Business Tools access enforcement',
   'business_tools.pricing.per_tool': 'Business Tools per-tool pricing',
+  'business_tools.reseller.visible': 'Reseller card on Business Tools',
   'business_api.live_payments.enabled': 'Default for live API payments',
   'service.loans.enabled': 'Loans',
   'savings.enabled': 'Savings',
@@ -739,6 +741,7 @@ export default function FeatureFlagsPage() {
           String(flag.key) !== APP_OPEN_AUTH_ANDROID_KEY &&
           String(flag.key) !== APP_OPEN_AUTH_IOS_KEY &&
           String(flag.key) !== BUSINESS_API_LIVE_PAYMENTS_KEY &&
+          String(flag.key) !== 'business_tools.reseller.visible' &&
           !COMMERCE_SURFACE_KEYS.has(String(flag.key)) &&
           !MARKETPLACE_PRODUCT_TYPE_KEYS.has(String(flag.key)) &&
           !CUSTOMER_APP_SERVICE_KEYS.has(String(flag.key)) &&
@@ -1736,6 +1739,8 @@ export default function FeatureFlagsPage() {
       <CollapsibleSection title="API LIVE payments" subtitle="Default for new LIVE API collections and payouts">
         <BusinessApiLivePaymentsPanel />
       </CollapsibleSection>
+
+      <div id="reseller-card-visibility"><CollapsibleSection title="Reseller card visibility" subtitle="Business Tools card · global default and account overrides"><CardVisibilityPanel /></CollapsibleSection></div>
 
       <CollapsibleSection title={t('featureFlags.createUpdate')}>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1.2fr auto', gap: '0.65rem', alignItems: 'end' }}>

@@ -9,6 +9,7 @@ import { resellerId, resellerPermissions, resellerRecord, resellerPage, reseller
 import { Card, Alert, Badge, Field, ResourceStatus, actionStyle, useMounted, useResellerError, useResellerResource } from '@/components/resellers/Common';
 import SetupPanel from '@/components/resellers/SetupPanel';
 import StockFundingPanel from '@/components/resellers/StockFundingPanel';
+import CardVisibilityPanel from '@/components/resellers/CardVisibilityPanel';
 import ConfigurationPanel from '@/components/resellers/ConfigurationPanel';
 import { AccountWorkspace } from '@/components/resellers/AccountWorkspace';
 import { RecoveryPanel } from '@/components/resellers/TransactionInspector';
@@ -39,9 +40,9 @@ export default function ResellersPage() {
     {tab === 'settings' ? <>
       <p className={styles.scope}>Global defaults · account overrides take priority.</p>
       <Navigation label="Program settings" items={[
-        ['setup', 'Enrollment & earning'], ['policies', 'Reward behavior'], ['copy', 'Stock explanation']
+        ['setup', 'Enrollment & earning'], ['policies', 'Reward behavior'], ['copy', 'Stock explanation'], ['visibility', 'Business Tools card']
       ]} value={settingsTab} onChange={setSettingsTab} />
-      {settingsTab === 'setup' ? <SetupPanel canWrite={canWrite} /> : settingsTab === 'copy' ? <StockFundingPanel canWrite={canWrite} /> : <ConfigurationPanel kind="policy" canWrite={canWrite} />}
+      {settingsTab === 'setup' ? <SetupPanel canWrite={canWrite} /> : settingsTab === 'copy' ? <StockFundingPanel canWrite={canWrite} /> : settingsTab === 'visibility' ? <CardVisibilityPanel /> : <ConfigurationPanel kind="policy" canWrite={canWrite} />}
     </> : null}
     {tab === 'recovery' ? <RecoveryPanel canWrite={canWrite} /> : null}
   </div>;

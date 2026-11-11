@@ -12,6 +12,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 import TableText from '@/components/TableCell';
+import { TV_FLOWS, tvSubscriptionFlowPayload } from '@/lib/manual-tv';
 
 const emptyState = {
   name: '',
@@ -21,6 +22,7 @@ const emptyState = {
   descriptionEn: '',
   descriptionFr: '',
   type: '',
+  tvSubscriptionFlow: 'SUBSCRIPTION_LOOKUP',
   giftCard: false,
   giftCardUsageType: '',
   returnAsCardProduct: false,
@@ -139,6 +141,7 @@ const toPayload = (state) => ({
   descriptionEn: state.descriptionEn || null,
   descriptionFr: state.descriptionFr || null,
   type: state.type,
+  ...tvSubscriptionFlowPayload(state),
   giftCard: Boolean(state.giftCard),
   giftCardUsageType: state.giftCard && state.giftCardUsageType ? state.giftCardUsageType : null,
   returnAsCardProduct: Boolean(state.giftCard && state.returnAsCardProduct),
@@ -272,7 +275,7 @@ export default function BillProductsPage() {
         </div>
       )
     },
-    { key: 'type', label: 'Type' },
+    { key: 'type', label: 'Type', render: (row) => row.type === 'TELEVISION' ? `TV · ${row.tvSubscriptionFlow === 'MANUAL_SELECTION' ? 'Manual' : 'Lookup'}` : row.type },
     {
       key: 'giftCard',
       label: 'Gift card',
@@ -354,6 +357,7 @@ export default function BillProductsPage() {
       descriptionEn: row.descriptionEn ?? row.description_en ?? '',
       descriptionFr: row.descriptionFr ?? row.description_fr ?? '',
       type: row.type ?? '',
+      tvSubscriptionFlow: row.tvSubscriptionFlow ?? 'SUBSCRIPTION_LOOKUP',
       giftCard: Boolean(row.giftCard),
       giftCardUsageType: row.giftCardUsageType ?? '',
       returnAsCardProduct: Boolean(row.returnAsCardProduct),
@@ -594,7 +598,7 @@ export default function BillProductsPage() {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="type">Type</label>
-        <PresentationSelect id="type" value={draft.type} onChange={(e) => setDraft((p) => ({ ...p, type: e.target.value }))}>
+        <PresentationSelect id="type" value={draft.type} onChange={(e) => setDraft((p) => ({ ...p, type: e.target.value, tvSubscriptionFlow: e.target.value === 'TELEVISION' ? p.tvSubscriptionFlow : 'SUBSCRIPTION_LOOKUP' }))}>
           <option value="">Select type</option>
           {typeOptions.map((opt) => (
             <option data-regulator-restricted={isRegulatorRestrictedRecord(opt)} key={opt} value={opt}>
@@ -603,6 +607,15 @@ export default function BillProductsPage() {
           ))}
         </PresentationSelect>
       </div>
+      {draft.type === 'TELEVISION' ? <div style={{ display: 'grid', gap: '.35rem', gridColumn: '1 / -1' }}>
+        <label htmlFor="tvSubscriptionFlow">TV subscription flow</label>
+        <PresentationSelect id="tvSubscriptionFlow" disabled={formSaving} value={draft.tvSubscriptionFlow} onChange={(event) => setDraft((previous) => ({ ...previous, tvSubscriptionFlow: event.target.value }))}>
+          {!Object.hasOwn(TV_FLOWS, draft.tvSubscriptionFlow) ? <option value={draft.tvSubscriptionFlow} disabled>Unsupported flow: {draft.tvSubscriptionFlow}</option> : null}
+          {Object.entries(TV_FLOWS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        </PresentationSelect>
+        <small style={{ color: 'var(--muted)' }}>{draft.tvSubscriptionFlow === 'MANUAL_SELECTION' ? 'Customers select stored offers and options. After verified collection, staff activate the selection and confirm fulfillment. Collection alone leaves the payment processing.' : 'Look up the current subscription for renewal, change and reactivation.'}</small>
+        <details><summary>Catalogue and rollout</summary><p>Configure Congo and Rwanda on their own product records. Manual selection requires active offers, options and associations with real external codes, all priced in the same provider currency. A free option must be stored explicitly at zero. Accepted manual payments keep their fulfillment flow after a setting change.</p><div style={{ display: 'flex', flexWrap: 'wrap', gap: '.75rem' }}><Link href="/dashboard/bills/offers">Offers</Link><Link href="/dashboard/bills/options">Options</Link><Link href="/dashboard/bills/offer-options">Associations</Link><Link href="/dashboard/bills/manual-tv">Manual TV queue</Link></div><p>Deploy the manual TV backend and migration before enabling this mode.</p></details>
+      </div> : null}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <input
           id="giftCard"
@@ -868,6 +881,7 @@ export default function BillProductsPage() {
               { label: 'Description (EN)', value: selected?.descriptionEn || selected?.description_en || '—' },
               { label: 'Description (FR)', value: selected?.descriptionFr || selected?.description_fr || '—' },
               { label: 'Type', value: selected?.type },
+              ...(selected?.type === 'TELEVISION' ? [{ label: 'TV subscription flow', value: TV_FLOWS[selected?.tvSubscriptionFlow ?? 'SUBSCRIPTION_LOOKUP'] || selected?.tvSubscriptionFlow }] : []),
               { label: 'Gift card', value: selected?.giftCard ? 'Yes' : 'No' },
               { label: 'Gift card usage type', value: selected?.giftCardUsageType || '—' },
               { label: 'Show as card product', value: selected?.giftCard && selected?.returnAsCardProduct ? 'Yes' : 'No' },

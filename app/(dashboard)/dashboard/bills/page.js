@@ -4,6 +4,7 @@ import { PresentationLink as Link } from '@/components/RegulatorPresentation';
 
 const sections = [
   { href: '/dashboard/bills/products', title: 'Bill Products', blurb: 'Catalog of billable products (code, name, rank, active).' },
+  { href: '/dashboard/bills/manual-tv', title: 'Manual TV fulfillment', blurb: 'Review collected TV payments and record staff activation or reconciliation.' },
   { href: '/dashboard/bills/providers', title: 'Bill Providers', blurb: 'Manage bill providers and ranking.' },
   { href: '/dashboard/bills/utility-catalog', title: 'Utility Bill Catalog', blurb: 'Explore cached Zendit utility catalog items.' },
   { href: '/dashboard/bills/utility-catalog-sync', title: 'Utility Bill Catalog Sync', blurb: 'Monitor cache freshness and enqueue manual utility catalog syncs.' },

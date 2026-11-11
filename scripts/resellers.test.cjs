@@ -460,6 +460,7 @@ async function resellerWorkspace(role = 'SUPER_ADMIN', initialAccount = null) {
       '@/components/resellers/Common': { Card: 'section', Alert: 'alert', actionStyle: {} },
       '@/components/resellers/SetupPanel': { __esModule: true, default: 'setup' },
       '@/components/resellers/StockFundingPanel': { __esModule: true, default: 'stock-copy' },
+      '@/components/resellers/CardVisibilityPanel': { __esModule: true, default: 'card-visibility' },
       '@/components/resellers/ConfigurationPanel': { __esModule: true, default: 'configuration' },
       '@/components/resellers/AccountWorkspace': { AccountWorkspace: 'account' },
       '@/components/resellers/TransactionInspector': { RecoveryPanel: 'recovery' },
@@ -491,6 +492,9 @@ test('main reseller tasks isolate global settings from a selected account and re
   await select('Program settings', 'copy');
   assert.equal(view.nodes().find((node) => node.type === 'stock-copy').props.canWrite, true);
   assert.ok(!view.nodes().some((node) => ['configuration', 'setup', 'account'].includes(node.type)));
+  await select('Program settings', 'visibility');
+  assert.ok(view.nodes().some((node) => node.type === 'card-visibility'));
+  assert.ok(!view.nodes().some((node) => ['configuration', 'setup', 'account', 'stock-copy'].includes(node.type)));
   await select('Reseller administration', 'recovery');
   assert.ok(view.nodes().some((node) => node.type === 'recovery'));
   assert.ok(!view.nodes().some((node) => ['configuration', 'setup', 'account'].includes(node.type)));
