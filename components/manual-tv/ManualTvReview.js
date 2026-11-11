@@ -9,6 +9,7 @@ import { MANUAL_TV_OUTCOMES, manualTvIntent, manualTvBlocker, manualTvFingerprin
 export default function ManualTvReview({ item, canReconcile, fail, onClose, onResolved }) {
   const [data, setData] = useState(null), [busy, setBusy] = useState(false), [error, setError] = useState(''), [stale, setStale] = useState(false), [denied, setDenied] = useState(false);
   const [action, setAction] = useState(''), [note, setNote] = useState(''), [confirmed, setConfirmed] = useState(false);
+  const [nextExpirationDate, setNextExpirationDate] = useState('');
   const lock = useRef(false), submitting = useRef(false), mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const read = useCallback(async () => {
@@ -29,14 +30,15 @@ export default function ManualTvReview({ item, canReconcile, fail, onClose, onRe
   const disabled = busy || !canReconcile || denied;
   const submit = async () => {
     if (lock.current || disabled || stale || blocker || !data) return;
+    if (action === 'complete' && nextExpirationDate.trim() && data.eligibility.nextExpirationDateSupported !== true) { setError('The connected backend must be updated before saving an expiration date through reconciliation.'); return; }
     let payload;
-    try { payload = manualTvOutcomePayload(action, note, confirmed); } catch (err) { setError(err.message); return; }
+    try { payload = manualTvOutcomePayload(action, note, confirmed, nextExpirationDate); } catch (err) { setError(err.message); return; }
     lock.current = true; submitting.current = true; setBusy(true); setError('');
     try {
       const latest = await read();
       if (!mounted.current) return;
       const changed = manualTvFingerprint(latest.intent) !== manualTvFingerprint(data.intent) || latest.eligibility.status !== data.eligibility.status;
-      const latestBlocker = manualTvBlocker(latest.intent, latest.eligibility);
+      const latestBlocker = manualTvBlocker(latest.intent, latest.eligibility) || (payload.nextExpirationDate && latest.eligibility.nextExpirationDateSupported !== true ? 'The connected backend does not support saving the expiration date. Refresh after the backend update.' : '');
       if (changed || latestBlocker) { setData(latest); setConfirmed(false); setError(latestBlocker || 'The stored selection changed. Review the updated details and confirm again.'); return; }
       const method = { complete: 'completeManualReconciliation', fail: 'failManualReconciliation', cancel: 'cancelManualReconciliation' }[action];
       await api.transactions[method](latest.intent.transactionId, payload);
@@ -51,7 +53,7 @@ export default function ManualTvReview({ item, canReconcile, fail, onClose, onRe
     <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: '.5rem' }}><Link href={`/dashboard/transactions?transactionId=${encodeURIComponent(item.transactionId)}`} target="_blank" rel="noopener noreferrer">Open transaction ↗</Link><button type="button" className="btn-neutral btn-sm" disabled={busy} onClick={() => void refresh()}>Refresh latest state</button></div>
     {busy ? <div role="status">Checking or recording the outcome…</div> : null}
     {error ? <div className="alert alert-error" role="alert">{error}</div> : null}
-    {stale && data ? <div role="status">The note is kept. Refresh latest state and review the outcome before another submission. A missing response does not prove that the previous action failed.</div> : null}
+    {stale && data ? <div role="status">The note and expiration date are kept. Refresh latest state and review the outcome before another submission. A missing response does not prove that the previous action failed.</div> : null}
     {intent ? <>
       <dl style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '.9rem', margin: 0 }}>{[
         ['Product', intent.billProductDisplayName || intent.billCode || intent.billProductId], ['Decoder', intent.subscriberId || intent.accountNumber],
@@ -63,10 +65,11 @@ export default function ManualTvReview({ item, canReconcile, fail, onClose, onRe
       {!canReconcile || denied ? <div>Read only. Admin or Super Admin access is required to record an outcome.</div> : <fieldset disabled={disabled || stale || Boolean(blocker)} style={{ display: 'grid', gap: '.8rem', border: 0, margin: 0, padding: 0, minWidth: 0 }}>
         <legend className="sr-only">Record fulfillment outcome</legend>
         <label style={{ display: 'grid', gap: '.3rem' }}><span>Outcome</span><select aria-label="Outcome" value={action} onChange={(event) => { if (!lock.current) { setAction(event.target.value); setConfirmed(false); } }}><option value="">Choose an outcome</option>{Object.entries(MANUAL_TV_OUTCOMES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-        {action ? <p style={{ margin: 0, color: 'var(--muted)' }}>{action === 'complete' ? 'Confirm only after the selected offer and option have been activated. This records fulfillment without contacting the provider or adding an expiry date.' : 'This closes the bill through reconciliation. Verified external collection returns net funds to the customer’s wallet; wallet and internal crypto debits follow their original refund paths.'}</p> : null}
+        {action ? <p style={{ margin: 0, color: 'var(--muted)' }}>{action === 'complete' ? 'Confirm only after the selected offer and option have been activated. Enter the confirmed new expiration date below when known; fulfillment does not contact the provider.' : 'This closes the bill through reconciliation. Verified external collection returns net funds to the customer’s wallet; wallet and internal crypto debits follow their original refund paths.'}</p> : null}
+        {action === 'complete' ? <label style={{ display: 'grid', gap: '.3rem' }}><span>Next expiration date (optional)</span><input type="date" aria-label="Next expiration date" value={nextExpirationDate} onChange={(event) => { if (!lock.current) { setNextExpirationDate(event.target.value); setConfirmed(false); } }} /><small>{data.eligibility.nextExpirationDateSupported === true ? 'Use the date confirmed during activation. Leave blank if it is unknown.' : 'Saving this date requires the updated backend. Leave blank to complete without setting an expiration date.'}</small></label> : null}
         <label style={{ display: 'grid', gap: '.3rem' }}><span>Operational note</span><textarea aria-label="Operational note" rows={3} maxLength={1000} value={note} onChange={(event) => { if (!lock.current) { setNote(event.target.value); setConfirmed(false); } }} placeholder="Record activation confirmation or why fulfillment is impossible" /></label>
         <label style={{ display: 'flex', gap: '.5rem', alignItems: 'flex-start' }}><input type="checkbox" style={{ width: 'auto', flexShrink: 0 }} checked={confirmed} onChange={(event) => { if (!lock.current) setConfirmed(event.target.checked); }} /><span>{action === 'complete' ? 'I verified activation of this offer and option for this decoder.' : 'I reviewed this outcome and the applicable refund.'}</span></label>
-        <button type="button" className={action === 'complete' ? 'btn-success' : 'btn-danger'} disabled={disabled || stale || Boolean(blocker) || !action || !note.trim() || !confirmed} onClick={() => void submit()}>{MANUAL_TV_OUTCOMES[action] || 'Choose an outcome'}</button>
+        <button type="button" className={action === 'complete' ? 'btn-success' : 'btn-danger'} disabled={disabled || stale || Boolean(blocker) || !action || !note.trim() || !confirmed || action === 'complete' && Boolean(nextExpirationDate.trim()) && data.eligibility.nextExpirationDateSupported !== true} onClick={() => void submit()}>{MANUAL_TV_OUTCOMES[action] || 'Choose an outcome'}</button>
       </fieldset>}
     </> : null}
   </ContentModal>;

@@ -7,7 +7,7 @@ const { mountComponent } = require('./helpers/component-harness.cjs');
 const load = (file, tag = '') => import(`data:text/javascript;base64,${Buffer.from(readFileSync(path.join(__dirname, '..', file), 'utf8')).toString('base64')}#${tag}`);
 const session = (role) => ({ tokens: { accessToken: { payload: { 'cognito:groups': [role] } } } });
 const item = { id: 8, transactionId: 91, transactionReference: 'TX91', operationType: 'TV_SUBSCRIBE', status: 'AWAITING_MANUAL_FULFILLMENT', billProductId: 12, billProductDisplayName: 'Television Congo', billCode: 'CANAL_PLUS_DRC', subscriberId: '12345678901234', offerCode: 'REAL-OFFER', optionCode: 'REAL-FREE-OPTION', offerName: 'Monthly TV', optionName: 'No extra option', amount: 15.25, currency: 'USD', promotionNote: '<b>Literal promotion</b>\nNo markup', promotionTargetOfferDisplayName: 'Captured target offer' };
-const eligibility = { transactionId: 91, action: 'PAY_TV_SUBSCRIPTION', status: 'PROCESSING', completable: true };
+const eligibility = { transactionId: 91, action: 'PAY_TV_SUBSCRIPTION', status: 'MANUAL_INTERVENTION_REQUIRED', completable: true, nextExpirationDateSupported: true };
 const page = (rows = [item], totalPages = 1) => ({ content: rows, totalElements: rows.length, totalPages });
 const nodes = (value) => Array.isArray(value) ? value.flatMap(nodes) : React.isValidElement(value) ? [value, ...nodes(value.props.children)] : [];
 const deferred = () => { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; };
@@ -25,6 +25,7 @@ test('TV flows default to lookup, preserve manual television and clear manual mo
 test('manual work guards require a complete captured selection and fresh matching eligibility', async () => {
   const h = await load('lib/manual-tv.js');
   assert.equal(h.manualTvBlocker(item, eligibility), '');
+  assert.equal(h.manualTvBlocker(item, { ...eligibility, status: 'PROCESSING' }), ''); // Collected requests from the earlier backend remain inspectable.
   for (const patch of [{ transactionId: 92 }, { action: 'WITHDRAW_FROM_WALLET' }, { completable: 'true' }, { status: null }, { completable: false }, { status: 'COMPLETED' }]) assert.ok(h.manualTvBlocker(item, { ...eligibility, ...patch }));
   for (const patch of [{ status: 'EXECUTED' }, { optionCode: '' }, { amount: null }, { currency: '' }, { subscriberId: '' }]) assert.ok(h.manualTvBlocker({ ...item, ...patch }, eligibility));
   assert.match(h.manualTvBlocker(item, { ...eligibility, completable: false, reasonCode: 'bill_collection_not_confirmed' }), /Verified full collection/);
@@ -43,6 +44,16 @@ test('outcomes require explicit confirmation and a note; the payload cannot subm
   for (const args of [['refund', 'note', true], ['complete', '', true], ['complete', 'x'.repeat(1001), true], ['complete', 'note', false]]) assert.throws(() => h.manualTvOutcomePayload(...args));
   for (const role of ['ADMIN', 'SUPER_ADMIN', 'ASSISTANT', 'STAFF', 'CUSTOMER']) assert.deepEqual(h.manualTvPermissions(session(role)), { canRead: role !== 'CUSTOMER', canReconcile: ['ADMIN', 'SUPER_ADMIN'].includes(role) });
   assert.deepEqual(h.manualTvPermissions(null), { canRead: false, canReconcile: false });
+});
+
+test('TV completion includes only a valid explicitly entered date and never carries it into other outcomes', async () => {
+  const h = await load('lib/manual-tv.js');
+  assert.deepEqual(h.manualTvOutcomePayload('complete', 'Confirmed activation', true, ' 2027-02-28 '), { message: 'Confirmed activation', nextExpirationDate: '2027-02-28' });
+  assert.deepEqual(h.tvCompletionExpiration('complete', 'PAY_TV_SUBSCRIPTION', '2028-02-29'), { nextExpirationDate: '2028-02-29' });
+  for (const value of ['2027-02-29', '2027-04-31', '2027-13-01', '0000-01-01', '2027-02-28T23:00:00Z', 'tomorrow']) assert.throws(() => h.tvCompletionExpiration('complete', 'PAY_TV_SUBSCRIPTION', value));
+  for (const action of ['fail', 'cancel']) assert.deepEqual(h.manualTvOutcomePayload(action, 'Reviewed', true, '2027-02-28'), { message: 'Reviewed' });
+  assert.deepEqual(h.tvCompletionExpiration('complete', 'SEND_CRYPTO', '2027-02-28'), {});
+  assert.deepEqual(h.manualTvOutcomePayload('complete', 'Confirmed activation', true, ''), { message: 'Confirmed activation' });
 });
 
 test('manual TV API calls only the filtered read queue and existing reconciliation endpoints', async (t) => {
@@ -114,6 +125,23 @@ test('review reads exact selection and promotion literally; each confirmed outco
     await panel.prepare(action); await panel.view.click(button);
     assert.deepEqual(panel.events, ['read:8', 'check:91', 'read:8', 'check:91', { action, id: 91, body: { message: 'Provider activation or failure confirmed' } }]); assert.deepEqual(panel.resolved, [action]);
   }
+});
+
+test('manual TV completion sends the entered expiration date and changing it requires confirmation again', async () => {
+  const panel = await review(); await panel.prepare();
+  await change(panel.view, 'Next expiration date', '2027-02-28'); assert.equal(panel.view.button('Confirm fulfillment').disabled, true);
+  panel.view.check(true); await panel.view.flush(); await panel.view.click('Confirm fulfillment');
+  assert.deepEqual(panel.events.find((event) => typeof event === 'object'), { action: 'complete', id: 91, body: { message: 'Provider activation or failure confirmed', nextExpirationDate: '2027-02-28' } });
+  const failure = await review(); await failure.prepare(); await change(failure.view, 'Next expiration date', '2027-02-28'); await change(failure.view, 'Outcome', 'fail');
+  assert.equal(input(failure.view, 'Next expiration date'), undefined); failure.view.check(true); await failure.view.flush(); await failure.view.click('Mark failed');
+  assert.deepEqual(failure.events.find((event) => typeof event === 'object').body, { message: 'Provider activation or failure confirmed' });
+});
+
+test('unsupported backends block date submission and uncertain responses preserve the entered date', async () => {
+  const old = await review({ check: () => ({ ...eligibility, nextExpirationDateSupported: undefined }) }); await old.prepare(); await change(old.view, 'Next expiration date', '2027-02-28'); old.view.check(true); await old.view.flush();
+  assert.equal(old.view.button('Confirm fulfillment').disabled, true); await old.view.click('Confirm fulfillment'); assert.ok(old.events.every((event) => typeof event === 'string'));
+  const uncertain = await review({ write: async () => { throw new Error('Response lost'); } }); await uncertain.prepare(); await change(uncertain.view, 'Next expiration date', '2027-02-28'); uncertain.view.check(true); await uncertain.view.flush(); await uncertain.view.click('Confirm fulfillment');
+  assert.equal(input(uncertain.view, 'Next expiration date').props.value, '2027-02-28'); await uncertain.view.click('Refresh latest state'); assert.equal(input(uncertain.view, 'Next expiration date').props.value, '2027-02-28'); assert.equal(uncertain.view.button('Confirm fulfillment').disabled, true);
 });
 
 test('unconfirmed collection, refund fences, closed and malformed work items cannot be submitted', async () => {

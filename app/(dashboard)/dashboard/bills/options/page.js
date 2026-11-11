@@ -10,12 +10,14 @@ import { useEffect, useState } from 'react';
 import { PresentationLink as Link } from '@/components/RegulatorPresentation';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
+import { BILL_SECONDARY_NAME_FIELDS, billSecondaryNameDraft, billSecondaryNamePayload } from '@/lib/bill-catalog-secondary-names';
 
 const emptyState = {
   billProductBillProviderId: '',
   name: '',
   externalReference: '',
   displayName: '',
+  ...billSecondaryNameDraft(),
   price: '',
   currency: '',
   ourPriceInUsd: '',
@@ -44,7 +46,7 @@ const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); re
     {regulatorVisibleFields(rows, enableRegulatorMode).map((row) => (
       <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', padding: '0.6rem', border: `1px solid var(--border)`, borderRadius: '10px' }}>
         <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{row.label}</div>
-        <div style={{ fontWeight: 700 }}>{row.value ?? '—'}</div>
+        <div style={{ fontWeight: 700, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{row.value ?? '—'}</div>
       </div>
     ))}
   </div>); };
@@ -63,11 +65,12 @@ const formatCodes = (row) => {
   return parts.length ? parts.join(' • ') : '—';
 };
 
-const toPayload = (state) => ({
+const toPayload = (state, original) => ({
   billProductBillProviderId: Number(state.billProductBillProviderId) || 0,
   name: state.name,
   externalReference: state.externalReference,
   displayName: state.displayName,
+  ...billSecondaryNamePayload(state, original),
   price: state.price === '' ? null : Number(state.price),
   currency: state.currency,
   ourPriceInUsd: state.ourPriceInUsd === '' ? null : Number(state.ourPriceInUsd),
@@ -180,6 +183,7 @@ export default function BillOptionsPage() {
       name: row.name ?? '',
       externalReference: row.externalReference ?? '',
       displayName: row.displayName ?? '',
+      ...billSecondaryNameDraft(row),
       price: row.price ?? '',
       currency: row.currency ?? '',
       ourPriceInUsd: row.ourPriceInUsd ?? '',
@@ -203,7 +207,7 @@ export default function BillOptionsPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.billProductBillProviderOptions.update(row.id, { ...toPayload(row), active: nextActive });
+      await api.billProductBillProviderOptions.update(row.id, { ...toPayload(row, row), active: nextActive });
       setInfo(`${nextActive ? 'Activated' : 'Deactivated'} option ${row.id}.`);
       setSelected((prev) => (Number(prev?.id) === Number(row.id) ? { ...prev, active: nextActive } : prev));
       fetchRows();
@@ -230,7 +234,7 @@ export default function BillOptionsPage() {
     setError(null);
     setInfo(null);
     try {
-      await api.billProductBillProviderOptions.update(selected.id, toPayload(draft));
+      await api.billProductBillProviderOptions.update(selected.id, toPayload(draft, selected));
       setInfo(`Updated option ${selected.id}.`);
       setShowEdit(false);
       fetchRows();
@@ -283,6 +287,11 @@ export default function BillOptionsPage() {
         <label htmlFor="displayName">Display name</label>
         <input id="displayName" value={draft.displayName} onChange={(e) => setDraft((p) => ({ ...p, displayName: e.target.value }))} />
       </div>
+      {BILL_SECONDARY_NAME_FIELDS.map(([key, label]) => <div key={key} style={{ display: 'grid', gap: '.25rem', minWidth: 0 }}>
+        <label htmlFor={key}>{label}</label>
+        <textarea id={key} rows={2} value={draft[key]} onChange={(event) => setDraft((previous) => ({ ...previous, [key]: event.target.value }))} />
+      </div>)}
+      <small style={{ gridColumn: '1 / -1', color: 'var(--muted)' }}>Short customer-facing copy in plain text. If one language is blank, customers use the other configured translation. Leave both blank to show no secondary name.</small>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="price">Price</label>
         <input id="price" type="number" value={draft.price} onChange={(e) => setDraft((p) => ({ ...p, price: e.target.value }))} />
@@ -346,6 +355,7 @@ export default function BillOptionsPage() {
 
       {showCreate && (
         <Modal title="Add option" onClose={() => setShowCreate(false)}>
+          {error ? <div className="alert alert-error" role="alert">{error}</div> : null}
           {renderForm()}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" onClick={() => setShowCreate(false)} style={{ padding: '0.65rem 0.95rem', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}>
@@ -360,6 +370,7 @@ export default function BillOptionsPage() {
 
       {showEdit && (
         <Modal title={`Edit option ${selected?.id}`} onClose={() => setShowEdit(false)}>
+          {error ? <div className="alert alert-error" role="alert">{error}</div> : null}
           {renderForm()}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" onClick={() => setShowEdit(false)} style={{ padding: '0.65rem 0.95rem', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}>
@@ -388,6 +399,8 @@ export default function BillOptionsPage() {
               },
               { label: 'Name', value: selected?.name },
               { label: 'Display', value: selected?.displayName },
+              { label: 'Secondary name (English)', value: selected?.subDisplayNameEn || '—' },
+              { label: 'Secondary name (French)', value: selected?.subDisplayNameFr || '—' },
               { label: 'Prod/Prov ID', value: selected?.billProductBillProviderId },
               { label: 'Price', value: `${selected?.price ?? ''} ${selected?.currency ?? ''}`.trim() },
               { label: 'Our price (USD)', value: selected?.ourPriceInUsd ? `${selected.ourPriceInUsd} $` : '—' },

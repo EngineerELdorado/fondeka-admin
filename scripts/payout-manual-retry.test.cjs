@@ -252,17 +252,21 @@ test('retry entry links keep the payment identity and exclude completed, cancele
   for (const patch of [{ transactionId: null }, { status: 'COMPLETED' }, { status: 'CANCELED' }, { refunded: true }, { refundedAt: '2026-11-08T10:00:00Z' }, { action: 'FUND_WALLET' }]) assert.equal(h.manualRetryCandidate({ ...row, ...patch }), false);
 });
 
-async function transactions({ supported = true, role = 'ADMIN' } = {}) {
+async function transactions({ supported = true, role = 'ADMIN', transaction = null, dateSupported = true } = {}) {
   const h = await helpers;
   const load = file => import('data:text/javascript;base64,' + Buffer.from(readFileSync(path.join(__dirname, '..', file), 'utf8')).toString('base64'));
-  const row = { transactionId: 91, reference: 'TX91', action: 'WITHDRAW_FROM_WALLET', service: 'WALLET', status: 'FAILED', amount: 100, grossAmount: 105, currency: 'GHS' };
+  const row = transaction || { transactionId: 91, reference: 'TX91', action: 'WITHDRAW_FROM_WALLET', service: 'WALLET', status: 'FAILED', amount: 100, grossAmount: 105, currency: 'GHS' };
+  const completions = [];
   const session = { tokens: { accessToken: { payload: { sub: 'admin-1', 'cognito:groups': [role] } } } }, params = new URLSearchParams();
   const view = await mountComponent(path.join(__dirname, '../app/(dashboard)/dashboard/transactions/page.js'), { modules: {
     'next/navigation': { useRouter: () => ({ push() {}, replace() {} }), useSearchParams: () => params },
     '@/contexts/AuthContext': { useAuth: () => ({ session, enableRegulatorMode: false }) }, '@/contexts/ToastContext': { useToast: () => ({ pushToast() {} }) },
     '@/lib/payout-failover': await load('lib/payout-failover.js'), '@/lib/payout-manual-retry': h,
+    '@/lib/manual-tv': await load('lib/manual-tv.js'),
     '@/lib/api': { api: { payoutFailover: { capabilities: async () => ({ providers: [{ provider: 'PAWAPAY', sourceSupported: true, targetSupported: true }], errorCodes: [], actions: ['WITHDRAW_FROM_WALLET'], maximumProviders: 3, requiresConfirmedNonPayment: true, allowsManualResubmit: supported }) },
-      transactions: { list: async () => ({ content: [row], totalPages: 1, totalElements: 1 }), get: async () => row, getReceipt: async () => null },
+      transactions: { list: async () => ({ content: [row], totalPages: 1, totalElements: 1 }), get: async () => row, getReceipt: async () => null,
+        manualReconciliationEligibility: async () => ({ transactionId: row.transactionId, action: row.action, status: row.status, completable: true, nextExpirationDateSupported: dateSupported }),
+        completeManualReconciliation: async (id, payload) => { completions.push({ id, payload }); } },
       accounts: { list: async () => [] }, auditLogs: { list: async () => [] }, paymentMethods: { options: async () => [] }, paymentProviders: { list: async () => [] }, paymentMethodPaymentProviders: { options: async () => [] }, billProducts: { options: async () => [] }, billProviders: { list: async () => [] } } },
     '@/components/ResponsiveTable': { __esModule: true, default: 'responsive' }, '@/components/TransactionStatusBadge': { __esModule: true, default: 'badge' },
     '@/components/CatalogSelect': { CatalogSelect: 'select' }, '@/components/RegulatorPresentation': { RegulatorRecord: 'record', PresentationSelect: 'select', NonRegulatorContent: 'normal', PresentationLink: 'a', RegulatorField: 'field' },
@@ -274,7 +278,7 @@ async function transactions({ supported = true, role = 'ADMIN' } = {}) {
   const table = view.nodes().find(node => node.type === 'table').props;
   const actions = table.columns.find(column => column.key === 'actions').render(row);
   require('react').Children.toArray(actions.props.children).find(node => node.type === 'button' && node.props.children === 'View').props.onClick();
-  await view.flush(); return view;
+  await view.flush(); view.completions = completions; return view;
 }
 
 test('transaction details offer the same provider-selection entry point and explain unavailable backend support', async () => {
@@ -287,4 +291,21 @@ test('transaction details offer the same provider-selection entry point and expl
   assert.ok(!older.nodes().some(node => node.props.children === 'Retry payout'));
   const assistant = await transactions({ role: 'ASSISTANT' });
   assert.doesNotMatch(assistant.text(), /Payout retry and provider selection/);
+});
+
+test('TV transaction reconciliation restores the expiration field and checks backend support before completion', async () => {
+  const transaction = { transactionId: 92, reference: 'TX92', action: 'PAY_TV_SUBSCRIPTION', service: 'BILL_PAYMENTS', status: 'PROCESSING', amount: 10, currency: 'USD' };
+  for (const dateSupported of [true, false]) {
+    const view = await transactions({ transaction, dateSupported });
+    await view.click('Mark as Completed');
+    const date = view.nodes().find(node => node.props.id === 'manualReconciliationNextExpirationDate');
+    assert.equal(date.props.type, 'date'); date.props.onChange({ target: { value: '2027-02-28' } }); await view.flush();
+    await view.click('Confirm completion');
+    if (dateSupported) assert.deepEqual(view.completions, [{ id: 92, payload: { nextExpirationDate: '2027-02-28' } }]);
+    else {
+      assert.deepEqual(view.completions, []);
+      assert.match(view.text(), /backend must be updated/);
+      assert.equal(view.nodes().find(node => node.props.id === 'manualReconciliationNextExpirationDate').props.value, '2027-02-28');
+    }
+  }
 });

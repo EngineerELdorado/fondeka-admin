@@ -19,6 +19,7 @@ import { api } from '@/lib/api';
 import { paymentMethodAdminLabel, paymentMethodRouteAdminLabel } from '@/lib/payment-method-labels';
 import { payoutCapabilities } from '@/lib/payout-failover';
 import { manualRetryCandidate, manualRetryHref } from '@/lib/payout-manual-retry';
+import { tvCompletionExpiration } from '@/lib/manual-tv';
 
 const serviceOptions = ['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'COMMERCE', 'PAYMENT_REQUEST', 'BUSINESS_TOOLS', 'BUSINESS_API', 'E_SIM', 'AIRTIME_AND_DATA', 'OTHER'];
 const actionOptions = [
@@ -830,6 +831,7 @@ export default function TransactionsPage() {
   const [showManualReconciliationConfirm, setShowManualReconciliationConfirm] = useState(false);
   const [manualReconciliationAction, setManualReconciliationAction] = useState(null);
   const [manualReconciliationMessage, setManualReconciliationMessage] = useState('');
+  const [manualReconciliationNextExpirationDate, setManualReconciliationNextExpirationDate] = useState('');
   const [manualReconciliationSubmitError, setManualReconciliationSubmitError] = useState(null);
   const [manualReconciliationSubmitLoading, setManualReconciliationSubmitLoading] = useState(false);
   const [showStatusChange, setShowStatusChange] = useState(false);
@@ -1377,6 +1379,7 @@ export default function TransactionsPage() {
     setShowManualReconciliationConfirm(false);
     setManualReconciliationAction(null);
     setManualReconciliationMessage('');
+    setManualReconciliationNextExpirationDate('');
     setManualReconciliationSubmitError(null);
     setShowStatusChange(false);
     setStatusChangeValue('');
@@ -1809,6 +1812,7 @@ export default function TransactionsPage() {
     }
     setManualReconciliationSubmitError(null);
     setManualReconciliationMessage('');
+    setManualReconciliationNextExpirationDate('');
     setManualReconciliationAction(action);
     setShowManualReconciliationConfirm(true);
   };
@@ -1927,10 +1931,16 @@ export default function TransactionsPage() {
     try {
       const message = manualReconciliationMessage.trim();
       const payload = {
-        ...(message ? { message } : {})
+        ...(message ? { message } : {}),
+        ...tvCompletionExpiration(manualReconciliationAction, normalizedSelectedAction, manualReconciliationNextExpirationDate)
       };
       const requestPayload = Object.keys(payload).length ? payload : undefined;
       if (manualReconciliationAction === 'complete') {
+        if (payload.nextExpirationDate) {
+          const eligibility = await api.transactions.manualReconciliationEligibility(transactionId);
+          if (eligibility?.nextExpirationDateSupported !== true) throw new Error('The connected backend must be updated before saving a TV expiration date through reconciliation.');
+          if (String(eligibility.transactionId) !== String(transactionId) || eligibility.action !== 'PAY_TV_SUBSCRIPTION' || eligibility.completable !== true) throw new Error(eligibility.reason || 'The TV payment cannot be completed. Refresh its current state before retrying.');
+        }
         await api.transactions.completeManualReconciliation(transactionId, requestPayload);
       } else if (manualReconciliationAction === 'cancel') {
         await api.transactions.cancelManualReconciliation(transactionId, requestPayload);
@@ -1947,6 +1957,7 @@ export default function TransactionsPage() {
       setShowManualReconciliationConfirm(false);
       setManualReconciliationAction(null);
       setManualReconciliationMessage('');
+      setManualReconciliationNextExpirationDate('');
       await refreshSelectedTransaction(transactionId);
       await loadReceipt(transactionId);
     } catch (err) {
@@ -4007,6 +4018,11 @@ export default function TransactionsPage() {
                 rows={4}
               />
             </div>
+            {manualReconciliationAction === 'complete' && normalizedSelectedAction === 'PAY_TV_SUBSCRIPTION' ? <div style={{ display: 'grid', gap: '.25rem' }}>
+              <label htmlFor="manualReconciliationNextExpirationDate">Next expiration date (optional)</label>
+              <input id="manualReconciliationNextExpirationDate" type="date" value={manualReconciliationNextExpirationDate} onChange={(event) => setManualReconciliationNextExpirationDate(event.target.value)} disabled={manualReconciliationSubmitLoading} />
+              <small>Enter the confirmed new subscription expiration date. Leave blank if unknown.</small>
+            </div> : null}
             {manualReconciliationSubmitError && <div style={{ color: '#b91c1c', fontWeight: 700 }}>{manualReconciliationSubmitError}</div>}
             <div className="modal-actions">
               <button
