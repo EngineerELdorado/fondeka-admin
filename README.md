@@ -115,6 +115,14 @@ Country, payment-method, bill-product, and provider-route selectors use a shared
 
 Catalog `options()` API helpers load every page and enrich routes with their method/product and country metadata. Ordinary directory `list()` requests remain paginated. These pickers retain existing IDs and change handlers, support keyboard navigation and mobile layouts, and follow the current admin's Regulator presentation without silently removing hidden selections.
 
+## Customer card-details flow
+
+Open **Cards → Card Policy Config → Customer card details flow** (`/dashboard/cards/card-policy-config`). Admins and Super Admins can select **Automatic**, **Existing backend flow**, or **Provider-token handoff**, manage per-account exceptions, and use **Save card details flow**. Assistants can inspect the saved policy. Remove an account override to inherit the global mode; an explicit Automatic override selects automatic behavior independently of the global choice. **Clear flow overrides** prepares an empty map that applies when saved.
+
+The flow save sends only `cardDetailsDeliveryMode` and the complete `cardDetailsDeliveryModeAccountOverrides` map to the existing card-policy endpoint. Provider/infrastructure settings have a separate save button, and saving either group preserves the other group's unsaved draft. Missing or unfamiliar delivery fields disable the flow controls, and a save must return the requested policy before the dashboard displays success. Deploy backend support first; no new migration or environment variable is needed.
+
+Automatic retains the backend's compatible selection. Existing backend flow skips client-side token handoff but can still depend on a provider's token service internally. Strict provider-token mode returns unavailable for unsupported cards on compatible apps; apps below 1.1.27 retain their existing flow. Changes affect subsequent reads without changing providers, infrastructure, caching policy, cards or wallet funds. Already issued tokens retain their existing lifetime. No production policy is changed by building this dashboard.
+
 ## Manual TV subscription fulfillment
 
 In **Bills → Bill Products**, television products have a **TV subscription flow** selector. `SUBSCRIPTION_LOOKUP` is the default for older records and new forms; `MANUAL_SELECTION` uses stored offer/option selections followed by staff fulfillment. The setting is saved with the existing complete product form and is retained during unrelated edits. Congo and Rwanda are separate product records. Changing a product to another type clears manual mode; changing back to lookup affects new requests while accepted manual payments retain their captured flow.
