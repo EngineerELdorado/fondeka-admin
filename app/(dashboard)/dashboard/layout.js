@@ -17,6 +17,7 @@ const navItems = [
   { href: '/dashboard/wallet-currency-audit', labelKey: 'layout.nav.walletCurrencyAudit', label: 'Wallet Currency Audit' },
   { href: '/dashboard/wallet-migrations/legacy-usd', labelKey: 'layout.nav.legacyUsdWalletMigration' },
   { href: '/dashboard/blacklist', labelKey: 'layout.nav.blacklist' },
+  { href: '/dashboard/risk/checkout-ip-blocks', labelKey: 'layout.nav.checkoutIpBlocks', label: 'Checkout IP blocks', adminOnly: true },
   { href: '/dashboard/payments', labelKey: 'layout.nav.paymentMethods' },
   { href: '/dashboard/payments/provider-coverage', labelKey: 'layout.nav.paymentProviderCoverage', label: 'Provider Coverage Map' },
   { href: '/dashboard/payout-failover', labelKey: 'layout.nav.payoutFailover', label: 'Payout failover', adminOnly: true },

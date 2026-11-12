@@ -115,6 +115,16 @@ Country, payment-method, bill-product, and provider-route selectors use a shared
 
 Catalog `options()` API helpers load every page and enrich routes with their method/product and country metadata. Ordinary directory `list()` requests remain paginated. These pickers retain existing IDs and change handlers, support keyboard navigation and mobile layouts, and follow the current admin's Regulator presentation without silently removing hidden selections.
 
+## Checkout IP blocks
+
+Open **Checkout IP blocks** in the sidebar, or `/dashboard/risk/checkout-ip-blocks`. Admins and Super Admins can review records; only Super Admins can use **Block IP** and the block/unblock controls inside **Review**. Other roles cannot see the menu entry or load this page's records. This manages public checkout IP protection independently of the existing customer-account blacklist.
+
+**Active blocks** is the default. **All records** includes expired/unblocked addresses and violations below the block threshold, with one retained row per IP rather than a chronological request log. Both views use backend pagination and totals with 20/50/100 rows per page; no unsupported search or sort is sent. Status comes from expiry and the latest action, dates include UTC, and displayed expiries refresh active results automatically. Review also reads the existing audit endpoint with target type `CHECKOUT_IP` and the record ID to show manual actors and changes.
+
+Blocking accepts a single IPv4/IPv6 address, a reason up to 500 characters and 1–720 hours (default 24). Public/proxy eligibility is checked by the backend. Review the IP, duration and recorded expiry where available, then confirm: a block replaces the expiry with server time plus that duration. Unblocking sends a URL-encoded, bodyless DELETE and accepts HTTP 204. Successful mutations refetch both views and recover an emptied page. Uncertain writes retain the form and require a records refresh and fresh confirmation; no POST is retried automatically. Permission, load and unavailable-backend errors are distinct from an empty list. Data is uncached and scoped to the authenticated admin session.
+
+The explanatory panel labels the three-violations/15-minutes/24-hours policy as production defaults, not live deployment settings. Unblocking does not clear rate-limit quotas or create an allowlist. Deploy the backend and `20270110_commerce_checkout_ip_abuse.sql` before using this screen; the dashboard does not change protection flags or financial/account data.
+
 ## Customer card-details flow
 
 Open **Cards → Card Policy Config → Customer card details flow** (`/dashboard/cards/card-policy-config`). Admins and Super Admins can select **Automatic**, **Existing backend flow**, or **Provider-token handoff**, manage per-account exceptions, and use **Save card details flow**. Assistants can inspect the saved policy. Remove an account override to inherit the global mode; an explicit Automatic override selects automatic behavior independently of the global choice. **Clear flow overrides** prepares an empty map that applies when saved.
