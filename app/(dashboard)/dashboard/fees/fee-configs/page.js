@@ -2,7 +2,6 @@
 
 import { CountrySelect } from '@/components/CountrySelect';
 
-import ResponsiveTable from '@/components/ResponsiveTable';
 
 import { CatalogSelect } from '@/components/CatalogSelect';
 import { RegulatorRecord, PresentationSelect, NonRegulatorContent, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
@@ -13,19 +12,16 @@ import { useAuth } from '@/contexts/AuthContext';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
+import { railOnlyPayload, feePermissions } from '@/lib/service-fees';
 import { DataTable } from '@/components/DataTable';
 import { paymentMethodAdminLabel, paymentMethodRouteAdminLabel } from '@/lib/payment-method-labels';
 
-const serviceOptions = ['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'COMMERCE', 'PAYMENT_REQUEST', 'E_SIM', 'AIRTIME_AND_DATA', 'OTHER'];
 const paymentMethodTypeOptions = ['MOBILE_MONEY', 'CRYPTO', 'BALANCE', 'CREDIT', 'AIRTIME', 'BANK'];
 const scopeTypeOptions = [
-  { value: 'specific_route', label: 'Specific route' },
-  { value: 'provider_fallback', label: 'Provider fallback' },
-  { value: 'bill_provider_fallback', label: 'Bill provider fallback' },
-  { value: 'global_action_fallback', label: 'Global action/context fallback' },
-  { value: 'payment_method_type_action', label: 'Payment method type + action/context' },
-  { value: 'payment_method_type_fallback', label: 'Pure payment method type fallback' },
-  { value: 'global_default', label: 'Global default' }
+  { value: 'specific_route', label: 'Specific payment route' },
+  { value: 'provider_fallback', label: 'Payment provider default' },
+  { value: 'global_action_fallback', label: 'Global / country context' },
+  { value: 'payment_method_type_action', label: 'Payment method type + context' }
 ];
 const feeApplicationModeOptions = [
   { value: '', label: 'Use global default' },
@@ -34,60 +30,8 @@ const feeApplicationModeOptions = [
 ];
 const feeContextOptions = ['COLLECTION', 'PAYOUT'];
 
-const actionOptions = [
-  'BUY_CARD',
-  'BUY_CRYPTO',
-  'CONVERT_FIAT',
-  'BUY_GIFT_CARD',
-  'E_SIM_PURCHASE',
-  'E_SIM_TOPUP',
-  'FUND_CARD',
-  'FUND_WALLET',
-  'INTER_TRANSFER',
-  'LOAN_DISBURSEMENT',
-  'LOAN_REQUEST',
-  'ORDER_BANK_ACCOUNT',
-  'PAY_ELECTRICITY_BILL',
-  'PAY_INTERNET_BILL',
-  'PAY_REQUEST',
-  'COMMERCE_CHECKOUT_PAYMENT',
-  'CREATE_COMMERCE_STORE',
-  'PAY_TV_SUBSCRIPTION',
-  'PAY_WATER_BILL',
-  'CARD_PAYMENT_REVERSAL',
-  'RECEIVE_CRYPTO',
-  'REPAY_LOAN',
-  'SELL_CRYPTO',
-  'SEND_AIRTIME',
-  'SEND_DATA_BUNDLES',
-  'SEND_CRYPTO',
-  'SETTLEMENT',
-  'SWAP_CRYPTO',
-  'WITHDRAW_FROM_CARD',
-  'PERSONAL_SAVING_DEPOSIT',
-  'PERSONAL_SAVING_WITHDRAWAL',
-  'PERSONAL_SAVING_INTEREST_PAYOUT',
-  'GROUP_SAVING_CONTRIBUTION',
-  'GROUP_SAVING_PAYOUT',
-  'GROUP_SAVING_ROUND_DISTRIBUTION',
-  'WITHDRAW_FROM_WALLET'
-].sort();
-
-const initialFilters = {
-  paymentMethodType: '',
-  action: '',
-  feeContext: '',
-  service: '',
-  countryId: '',
-  paymentMethodPaymentProviderId: '',
-  billProductBillProviderId: '',
-  billProductId: '',
-  billProviderId: '',
-  paymentMethodId: '',
-  paymentProviderId: '',
-  fromCryptoProductId: '',
-  toCryptoProductId: ''
-};
+const actionOptions = [];
+const initialFilters = { paymentMethodType: '', feeContext: '', countryId: '', paymentMethodPaymentProviderId: '', paymentMethodId: '', paymentProviderId: '' };
 
 const emptyState = {
   scopeType: 'specific_route',
@@ -100,7 +44,7 @@ const emptyState = {
   service: '',
   action: '',
   customAction: '',
-  feeContext: '',
+  feeContext: 'COLLECTION',
   overrideSpecificFees: false,
   providerFeePercentage: '',
   providerFlatFee: '',
@@ -202,17 +146,9 @@ const normalizeFeeContext = (value) => {
   return feeContextOptions.includes(normalized) ? normalized : '';
 };
 const normalizePawapayFeeRows = (fees) => fees.map((fee) => {
-  const providerFee = { ...(fee || {}) };
-  delete providerFee.ourFeePercentage;
-  delete providerFee.ourFlatFee;
-  delete providerFee.feeApplicationMode;
-  const actionValue = String(fee?.action || '').trim().toUpperCase();
-  const context = normalizeFeeContext(fee?.feeContext || actionValue);
-  return {
-    ...providerFee,
-    action: context ? null : (fee?.action ?? null),
-    feeContext: context || null
-  };
+  const providerFee = railOnlyPayload({ ...fee, action: fee.action ? String(fee.action).trim().toUpperCase() : null, feeContext: fee.feeContext ? String(fee.feeContext).trim().toUpperCase() : null });
+  delete providerFee.ourFeePercentage; delete providerFee.ourFlatFee; delete providerFee.feeApplicationMode;
+  return providerFee;
 });
 const normalizeOptionalIdForForm = (value) => {
   if (value === null || value === undefined || value === '') return '';
@@ -239,7 +175,7 @@ const buildBulkProviderPayload = (state) => {
       payload[key] = Number(value);
     }
   });
-  return payload;
+  return railOnlyPayload(payload, { requireContext: false });
 };
 
 const describeBulkPayload = (payload) => Object.entries(payload)
@@ -288,7 +224,7 @@ const toPayload = (state) => {
     amountRangeCurrency: state.amountRangeCurrency ? String(state.amountRangeCurrency).trim().toUpperCase() : null,
     feeApplicationMode: state.feeApplicationMode || null
   };
-  return {
+  return railOnlyPayload({
     // The API derives paymentMethodType for exact route/country scopes and
     // currently rejects receiving that descriptive response field back.
     ...(!hasRouteOrCountryScope ? { paymentMethodType: paymentMethodTypeScope ? state.paymentMethodType || null : null } : {}),
@@ -303,7 +239,7 @@ const toPayload = (state) => {
     fromCryptoProductId: state.fromCryptoProductId === '' ? null : Number(state.fromCryptoProductId),
     toCryptoProductId: state.toCryptoProductId === '' ? null : Number(state.toCryptoProductId),
     ...fees
-  };
+  });
 };
 
 const Modal = ({ title, onClose, children }) => (
@@ -367,7 +303,7 @@ const resolveScopeType = (row) => {
   if (row?.paymentMethodPaymentProviderId || row?.billProductBillProviderId || row?.fromCryptoProductId || row?.toCryptoProductId) return 'specific_route';
   if (row?.paymentProviderId) return 'provider_fallback';
   if (row?.billProviderId) return 'bill_provider_fallback';
-  if (row?.paymentMethodType && row?.action) return 'payment_method_type_action';
+  if (row?.paymentMethodType && (row?.action || row?.feeContext)) return 'payment_method_type_action';
   if (row?.paymentMethodType) return 'payment_method_type_fallback';
   if (row?.action || row?.feeContext || row?.service || row?.countryId) return 'global_action_fallback';
   return 'global_default';
@@ -407,6 +343,8 @@ const toEditState = (row) => {
 const scopeTypeLabel = (value) => scopeTypeOptions.find((option) => option.value === value)?.label || 'Specific route';
 
 export default function FeeConfigsPage() {
+  const { session } = useAuth();
+  const { canWrite } = feePermissions(session);
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
@@ -441,8 +379,6 @@ export default function FeeConfigsPage() {
   const [filters, setFilters] = useState(initialFilters);
   const [appliedFilters, setAppliedFilters] = useState(initialFilters);
   const [showFilters, setShowFilters] = useState(false);
-  const resolvedDraftAction = resolveAction(draft);
-  const isDraftGiftCardAction = String(resolvedDraftAction || '').toUpperCase() === 'BUY_GIFT_CARD';
 
   const getCryptoProductLabel = useCallback((value) => {
     if (!value) return '—';
@@ -547,25 +483,14 @@ export default function FeeConfigsPage() {
   useEffect(() => {
     const fetchOptions = async () => {
       try {
-        const [pmpRes, countryRes, pmRes, provRes, bpbpRes, billProductRes, billProviderRes, cryptoProductRes] = await Promise.all([
-          api.paymentMethodPaymentProviders.options(new URLSearchParams({ page: '0', size: '200' })),
-          api.countries.options(),
-          api.paymentMethods.options(new URLSearchParams({ page: '0', size: '200' })),
-          api.paymentProviders.list(new URLSearchParams({ page: '0', size: '200' })),
-          api.billProductBillProviders.options(new URLSearchParams({ page: '0', size: '200' })),
-          api.billProducts.options(new URLSearchParams({ page: '0', size: '200' })),
-          api.billProviders.list(new URLSearchParams({ page: '0', size: '200' })),
-          api.cryptoProducts.list(new URLSearchParams({ page: '0', size: '200' }))
+        const [pmpRes, countryRes, pmRes, provRes] = await Promise.all([
+          api.paymentMethodPaymentProviders.options(), api.countries.options(), api.paymentMethods.options(), api.paymentProviders.list(new URLSearchParams({ page: '0', size: '200' }))
         ]);
         const toList = (res) => (Array.isArray(res) ? res : res?.content || []);
         setPmps(toList(pmpRes));
         setCountries(toList(countryRes));
         setPaymentMethods(toList(pmRes));
         setPaymentProviders(toList(provRes));
-        setBpbps(toList(bpbpRes));
-        setBillProducts(toList(billProductRes));
-        setBillProviders(toList(billProviderRes));
-        setCryptoProducts(toList(cryptoProductRes));
       } catch {
         // soft fail for options
       }
@@ -652,47 +577,6 @@ export default function FeeConfigsPage() {
     });
   }, [sortedRows, appliedFilters.fromCryptoProductId, appliedFilters.toCryptoProductId]);
 
-  const giftCardMappingIds = useMemo(() => {
-    const giftProductIds = new Set(
-      billProducts
-        .filter((product) => Boolean(product?.giftCard))
-        .map((product) => Number(product.id))
-        .filter((id) => !Number.isNaN(id))
-    );
-    return new Set(
-      bpbps
-        .filter((mapping) => giftProductIds.has(Number(mapping?.billProductId)))
-        .map((mapping) => Number(mapping.id))
-        .filter((id) => !Number.isNaN(id))
-    );
-  }, [billProducts, bpbps]);
-
-  const requiredGiftCardStatus = useMemo(() => {
-    const requiredKeys = ['NETFLIX', 'SPOTIFY', 'APP_STORE', 'GOOGLE_PLAY', 'AIRBNB', 'UBER'];
-    return requiredKeys.map((key) => {
-      const product = billProducts.find((p) => String(p?.name || '').toUpperCase() === key || String(p?.code || '').toUpperCase() === key);
-      const productId = Number(product?.id);
-      const productMappings = bpbps.filter((mapping) => Number(mapping?.billProductId) === productId);
-      const activeReloadlyMappings = productMappings.filter((mapping) => {
-        if (mapping?.active === false) return false;
-        const providerName = String(mapping?.billProviderName || '').toUpperCase();
-        return providerName.includes('RELOADLY');
-      });
-      const feeRows = rows.filter((row) => {
-        if (String(row?.action || '').toUpperCase() !== 'BUY_GIFT_CARD') return false;
-        return activeReloadlyMappings.some((mapping) => Number(mapping?.id) === Number(row?.billProductBillProviderId));
-      });
-      return {
-        key,
-        displayName: product?.displayName || key,
-        hasProduct: Boolean(product),
-        hasActiveReloadlyMapping: activeReloadlyMappings.length > 0,
-        activeReloadlyMappingIds: activeReloadlyMappings.map((mapping) => mapping.id),
-        feeConfigCount: feeRows.length
-      };
-    });
-  }, [billProducts, bpbps, rows]);
-
   const bulkProviderVisibleMatchCount = useMemo(() => {
     const providerId = Number(bulkProviderDraft.paymentProviderId);
     if (!providerId) return 0;
@@ -707,8 +591,7 @@ export default function FeeConfigsPage() {
     }).length;
   }, [bulkProviderDraft, rows]);
 
-  const columns = useMemo(
-    () => [
+  const columns = [
       { key: 'id', label: 'ID' },
       {
         key: 'scope',
@@ -719,9 +602,9 @@ export default function FeeConfigsPage() {
       },
       {
         key: 'serviceAction',
-        label: 'Service / action',
+        label: 'Fee context',
         render: (row) => (
-          <FeeConfigCell primary={row.action || row.feeContext || 'Default'} secondary={row.service || 'All services'} strong />
+          <FeeConfigCell primary={row.feeContext || row.action || 'Legacy / review required'} secondary={row.service || null} strong />
         )
       },
       {
@@ -788,20 +671,19 @@ export default function FeeConfigsPage() {
             <button type="button" onClick={() => openDetail(row)} className="btn-neutral">
               View
             </button>
-            <button type="button" onClick={() => openEdit(row)} className="btn-neutral" disabled={editLoadingId !== null}>
+            <button type="button" onClick={() => openEdit(row)} className="btn-neutral" disabled={!canWrite || editLoadingId !== null}>
               {Number(editLoadingId) === Number(row.id) ? 'Loading…' : 'Edit'}
             </button>
-            <button type="button" onClick={() => setConfirmDelete(row)} className="btn-danger">
+            <button type="button" onClick={() => { if (canWrite) setConfirmDelete(row); }} disabled={!canWrite} className="btn-danger">
               Delete
             </button>
           </div>
         )
       }
-    ],
-    [editLoadingId, getCountryLabel, getPaymentProviderLabel, getBillProviderLabel, getPmpLabel, getBpbpLabel, getCryptoProductLabel]
-  );
+    ];
 
   const openCreate = () => {
+    if (!canWrite) return;
     setDraft(emptyState);
     setShowCreate(true);
     setInfo(null);
@@ -809,11 +691,13 @@ export default function FeeConfigsPage() {
   };
 
   const openEdit = async (row) => {
+    if (!canWrite) return;
     setInfo(null);
     setError(null);
     setEditLoadingId(row.id);
     try {
       const current = await api.feeConfigs.get(row.id);
+      railOnlyPayload(current);
       if (hasUnsupportedMixedPaymentMethodTypeScope(current)) {
         throw new Error(
           `Fee config ${row.id} combines payment method type with provider or country scope and cannot be safely updated under the current backend contract.`
@@ -837,6 +721,9 @@ export default function FeeConfigsPage() {
   };
 
   const validateDraft = (state, currentId = null) => {
+    try { toPayload(state); } catch (err) { return err.message; }
+    if (state.scopeType === 'specific_route' && !state.paymentMethodPaymentProviderId) return 'Choose a payment route.';
+    if (state.scopeType === 'provider_fallback' && !state.paymentProviderId) return 'Choose a payment provider.';
     const resolved = resolveAction(state);
     const paymentMethodTypeScope = isPaymentMethodTypeScope(state);
     const normalizedPaymentMethodType = String(state.paymentMethodType || '').trim().toUpperCase();
@@ -867,7 +754,7 @@ export default function FeeConfigsPage() {
       { key: 'minAmount', value: state.minAmount },
       { key: 'maxAmount', value: state.maxAmount }
     ];
-    const invalid = numericFields.find((item) => item.value !== '' && Number(item.value) < 0);
+    const invalid = numericFields.find((item) => item.value !== '' && (!Number.isFinite(Number(item.value)) || Number(item.value) < 0));
     if (invalid) return 'Fee values cannot be negative.';
     if (state.minAmount !== '' && state.maxAmount !== '' && Number(state.minAmount) > Number(state.maxAmount)) {
       return 'Minimum amount cannot be greater than maximum amount.';
@@ -894,9 +781,6 @@ export default function FeeConfigsPage() {
     }
     if (normalizedBpbp !== null && normalizedBillProvider !== null) {
       return 'Choose either Bill Provider or the exact Bill Product Route. Do not set both on the same fee config.';
-    }
-    if (normalizedAction === 'BUY_GIFT_CARD' && normalizedBpbp !== null && !giftCardMappingIds.has(Number(normalizedBpbp))) {
-      return 'Selected BPBP does not appear to be a gift-card mapping. Use a mapping where bill product has giftCard=true.';
     }
     if ((normalizedFromCrypto === null) !== (normalizedToCrypto === null)) {
       return 'Set both From crypto and To crypto together for pair-specific swap pricing.';
@@ -946,6 +830,7 @@ export default function FeeConfigsPage() {
   };
 
   const handleCreate = async () => {
+    if (!canWrite) return;
     const validationError = validateDraft(draft);
     if (validationError) {
       setError(validationError);
@@ -974,6 +859,7 @@ export default function FeeConfigsPage() {
   };
 
   const handleUpdate = async () => {
+    if (!canWrite) return;
     if (!selected?.id) return;
     const validationError = validateDraft(draft, selected.id);
     if (validationError) {
@@ -993,6 +879,7 @@ export default function FeeConfigsPage() {
   };
 
   const handleDelete = async () => {
+    if (!canWrite) return;
     if (!confirmDelete?.id) return;
     const id = confirmDelete.id;
     setError(null);
@@ -1008,6 +895,7 @@ export default function FeeConfigsPage() {
   };
 
   const handlePawapaySync = async () => {
+    if (!canWrite) return;
     setError(null);
     setInfo(null);
     setPawapaySyncResult(null);
@@ -1049,14 +937,14 @@ export default function FeeConfigsPage() {
     if (!state.paymentProviderId) return 'Select a payment provider for the bulk update.';
     const selectedFields = Object.entries(state.fields).filter(([, enabled]) => enabled).map(([key]) => key);
     if (selectedFields.length === 0) return 'Select at least one fee field to update.';
-    if (state.action && state.feeContext) return 'Choose either action or fee context, not both.';
+    if (state.action || state.service) return 'Business actions and services belong in Business fees.';
     if (state.feeContext && !feeContextOptions.includes(String(state.feeContext).toUpperCase())) {
       return 'Fee context must be COLLECTION or PAYOUT.';
     }
     if (state.service === '__custom') return 'Service value is invalid.';
     if (state.countryId !== '' && Number(state.countryId) < 0) return 'Country ID must be non-negative.';
     const numericFields = ['ourFeePercentage', 'ourFlatFee', 'providerFeePercentage', 'providerFlatFee', 'providerMinFee'];
-    const invalidNumeric = numericFields.find((key) => state.fields[key] && (!Number.isFinite(Number(state.values[key])) || Number(state.values[key]) < 0));
+    const invalidNumeric = numericFields.find((key) => state.fields[key] && (String(state.values[key]).trim() === '' || !Number.isFinite(Number(state.values[key])) || Number(state.values[key]) < 0));
     if (invalidNumeric) return `${invalidNumeric} must be zero or positive.`;
     if (state.fields.providerFlatFeeCurrency && !String(state.values.providerFlatFeeCurrency || '').trim()) {
       return 'Provider flat fee currency cannot be empty when selected.';
@@ -1071,6 +959,7 @@ export default function FeeConfigsPage() {
   };
 
   const openBulkProviderUpdate = () => {
+    if (!canWrite) return;
     setBulkProviderDraft(emptyBulkProviderDraft);
     setBulkProviderConfirm(null);
     setBulkProviderResult(null);
@@ -1100,6 +989,7 @@ export default function FeeConfigsPage() {
   };
 
   const handleReviewBulkProviderUpdate = () => {
+    if (!canWrite) return;
     const validationError = validateBulkProviderDraft(bulkProviderDraft);
     if (validationError) {
       setError(validationError);
@@ -1117,6 +1007,7 @@ export default function FeeConfigsPage() {
   };
 
   const handleBulkProviderUpdate = async () => {
+    if (!canWrite) return;
     if (!bulkProviderConfirm?.paymentProviderId || bulkProviderLoading) return;
     setBulkProviderLoading(true);
     setError(null);
@@ -1135,293 +1026,17 @@ export default function FeeConfigsPage() {
     }
   };
 
-  const updateScopeType = (scopeType) => {
-    setDraft((previous) => ({
-      ...previous,
-      scopeType,
-      ...(scopeType === 'payment_method_type_action' || scopeType === 'payment_method_type_fallback'
-        ? {
-            paymentProviderId: '',
-            billProviderId: '',
-            paymentMethodPaymentProviderId: '',
-            billProductBillProviderId: '',
-            countryId: '',
-            service: '',
-            ...(scopeType === 'payment_method_type_fallback' ? { action: '', customAction: '' } : {}),
-            fromCryptoProductId: '',
-            toCryptoProductId: ''
-          }
-        : {
-            paymentMethodType: ''
-          })
-    }));
-  };
+  const updateScopeType = (scopeType) => setDraft((previous) => ({ ...previous, scopeType, paymentProviderId: '', paymentMethodPaymentProviderId: '', paymentMethodType: '', countryId: '', action: '', customAction: '', service: '', billProviderId: '', billProductBillProviderId: '', fromCryptoProductId: '', toCryptoProductId: '' }));
 
   const renderForm = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="scopeType">Scope type</label>
-        <PresentationSelect id="scopeType" value={draft.scopeType} onChange={(e) => updateScopeType(e.target.value)}>
-          {scopeTypeOptions.map((option) => (
-            <option data-regulator-restricted={isRegulatorRestrictedRecord(option)} key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </PresentationSelect>
-      </div>
-      {isPaymentMethodTypeScope(draft) && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <label htmlFor="paymentMethodType">Payment method type</label>
-          <PresentationSelect id="paymentMethodType" value={draft.paymentMethodType} onChange={(e) => setDraft((p) => ({ ...p, paymentMethodType: e.target.value }))}>
-            <option value="">Select payment method type</option>
-            {paymentMethodTypeOptions.map((type) => (
-              <option data-regulator-restricted={isRegulatorRestrictedRecord(type)} key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </PresentationSelect>
-        </div>
-      )}
-      {draft.scopeType === 'payment_method_type_action' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <label htmlFor="action">Action</label>
-          <PresentationSelect
-            id="action"
-            value={draft.action}
-            onChange={(e) =>
-              setDraft((p) => ({
-                ...p,
-                action: e.target.value,
-                customAction: e.target.value === '__custom' ? p.customAction : '',
-                feeContext: e.target.value ? '' : p.feeContext
-              }))
-            }
-          >
-            <option value="">Select action</option>
-            {actionOptions.map((opt) => (
-              <option data-regulator-restricted={isRegulatorRestrictedRecord(opt)} key={opt} value={opt}>
-                {opt}
-              </option>
-            ))}
-            <option value="__custom">Other (custom)</option>
-          </PresentationSelect>
-          {draft.action === '__custom' && (
-            <input
-              style={{ marginTop: '0.25rem' }}
-              placeholder="Enter custom action"
-              value={draft.customAction}
-              onChange={(e) => setDraft((p) => ({ ...p, customAction: e.target.value }))}
-            />
-          )}
-        </div>
-      )}
-      {isPaymentMethodTypeScope(draft) && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <label htmlFor="feeContextTypeScope">Fee context</label>
-          <PresentationSelect
-            id="feeContextTypeScope"
-            value={draft.feeContext}
-            onChange={(e) => setDraft((p) => ({ ...p, feeContext: e.target.value, ...(e.target.value ? { action: '', customAction: '' } : {}) }))}
-          >
-            <option value="">No context</option>
-            {feeContextOptions.map((context) => (
-              <option data-regulator-restricted={isRegulatorRestrictedRecord(context)} key={context} value={context}>{context}</option>
-            ))}
-          </PresentationSelect>
-          <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
-            Use COLLECTION/PAYOUT for flow fallback fees. Do not store COLLECTION or PAYOUT as actions.
-          </div>
-        </div>
-      )}
-      {!isPaymentMethodTypeScope(draft) && (
-        <>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="paymentProviderId">Payment Provider</label>
-        <PresentationSelect id="paymentProviderId" value={draft.paymentProviderId} onChange={(e) => setDraft((p) => ({ ...p, paymentProviderId: e.target.value }))}>
-          <option value="">All payment providers</option>
-          {paymentProviders.map((provider) => (
-            <option data-regulator-restricted={isRegulatorRestrictedRecord(provider)} key={provider.id} value={provider.id}>
-              {provider.name || provider.displayName || provider.id}
-              {provider.id ? ` #${provider.id}` : ''}
-            </option>
-          ))}
-        </PresentationSelect>
-        <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
-          Choose the provider by name. Use this for broad defaults across routes handled by that provider.
-        </div>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="billProviderId">Bill Provider</label>
-        <PresentationSelect id="billProviderId" value={draft.billProviderId} onChange={(e) => setDraft((p) => ({ ...p, billProviderId: e.target.value }))}>
-          <option value="">All bill providers</option>
-          {billProviders.map((provider) => (
-            <option data-regulator-restricted={isRegulatorRestrictedRecord(provider)} key={provider.id} value={provider.id}>
-              {provider.name || provider.displayName || provider.id}
-              {provider.id ? ` #${provider.id}` : ''}
-            </option>
-          ))}
-        </PresentationSelect>
-        <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
-          Choose the bill provider by name. Use this for broad defaults across bill products under that provider.
-        </div>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="service">Service</label>
-        <PresentationSelect id="service" value={draft.service} onChange={(e) => setDraft((p) => ({ ...p, service: e.target.value }))}>
-          <option value="">All services</option>
-          {serviceOptions.map((svc) => (
-            <option data-regulator-restricted={isRegulatorRestrictedRecord(svc)} key={svc} value={svc}>
-              {svc}
-            </option>
-          ))}
-        </PresentationSelect>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="action">Action</label>
-        <PresentationSelect
-          id="action"
-          value={draft.action}
-          onChange={(e) =>
-            setDraft((p) => ({
-              ...p,
-              action: e.target.value,
-              customAction: e.target.value === '__custom' ? p.customAction : '',
-              feeContext: e.target.value ? '' : p.feeContext,
-              ...(e.target.value === 'SWAP_CRYPTO' ? { service: 'CRYPTO' } : {})
-            }))
-          }
-        >
-          <option value="">All actions / no action default</option>
-          {actionOptions.map((opt) => (
-            <option data-regulator-restricted={isRegulatorRestrictedRecord(opt)} key={opt} value={opt}>
-              {opt}
-            </option>
-          ))}
-          <option value="__custom">Other (custom)</option>
-        </PresentationSelect>
-        {draft.action === '__custom' && (
-          <input
-            style={{ marginTop: '0.25rem' }}
-            placeholder="Enter custom action"
-            value={draft.customAction}
-            onChange={(e) => setDraft((p) => ({ ...p, customAction: e.target.value }))}
-          />
-        )}
-        <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
-          Use action for exact transaction-action fees. Leave it blank when using fee context.
-        </div>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="feeContext">Fee context</label>
-        <PresentationSelect
-          id="feeContext"
-          value={draft.feeContext}
-          onChange={(e) => setDraft((p) => ({ ...p, feeContext: e.target.value, ...(e.target.value ? { action: '', customAction: '' } : {}) }))}
-        >
-          <option value="">No context</option>
-          {feeContextOptions.map((context) => (
-            <option data-regulator-restricted={isRegulatorRestrictedRecord(context)} key={context} value={context}>{context}</option>
-          ))}
-        </PresentationSelect>
-        <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
-          Use COLLECTION/PAYOUT for flow fallback fees such as PawaPay. Do not store COLLECTION or PAYOUT as actions.
-        </div>
-      </div>
-      {String(resolvedDraftAction || '').toUpperCase() === 'SWAP_CRYPTO' && (
-        <>
-          <NonRegulatorContent><div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="fromCryptoProductId">From Crypto Product</label>
-            <PresentationSelect
-              id="fromCryptoProductId"
-              value={draft.fromCryptoProductId}
-              onChange={(e) => setDraft((p) => ({ ...p, fromCryptoProductId: e.target.value, service: 'CRYPTO' }))}
-            >
-              <option value="">Select source crypto</option>
-              {cryptoProducts.map((product) => (
-                <option data-regulator-restricted={isRegulatorRestrictedRecord(product)} key={product.id} value={product.id}>
-                  {product.displayName || product.name || product.code || product.id}
-                </option>
-              ))}
-            </PresentationSelect>
-          </div></NonRegulatorContent>
-          <NonRegulatorContent><div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="toCryptoProductId">To Crypto Product</label>
-            <PresentationSelect
-              id="toCryptoProductId"
-              value={draft.toCryptoProductId}
-              onChange={(e) => setDraft((p) => ({ ...p, toCryptoProductId: e.target.value, service: 'CRYPTO' }))}
-            >
-              <option value="">Select destination crypto</option>
-              {cryptoProducts.map((product) => (
-                <option data-regulator-restricted={isRegulatorRestrictedRecord(product)} key={product.id} value={product.id}>
-                  {product.displayName || product.name || product.code || product.id}
-                </option>
-              ))}
-            </PresentationSelect>
-            <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
-              Swap fees are applied once on the source value before conversion to the destination asset.
-            </div>
-          </div></NonRegulatorContent>
-        </>
-      )}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="countryId">Country</label>
-        <CountrySelect records={countries} id="countryId" value={draft.countryId} onChange={(e) => setDraft((p) => ({ ...p, countryId: e.target.value }))}>
-          <option value="">All countries (global)</option>
-          {countries.map((c) => (
-            <option data-regulator-restricted={isRegulatorRestrictedRecord(c)} key={c.id} value={c.id}>
-              {c.name} ({c.alpha2Code}) #{c.id}
-            </option>
-          ))}
-        </CountrySelect>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="paymentMethodPaymentProviderId">Payment Method Route</label>
-        <CatalogSelect kind="payment-route" records={pmps} countries={countries}
-          id="paymentMethodPaymentProviderId"
-          value={draft.paymentMethodPaymentProviderId}
-          onChange={(e) => setDraft((p) => ({ ...p, paymentMethodPaymentProviderId: e.target.value }))}
-        >
-          <option value="">Global (no PMPP)</option>
-          {pmps.map((pmp) => (
-            <option data-regulator-restricted={isRegulatorRestrictedRecord(pmp)} key={pmp.id} value={pmp.id}>
-              {paymentMethodRouteAdminLabel(pmp)} → {pmp.paymentProviderName || 'Provider'}
-              {pmp.countryName ? ` (${pmp.countryName})` : ''} #{pmp.id}
-            </option>
-          ))}
-        </CatalogSelect>
-        <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
-          Use this only when the fee must target one exact payment method route.
-        </div>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="billProductBillProviderId">Bill Product Route</label>
-        <CatalogSelect kind="bill-route" records={bpbps} countries={countries}
-          id="billProductBillProviderId"
-          value={draft.billProductBillProviderId}
-          onChange={(e) => setDraft((p) => ({ ...p, billProductBillProviderId: e.target.value }))}
-        >
-          <option value="">{isDraftGiftCardAction ? 'Select gift-card BPBP' : 'Global (no BPBP)'}</option>
-          {(isDraftGiftCardAction ? bpbps.filter((bpbp) => giftCardMappingIds.has(Number(bpbp.id))) : bpbps).map((bpbp) => (
-            <option data-regulator-restricted={isRegulatorRestrictedRecord(bpbp)} key={bpbp.id} value={bpbp.id}>
-              {(bpbp.billProductName || 'Bill Product')} — {(bpbp.billProviderName || 'Bill Provider')}
-              {bpbp.id ? ` #${bpbp.id}` : ''}
-            </option>
-          ))}
-        </CatalogSelect>
-        {isDraftGiftCardAction && (
-          <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
-            Use product/provider scope for BUY_GIFT_CARD (Netflix, Spotify, App Store, Google Play, Airbnb, Uber) to keep separate pricing.
-          </div>
-        )}
-        {!isDraftGiftCardAction && (
-          <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
-            Use this only when the fee must target one exact bill product mapping.
-          </div>
-        )}
-      </div>
-        </>
-      )}
+      <div><label htmlFor="scopeType">Rail scope</label><PresentationSelect id="scopeType" value={draft.scopeType} onChange={(e) => updateScopeType(e.target.value)}>{scopeTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</PresentationSelect></div>
+      <div><label htmlFor="feeContext">Fee context</label><PresentationSelect id="feeContext" value={draft.feeContext} onChange={(e) => setDraft((p) => ({ ...p, feeContext: e.target.value }))}><option value="" disabled>Select COLLECTION or PAYOUT</option>{feeContextOptions.map((context) => <option key={context}>{context}</option>)}</PresentationSelect></div>
+      {isPaymentMethodTypeScope(draft) ? <div><label htmlFor="paymentMethodType">Payment method type</label><PresentationSelect id="paymentMethodType" value={draft.paymentMethodType} onChange={(e) => setDraft((p) => ({ ...p, paymentMethodType: e.target.value }))}><option value="">Select type</option>{paymentMethodTypeOptions.map((type) => <option key={type}>{type}</option>)}</PresentationSelect></div> : <>
+        {draft.scopeType === 'provider_fallback' && <div><label htmlFor="paymentProviderId">Payment provider</label><PresentationSelect id="paymentProviderId" value={draft.paymentProviderId} onChange={(e) => setDraft((p) => ({ ...p, paymentProviderId: e.target.value }))}><option value="">Select provider</option>{paymentProviders.map((provider) => <option key={provider.id} value={provider.id}>{provider.displayName || provider.name} #{provider.id}</option>)}</PresentationSelect></div>}
+        {draft.scopeType === 'specific_route' && <div><label htmlFor="paymentMethodPaymentProviderId">Payment method route</label><CatalogSelect kind="payment-route" records={pmps} countries={countries} id="paymentMethodPaymentProviderId" value={draft.paymentMethodPaymentProviderId} onChange={(e) => setDraft((p) => ({ ...p, paymentMethodPaymentProviderId: e.target.value }))}><option value="">Select a route</option>{pmps.map((route) => <option key={route.id} value={route.id}>{paymentMethodRouteAdminLabel(route)} → {route.paymentProviderName} #{route.id}</option>)}</CatalogSelect></div>}
+        <div><label htmlFor="countryId">Country</label><CountrySelect records={countries} id="countryId" value={draft.countryId} onChange={(e) => setDraft((p) => ({ ...p, countryId: e.target.value }))}><option value="">All countries</option>{countries.map((country) => <option key={country.id} value={country.id}>{country.name} ({country.alpha2Code})</option>)}</CountrySelect></div>
+      </>}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="providerFeePercentage">Provider %</label>
         <input
@@ -1535,18 +1150,8 @@ export default function FeeConfigsPage() {
         <label htmlFor="overrideSpecificFees">Override Specific Fees</label>
       </div>
       <div style={{ gridColumn: '1 / -1', fontSize: '12px', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.55rem 0.65rem' }}>
-        If enabled, a broader matching fee can intentionally beat narrower system fee configs. Use this only for explicit business exceptions, temporary campaigns, or fast top-down rollouts.
+        If enabled, a broader matching fee can intentionally beat narrower system fee configs. Use this only for a deliberate rail tariff override. Business charges have their own precedence.
       </div>
-      {isDraftGiftCardAction && (
-        <div style={{ gridColumn: '1 / -1', fontSize: '12px', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.55rem 0.65rem' }}>
-          Amount model: amount is net gift-card value, fees are added on top, and gross = net + all fees.
-        </div>
-      )}
-      {String(resolvedDraftAction || '').toUpperCase() === 'SWAP_CRYPTO' && (
-        <div style={{ gridColumn: '1 / -1', fontSize: '12px', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.55rem 0.65rem' }}>
-          Pair-specific swap rules override broad swap defaults. Stablecoin-to-stablecoin pairs are seeded at 0% by default, while other seeded pairs start at 5%.
-        </div>
-      )}
     </div>
   );
 
@@ -1554,13 +1159,15 @@ export default function FeeConfigsPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <div style={{ fontWeight: 800, fontSize: '20px' }}>Fee Configs</div>
-          <NonRegulatorContent><div style={{ color: 'var(--muted)' }}>Configure layered fees and the default fee charging policy across withdrawals, funding, purchases, bill payments, airtime, crypto, eSIM, and payment requests.</div></NonRegulatorContent>
+          <div style={{ fontWeight: 800, fontSize: '20px' }}>Rail pricing</div>
+          <NonRegulatorContent><div style={{ color: 'var(--muted)' }}>Configure COLLECTION and PAYOUT tariffs by payment route, provider, country and amount band. Manage service, action and product charges separately in Business fees.</div></NonRegulatorContent>
         </div>
         <Link href="/dashboard/payments" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
           ← Payments hub
         </Link>
       </div>
+
+      <Link className="btn-neutral" href="/dashboard/fees/service-fee-configs">Business fees →</Link>
 
       <div className="card" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
         <div>
@@ -1571,12 +1178,13 @@ export default function FeeConfigsPage() {
           <label htmlFor="size">Size</label>
           <input id="size" type="number" min={1} value={size} onChange={(e) => setSize(Number(e.target.value))} />
         </div>
-        <button type="button" onClick={openCreate} className="btn-success">
-          Add fee config
+        <button type="button" onClick={openCreate} className="btn-success" disabled={!canWrite}>
+          Add rail tariff
         </button>
         <button
           type="button"
           onClick={() => {
+            if (!canWrite) return;
             setPawapaySyncDraft(emptyPawapaySyncDraft);
             setPawapaySyncResult(null);
             setShowPawapaySync(true);
@@ -1587,97 +1195,22 @@ export default function FeeConfigsPage() {
         >
           Sync PawaPay fees
         </button>
-        <button type="button" onClick={openBulkProviderUpdate} className="btn-neutral">
+        <button type="button" onClick={openBulkProviderUpdate} disabled={!canWrite} className="btn-neutral">
           Bulk provider fee update
         </button>
         <div>
           <label htmlFor="arrangeBy">Arrange by</label>
           <PresentationSelect id="arrangeBy" value={arrangeBy} onChange={(e) => setArrangeBy(e.target.value)}>
-            <option value="action">Action/context</option>
-            <option value="service">Service</option>
+            <option value="action">Fee context</option>
             <option value="country">Country</option>
             <option value="scope">Scope</option>
             <option value="paymentMethodType">Payment method type</option>
             <option value="pmp">PMPP</option>
-            <option value="bpbp">BPBP</option>
           </PresentationSelect>
         </div>
       </div>
 
-      <details className="card">
-        <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Fee configuration guidance</summary>
-        <div style={{ display: 'grid', gap: '0.45rem', color: 'var(--muted)', fontSize: '13px', marginTop: '0.75rem' }}>
-          <div>Configure fees using provider and product names in the UI. The system sends IDs underneath, but names are the source of truth for admin decisions.</div>
-          <NonRegulatorContent><div>Fee application mode is now a cross-app pricing policy, not just a payout setting. It affects fee-bearing flows such as withdrawals, funding, purchases, bill payments, airtime, eSIM, crypto, and public payment requests.</div></NonRegulatorContent>
-          <div>
-            Available scopes, from most specific to most general: <strong>Exact Route</strong> (Payment Method Route + Bill Product Route), <strong>Payment Route Only</strong>, <strong>Bill Route Only</strong>, <strong>Provider Pair</strong> (Payment Provider + Bill Provider), <strong>Bill Provider Default</strong>, <strong>Payment Provider Default</strong>, <strong>Payment Method Type + Action</strong>, <strong>Global Action Default</strong>, <strong>Pure Payment Method Type Fallback</strong>, and <strong>Global Default</strong>.
-          </div>
-          <div>
-            Fee resolution at each matching scope is: <strong>exact action</strong>, then <strong>fee context</strong> (COLLECTION or PAYOUT), then older blank/default rows where applicable.
-          </div>
-          <div>
-            Precedence: account custom fees win first, then exact provider/payment-method/product/action fees, then context fallback fees, then payment-method-type action/context fees, existing global action fees, fallback configs, pure payment-method-type fallback, OTHER, and global default. If <strong>Override Specific Fees</strong> is on, a broader matching fee can intentionally beat ordinary narrower system configs.
-          </div>
-          <div>
-            Best mental model: <strong>master global fee mode = platform default</strong>, <NonRegulatorContent><strong>wallet policy action mode = default for one action</strong></NonRegulatorContent>, <strong>each fee row = more specific action override</strong>, <strong>account override = customer-specific exception for that action</strong>, and <strong>app request = explicit per-transaction choice</strong>.
-          </div>
-          <div>
-            Fee application precedence: <strong>app request</strong>, then <strong>account fee override for that action</strong>, then <strong>global fee config for that action</strong>, then <NonRegulatorContent><strong>action-level wallet policy fee mode</strong></NonRegulatorContent>, then <strong>master global fee mode</strong>, then <strong>EXCLUSIVE</strong>.
-          </div>
-          <NonRegulatorContent><div>
-            If the mobile app does not specify a fee mode, the configured rule for that action will be used. If the action row leaves fee mode unset, it inherits from the wallet policy action-level mode for that action, then from the master global fee mode. Older app versions rely on these admin-configured defaults by design.
-          </div></NonRegulatorContent>
-          <NonRegulatorContent><div>
-            Operational impact: changing fee mode can change the effective credited or serviced amount for users who enter the same amount, especially on collection flows like bill payments, airtime, wallet funding, and payment requests.
-          </div></NonRegulatorContent>
-          <div>
-            Recommended workflow: create fee-context provider defaults first for collection/payout provider costs, then add action-specific or exact-route exceptions only where needed. Avoid multiple active fee configs at the same exact scope for the same action/context state.
-          </div>
-          <div>
-            Example: set <strong>Bill Provider = ZENDIT</strong> with blank action for a default Zendit fee, then add <strong>Bill Product Route = SONABEL</strong> with <strong>PAY_ELECTRICITY_BILL</strong> for a targeted exception. The specific action fee wins automatically unless a broader config is marked <strong>Override Specific Fees</strong>.
-          </div>
-        </div>
-      </details>
-
-      <details className="card">
-        <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Gift card pricing guidance</summary>
-        <div style={{ color: 'var(--muted)', fontSize: '13px', marginTop: '0.75rem' }}>
-          Gift cards best practice: keep action as <strong>BUY_GIFT_CARD</strong>. Use <strong>Bill Product Route</strong> for product-specific pricing, optionally add <strong>Payment Method Route</strong> for channel pricing, or create broader global/provider/payment-method-type fallbacks when the backend should fill gaps. Legacy <strong>PAY_NETFLIX</strong> rows are not the new pricing path. Preview check: <code>/customer-api/fees?action=BUY_GIFT_CARD&amp;paymentMethodId=...&amp;billProductId=...&amp;amount=...</code>.
-        </div>
-      </details>
-
-      <details className="card">
-        <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Gift Card Pricing Readiness</summary>
-        <div style={{ display: 'grid', gap: '0.6rem', marginTop: '0.75rem' }}>
-          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-            Product-specific BUY_GIFT_CARD rows are recommended for exact pricing, but broader fallbacks are allowed. Ensure each required gift card has an active Reloadly mapping and review whether it needs a specific BUY_GIFT_CARD fee row.
-          </div>
-          <div style={{ overflowX: 'auto' }}>
-            <ResponsiveTable style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-              <thead>
-                <tr>
-                  <th style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)' }}>Product</th>
-                  <th style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)' }}>Active Reloadly Mapping</th>
-                  <th style={{ textAlign: 'left', padding: '0.45rem', borderBottom: '1px solid var(--border)' }}>BUY_GIFT_CARD Fee Rows</th>
-                </tr>
-              </thead>
-              <tbody>
-                {requiredGiftCardStatus.map((item) => (
-                  <RegulatorRecord record={item} key={item.key}><tr key={item.key}>
-                    <td style={{ padding: '0.45rem', borderBottom: '1px solid var(--border)' }}>{item.displayName}</td>
-                    <td style={{ padding: '0.45rem', borderBottom: '1px solid var(--border)' }}>
-                      {item.hasActiveReloadlyMapping ? `Yes (${item.activeReloadlyMappingIds.join(', ')})` : 'Missing'}
-                    </td>
-                    <td style={{ padding: '0.45rem', borderBottom: '1px solid var(--border)' }}>
-                      {item.feeConfigCount > 0 ? item.feeConfigCount : 'Missing'}
-                    </td>
-                  </tr></RegulatorRecord>
-                ))}
-              </tbody>
-            </ResponsiveTable>
-          </div>
-        </div>
-      </details>
+      <details className="card"><summary>Rail pricing guidance</summary><p>These tariffs price the COLLECTION or PAYOUT payment rail. Percentages use human values: 2 means 2%. Provider costs, platform rail flat fees, amount bands and inclusive/exclusive fee modes remain available.</p><p>Use <Link href="/dashboard/fees/service-fee-configs">Business fees</Link> for service, action, product and conversion-pair charges. Configure each product once, independently of its collection or payout provider. Account-specific tariff contracts retain their existing precedence.</p></details>
 
       {activeFilterChips.length > 0 && (
         <div className="card" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
@@ -1709,159 +1242,14 @@ export default function FeeConfigsPage() {
         </div>
         {showFilters && (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="filterPaymentMethodType">Payment method type</label>
-            <PresentationSelect id="filterPaymentMethodType" value={filters.paymentMethodType} onChange={(e) => setFilters((p) => ({ ...p, paymentMethodType: e.target.value }))}>
-              <option value="">All</option>
-              {paymentMethodTypeOptions.map((type) => (
-                <option data-regulator-restricted={isRegulatorRestrictedRecord(type)} key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </PresentationSelect>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))', gap: '.6rem' }}>
+            <div><label htmlFor="filterFeeContext">Fee context</label><PresentationSelect id="filterFeeContext" value={filters.feeContext} onChange={(e) => setFilters((p) => ({ ...p, feeContext: e.target.value }))}><option value="">Both contexts</option>{feeContextOptions.map((context) => <option key={context}>{context}</option>)}</PresentationSelect></div>
+            <div><label htmlFor="filterPaymentMethodType">Payment method type</label><PresentationSelect id="filterPaymentMethodType" value={filters.paymentMethodType} onChange={(e) => setFilters((p) => ({ ...p, paymentMethodType: e.target.value }))}><option value="">All types</option>{paymentMethodTypeOptions.map((type) => <option key={type}>{type}</option>)}</PresentationSelect></div>
+            <div><label htmlFor="filterCountry">Country</label><CountrySelect records={countries} id="filterCountry" value={filters.countryId} onChange={(e) => setFilters((p) => ({ ...p, countryId: e.target.value }))}><option value="">All countries</option>{countries.map((country) => <option key={country.id} value={country.id}>{country.name}</option>)}</CountrySelect></div>
+            <div><label htmlFor="filterPaymentMethod">Payment method</label><CatalogSelect kind="payment-method" records={paymentMethods} countries={countries} id="filterPaymentMethod" value={filters.paymentMethodId} onChange={(e) => setFilters((p) => ({ ...p, paymentMethodId: e.target.value }))}><option value="">All methods</option>{paymentMethods.map((method) => <option key={method.id} value={method.id}>{paymentMethodAdminLabel(method)}</option>)}</CatalogSelect></div>
+            <div><label htmlFor="filterPaymentProvider">Payment provider</label><PresentationSelect id="filterPaymentProvider" value={filters.paymentProviderId} onChange={(e) => setFilters((p) => ({ ...p, paymentProviderId: e.target.value }))}><option value="">All providers</option>{paymentProviders.map((provider) => <option key={provider.id} value={provider.id}>{provider.displayName || provider.name}</option>)}</PresentationSelect></div>
+            <div><label htmlFor="filterPmp">Payment method route</label><CatalogSelect kind="payment-route" records={pmps} countries={countries} id="filterPmp" value={filters.paymentMethodPaymentProviderId} onChange={(e) => setFilters((p) => ({ ...p, paymentMethodPaymentProviderId: e.target.value }))}><option value="">All routes</option>{pmps.map((route) => <option key={route.id} value={route.id}>{paymentMethodRouteAdminLabel(route)} → {route.paymentProviderName} #{route.id}</option>)}</CatalogSelect></div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="filterService">Service</label>
-            <PresentationSelect id="filterService" value={filters.service} onChange={(e) => setFilters((p) => ({ ...p, service: e.target.value }))}>
-              <option value="">All</option>
-              {serviceOptions.map((svc) => (
-                <option data-regulator-restricted={isRegulatorRestrictedRecord(svc)} key={svc} value={svc}>
-                  {svc}
-                </option>
-              ))}
-            </PresentationSelect>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="filterAction">Action</label>
-            <PresentationSelect id="filterAction" value={filters.action} onChange={(e) => setFilters((p) => ({ ...p, action: e.target.value }))}>
-              <option value="">All</option>
-              {actionOptions.map((opt) => (
-                <option data-regulator-restricted={isRegulatorRestrictedRecord(opt)} key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-            </PresentationSelect>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="filterFeeContext">Fee context</label>
-            <PresentationSelect id="filterFeeContext" value={filters.feeContext} onChange={(e) => setFilters((p) => ({ ...p, feeContext: e.target.value }))}>
-              <option value="">All</option>
-              {feeContextOptions.map((context) => (
-                <option data-regulator-restricted={isRegulatorRestrictedRecord(context)} key={context} value={context}>
-                  {context}
-                </option>
-              ))}
-            </PresentationSelect>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="filterCountry">Country</label>
-            <CountrySelect records={countries} id="filterCountry" value={filters.countryId} onChange={(e) => setFilters((p) => ({ ...p, countryId: e.target.value }))}>
-              <option value="">All</option>
-              {countries.map((c) => (
-                <option data-regulator-restricted={isRegulatorRestrictedRecord(c)} key={c.id} value={c.id}>
-                  {c.name} ({c.alpha2Code})
-                </option>
-              ))}
-            </CountrySelect>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="filterPaymentMethod">Payment Method</label>
-            <CatalogSelect kind="payment-method" records={paymentMethods} countries={countries} id="filterPaymentMethod" value={filters.paymentMethodId} onChange={(e) => setFilters((p) => ({ ...p, paymentMethodId: e.target.value }))}>
-              <option value="">All</option>
-              {paymentMethods.map((pm) => (
-                <option data-regulator-restricted={isRegulatorRestrictedRecord(pm)} key={pm.id} value={pm.id}>
-                  {paymentMethodAdminLabel(pm)}
-                </option>
-              ))}
-            </CatalogSelect>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="filterBillProduct">Bill Product</label>
-            <CatalogSelect kind="bill-product" records={billProducts} countries={countries} id="filterBillProduct" value={filters.billProductId} onChange={(e) => setFilters((p) => ({ ...p, billProductId: e.target.value }))}>
-              <option value="">All</option>
-              {billProducts.map((product) => (
-                <option data-regulator-restricted={isRegulatorRestrictedRecord(product)} key={product.id} value={product.id}>
-                  {product.displayName || product.name || product.id}
-                </option>
-              ))}
-            </CatalogSelect>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="filterPaymentProvider">Payment Provider</label>
-            <PresentationSelect id="filterPaymentProvider" value={filters.paymentProviderId} onChange={(e) => setFilters((p) => ({ ...p, paymentProviderId: e.target.value }))}>
-              <option value="">All</option>
-              {paymentProviders.map((prov) => (
-                <option data-regulator-restricted={isRegulatorRestrictedRecord(prov)} key={prov.id} value={prov.id}>
-                  {prov.name || prov.displayName || prov.id}
-                </option>
-              ))}
-            </PresentationSelect>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="filterBillProvider">Bill Provider</label>
-            <PresentationSelect id="filterBillProvider" value={filters.billProviderId} onChange={(e) => setFilters((p) => ({ ...p, billProviderId: e.target.value }))}>
-              <option value="">All</option>
-              {billProviders.map((provider) => (
-                <option data-regulator-restricted={isRegulatorRestrictedRecord(provider)} key={provider.id} value={provider.id}>
-                  {provider.name || provider.displayName || provider.id}
-                </option>
-              ))}
-            </PresentationSelect>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="filterPmp">PMPP</label>
-            <CatalogSelect kind="payment-route" records={pmps} countries={countries}
-              id="filterPmp"
-              value={filters.paymentMethodPaymentProviderId}
-              onChange={(e) => setFilters((p) => ({ ...p, paymentMethodPaymentProviderId: e.target.value }))}
-            >
-              <option value="">All</option>
-              {pmps.map((pmp) => (
-                <option data-regulator-restricted={isRegulatorRestrictedRecord(pmp)} key={pmp.id} value={pmp.id}>
-                  {paymentMethodRouteAdminLabel(pmp)} → {pmp.paymentProviderName || 'Provider'}
-                </option>
-              ))}
-            </CatalogSelect>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="filterBpbp">Bill Product Bill Provider</label>
-            <CatalogSelect kind="bill-route" records={bpbps} countries={countries}
-              id="filterBpbp"
-              value={filters.billProductBillProviderId}
-              onChange={(e) => setFilters((p) => ({ ...p, billProductBillProviderId: e.target.value }))}
-            >
-              <option value="">All</option>
-              {bpbps.map((bpbp) => (
-                <option data-regulator-restricted={isRegulatorRestrictedRecord(bpbp)} key={bpbp.id} value={bpbp.id}>
-                  {(bpbp.billProductName || 'Bill Product')} — {(bpbp.billProviderName || 'Bill Provider')}
-                </option>
-              ))}
-            </CatalogSelect>
-          </div>
-          <NonRegulatorContent><div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="filterFromCrypto">From Crypto</label>
-            <PresentationSelect id="filterFromCrypto" value={filters.fromCryptoProductId} onChange={(e) => setFilters((p) => ({ ...p, fromCryptoProductId: e.target.value }))}>
-              <option value="">All</option>
-              {cryptoProducts.map((product) => (
-                <option data-regulator-restricted={isRegulatorRestrictedRecord(product)} key={product.id} value={product.id}>
-                  {product.displayName || product.name || product.code || product.id}
-                </option>
-              ))}
-            </PresentationSelect>
-          </div></NonRegulatorContent>
-          <NonRegulatorContent><div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label htmlFor="filterToCrypto">To Crypto</label>
-            <PresentationSelect id="filterToCrypto" value={filters.toCryptoProductId} onChange={(e) => setFilters((p) => ({ ...p, toCryptoProductId: e.target.value }))}>
-              <option value="">All</option>
-              {cryptoProducts.map((product) => (
-                <option data-regulator-restricted={isRegulatorRestrictedRecord(product)} key={product.id} value={product.id}>
-                  {product.displayName || product.name || product.code || product.id}
-                </option>
-              ))}
-            </PresentationSelect>
-          </div></NonRegulatorContent>
-        </div>
             <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
           <button
             type="button"
@@ -1886,7 +1274,6 @@ export default function FeeConfigsPage() {
           >
             Reset
           </button>
-          <NonRegulatorContent><span style={{ color: 'var(--muted)', fontSize: '13px' }}>Crypto pair filters are applied in the dashboard when the API does not expose dedicated pair query params.</span></NonRegulatorContent>
             </div>
           </>
         )}
@@ -1906,7 +1293,8 @@ export default function FeeConfigsPage() {
       <DataTable columns={columns} rows={filteredRows} page={page} pageSize={size} onPageChange={setPage} showIndex={false} emptyLabel="No fee configs found" />
 
       {showCreate && (
-        <Modal title="Add fee config" onClose={() => setShowCreate(false)}>
+        <Modal title="Add rail tariff" onClose={() => setShowCreate(false)}>
+          {error && <div role="alert">{error}</div>}
           {renderForm()}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" onClick={() => setShowCreate(false)} className="btn-neutral">
@@ -1921,6 +1309,7 @@ export default function FeeConfigsPage() {
 
       {showEdit && (
         <Modal title={`Edit fee config ${selected?.id}`} onClose={() => setShowEdit(false)}>
+          {error && <div role="alert">{error}</div>}
           {renderForm()}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" onClick={() => setShowEdit(false)} className="btn-neutral">
@@ -1962,22 +1351,7 @@ export default function FeeConfigsPage() {
                   ))}
                 </PresentationSelect>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="bulkAction">Action filter</label>
-                <PresentationSelect
-                  id="bulkAction"
-                  value={bulkProviderDraft.action}
-                  onChange={(e) => setBulkProviderDraft((p) => ({ ...p, action: e.target.value, feeContext: e.target.value ? '' : p.feeContext }))}
-                  disabled={bulkProviderLoading}
-                >
-                  <option value="">All actions</option>
-                  {actionOptions.map((opt) => (
-                    <option data-regulator-restricted={isRegulatorRestrictedRecord(opt)} key={opt} value={opt}>
-                      {opt}
-                    </option>
-                  ))}
-                </PresentationSelect>
-              </div>
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="bulkFeeContext">Fee context filter</label>
                 <PresentationSelect
@@ -1994,22 +1368,7 @@ export default function FeeConfigsPage() {
                   ))}
                 </PresentationSelect>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label htmlFor="bulkService">Service filter</label>
-                <PresentationSelect
-                  id="bulkService"
-                  value={bulkProviderDraft.service}
-                  onChange={(e) => setBulkProviderDraft((p) => ({ ...p, service: e.target.value }))}
-                  disabled={bulkProviderLoading}
-                >
-                  <option value="">All services</option>
-                  {serviceOptions.map((svc) => (
-                    <option data-regulator-restricted={isRegulatorRestrictedRecord(svc)} key={svc} value={svc}>
-                      {svc}
-                    </option>
-                  ))}
-                </PresentationSelect>
-              </div>
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <label htmlFor="bulkPaymentMethodType">Payment method type filter</label>
                 <PresentationSelect
@@ -2060,6 +1419,7 @@ export default function FeeConfigsPage() {
                     <RegulatorField field={key}><label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', fontWeight: 600 }}>
                       <input
                         type="checkbox"
+                        aria-label={`Update ${label}`}
                         checked={Boolean(bulkProviderDraft.fields[key])}
                         onChange={(e) => updateBulkProviderFieldEnabled(key, e.target.checked)}
                         disabled={bulkProviderLoading}
@@ -2071,6 +1431,7 @@ export default function FeeConfigsPage() {
                       min={type === 'number' ? 0 : undefined}
                       step={type === 'number' ? '0.01' : undefined}
                       value={bulkProviderDraft.values[key]}
+                      aria-label={`Bulk ${label}`}
                       onChange={(e) => updateBulkProviderValue(key, e.target.value)}
                       disabled={!bulkProviderDraft.fields[key] || bulkProviderLoading}
                       placeholder={key.endsWith('Currency') ? 'CDF' : '0'}

@@ -7,6 +7,7 @@ import { PresentationSelect, PresentationLink as Link } from '@/components/Regul
 import { regulatorVisibleFields, isRegulatorRestrictedRecord } from '@/lib/regulator-presentation';
 
 import { useAuth } from '@/contexts/AuthContext';
+import { routeFundingPolicy, providerFundingPolicy } from '@/lib/payment-provider-policy';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
@@ -153,13 +154,7 @@ const findProviderForRoute = (row, providers) => {
   return providers.find((provider) => String(provider.id) === String(providerId)) || row?.paymentProvider || row || {};
 };
 
-const formatSameFundingPolicy = (provider) => {
-  if (!provider?.requireSameFundingDestinationForPayout) return 'No same-source restriction';
-  const scope = normalizeSameFundingDestinationScope(provider.sameFundingDestinationScope);
-  return scope === 'ANY_PROVIDER'
-    ? 'Requires prior funding through any mobile-money provider'
-    : 'Requires prior funding through the same provider';
-};
+const formatSameFundingPolicy = providerFundingPolicy;
 
 const Modal = ({ title, onClose, children }) => (
   <div className="modal-backdrop">
@@ -291,7 +286,7 @@ export default function MethodProvidersPage() {
     {
       key: 'providerPayoutPolicy',
       label: 'Provider payout policy',
-      render: (row) => formatSameFundingPolicy(findProviderForRoute(row, providers))
+      render: (row) => <span title="Prior-funding eligibility only; all other payout checks still apply.">{routeFundingPolicy(row, findProviderForRoute(row, providers))}</span>
     },
     {
       key: 'countryName',
@@ -486,6 +481,7 @@ export default function MethodProvidersPage() {
             Scope: {normalizeSameFundingDestinationScope(selectedProvider.sameFundingDestinationScope)}
           </div>
         ) : null}
+        {selected && String(selected.paymentMethodId) === String(draft.paymentMethodId) && String(selected.paymentProviderId) === String(draft.paymentProviderId) ? <div>{routeFundingPolicy(selected, selectedProvider)}</div> : <small>The backend resolves enforcement for the destination country when a route is saved and reloaded.</small>}
         <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
           Edit this policy on the Payment Providers screen, not on individual routes.
         </div>
@@ -763,7 +759,8 @@ export default function MethodProvidersPage() {
               { label: 'Context', value: selected?.context || 'Default (none)' },
               { label: 'Provider code', value: selected?.providerCode || '—' },
               { label: 'Currency', value: normalizeCurrency(selected?.currency) || '—' },
-              { label: 'Inherited provider payout policy', value: formatSameFundingPolicy(findProviderForRoute(selected, providers)) },
+              { label: 'Payout policy for route country', value: routeFundingPolicy(selected, findProviderForRoute(selected, providers)) },
+              { label: 'Provider country exceptions', value: Array.isArray(selected?.sameFundingDestinationExemptCountryCodes) ? selected.sameFundingDestinationExemptCountryCodes.join(', ') || 'None' : 'Not reported' },
               { label: 'Provider policy scope', value: findProviderForRoute(selected, providers)?.requireSameFundingDestinationForPayout ? normalizeSameFundingDestinationScope(findProviderForRoute(selected, providers)?.sameFundingDestinationScope) : '—' },
               { label: 'Country', value: selected?.countryName || 'GLOBAL' },
               { label: 'Rank', value: selected?.rank },

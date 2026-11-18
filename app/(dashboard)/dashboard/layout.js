@@ -101,6 +101,7 @@ const navItems = [
   { href: '/dashboard/redis-caches', labelKey: 'layout.nav.redisCaches' },
   { href: '/dashboard/admins', labelKey: 'layout.nav.admins' },
   { href: '/dashboard/fees/fee-configs', labelKey: 'layout.nav.feeConfigs' },
+  { href: '/dashboard/fees/service-fee-configs', labelKey: 'layout.nav.businessFees', label: 'Business fees' },
   { href: '/dashboard/geo', labelKey: 'layout.nav.geo' }
 ];
 

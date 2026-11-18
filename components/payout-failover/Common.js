@@ -30,7 +30,7 @@ export function ValidationReport({ report, title = 'Validation report' }) {
       <strong>{route.order}. {route.paymentMethod || 'Route'} · {route.countryCode || '—'} · {route.currency || '—'}</strong>
       <span>Rule {route.ruleId} · {route.enabled ? 'Enabled' : 'Disabled'}</span>
       <span>#{route.sourceRouteId} ({route.sourceActive ? 'active' : 'inactive'}) → #{route.targetRouteId} ({route.targetActive ? 'active' : 'inactive'})</span>
-      {route.destinationCheckRequired ? <span>Recipient funding eligibility must be checked at execution.</span> : null}
+      {typeof route.destinationCheckRequired === 'boolean' ? <span>{route.destinationCheckRequired ? 'Recipient funding eligibility must be checked at execution.' : 'This target route does not require a prior-funding check. Other payout eligibility checks still apply.'}</span> : null}
     </div>)}</div></details> : null}
     <small>These are local configuration checks. They do not guarantee provider funds, availability or commercial fees.</small>
   </div>;

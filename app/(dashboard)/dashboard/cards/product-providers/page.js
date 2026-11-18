@@ -12,6 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import CardOperationFeeNotice from '@/components/fees/CardOperationFeeNotice';
 import { DataTable } from '@/components/DataTable';
 
 const emptyState = {
@@ -1238,12 +1239,13 @@ export default function CardProductProvidersPage() {
         />
       </div>
       <div style={{ gridColumn: '1 / -1', display: 'grid', gap: '0.35rem' }}>
-        <div style={{ fontWeight: 700 }}>App Display Fee Labels</div>
+        <div style={{ fontWeight: 700 }}>Card operation fees</div>
         <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-          Informational fee labels returned to the customer app only. These values do not control pricing, charging, refunds, or provider fee logic.
-          Percentages are human values, so 3.25 means 3.25%.
+          Funding and withdrawal fees participate in product/action pricing on the rail/service fee backend. Online transaction display labels retain their existing behavior.
+          Percentages remain human values, so 3.25 means 3.25%.
         </div>
       </div>
+      <CardOperationFeeNotice mappingId={showEdit ? selected?.id : null} />
       <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.65rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="fundCardFeePercentage">Fund card fee %</label>

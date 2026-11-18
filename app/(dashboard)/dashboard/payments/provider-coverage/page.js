@@ -9,6 +9,7 @@ import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 import TableText from '@/components/TableCell';
 import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
+import { routeFundingPolicy } from '@/lib/payment-provider-policy';
 
 const initialFilters = {
   activeOnly: true,
@@ -109,7 +110,8 @@ export default function ProviderCoveragePage() {
     { key: 'paymentMethodCode', label: 'Code', render: (row) => row.paymentMethodCode || row.code || '—' },
     { key: 'providerCount', label: 'Providers' },
     { key: 'coverage', label: 'Coverage', render: (row) => <SharedBadge shared={Boolean(row.shared)} uniqueProviderName={row.uniqueProviderName} /> },
-    { key: 'providers', label: 'Provider names', render: (row) => renderProviderList(row.providers) }
+    { key: 'providers', label: 'Provider names', render: (row) => renderProviderList(row.providers) },
+    { key: 'payoutPolicy', label: 'Payout source policy by route', render: (row) => <div style={{ display: 'grid', gap: '.5rem' }}>{toList(row.providers).map((provider, index) => <div key={provider.mappingId || index} style={{ display: 'grid', gap: '.2rem' }}><strong>{providerName(provider)}{provider.mappingId ? ` · Route #${provider.mappingId}` : ''}</strong><span>{routeFundingPolicy({ ...provider, countryCode: row.countryCode })}</span></div>)}</div> }
   ];
 
   const providerColumns = [
@@ -129,7 +131,7 @@ export default function ProviderCoveragePage() {
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <div style={{ fontWeight: 800, fontSize: '20px' }}>Provider Coverage Map</div>
-          <div style={{ color: 'var(--muted)' }}>Inspect shared and unique payment-method coverage across providers.</div>
+          <div style={{ color: 'var(--muted)' }}>Inspect shared and unique payment-method coverage across providers. The payment-method view shows the backend&apos;s payout source policy for each destination country; other eligibility checks still apply.</div>
         </div>
         <Link href="/dashboard/payments" className="btn-neutral" style={{ textDecoration: 'none' }}>
           Payments hub
