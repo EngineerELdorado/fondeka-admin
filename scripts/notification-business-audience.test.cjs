@@ -48,6 +48,7 @@ async function change(view, label, value) {
 async function modules(api) {
   return {
     '@/lib/api': { api }, '@/lib/notification-business-audience': await load(), '@/lib/announcement-popup': await loadFile('lib/announcement-popup.js'),
+    '@/lib/push-campaigns': await loadFile('lib/push-campaigns.js'),
     '@/components/BusinessAudienceHelp': { __esModule: true, default: 'business-help' },
     '@/components/CountrySelect': { CountryListField: 'country-list', CountrySelect: 'select' },
     '@/components/CatalogSelect': { CatalogSelect: 'select' }, '@/components/DataTable': { DataTable: 'table' }, '@/components/TableCell': { TableCellLines: 'lines' },
@@ -58,7 +59,7 @@ async function modules(api) {
     '@/lib/payment-method-labels': { paymentMethodAdminLabel: row => row.name || '' }
   };
 }
-async function push(t, send = async () => ({})) {
+async function push(t, send = async () => ({ campaignId: 'CMP-audience-test', status: 'QUEUED' })) {
   const posts = [];
   const api = { countries: { options: async () => [] }, paymentMethods: { options: async () => [] }, paymentProviders: { list: async () => [] }, billProducts: { options: async () => [] }, notifications: { createPushCampaign: async payload => { posts.push(payload); return send(payload); } } };
   const view = await mountComponent(path.join(__dirname, '../app/(dashboard)/dashboard/notification-push-campaigns/page.js'), { modules: await modules(api) });
@@ -159,7 +160,7 @@ test('Any on every new-announcement criterion produces an unrestricted audience'
 
 test('push launch errors keep the selected business audience for an explicit retry', async t => {
   let fail = true;
-  const { view, posts } = await push(t, async () => { if (fail) throw new Error('Campaign rejected'); return {}; });
+  const { view, posts } = await push(t, async () => { if (fail) throw Object.assign(new Error('Campaign rejected'), { status: 400 }); return { campaignId: 'CMP-audience-retry', status: 'QUEUED' }; });
   await change(view, 'Subject', 'News'); await change(view, 'Message', 'Business updates'); await change(view, 'Is reseller', 'NO');
   await view.click('Launch campaign'); assert.match(view.text(), /Campaign rejected/); assert.equal(control(view, 'Is reseller').value, 'NO');
   fail = false; await view.click('Launch campaign'); assert.deepEqual(posts[1].audience, { isReseller: false });

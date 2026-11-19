@@ -18,12 +18,13 @@ import { AnnouncementPopupFields } from '@/components/AnnouncementPopupFields';
 import { announcementPopupDraft, notificationAnnouncementPayload } from '@/lib/announcement-popup';
 
 import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
+import { acceptedCampaign, campaignPollDelay, readCampaignStatus } from '@/lib/push-campaigns';
 
 const DEFAULT_ACCOUNT_PAGE_SIZE = 500;
 const DEFAULT_BATCH_SIZE = 60;
 const DEFAULT_BATCH_DELAY_SECONDS = 20;
 const DEFAULT_INITIAL_DELAY_SECONDS = 5;
-const POLL_INTERVAL_MS = 10000;
+const POLL_INTERVAL_MS = 3000;
 const severityOptions = ['INFO', 'WARNING', 'CRITICAL'];
 const serviceOptions = ['WALLET', 'BILL_PAYMENTS', 'LENDING', 'CARD', 'CRYPTO', 'COMMERCE', 'PAYMENT_REQUEST', 'E_SIM', 'AIRTIME_AND_DATA', 'OTHER'];
 const actionOptions = [
@@ -165,6 +166,12 @@ export default function NotificationPushCampaignsPage() {
   const [createResult, setCreateResult] = useState(null);
   const [campaignIdInput, setCampaignIdInput] = useState('');
   const [campaignStatus, setCampaignStatus] = useState(null);
+  const [pollError, setPollError] = useState(null);
+  const [launchUncertain, setLaunchUncertain] = useState(false);
+  const launchUnknown = useRef(false);
+  const statusBusy = useRef(false);
+  const latestCampaignId = useRef('');
+  latestCampaignId.current = String(campaignIdInput || '').trim();
   const [pollingEnabled, setPollingEnabled] = useState(true);
 
   const countryById = useMemo(() => {
@@ -357,41 +364,54 @@ export default function NotificationPushCampaignsPage() {
     return { totalJobs, processed, failed, done, percent };
   }, [campaignStatus]);
 
-  const fetchCampaignStatus = async (inputCampaignId) => {
+  const fetchCampaignStatus = async (inputCampaignId, isCurrent = () => true) => {
     const campaignId = String(inputCampaignId || campaignIdInput || '').trim();
-    if (!campaignId) return;
+    if (!campaignId || statusBusy.current) return null;
+    statusBusy.current = true;
     setStatusLoading(true);
-    setError(null);
     try {
-      const res = await api.notifications.getPushCampaign(campaignId);
-      setCampaignStatus(res || null);
+      const res = readCampaignStatus(await api.notifications.getPushCampaign(campaignId), campaignId);
+      if (isCurrent() && latestCampaignId.current === campaignId) {
+        setCampaignStatus(res || null);
+        setPollError(null);
+      }
       return res || null;
     } catch (err) {
-      setCampaignStatus(null);
-      setError(err?.message || 'Failed to fetch campaign status');
+      if (isCurrent() && latestCampaignId.current === campaignId) setPollError(err?.message || 'Failed to fetch campaign status. Progress will retry automatically.');
       return null;
     } finally {
+      statusBusy.current = false;
       setStatusLoading(false);
     }
   };
 
   useEffect(() => {
     const campaignId = String(campaignIdInput || '').trim();
-    if (!campaignId || !pollingEnabled) return undefined;
-    if (campaignStatus?.completed) return undefined;
-    const timer = setInterval(() => {
-      fetchCampaignStatus(campaignId);
-    }, POLL_INTERVAL_MS);
-    return () => clearInterval(timer);
-  }, [campaignIdInput, pollingEnabled, campaignStatus?.completed]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!campaignId || !pollingEnabled || campaignStatus?.campaignId === campaignId && (campaignStatus?.completed || campaignStatus?.found === false)) return undefined;
+    let cancelled = false, timer, failures = 0;
+    const interval = campaignPollDelay(createResult?.campaignId === campaignId ? createResult : null, POLL_INTERVAL_MS);
+    const poll = async () => {
+      if (cancelled) return;
+      if ((typeof document !== 'undefined' && document.hidden) || statusBusy.current) {
+        timer = setTimeout(poll, interval);
+        return;
+      }
+      const res = await fetchCampaignStatus(campaignId, () => !cancelled);
+      if (cancelled || res?.completed || res?.found === false) return;
+      failures = res ? 0 : failures + 1;
+      timer = setTimeout(poll, Math.max(interval, Math.min(60000, interval * (2 ** Math.min(failures, 4)))));
+    };
+    timer = setTimeout(poll, interval);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [campaignIdInput, pollingEnabled, campaignStatus?.completed, campaignStatus?.found, createResult?.pollAfterSeconds]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleLaunchCampaign = async () => {
-    if (launchLock.current) return;
+    if (launchLock.current || launchUnknown.current) return;
     launchLock.current = true;
     setLaunchLoading(true);
     setError(null);
     setInfo(null);
-    setCreateResult(null);
+    let requestStarted = false;
     try {
       const subjectValue = subject.trim();
       const messageValue = message.trim();
@@ -399,17 +419,22 @@ export default function NotificationPushCampaignsPage() {
       if (!messageValue) throw new Error('Message is required.');
       if (payloadPreview?.invalid) throw new Error(payloadPreview.invalid);
 
-      const res = await api.notifications.createPushCampaign(payloadPreview);
+      requestStarted = true;
+      const res = acceptedCampaign(await api.notifications.createPushCampaign(payloadPreview), 'ACCOUNT');
       setCreateResult(res || null);
       const nextCampaignId = String(res?.campaignId || '').trim();
       if (nextCampaignId) {
         setCampaignIdInput(nextCampaignId);
+        latestCampaignId.current = nextCampaignId;
+        setPollError(null);
         setPollingEnabled(true);
-        await fetchCampaignStatus(nextCampaignId);
+        setCampaignStatus({ campaignId: nextCampaignId, found: true, status: res.status || 'QUEUED', enqueuing: true, completed: false });
       }
-      setInfo('Push campaign launched.');
+      setInfo('Campaign accepted. Audience preparation and delivery continue in the background.');
     } catch (err) {
-      setError(err?.message || 'Failed to launch campaign');
+      const unknown = requestStarted && (!err.status || err.status >= 500);
+      if (unknown) { launchUnknown.current = true; setLaunchUncertain(true); }
+      setError((err?.message || 'Failed to launch campaign') + (unknown ? ' Acceptance is unconfirmed. Check campaign history before creating another campaign.' : ''));
     } finally {
       launchLock.current = false;
       setLaunchLoading(false);
@@ -862,7 +887,7 @@ export default function NotificationPushCampaignsPage() {
             <NonRegulatorContent><pre style={{ margin: 0, overflowX: 'auto', whiteSpace: 'pre-wrap', background: 'color-mix(in srgb, var(--surface) 86%, var(--accent-soft) 14%)', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.75rem', maxHeight: '260px' }}>
               {JSON.stringify(payloadPreview, null, 2)}
             </pre></NonRegulatorContent>
-            <button type="button" className="btn-primary" onClick={handleLaunchCampaign} disabled={launchLoading}>
+            <button type="button" className="btn-primary" onClick={handleLaunchCampaign} disabled={launchLoading || launchUncertain}>
               {launchLoading ? 'Launching...' : 'Launch campaign'}
             </button>
           </div>
@@ -875,9 +900,9 @@ export default function NotificationPushCampaignsPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.6rem' }}>
             <div><strong>Campaign ID:</strong> {createResult.campaignId || '—'}</div>
             <div><strong>Announcement ID:</strong> {createResult.announcementId ? <Link href={`/dashboard/announcements?announcementId=${encodeURIComponent(createResult.announcementId)}`}>#{createResult.announcementId} · Edit announcement</Link> : '—'}</div>
-            <div><strong>Scanned:</strong> {createResult.scannedAccounts ?? '—'}</div>
-            <div><strong>Enqueued:</strong> {createResult.enqueuedJobs ?? '—'}</div>
-            <div><strong>Skipped:</strong> {createResult.skippedJobs ?? '—'}</div>
+            <div><strong>Scanned:</strong> {campaignStatus?.scannedRecords ?? (createResult.status === 'QUEUED' ? 'Preparing…' : createResult.scannedAccounts) ?? '—'}</div>
+            <div><strong>Enqueued:</strong> {campaignStatus?.enqueuedJobs ?? (createResult.status === 'QUEUED' ? 'Preparing…' : createResult.enqueuedJobs) ?? '—'}</div>
+            <div><strong>Skipped:</strong> {campaignStatus?.skippedJobs ?? (createResult.status === 'QUEUED' ? 'Preparing…' : createResult.skippedJobs) ?? '—'}</div>
             <div><strong>accountPageSize:</strong> {createResult.accountPageSize ?? '—'}</div>
             <div><strong>batchSize:</strong> {createResult.batchSize ?? '—'}</div>
             <div><strong>batchDelaySeconds:</strong> {createResult.batchDelaySeconds ?? '—'}</div>
@@ -885,21 +910,24 @@ export default function NotificationPushCampaignsPage() {
           </div>
         </div>
       )}
+      {launchUncertain && <div className="card" role="alert"><p>A missing launch response does not prove the campaign failed. Each accepted POST creates a separate campaign.</p><Link href="/dashboard/notification-push-campaign-history">Check campaign history</Link><button type="button" className="btn-neutral" onClick={() => { launchUnknown.current = false; setLaunchUncertain(false); setError(null); }}>I checked history — allow a new launch</button></div>}
 
       <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
           <div style={{ fontWeight: 800 }}>Campaign status</div>
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '13px' }}>
             <input type="checkbox" checked={pollingEnabled} onChange={(e) => setPollingEnabled(e.target.checked)} />
-            Auto-poll every 10s
+            Auto-refresh progress (pauses while this tab is hidden)
           </label>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.6rem', alignItems: 'center' }}>
-          <input value={campaignIdInput} onChange={(e) => setCampaignIdInput(e.target.value)} placeholder="CMP-..." />
+          <input aria-label="Campaign ID" value={campaignIdInput} onChange={(e) => { setCampaignIdInput(e.target.value); setCampaignStatus(null); setPollError(null); }} placeholder="CMP-... or ACMP-..." />
           <button type="button" className="btn-neutral btn-sm" onClick={() => fetchCampaignStatus(campaignIdInput)} disabled={statusLoading || !campaignIdInput.trim()}>
             {statusLoading ? 'Refreshing...' : 'Refresh status'}
           </button>
         </div>
+        {campaignStatus?.preparationError && <div role="alert" style={{ color: '#b91c1c' }}>{campaignStatus.preparationError}</div>}
+        {pollError && <div role="alert">{pollError}</div>}
         {!campaignStatus ? (
           <div style={{ color: 'var(--muted)' }}>Enter a campaign ID or launch a new campaign to start tracking.</div>
         ) : (
@@ -907,6 +935,10 @@ export default function NotificationPushCampaignsPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))', gap: '0.6rem' }}>
               <div><strong>Campaign ID:</strong> {campaignStatus.campaignId || '—'}</div>
               <div><strong>Announcement ID:</strong> {campaignStatus.announcementId || '—'}</div>
+              <div><strong>Status:</strong> {campaignStatus.status || (campaignStatus.enqueuing ? 'PREPARING' : campaignStatus.completed ? 'COMPLETED' : 'DELIVERING')}</div>
+              <div><strong>Preparation:</strong> {campaignStatus.preparationStatus || '—'}</div>
+              <div><strong>Scanned / matched:</strong> {campaignStatus.scannedRecords ?? '—'} / {campaignStatus.matchedRecipients ?? '—'}</div>
+              <div><strong>Enqueued / skipped:</strong> {campaignStatus.enqueuedJobs ?? '—'} / {campaignStatus.skippedJobs ?? '—'}</div>
               <div><strong>Found:</strong> {String(Boolean(campaignStatus.found))}</div>
               <div><strong>Completed:</strong> {String(Boolean(campaignStatus.completed))}</div>
               <div><strong>Total jobs:</strong> {campaignStatus.totalJobs ?? '—'}</div>
@@ -917,7 +949,7 @@ export default function NotificationPushCampaignsPage() {
             </div>
             <div style={{ display: 'grid', gap: '0.35rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--muted)' }}>
-                <span>Progress ({progress.done}/{progress.totalJobs || 0})</span>
+                <span>{campaignStatus.enqueuing ? 'Preparing audience · delivery so far' : 'Delivery processing'} ({progress.done}/{progress.totalJobs || 0})</span>
                 <span>{progress.percent}%</span>
               </div>
               <div style={{ width: '100%', height: '10px', borderRadius: '999px', background: 'color-mix(in srgb, var(--surface) 78%, var(--border) 22%)', overflow: 'hidden' }}>
@@ -931,6 +963,7 @@ export default function NotificationPushCampaignsPage() {
                 />
               </div>
             </div>
+            <small style={{ color: 'var(--muted)' }}>Counts can grow during preparation. Processed jobs are acknowledged outbox work, not device delivery or read receipts.</small>
           </div>
         )}
       </div>

@@ -115,6 +115,18 @@ Country, payment-method, bill-product, and provider-route selectors use a shared
 
 Catalog `options()` API helpers load every page and enrich routes with their method/product and country metadata. Ordinary directory `list()` requests remain paginated. These pickers retain existing IDs and change handlers, support keyboard navigation and mobile layouts, and follow the current admin's Regulator presentation without silently removing hidden selections.
 
+## Background push campaigns
+
+The account and anonymous campaign launch screens accept HTTP 202, show the returned campaign ID as queued, and release the form while the worker prepares recipients. The initial counters are an acceptance receipt, not final audience size. Preparation status/errors, scanned/matched/enqueued/skipped counts and recipient processing remain visible as polling progresses. Failed preparation continues polling until recipient processing has finished. Processed jobs are acknowledged outbox work, not device delivery/read receipts. Existing targeting, announcements, navigation and pacing remain in use.
+
+Automatic status polling waits for the returned `Retry-After` / `pollAfterSeconds`, has one request in flight, pauses while the tab is hidden, backs off after errors and stops on `completed:true` or `found:false`. History uses one summary-page poll for visible running rows and an open detail; it does not automatically fetch every row. Manual and automatic list refreshes are serialized, and obsolete page/detail responses cannot replace a newer selection. Leaving the screen clears its schedule while the backend campaign keeps running.
+
+Each accepted POST creates a campaign; creation has no HTTP idempotency key. An uncertain response keeps the form draft and requires reviewing campaign history before another explicit launch. It never automatically resubmits. Account and anonymous receipts remain inspectable through the existing authenticated status endpoint on the configured backend.
+
+In **Push Campaign History**, Admins and Super Admins can select **Delete** for a row whose backend `deletable` flag is true. Confirmation identifies the subject, exact campaign ID/type and recipient-job count. DELETE has no body; 204 refreshes totals and returns an empty later page to the previous page. A 409 preserves the row, shows the backend message and refreshes it without resubmitting. Assistants inspect without deletion controls. Delivery jobs, deduplication history and linked announcements are preserved; announcement management is separate. The backend rechecks deletion eligibility and records `PUSH_CAMPAIGN_DELETED` through its audit mechanism.
+
+Deploy both summary/preparation migrations (`20261114_push_campaign_summaries.sql`, `20270125_async_push_campaign_preparation.sql`) with matching web and worker processes before relying on this flow. The dashboard does not deploy, migrate, launch a campaign, contact push providers or delete production history as part of implementation.
+
 ## Customer service visibility
 
 Open **Customer service visibility** at `/dashboard/customer-service-visibility-policy`, next to Feature Flags in the sidebar. The existing **Customer service FAB** flag also links to the audience editor. Admins and Super Admins can save; Assistants can inspect; other roles do not load this policy or see its menu entry.

@@ -6,11 +6,12 @@ import { RegulatorRecord, PresentationLink as Link } from '@/components/Regulato
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
+import { campaignKey, campaignPermissions, campaignRunning, campaignStatus } from '@/lib/push-campaigns';
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 200;
 const RUNNING_REFRESH_MS = 12000;
-const DETAIL_REFRESH_MS = 10000;
 
 const Modal = ({ title, onClose, children }) => {
   const titleId = useId();
@@ -81,6 +82,8 @@ const calcProgress = (item) => {
 };
 
 export default function NotificationPushCampaignHistoryPage() {
+  const { session, refreshSession } = useAuth();
+  const { canRead, canDelete } = campaignPermissions(session);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
   const [campaigns, setCampaigns] = useState([]);
@@ -91,78 +94,118 @@ export default function NotificationPushCampaignHistoryPage() {
   const [selectedCampaign, setSelectedCampaign] = useState(null);
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null), [deleting, setDeleting] = useState(false), [deleteDenied, setDeleteDenied] = useState(false);
+  const [mutationError, setMutationError] = useState(null), [info, setInfo] = useState(null);
+  const alive = useRef(true), listRequest = useRef(null), detailBusy = useRef(false), deleteLock = useRef(false), selectedKey = useRef('');
+  const queryKey = `${page}:${size}`, currentQuery = useRef(queryKey);
+  currentQuery.current = queryKey;
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
 
-  const fetchHistory = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const safeSize = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(size) || DEFAULT_PAGE_SIZE));
-      const params = new URLSearchParams({ page: String(Math.max(0, Number(page) || 0)), size: String(safeSize) });
-      const res = await api.notifications.listPushCampaigns(params);
-      const list = Array.isArray(res?.campaigns) ? res.campaigns : [];
-      setCampaigns(list);
-      setTotalCampaigns(Number.isFinite(Number(res?.totalCampaigns)) ? Number(res.totalCampaigns) : null);
-      setHasNext(Boolean(res?.hasNext));
-    } catch (err) {
-      setCampaigns([]);
-      setTotalCampaigns(null);
-      setHasNext(false);
-      setError(err?.message || 'Failed to load push campaign history');
-    } finally {
-      setLoading(false);
+  const fetchHistory = useCallback(async ({ force = false } = {}) => {
+    const key = `${page}:${size}`;
+    if (!canRead || !alive.current) return null;
+    while (listRequest.current) {
+      const pending = listRequest.current, result = await pending.promise;
+      if (!alive.current || currentQuery.current !== key) return null;
+      if (pending.key === key && !force) return result;
     }
-  }, [page, size]);
+    if (currentQuery.current !== key) return null;
+    const request = { key, promise: null };
+    listRequest.current = request;
+    setLoading(true);
+    request.promise = (async () => {
+      try {
+        const res = await api.notifications.listPushCampaigns(new URLSearchParams({ page: String(page), size: String(size) }));
+        if (!Array.isArray(res?.campaigns)) throw new Error('The campaign history response could not be read.');
+        if (!alive.current || currentQuery.current !== key) return null;
+        if (!res.campaigns.length && page > 0) { setPage(page - 1); return res; }
+        setCampaigns(res.campaigns);
+        setTotalCampaigns(res.totalCampaigns != null && Number.isFinite(Number(res.totalCampaigns)) ? Number(res.totalCampaigns) : null);
+        setHasNext(Boolean(res.hasNext));
+        setError(null);
+        setSelectedCampaign((previous) => previous ? res.campaigns.find((row) => campaignKey(row) === campaignKey(previous)) || null : null);
+        return res;
+      } catch (err) {
+        if (alive.current && currentQuery.current === key) setError((err?.message || 'Failed to load push campaign history') + ' Any displayed progress is from the last successful refresh.');
+        return null;
+      } finally {
+        if (listRequest.current === request) listRequest.current = null;
+        if (alive.current && currentQuery.current === key) setLoading(false);
+      }
+    })();
+    return request.promise;
+  }, [page, size, canRead]);
 
   useEffect(() => {
-    fetchHistory();
+    setCampaigns([]); setTotalCampaigns(null); setHasNext(false); setError(null); setSelectedCampaign(null); selectedKey.current = '';
+    void fetchHistory();
   }, [fetchHistory]);
 
-  const refreshCampaignDetail = useCallback(async (campaignId) => {
-    if (!campaignId) return null;
+  const refreshCampaignDetail = useCallback(async (row) => {
+    if (!row?.campaignId || detailBusy.current || !canRead) return null;
+    const key = campaignKey(row);
+    detailBusy.current = true;
     setDetailLoading(true);
     try {
-      const res = await api.notifications.getPushCampaign(campaignId);
-      if (!res) return null;
-      setCampaigns((prev) => prev.map((row) => (row.campaignId === campaignId ? { ...row, ...res } : row)));
-      setSelectedCampaign((prev) => (prev?.campaignId === campaignId ? { ...prev, ...res } : prev));
+      const res = await api.notifications.getPushCampaign(row.campaignId);
+      if (!res || res.campaignId !== row.campaignId) throw new Error('The campaign detail response could not be read.');
+      if (!alive.current || selectedKey.current !== key) return null;
+      setCampaigns((prev) => prev.map((item) => campaignKey(item) === key ? { ...item, ...res } : item));
+      setSelectedCampaign((prev) => campaignKey(prev) === key ? { ...prev, ...res } : prev);
       return res;
     } catch (err) {
-      setError(err?.message || 'Failed to refresh campaign status');
+      if (alive.current && selectedKey.current === key) setError(err?.message || 'Failed to refresh campaign status');
       return null;
     } finally {
-      setDetailLoading(false);
+      detailBusy.current = false;
+      if (alive.current) setDetailLoading(false);
     }
-  }, []);
+  }, [canRead]);
 
+  const hasRunning = campaigns.some(campaignRunning);
   useEffect(() => {
-    const runningIds = campaigns.filter((item) => !item?.completed && item?.campaignId).map((item) => item.campaignId);
-    if (runningIds.length === 0) return undefined;
-    const timer = setInterval(async () => {
-      try {
-        const results = await Promise.all(runningIds.map((id) => api.notifications.getPushCampaign(id).catch(() => null)));
-        const updates = new Map(results.filter(Boolean).map((item) => [item.campaignId, item]));
-        if (updates.size === 0) return;
-        setCampaigns((prev) => prev.map((row) => (updates.has(row.campaignId) ? { ...row, ...updates.get(row.campaignId) } : row)));
-        setSelectedCampaign((prev) => (prev && updates.has(prev.campaignId) ? { ...prev, ...updates.get(prev.campaignId) } : prev));
-      } catch {
-        // no-op; preserve latest visible data
-      }
-    }, RUNNING_REFRESH_MS);
-    return () => clearInterval(timer);
-  }, [campaigns]);
+    if (!hasRunning || !canRead) return undefined;
+    let cancelled = false, timer, failures = 0;
+    const poll = async () => {
+      if (cancelled) return;
+      if ((typeof document !== 'undefined' && document.hidden) || deleteLock.current) { timer = setTimeout(poll, RUNNING_REFRESH_MS); return; }
+      const res = await fetchHistory();
+      if (cancelled || res && !res.campaigns.some(campaignRunning)) return;
+      failures = res ? 0 : failures + 1;
+      timer = setTimeout(poll, Math.min(60000, RUNNING_REFRESH_MS * (2 ** Math.min(failures, 3))));
+    };
+    timer = setTimeout(poll, RUNNING_REFRESH_MS);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [hasRunning, canRead, fetchHistory]);
 
-  useEffect(() => {
-    if (!selectedCampaign?.campaignId || selectedCampaign?.completed) return undefined;
-    const timer = setInterval(() => {
-      refreshCampaignDetail(selectedCampaign.campaignId);
-    }, DETAIL_REFRESH_MS);
-    return () => clearInterval(timer);
-  }, [selectedCampaign?.campaignId, selectedCampaign?.completed, refreshCampaignDetail]);
+  const openDelete = (row) => {
+    if (!canDelete || deleteDenied || deleteLock.current || row.deletable !== true || !['ACCOUNT', 'ANONYMOUS'].includes(row.campaignType)) return;
+    setDeleteTarget({ ...row }); setMutationError(null); setInfo(null);
+  };
+  const removeCampaign = async () => {
+    if (!canDelete || deleteDenied || deleteLock.current || !deleteTarget || deleteTarget.deletable !== true) return;
+    deleteLock.current = true; setDeleting(true); setMutationError(null); setInfo(null);
+    try {
+      await api.notifications.deletePushCampaign(deleteTarget.campaignId, deleteTarget.campaignType);
+      if (!alive.current) return;
+      setDeleteTarget(null); setSelectedCampaign(null); selectedKey.current = '';
+      setInfo('Campaign removed from history. Delivery jobs, deduplication history and linked announcements are preserved.');
+      await fetchHistory({ force: true });
+    } catch (err) {
+      if (err.status === 401 || err.status === 403) { try { await refreshSession?.(true); } catch { /* Preserve the deletion error. */ } }
+      if (!alive.current) return;
+      setMutationError((err?.message || 'Could not delete this campaign.') + (!err.status || err.status >= 500 ? ' The outcome is unconfirmed. Review refreshed history before trying again.' : ''));
+      setDeleteTarget(null);
+      if (err.status === 403) setDeleteDenied(true);
+      if (err.status !== 403 && err.status !== 401) await fetchHistory({ force: true });
+    } finally { deleteLock.current = false; if (alive.current) setDeleting(false); }
+  };
 
   const canPrev = page > 0;
   const canNext = hasNext;
 
   const selectedProgress = useMemo(() => calcProgress(selectedCampaign), [selectedCampaign]);
+  if (!canRead) return <div className="card" role="alert">Admin, Super Admin or Assistant access is required to inspect campaigns.</div>;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -175,7 +218,7 @@ export default function NotificationPushCampaignHistoryPage() {
           <Link href="/dashboard/notification-push-campaigns" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
             Launch campaigns
           </Link>
-          <button type="button" className="btn-neutral btn-sm" onClick={fetchHistory} disabled={loading}>
+          <button type="button" className="btn-neutral btn-sm" onClick={() => void fetchHistory({ force: true })} disabled={loading || deleting}>
             {loading ? 'Refreshing…' : 'Refresh'}
           </button>
         </div>
@@ -186,11 +229,14 @@ export default function NotificationPushCampaignHistoryPage() {
           {error}
         </div>
       )}
+      {mutationError && <div className="card" role="alert">{mutationError}</div>}
+      {info && <div className="card" role="status">{info}</div>}
+      {(!canDelete || deleteDenied) && <div className="card">Read only. Admin or Super Admin access is required to delete finished campaigns.</div>}
 
       <div className="card" style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="historyPage">Page</label>
-          <input id="historyPage" type="number" min={0} value={page} onChange={(e) => setPage(Math.max(0, Number(e.target.value) || 0))} style={{ width: '110px' }} />
+          <input id="historyPage" type="number" min={0} step={1} value={page} disabled={deleting} onChange={(e) => setPage(Math.max(0, Math.trunc(Number(e.target.value) || 0)))} style={{ width: '110px' }} />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="historySize">Size</label>
@@ -200,14 +246,15 @@ export default function NotificationPushCampaignHistoryPage() {
             min={1}
             max={MAX_PAGE_SIZE}
             value={size}
-            onChange={(e) => setSize(Math.min(MAX_PAGE_SIZE, Math.max(1, Number(e.target.value) || DEFAULT_PAGE_SIZE)))}
+            disabled={deleting}
+            onChange={(e) => { setSize(Math.min(MAX_PAGE_SIZE, Math.max(1, Math.trunc(Number(e.target.value) || DEFAULT_PAGE_SIZE)))); setPage(0); }}
             style={{ width: '110px' }}
           />
         </div>
-        <button type="button" className="btn-neutral" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={loading || !canPrev}>
+        <button type="button" className="btn-neutral" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={loading || deleting || !canPrev}>
           ← Prev
         </button>
-        <button type="button" className="btn-neutral" onClick={() => setPage((p) => p + 1)} disabled={loading || !canNext}>
+        <button type="button" className="btn-neutral" onClick={() => setPage((p) => p + 1)} disabled={loading || deleting || !canNext}>
           Next →
         </button>
         <span style={{ color: 'var(--muted)', fontSize: '13px' }}>
@@ -224,15 +271,16 @@ export default function NotificationPushCampaignHistoryPage() {
               <th className="data-table__cell" style={{ textAlign: 'left', padding: '0.65rem' }}>Created At</th>
               <th className="data-table__cell" style={{ textAlign: 'left', padding: '0.65rem' }}>Updated At</th>
               <th className="data-table__cell" style={{ textAlign: 'left', padding: '0.65rem' }}>Total / Pending / Processing / Processed / Failed</th>
-              <th className="data-table__cell" style={{ textAlign: 'left', padding: '0.65rem' }}>Progress</th>
+              <th className="data-table__cell" style={{ textAlign: 'left', padding: '0.65rem', minWidth: '7rem' }}>Progress</th>
               <th className="data-table__cell" style={{ textAlign: 'left', padding: '0.65rem' }}>Status</th>
+              {canDelete && !deleteDenied && <th className="data-table__cell" style={{ textAlign: 'left', padding: '0.65rem' }}>Actions</th>}
             </tr>
           </thead>
           <tbody>
             {campaigns.length === 0 && (
               <tr>
-                <td colSpan={7} style={{ padding: '1rem', textAlign: 'center', color: 'var(--muted)' }}>
-                  {loading ? 'Loading campaigns…' : 'No campaign history found'}
+                <td colSpan={canDelete && !deleteDenied ? 8 : 7} style={{ padding: '1rem', textAlign: 'center', color: 'var(--muted)' }}>
+                  {loading ? 'Loading campaigns…' : error ? 'Campaign history is unavailable. Refresh to try again.' : 'No campaign history found'}
                 </td>
               </tr>
             )}
@@ -243,16 +291,17 @@ export default function NotificationPushCampaignHistoryPage() {
               const messagePreview = truncate(message, 50);
               const canReadMore = Boolean(message.trim()) && (message.replace(/\s+/g, ' ').trim() !== messagePreview || /[\r\n]/.test(message));
               return (
-                <RegulatorRecord record={row} key={row.campaignId}><tr
-                  key={row.campaignId}
+                <RegulatorRecord record={row} key={campaignKey(row)}><tr
+                  key={campaignKey(row)}
                   onClick={() => {
+                    selectedKey.current = campaignKey(row);
                     setSelectedCampaign(row);
-                    refreshCampaignDetail(row.campaignId);
+                    void refreshCampaignDetail(row);
                   }}
                   style={{
                     cursor: 'pointer',
                     borderTop: '1px solid var(--border)',
-                    background: hasFailures ? 'rgba(239, 68, 68, 0.06)' : 'transparent'
+                    background: (hasFailures || row.preparationStatus === 'FAILED') ? 'rgba(239, 68, 68, 0.06)' : 'transparent'
                   }}
                 >
                   <td className="data-table__cell" style={{ padding: '0.65rem' }} title={row.subject || ''}>{truncate(row.subject, 50)}</td>
@@ -269,7 +318,7 @@ export default function NotificationPushCampaignHistoryPage() {
                   </td>
                   <td className="data-table__cell" style={{ padding: '0.65rem', minWidth: 'min(170px, 100%)' }}>
                     <div style={{ display: 'grid', gap: '0.25rem' }}>
-                      <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{progress.percent}%</div>
+                      <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{row.enqueuing ? 'Preparing · delivery so far: ' : ''}{progress.percent}%{row.scannedRecords != null ? ` · ${row.scannedRecords} scanned` : ''}</div>
                       <div style={{ width: '100%', height: '8px', borderRadius: '999px', background: 'color-mix(in srgb, var(--surface) 78%, var(--border) 22%)', overflow: 'hidden' }}>
                         <div
                           style={{
@@ -290,19 +339,22 @@ export default function NotificationPushCampaignHistoryPage() {
                         borderRadius: '999px',
                         fontWeight: 700,
                         fontSize: '12px',
-                        color: row.completed ? '#166534' : '#1e3a8a',
-                        background: row.completed ? '#dcfce7' : '#dbeafe'
+                        color: row.preparationStatus === 'FAILED' ? '#991b1b' : row.completed ? '#166534' : '#1e3a8a',
+                        background: row.preparationStatus === 'FAILED' ? '#fee2e2' : row.completed ? '#dcfce7' : '#dbeafe'
                       }}
                     >
-                      {row.completed ? 'Completed' : 'Running'}
+                      {campaignStatus(row)}
                     </span>
+                    {row.preparationError && <small role="alert">{row.preparationError}</small>}
                   </td>
+                  {canDelete && !deleteDenied && <td className="data-table__cell" style={{ padding: '.65rem' }}><button type="button" className="btn-danger btn-sm" disabled={deleting || row.deletable !== true || !['ACCOUNT', 'ANONYMOUS'].includes(row.campaignType)} onClick={(event) => { event.stopPropagation(); openDelete(row); }}>Delete</button></td>}
                 </tr></RegulatorRecord>
               );
             })}
           </tbody>
         </ResponsiveTable>
       </div>
+      <small style={{ color: 'var(--muted)' }}>Preparation counts can grow. Processed jobs measure acknowledged outbox work, not device delivery or read receipts. Running rows and open details share one summary-page refresh.</small>
 
       {selectedMessage && (
         <Modal title="Campaign message" onClose={() => setSelectedMessage(null)}>
@@ -313,20 +365,23 @@ export default function NotificationPushCampaignHistoryPage() {
       )}
 
       {selectedCampaign && (
-        <Modal title={`Campaign ${selectedCampaign.campaignId || ''}`} onClose={() => setSelectedCampaign(null)}>
+        <Modal title={`Campaign ${selectedCampaign.campaignId || ''}`} onClose={() => { selectedKey.current = ''; setSelectedCampaign(null); }}>
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
               <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-                Auto-refresh every 10s while running
+                Refreshes with the history page while running; pauses while this tab is hidden
               </div>
-              <button type="button" className="btn-neutral btn-sm" onClick={() => refreshCampaignDetail(selectedCampaign.campaignId)} disabled={detailLoading}>
+              <button type="button" className="btn-neutral btn-sm" onClick={() => void refreshCampaignDetail(selectedCampaign)} disabled={detailLoading}>
                 {detailLoading ? 'Refreshing…' : 'Refresh now'}
               </button>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.6rem' }}>
               <div><strong>Campaign ID:</strong> {selectedCampaign.campaignId || '—'}</div>
               <div><strong>Campaign type:</strong> {String(selectedCampaign.campaignType || 'ACCOUNT').toUpperCase() === 'ANONYMOUS' ? 'Anonymous Push' : 'Account Push'}</div>
-              <div><strong>Status:</strong> {selectedCampaign.completed ? 'Completed' : 'Running'}</div>
+              <div><strong>Status:</strong> {campaignStatus(selectedCampaign)}</div>
+              <div><strong>Preparation:</strong> {selectedCampaign.preparationStatus ?? '—'}</div>
+              <div><strong>Scanned / matched:</strong> {selectedCampaign.scannedRecords ?? '—'} / {selectedCampaign.matchedRecipients ?? '—'}</div>
+              <div><strong>Enqueued / skipped:</strong> {selectedCampaign.enqueuedJobs ?? '—'} / {selectedCampaign.skippedJobs ?? '—'}</div>
               <div><strong>Created:</strong> {formatDateTime(selectedCampaign.createdAt)}</div>
               <div><strong>Updated:</strong> {formatDateTime(selectedCampaign.updatedAt)}</div>
               <div><strong>Total:</strong> {selectedProgress.total}</div>
@@ -335,6 +390,7 @@ export default function NotificationPushCampaignHistoryPage() {
               <div><strong>Processed:</strong> {selectedProgress.processed}</div>
               <div><strong>Failed:</strong> {selectedProgress.failed}</div>
             </div>
+            {selectedCampaign.preparationError && <div role="alert">{selectedCampaign.preparationError}</div>}
             <div style={{ display: 'grid', gap: '0.35rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--muted)' }}>
                 <span>Progress ({selectedProgress.done}/{selectedProgress.total || 0})</span>
@@ -358,6 +414,12 @@ export default function NotificationPushCampaignHistoryPage() {
           </div>
         </Modal>
       )}
+      {deleteTarget && <Modal title="Delete finished campaign?" onClose={() => { if (!deleteLock.current) setDeleteTarget(null); }}>
+        <p>Remove <strong>{deleteTarget.subject || deleteTarget.campaignId}</strong> from campaign history?</p>
+        <p>{deleteTarget.campaignId} · {deleteTarget.campaignType} · {deleteTarget.totalJobs ?? '—'} recipient jobs</p>
+        <p>Delivery jobs and deduplication history are kept. A linked in-app announcement is kept and managed separately.</p>
+        <div style={{ display: 'flex', gap: '.6rem', flexWrap: 'wrap' }}><button type="button" className="btn-neutral" disabled={deleting} onClick={() => { if (!deleteLock.current) setDeleteTarget(null); }}>Cancel deletion</button><button type="button" className="btn-danger" disabled={deleting || !canDelete || deleteDenied} onClick={() => void removeCampaign()}>{deleting ? 'Deleting…' : 'Confirm delete campaign'}</button></div>
+      </Modal>}
     </div>
   );
 }

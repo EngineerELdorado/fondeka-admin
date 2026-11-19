@@ -4,9 +4,10 @@ import { CountrySelect } from '@/components/CountrySelect';
 
 import { NonRegulatorContent, PresentationLink as Link } from '@/components/RegulatorPresentation';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
+import { acceptedCampaign, campaignPollDelay, readCampaignStatus, campaignStatus as statusLabel } from '@/lib/push-campaigns';
 
 const DEFAULT_BATCH_SIZE = 50;
 const DEFAULT_BATCH_DELAY_SECONDS = 60;
@@ -69,6 +70,37 @@ export default function NotificationAnonymousPushCampaignsPage() {
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
   const [createResult, setCreateResult] = useState(null);
+  const [campaignStatus, setCampaignStatus] = useState(null);
+  const [pollError, setPollError] = useState(null);
+  const launchLock = useRef(false);
+  const launchUnknown = useRef(false);
+  const [launchUncertain, setLaunchUncertain] = useState(false);
+
+  useEffect(() => {
+    const id = createResult?.campaignId;
+    if (!id) return undefined;
+    let cancelled = false, timer, failures = 0;
+    const interval = campaignPollDelay(createResult);
+    const poll = async () => {
+      if (cancelled) return;
+      if (typeof document !== 'undefined' && document.hidden) { timer = setTimeout(poll, interval); return; }
+      try {
+        const status = readCampaignStatus(await api.notifications.getPushCampaign(id), id);
+        if (cancelled) return;
+        setCampaignStatus(status);
+        setPollError(null);
+        failures = 0;
+        if (status?.completed || status?.found === false) return;
+      } catch (err) {
+        if (cancelled) return;
+        failures++;
+        setPollError(err?.message || 'Unable to refresh progress. Retrying automatically.');
+      }
+      timer = setTimeout(poll, Math.max(interval, Math.min(60000, interval * (2 ** Math.min(failures, 4)))));
+    };
+    timer = setTimeout(poll, interval);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [createResult]);
 
   useEffect(() => {
     let cancelled = false;
@@ -127,20 +159,29 @@ export default function NotificationAnonymousPushCampaignsPage() {
   }, [subject, message, dataRows, batchSize, batchDelaySeconds, initialDelaySeconds, audiencePreview]);
 
   const handleLaunchCampaign = async () => {
+    if (launchLock.current || launchUnknown.current) return;
+    launchLock.current = true;
     setLaunchLoading(true);
     setError(null);
     setInfo(null);
-    setCreateResult(null);
+    let requestStarted = false;
     try {
       if (!subject.trim()) throw new Error('Subject is required.');
       if (!message.trim()) throw new Error('Message is required.');
       if (payloadPreview?.invalid) throw new Error(payloadPreview.invalid);
-      const res = await api.notifications.createAnonymousPushCampaign(payloadPreview);
+      if (audiencePreview?.invalid) throw new Error(audiencePreview.invalid);
+      requestStarted = true;
+      const res = acceptedCampaign(await api.notifications.createAnonymousPushCampaign(payloadPreview), 'ANONYMOUS');
       setCreateResult(res || null);
-      setInfo('Anonymous push campaign launched.');
+      setCampaignStatus({ campaignId: res.campaignId, found: true, status: res.status || 'QUEUED', enqueuing: true, completed: false });
+      setPollError(null);
+      setInfo('Campaign accepted. Audience preparation and delivery continue in the background.');
     } catch (err) {
-      setError(err?.message || 'Failed to launch anonymous push campaign');
+      const unknown = requestStarted && (!err.status || err.status >= 500);
+      if (unknown) { launchUnknown.current = true; setLaunchUncertain(true); }
+      setError((err?.message || 'Failed to launch anonymous push campaign') + (unknown ? ' Acceptance is unconfirmed. Check campaign history before creating another campaign.' : ''));
     } finally {
+      launchLock.current = false;
       setLaunchLoading(false);
     }
   };
@@ -161,6 +202,7 @@ export default function NotificationAnonymousPushCampaignsPage() {
           <Link href="/dashboard/notification-push-campaigns" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
             Standard push campaigns
           </Link>
+          <Link href="/dashboard/notification-push-campaign-history" className="btn-neutral">Campaign history</Link>
         </div>
       </div>
 
@@ -331,15 +373,30 @@ export default function NotificationAnonymousPushCampaignsPage() {
           {JSON.stringify(payloadPreview, null, 2)}
         </pre></NonRegulatorContent>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <button type="button" className="btn-primary" onClick={handleLaunchCampaign} disabled={launchLoading}>
+          <button type="button" className="btn-primary" onClick={handleLaunchCampaign} disabled={launchLoading || launchUncertain}>
             {launchLoading ? 'Launching…' : 'Launch anonymous push campaign'}
           </button>
         </div>
       </div>
 
+      {launchUncertain && <div className="card" role="alert"><p>A missing launch response does not prove the campaign failed. Each accepted POST creates a separate campaign.</p><Link href="/dashboard/notification-push-campaign-history">Check campaign history</Link><button type="button" className="btn-neutral" onClick={() => { launchUnknown.current = false; setLaunchUncertain(false); setError(null); }}>I checked history — allow a new launch</button></div>}
+      {campaignStatus && (
+        <div className="card" aria-live="polite" style={{ display: 'grid', gap: '0.5rem' }}>
+          <div style={{ fontWeight: 800 }}>Campaign progress</div>
+          <div>Campaign ID: {campaignStatus.campaignId}</div>
+          <div>Status: {statusLabel(campaignStatus)}</div>
+          <div>Preparation: {campaignStatus.preparationStatus ?? '—'}</div>
+          <div>Scanned: {campaignStatus.scannedRecords ?? 'Preparing…'} · Matched: {campaignStatus.matchedRecipients ?? '—'}</div>
+          <div>Enqueued: {campaignStatus.enqueuedJobs ?? '—'} · Skipped: {campaignStatus.skippedJobs ?? '—'}</div>
+          <div>Pending: {campaignStatus.pendingJobs ?? '—'} · Processing: {campaignStatus.processingJobs ?? '—'} · Processed: {campaignStatus.processedJobs ?? '—'} · Failed: {campaignStatus.failedJobs ?? '—'}</div>
+          <small style={{ color: 'var(--muted)' }}>Counts can grow during preparation. Processed jobs are acknowledged outbox work, not device delivery or read receipts. A failed preparation can still have pending deliveries.</small>
+          {campaignStatus.preparationError && <div role="alert" style={{ color: '#b91c1c' }}>{campaignStatus.preparationError}</div>}
+          {pollError && <div role="alert">{pollError}</div>}
+        </div>
+      )}
       {createResult && (
         <div className="card" style={{ display: 'grid', gap: '0.5rem' }}>
-          <div style={{ fontWeight: 800 }}>Launch result</div>
+          <div style={{ fontWeight: 800 }}>Acceptance receipt (initial counters)</div>
           <NonRegulatorContent><pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '12px', background: '#0f172a', color: '#e2e8f0', padding: '0.85rem', borderRadius: '10px' }}>
             {JSON.stringify(createResult, null, 2)}
           </pre></NonRegulatorContent>
