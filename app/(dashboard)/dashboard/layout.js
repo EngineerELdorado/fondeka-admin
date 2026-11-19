@@ -75,6 +75,7 @@ const navItems = [
   { href: '/dashboard/kyc-caps', labelKey: 'layout.nav.kycCaps' },
   { href: '/dashboard/kyc-default-levels', labelKey: 'layout.nav.kycDefaults' },
   { href: '/dashboard/feature-flags', labelKey: 'layout.nav.featureFlags' },
+  { href: '/dashboard/customer-service-visibility-policy', labelKey: 'layout.nav.customerServiceVisibility', label: 'Customer service visibility', readRoles: ['ADMIN', 'SUPER_ADMIN', 'ASSISTANT'] },
   { href: '/dashboard/wallet-policy-config', labelKey: 'layout.nav.walletPolicyConfig' },
   { href: '/dashboard/guide-videos', labelKey: 'layout.nav.guideVideos' },
   { href: '/dashboard/registration-policy-config', labelKey: 'layout.nav.registrationPolicyConfig' },
@@ -124,10 +125,10 @@ export default function DashboardLayout({ children }) {
     [adminGroups]
   );
   const renderedNavItems = useMemo(() => {
-    const baseItems = navItems.filter((item) => (!item.sandboxReadOnly || canReadSandboxHistory(session)) && ((item.href !== '/dashboard/admins' && !item.adminOnly) || canSeeAdminsMenu) && (enableRegulatorMode === false || !isRegulatorRestrictedRoute(item.href)));
+    const baseItems = navItems.filter((item) => (!item.readRoles || adminGroups.some((role) => item.readRoles.includes(role))) && (!item.sandboxReadOnly || canReadSandboxHistory(session)) && ((item.href !== '/dashboard/admins' && !item.adminOnly) || canSeeAdminsMenu) && (enableRegulatorMode === false || !isRegulatorRestrictedRoute(item.href)));
     if (!showQaStubFailureModes) return baseItems;
     return [...baseItems, { href: '/dashboard/admin/stub-failure-modes', labelKey: 'layout.nav.stubFailureModes' }];
-  }, [canSeeAdminsMenu, showQaStubFailureModes, enableRegulatorMode, session]);
+  }, [adminGroups, canSeeAdminsMenu, showQaStubFailureModes, enableRegulatorMode, session]);
   const userLabel = useMemo(() => {
     const payload = idTokenPayload || accessTokenPayload;
     return (

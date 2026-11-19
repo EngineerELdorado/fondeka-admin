@@ -1549,6 +1549,8 @@ export default function FeatureFlagsPage() {
           <div style={{ display: 'grid', gap: '0.25rem', color: 'var(--muted)', fontSize: '12px' }}>
             <div>Default is enabled when the flag is missing or null.</div>
             <div>Account overrides can hide the customer service FAB for specific users.</div>
+            <div>The audience policy is an additional condition, including for accounts with an enabled override.</div>
+            <Link href="/dashboard/customer-service-visibility-policy">Manage customer service audience</Link>
           </div>
         )}
       </div>

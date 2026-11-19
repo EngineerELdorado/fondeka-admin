@@ -62,6 +62,17 @@ test('product option loading reads every stable DTO page without truncating a sh
   assert.deepEqual(await api.serviceFeeProducts.options('RECHARGE_OPERATOR'), []);
 });
 
+test('bill product filter options retain mapping IDs and load product names and country metadata', async (t) => {
+  const original = global.fetch; t.after(() => { global.fetch = original; });
+  const { api } = await load('lib/api.js', 'service-fee-bill-options'); api.setAuthToken('fees-token');
+  global.fetch = async (url) => {
+    const pathname = new URL(url, 'https://admin.local').pathname;
+    return Response.json(page(pathname.endsWith('/countries') ? [{ id: 1, name: 'DR Congo', alpha2Code: 'CD' }] : pathname.endsWith('/bill-products') ? [{ id: 12, displayName: 'SOCODEE', countryIds: [1] }] : [{ id: 103, billProductId: 12, billProviderName: 'UMEME' }]));
+  };
+  const rows = await api.serviceFeeProducts.options('BILL_PRODUCT_PROVIDER'); assert.equal(rows[0].id, 103); assert.equal(rows[0].__catalogEntity.displayName, 'SOCODEE'); assert.equal(rows[0].__catalogCountries[0].alpha2Code, 'CD');
+  const products = await api.serviceFeeProducts.options('BILL_PRODUCT'); assert.equal(products[0].id, 12); assert.equal(products[0].__catalogCountries[0].alpha2Code, 'CD');
+});
+
 async function business(t, { role = 'ADMIN', rows = [fee()], list, write, get } = {}) {
   const h = await load('lib/service-fees.js'), state = { rows: structuredClone(rows), reads: [], writes: [], gets: [] };
   const auth = { session: session(role), enableRegulatorMode: false, refreshSession: async () => {} };
@@ -96,10 +107,55 @@ test('new card product/action rules clearly replace operation settings and conve
 });
 
 test('business filters are server-side, preserve false and page sizes, and do not apply only to visible rows', async (t) => {
-  const { view, state } = await business(t); view.change('Service filter', 'CARD'); view.change('Product scope filter', 'CARD_PRODUCT_PROVIDER'); view.change('Product key filter', '24'); view.change('Status filter', 'false'); await view.click('Apply filters');
+  const { view, state, table } = await business(t); view.change('Service filter', 'CARD'); view.change('Product scope filter', 'CARD_PRODUCT_PROVIDER');
+  const productFilter = () => view.nodes().find((node) => node.props.filter === true);
+  assert.equal(productFilter().props.type, 'CARD_PRODUCT_PROVIDER'); productFilter().props.onChange('24'); await view.flush();
+  view.change('Status filter', 'false'); await view.click('Apply filters');
   assert.deepEqual(state.reads.at(-1), { page: '0', size: '20', service: 'CARD', productType: 'CARD_PRODUCT_PROVIDER', productKey: '24', active: 'false' });
+  table().onPageChange(2); await view.flush(); assert.equal(state.reads.at(-1).productKey, '24');
+  productFilter().props.onChange('25'); await view.flush(); await view.click('Apply filters'); assert.equal(state.reads.at(-1).page, '0'); assert.equal(state.reads.at(-1).productKey, '25');
   view.change('Rows per page', '100'); await view.flush(); assert.equal(state.reads.at(-1).page, '0'); assert.equal(state.reads.at(-1).size, '100');
-  await view.click('Clear filters'); assert.equal(Object.hasOwn(state.reads.at(-1), 'active'), false);
+  view.change('Product scope filter', ''); assert.equal(productFilter().props.value, '');
+  await view.click('Clear filters'); assert.equal(Object.hasOwn(state.reads.at(-1), 'active'), false); assert.equal(Object.hasOwn(state.reads.at(-1), 'productKey'), false);
+});
+
+async function productPicker(t, { type = 'BILL_PRODUCT', value = '', options = async () => [{ id: 12, displayName: 'SOCODEE', code: 'SOCODEE' }, { id: 13, displayName: 'VIRUNGA', code: 'VIRUNGA' }] } = {}) {
+  const h = await load('lib/service-fees.js'), calls = [], changes = [];
+  const props = { type, value, filter: true, onChange: (next) => { changes.push(next); props.value = next; } };
+  const view = await mountComponent(path.join(root, 'components/fees/BusinessFees.js'), { exportName: 'FeeProductPicker', props, modules: {
+    '@/lib/api': { api: { serviceFeeProducts: { options: async (scope) => { calls.push(scope); return options(scope); } } } }, '@/lib/service-fees': h,
+    '@/contexts/AuthContext': {}, 'next/navigation': {}, '@/components/RegulatorPresentation': {}, '@/lib/regulator-presentation': {}, '@/components/DataTable': {}, '@/components/ContentModal': {}, '@/components/CatalogSelect': { CatalogSelect: 'catalog-select' }, './fees.module.css': {}
+  } }); t.after(() => view.unmount()); await view.flush(); return { view, props, calls, changes };
+}
+
+test('product filters load searchable named catalogue options, select IDs and clear without an exact-ID requirement', async (t) => {
+  const { view, calls, changes } = await productPicker(t);
+  assert.deepEqual(calls, ['BILL_PRODUCT']); const selector = view.field('Product filter');
+  assert.equal(selector.type, 'catalog-select'); assert.equal(selector.props.kind, 'bill-product');
+  assert.deepEqual(selector.props.records.map((row) => row.displayName), ['SOCODEE', 'VIRUNGA']); assert.match(view.text(), /All products/);
+  view.change('Product filter', '12'); await view.flush(); assert.equal(view.field('Product filter').props.value, '12');
+  view.change('Product filter', ''); await view.flush(); assert.deepEqual(changes, ['12', '']);
+  await view.click('Enter catalogue IDs directly'); view.change('Product key filter', '999'); await view.flush();
+  await view.click('Choose from catalogue'); assert.equal(view.field('Product filter').props.value, '999'); assert.match(view.text(), /Saved ID #999/);
+  const noScope = await productPicker(t, { type: '' }); assert.equal(noScope.calls.length, 0); assert.equal(noScope.view.field('Product filter').props.disabled, true); assert.match(noScope.view.text(), /Select a product scope/);
+});
+
+test('conversion pair filters compose both selected product IDs and reject a partial pair before applying', async (t) => {
+  const picker = await productPicker(t, { type: 'CRYPTO_PAIR' }); picker.view.change('From product filter', '12'); await picker.view.flush(); assert.equal(picker.changes.at(-1), '12:');
+  picker.view.change('To product filter', '13'); await picker.view.flush(); assert.equal(picker.changes.at(-1), '12:13');
+  picker.view.change('From product filter', ''); await picker.view.flush(); picker.view.change('To product filter', ''); await picker.view.flush(); assert.equal(picker.changes.at(-1), '');
+  const { view, state } = await business(t); view.change('Service filter', 'CRYPTO'); view.change('Product scope filter', 'CRYPTO_PAIR');
+  const filter = () => view.nodes().find((node) => node.props.filter === true);
+  filter().props.onChange('12:'); await view.flush(); const count = state.reads.length; await view.click('Apply filters'); assert.equal(state.reads.length, count); assert.match(view.text(), /Choose both products/);
+  filter().props.onChange('12:13'); await view.flush(); await view.click('Apply filters'); assert.equal(state.reads.at(-1).productKey, '12:13');
+  filter().props.onChange(''); await view.flush(); await view.click('Apply filters'); assert.equal(Object.hasOwn(state.reads.at(-1), 'productKey'), false);
+});
+
+test('failed catalogue loads preserve the selected product filter and offer reload or direct IDs', async (t) => {
+  let attempt = 0;
+  const { view, calls } = await productPicker(t, { value: '12', options: async () => { if (!attempt++) throw new Error('Catalogue unavailable'); return [{ id: 12, displayName: 'SOCODEE' }]; } });
+  assert.match(view.text(), /Catalogue unavailable/); assert.equal(view.field('Product filter').props.value, '12');
+  await view.click('Reload products'); assert.equal(calls.length, 2); assert.doesNotMatch(view.text(), /Catalogue unavailable/); assert.equal(view.field('Product filter').props.records[0].displayName, 'SOCODEE');
 });
 
 test('Assistants inspect without write controls; denied roles and unavailable backends do not produce an empty success', async (t) => {

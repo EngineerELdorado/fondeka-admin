@@ -1,0 +1,12 @@
+.workspace { display: grid; gap: 1rem; width: 100%; max-width: 1200px; margin: 0 auto; min-width: 0; }
+.workspace h1 { margin: 0; font-size: 1.5rem; }
+.workspace h2 { margin: 0; font-size: 1.1rem; }
+.workspace p { color: var(--muted); line-height: 1.6; margin: .65rem 0; }
+.workspace small, .heading > span { color: var(--muted); }
+.heading { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.editor { display: grid; gap: 1rem; }
+.field { display: grid; gap: .4rem; max-width: 32rem; }
+.field > span { font-weight: 650; }
+.field select { width: 100%; }
+.actions { display: flex; flex-wrap: wrap; gap: .65rem; align-items: center; }
+.workspace summary { cursor: pointer; font-weight: 650; }

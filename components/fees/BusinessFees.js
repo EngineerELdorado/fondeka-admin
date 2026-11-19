@@ -14,10 +14,10 @@ import styles from './fees.module.css';
 
 const Field = ({ label, children }) => <label className={styles.field}><span>{label}</span>{children}</label>;
 const emptyFilters = { service: '', action: '', productType: '', productKey: '', active: 'true' };
-const name = (row) => [row.displayName || row.cardBrandName || row.billProductName || row.name || row.currency || row.code || row.id, row.cardProviderName || row.billProviderName].filter(Boolean).join(' · ');
+const name = (row) => [row.__catalogEntity?.displayName || row.displayName || row.cardBrandName || row.billProductName || row.__catalogEntity?.name || row.name || row.currency || row.code || row.id, row.cardProviderName || row.billProviderName].filter(Boolean).join(' · ');
 export const feeTerms = (row) => `${humanBusinessPercent(row.percentage)}% + ${row.flatAmount} ${row.currency}; min ${row.minimumAmount}${row.maximumAmount == null ? ', no cap' : `, max ${row.maximumAmount}`}`;
 
-export function FeeProductPicker({ type, value, onChange, disabled }) {
+export function FeeProductPicker({ type, value, onChange, disabled, filter = false }) {
   const [rows, setRows] = useState([]), [loading, setLoading] = useState(false), [error, setError] = useState(''), [manual, setManual] = useState(false), [reload, setReload] = useState(0);
   useEffect(() => {
     if (!type || type === 'RECHARGE_OPERATOR') return undefined;
@@ -25,15 +25,16 @@ export function FeeProductPicker({ type, value, onChange, disabled }) {
     api.serviceFeeProducts.options(type).then((items) => { if (active) setRows(items.map((row) => ({ ...row, displayName: name(row) }))); }).catch((err) => { if (active) setError(err.message || 'Could not load product options.'); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [type, reload]);
-  if (!type) return null;
-  const pair = type.endsWith('_PAIR'), parts = String(value || '').split(':');
-  const select = (label, selected, change) => <Field label={label}><CatalogSelect kind={type === 'BILL_PRODUCT_PROVIDER' ? 'bill-route' : type === 'BILL_PRODUCT' ? 'bill-product' : 'product'} aria-label={label} records={rows} value={selected || ''} loading={loading} disabled={disabled || loading} onChange={(event) => change(event.target.value)}>
-    <option value="">Choose a product</option>{selected && !rows.some((row) => String(row.id) === selected) && <option value={selected}>Saved ID #{selected}</option>}
+  if (!type && !filter) return null;
+  const pair = type?.endsWith('_PAIR'), parts = String(value || '').split(':');
+  const select = (label, selected, change) => <Field label={label}><CatalogSelect kind={type === 'BILL_PRODUCT_PROVIDER' ? 'bill-route' : type === 'BILL_PRODUCT' ? 'bill-product' : 'product'} aria-label={label} records={rows} value={selected || ''} loading={loading} disabled={disabled || loading || !type} onChange={(event) => change(event.target.value)}>
+    <option value="">{!type ? 'Choose a product scope first' : filter ? 'All products' : 'Choose a product'}</option>{selected && !rows.some((row) => String(row.id) === selected) && <option value={selected}>Saved ID #{selected}</option>}
     {rows.map((row) => <option key={row.id} value={String(row.id)}>{row.displayName} · #{row.id}</option>)}
   </CatalogSelect></Field>;
   return <div className={styles.section}>
-    {manual || type === 'RECHARGE_OPERATOR' ? <Field label={pair ? 'Product pair IDs' : 'Product ID'}><input value={value} maxLength={128} disabled={disabled} placeholder={pair ? 'fromId:toId' : 'Catalogue record ID'} onChange={(event) => onChange(event.target.value)} /></Field> : pair ? <div className={styles.grid}>{select('From product', parts[0], (from) => onChange(`${from}:${parts[1] || ''}`))}{select('To product', parts[1], (to) => onChange(`${parts[0] || ''}:${to}`))}</div> : select('Product', value, onChange)}
-    {type !== 'RECHARGE_OPERATOR' && <button type="button" className="btn-neutral btn-sm" disabled={disabled} onClick={() => setManual((state) => !state)}>{manual ? 'Choose from catalogue' : 'Enter catalogue IDs directly'}</button>}
+    {manual || type === 'RECHARGE_OPERATOR' ? <Field label={filter ? 'Product key filter' : pair ? 'Product pair IDs' : 'Product ID'}><input value={value} maxLength={128} disabled={disabled} placeholder={pair ? 'fromId:toId' : 'Catalogue record ID'} onChange={(event) => onChange(event.target.value)} /></Field> : pair ? <div className={styles.grid}>{select(filter ? 'From product filter' : 'From product', parts[0], (from) => onChange(from || parts[1] ? `${from}:${parts[1] || ''}` : ''))}{select(filter ? 'To product filter' : 'To product', parts[1], (to) => onChange(parts[0] || to ? `${parts[0] || ''}:${to}` : ''))}</div> : select(filter ? 'Product filter' : 'Product', value, onChange)}
+    {(type || filter) && type !== 'RECHARGE_OPERATOR' && <button type="button" className="btn-neutral btn-sm" disabled={disabled} onClick={() => setManual((state) => !state)}>{manual ? 'Choose from catalogue' : 'Enter catalogue IDs directly'}</button>}
+    {!type && filter && <small>Select a product scope to search products by name, code or ID.</small>}
     {type === 'RECHARGE_OPERATOR' && <small>Use the stored recharge operator ID, not a provider&apos;s external operator code.</small>}
     {error && <div role="alert">{error} <button type="button" className="btn-neutral btn-sm" disabled={disabled} onClick={() => setReload((number) => number + 1)}>Reload products</button></div>}
   </div>;
@@ -42,6 +43,7 @@ export function FeeProductPicker({ type, value, onChange, disabled }) {
 export function BusinessFeesWorkspace({ initialFilters = {} }) {
   const { session, refreshSession, enableRegulatorMode } = useAuth(), { canRead, canWrite } = feePermissions(session);
   const [filters, setFilters] = useState(() => ({ ...emptyFilters, ...initialFilters })), [applied, setApplied] = useState(() => ({ ...emptyFilters, ...initialFilters }));
+  const [filterError, setFilterError] = useState('');
   const [page, setPage] = useState(0), [size, setSize] = useState(20), [reload, setReload] = useState(0), [data, setData] = useState(null), [loading, setLoading] = useState(true);
   const [error, setError] = useState(''), [info, setInfo] = useState(''), [dialog, setDialog] = useState(null), [draft, setDraft] = useState(emptyServiceFee), [busy, setBusy] = useState(false), [formError, setFormError] = useState(''), [needsReload, setNeedsReload] = useState(false), [uncertain, setUncertain] = useState(false), [denied, setDenied] = useState(false);
   const lock = useRef(false), alive = useRef(true);
@@ -63,6 +65,11 @@ export function BusinessFeesWorkspace({ initialFilters = {} }) {
     return () => { active = false; };
   }, [applied, page, size, reload, canRead, refreshSession]);
   const refresh = () => { if (!lock.current) setReload((value) => value + 1); };
+  const applyFilters = () => {
+    if (lock.current) return;
+    if (filters.productType.endsWith('_PAIR') && filters.productKey && !/^[1-9]\d*:[1-9]\d*$/.test(filters.productKey.trim())) { setFilterError('Choose both products in the pair, or clear both to show all pairs.'); return; }
+    setFilterError(''); setPage(0); setApplied({ ...filters });
+  };
   const open = async (row) => {
     if (lock.current || !canRead || !data) return;
     lock.current = true; setBusy(true); setFormError(''); setNeedsReload(false); setUncertain(false);
@@ -116,7 +123,11 @@ export function BusinessFeesWorkspace({ initialFilters = {} }) {
   const disabled = !canWrite || denied || busy;
   const allowedScopes = serviceFeeScopes.filter((scope) => scope.service === draft.service);
   const columns = [
-    { key: 'scope', label: 'Scope', render: (row) => <div className={styles.stack}><strong>{feeLabel(row.service)}{row.action ? ` · ${feeLabel(row.action)}` : ' · All actions'}</strong><small>{row.productType ? `${serviceFeeScopes.find((scope) => scope.value === row.productType)?.label || row.productType} #${row.productKey}` : 'Service / action default'}</small></div> },
+    { key: 'scope', label: 'Scope', width: '18rem', minWidth: '15rem', render: (row) => <div className={styles.scope}>
+      <strong>{feeLabel(row.service)}</strong>
+      <span>{row.action ? feeLabel(row.action) : 'All actions'}</span>
+      <small>{row.productType ? `${serviceFeeScopes.find((scope) => scope.value === row.productType)?.label || row.productType} #${row.productKey}` : 'Service / action default'}</small>
+    </div> },
     { key: 'charge', label: 'Business charge', render: (row) => <span>{feeTerms(row)}</span> },
     { key: 'cost', label: 'Additional product cost', render: (row) => `${humanBusinessPercent(row.costPercentage)}% + ${row.costFlatAmount} ${row.currency}; min ${row.costMinimumAmount}` },
     { key: 'active', label: 'Status', render: (row) => row.active ? 'Active' : 'Inactive' },
@@ -128,13 +139,13 @@ export function BusinessFeesWorkspace({ initialFilters = {} }) {
     <header className={`card ${styles.toolbar}`}><div><h1>Business fees</h1><p>One service, action or product charge, added to the payment rail tariff.</p></div><div className={styles.actions}><Link className="btn-neutral" href="/dashboard/fees/fee-configs">Rail pricing</Link><button className="btn-neutral" disabled={loading || busy} onClick={refresh}>Refresh</button>{canWrite && !denied && <button className="btn-primary" disabled={loading || busy || !data} onClick={() => void open(null)}>New business rule</button>}</div></header>
     {!canWrite || denied ? <div className="card">Read only. Admin or Super Admin access is required to change fees.</div> : null}
     {info && <div className="card" role="status">{info}</div>}
-    <section className="card"><div className={styles.grid}>
-      <Field label="Service filter"><PresentationSelect value={filters.service} onChange={(event) => setFilters((value) => ({ ...value, service: event.target.value, action: '', productType: '', productKey: '' }))}><option value="">All services</option>{Object.keys(serviceFeeActions).map((service) => <option key={service} value={service}>{feeLabel(service)}</option>)}</PresentationSelect></Field>
+    <section className="card"><div className={`${styles.grid} ${styles.filters}`}>
+      <Field label="Service filter"><PresentationSelect value={filters.service} onChange={(event) => { setFilterError(''); setFilters((value) => ({ ...value, service: event.target.value, action: '', productType: '', productKey: '' })); }}><option value="">All services</option>{Object.keys(serviceFeeActions).map((service) => <option key={service} value={service}>{feeLabel(service)}</option>)}</PresentationSelect></Field>
       <Field label="Action filter"><PresentationSelect value={filters.action} onChange={(event) => setFilters((value) => ({ ...value, action: event.target.value }))}><option value="">All actions</option>{(filters.service ? serviceFeeActions[filters.service] || [] : Object.values(serviceFeeActions).flat()).map((action) => <option key={action} value={action}>{feeLabel(action)}</option>)}</PresentationSelect></Field>
-      <Field label="Product scope filter"><PresentationSelect value={filters.productType} onChange={(event) => setFilters((value) => ({ ...value, productType: event.target.value, productKey: '' }))}><option value="">All scopes</option>{serviceFeeScopes.filter((scope) => !filters.service || scope.service === filters.service).map((scope) => <option key={scope.value} value={scope.value}>{scope.label}</option>)}</PresentationSelect></Field>
-      <Field label="Product key filter"><input value={filters.productKey} maxLength={128} placeholder="Exact ID or fromId:toId" onChange={(event) => setFilters((value) => ({ ...value, productKey: event.target.value }))} /></Field>
+      <Field label="Product scope filter"><PresentationSelect value={filters.productType} onChange={(event) => { setFilterError(''); setFilters((value) => ({ ...value, productType: event.target.value, productKey: '' })); }}><option value="">All scopes</option>{serviceFeeScopes.filter((scope) => !filters.service || scope.service === filters.service).map((scope) => <option key={scope.value} value={scope.value}>{scope.label}</option>)}</PresentationSelect></Field>
+      <FeeProductPicker key={filters.productType} filter type={filters.productType} value={filters.productKey} disabled={busy} onChange={(productKey) => { setFilterError(''); setFilters((value) => ({ ...value, productKey })); }} />
       <Field label="Status filter"><select value={filters.active} onChange={(event) => setFilters((value) => ({ ...value, active: event.target.value }))}><option value="true">Active</option><option value="false">Inactive</option><option value="">All records</option></select></Field>
-    </div><div className={styles.actions}><button className="btn-primary" disabled={busy} onClick={() => { setPage(0); setApplied({ ...filters }); }}>Apply filters</button><button className="btn-neutral" disabled={busy} onClick={() => { setFilters({ ...emptyFilters, active: '' }); setApplied({ ...emptyFilters, active: '' }); setPage(0); }}>Clear filters</button><Field label="Rows per page"><select value={size} disabled={busy} onChange={(event) => { setSize(Number(event.target.value)); setPage(0); }}>{[20, 50, 100].map((value) => <option key={value}>{value}</option>)}</select></Field></div></section>
+    </div>{filterError && <p role="alert">{filterError}</p>}<div className={styles.actions}><button className="btn-primary" disabled={busy} onClick={applyFilters}>Apply filters</button><button className="btn-neutral" disabled={busy} onClick={() => { setFilterError(''); setFilters({ ...emptyFilters, active: '' }); setApplied({ ...emptyFilters, active: '' }); setPage(0); }}>Clear filters</button><Field label="Rows per page"><select value={size} disabled={busy} onChange={(event) => { setSize(Number(event.target.value)); setPage(0); }}>{[20, 50, 100].map((value) => <option key={value}>{value}</option>)}</select></Field></div></section>
     <section className="card">{loading ? <p role="status">Loading business fees…</p> : error ? <div role="alert">{error} <button className="btn-neutral" onClick={refresh}>Refresh fees</button></div> : data ? <><small>{data.totalElements} matching rules</small>{data.rows.length ? <DataTable rows={data.rows} columns={columns} page={data.number} pageSize={data.size} totalElements={data.totalElements} totalPages={data.totalPages} canPrev={!busy && data.number > 0} canNext={!busy && data.number + 1 < data.totalPages} onPageChange={setPage} showIndex={false} showAccountQuickNav={false} /> : <p>No business fees match these filters.</p>}</> : <p>Refresh saved records before making another change.</p>}</section>
     <details className="card"><summary>How these fees apply</summary><div className={styles.section}><p>Product + action → product → action → service. One active business rule wins; explicit zero also replaces broader charges. Within bill scopes, product/provider mapping takes priority over bill product, then bill provider.</p><p>Charge = amount × percentage + flat, then minimum and optional maximum. Fixed amounts use this rule&apos;s currency and are converted by the backend. Missing required FX fails the quote. Additional product costs are separate and are not capped by the business-charge maximum.</p><p>Card funding and withdrawal settings already count as product + action rules. Only an explicit new product/action rule replaces them. Clear both existing operation fields to inherit; zero is a configured setting.</p><p>Changes affect new quotes and transactions. Account-specific conversion contracts retain priority. Amount-specific quotes remain authoritative for inclusive fees, conversion and the final total.</p></div></details>
     {dialog && <ContentModal title={dialog.row ? `Business fee #${dialog.row.id}` : 'New business fee'} onClose={close}><div className={styles.section}>
