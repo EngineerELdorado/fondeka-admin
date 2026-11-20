@@ -178,9 +178,9 @@ async function walletPage(fail = false) {
   const h = await helpers, writes = [];
   const view = await mountComponent(path.join(__dirname, '../app/(dashboard)/dashboard/wallet-policy-config/page.js'), {
     props: {}, modules: {
-      '@/contexts/AuthContext': { useAuth: () => ({ session: session('ADMIN') }) }, '@/lib/auto-refund-policy': h,
+      '@/contexts/AuthContext': { useAuth: () => ({ session: session('ADMIN') }) }, '@/lib/auto-refund-policy': h, '@/lib/crypto-catalog': await load('lib/crypto-catalog.js'),
       '@/components/CatalogSelect': { CatalogSelect: 'picker' }, '@/components/AutoRefundPolicyPanel': { __esModule: true, default: 'refund-panel' }, '@/lib/payment-method-labels': { paymentMethodAdminLabel: (record) => record.name },
-      '@/lib/api': { api: { walletPolicyConfig: { get: async () => { if (fail) throw new Error('Stored auto-refund rules are invalid'); return { ...empty(), interTransferCooldownMinutes: 10 }; }, update: async (body) => { writes.push(body); } }, cryptoProducts: { list: async () => [] }, cryptoNetworks: { list: async () => [] }, paymentMethods: { options: async () => [] }, currencyProducts: { list: async () => [] } } }
+      '@/lib/api': { api: { walletPolicyConfig: { get: async () => { if (fail) throw new Error('Stored auto-refund rules are invalid'); return { ...empty(), interTransferCooldownMinutes: 10 }; }, update: async (body) => { writes.push(body); } }, cryptoProducts: { options: async () => [] }, cryptoNetworks: { options: async () => [] }, paymentMethods: { options: async () => [] }, currencyProducts: { list: async () => [] } } }
     }
   });
   await view.flush(); return { view, writes };

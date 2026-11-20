@@ -1,5 +1,7 @@
 'use client';
 
+import { CRYPTO_ASSETS, CRYPTO_NETWORKS } from '@/lib/crypto-catalog';
+
 
 import { CatalogSelect } from '@/components/CatalogSelect';
 import { useEffect, useMemo, useState } from 'react';
@@ -12,8 +14,8 @@ import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
 const MIN_COOLDOWN = 1;
 const MAX_COOLDOWN = 1440;
 const MIN_REVIEW_PROMPT_THRESHOLD = 1;
-const DEFAULT_CRYPTO_CURRENCY_OPTIONS = ['BTC', 'ETH', 'USDT', 'USDC', 'BNB', 'SOL', 'EURC'];
-const DEFAULT_CRYPTO_NETWORK_OPTIONS = ['LIGHTNING', 'BTC', 'ERC20', 'BEP20', 'TRC20', 'SOLANA', 'POLYGON', 'BASE', 'ARBITRUM', 'AVALANCHE'];
+const DEFAULT_CRYPTO_CURRENCY_OPTIONS = CRYPTO_ASSETS;
+const DEFAULT_CRYPTO_NETWORK_OPTIONS = CRYPTO_NETWORKS;
 const ALLOWED_PAYOUT_ACTIONS = ['WITHDRAW_FROM_WALLET', 'WITHDRAW_FROM_CARD', 'SELL_CRYPTO'];
 const PAYMENT_METHOD_TYPE_OPTIONS = ['MOBILE_MONEY', 'CRYPTO', 'BALANCE', 'CREDIT', 'AIRTIME', 'BANK'];
 const COLLECTION_SOURCE_RISK_CONSEQUENCE_OPTIONS = ['WARNING', 'BLACKLIST'];
@@ -404,8 +406,8 @@ export default function WalletPolicyConfigPage() {
       const params = new URLSearchParams({ page: '0', size: '250' });
       const [res, cryptoProductsRes, cryptoNetworksRes, paymentMethodsRes, currencyProductsRes] = await Promise.all([
         api.walletPolicyConfig.get(),
-        api.cryptoProducts.list(params),
-        api.cryptoNetworks.list(params),
+        api.cryptoProducts.options(),
+        api.cryptoNetworks.options(),
         api.paymentMethods.options(params),
         api.currencyProducts.list(params)
       ]);

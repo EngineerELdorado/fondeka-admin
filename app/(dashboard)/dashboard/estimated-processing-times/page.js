@@ -1,5 +1,8 @@
 'use client';
 
+import { useCatalogCodes } from '@/lib/use-catalog-codes';
+import { CRYPTO_NETWORKS } from '@/lib/crypto-catalog';
+
 
 import { CatalogSelect } from '@/components/CatalogSelect';
 import { PresentationSelect, NonRegulatorContent, PresentationLink as Link } from '@/components/RegulatorPresentation';
@@ -62,6 +65,8 @@ const paymentProviderNameOptions = [
   'STRIPE',
   'PAYPAL',
   'BTCPAY_SERVER',
+  'BITCART',
+  'PAWAPAY',
   'CUSTOMIZED_BANK_PROVIDER',
   'RELOADLY',
   'UNIPAYMENT',
@@ -77,7 +82,7 @@ const paymentProviderNameOptions = [
   'LIMIT_FLEX',
   'MAPLERAD'
 ];
-const cryptoNetworkNameOptions = ['BTC', 'ERC20', 'BEP20', 'TRC20', 'POLYGON', 'BSC', 'ARBITRUM', 'BASE', 'AVALANCHE', 'SOLANA'];
+
 
 const initialFilters = {
   action: '',
@@ -206,8 +211,8 @@ export default function EstimatedProcessingTimesPage() {
   const [billProducts, setBillProducts] = useState([]);
 
   const sortedPaymentMethodTypeOptions = useMemo(() => [...paymentMethodTypeOptions].sort(), []);
-  const sortedPaymentProviderNameOptions = useMemo(() => [...paymentProviderNameOptions].sort(), []);
-  const sortedCryptoNetworkNameOptions = useMemo(() => [...cryptoNetworkNameOptions].sort(), []);
+  const { options: sortedPaymentProviderNameOptions } = useCatalogCodes('paymentProviders', 'name', paymentProviderNameOptions, [draft.paymentProviderName, filters.paymentProviderName]);
+  const { options: sortedCryptoNetworkNameOptions } = useCatalogCodes('cryptoNetworks', 'name', CRYPTO_NETWORKS, [draft.cryptoNetworkName, filters.cryptoNetworkName]);
   const sortedBillProducts = useMemo(
     () =>
       [...billProducts].sort((a, b) =>

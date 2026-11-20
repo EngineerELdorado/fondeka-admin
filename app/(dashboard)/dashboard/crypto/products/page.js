@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
-const emptyState = { currency: '', displayName: '', rate: '', ask: '', bid: '', active: true };
+const emptyState = { currency: '', displayName: '', rate: '', ask: '', bid: '', active: false };
 
 const toPayload = (state) => ({
   currency: state.currency,
@@ -287,7 +287,7 @@ export default function CryptoProductsPage() {
     { key: 'id', label: 'ID' },
     { key: 'currency', label: 'Currency' },
     { key: 'displayName', label: 'Display name' },
-    { key: 'rate', label: 'Rate' },
+    { key: 'rate', label: 'Reference price (USD)', render: (row) => Number(row.rate) > 0 ? row.rate : 'Unpriced' },
     { key: 'ask', label: 'Ask spread', render: (row) => formatSpread(row.ask) },
     { key: 'bid', label: 'Bid spread', render: (row) => formatSpread(row.bid) },
     { key: 'active', label: 'Active' },
@@ -441,7 +441,7 @@ export default function CryptoProductsPage() {
         <input id="displayName" value={draft.displayName} onChange={(e) => setDraft((p) => ({ ...p, displayName: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="rate">Rate</label>
+        <label htmlFor="rate">Reference price (USD)</label>
         <input id="rate" type="number" value={draft.rate} onChange={(e) => setDraft((p) => ({ ...p, rate: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -484,7 +484,7 @@ export default function CryptoProductsPage() {
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <div style={{ fontWeight: 800, fontSize: '20px' }}>Crypto Products</div>
-          <div style={{ color: 'var(--muted)' }}>Currencies with display name and rates.</div>
+          <div style={{ color: 'var(--muted)' }}>Assets, USD reference prices and margins. Zero or unset prices are unpriced. Product activation and collection/payout gates are separate controls.</div>
         </div>
         <Link href="/dashboard/crypto" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
           ← Crypto hub

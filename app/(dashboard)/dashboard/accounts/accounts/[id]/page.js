@@ -1,5 +1,8 @@
 'use client';
 
+import { useCatalogCodes } from '@/lib/use-catalog-codes';
+import { CRYPTO_ASSETS } from '@/lib/crypto-catalog';
+
 import { CountrySelect } from '@/components/CountrySelect';
 
 import TableActions from '@/components/TableActions';
@@ -645,7 +648,7 @@ const paymentMethodActionRuleOptions = [
 
 const paymentMethodTypeRuleOptions = ['MOBILE_MONEY', 'CRYPTO', 'BALANCE', 'CREDIT', 'AIRTIME', 'BANK'];
 
-const paymentMethodNameRuleOptions = [
+const fallbackPaymentMethodNameRuleOptions = [
   'MPESA_DRC',
   'AIRTEL_MONEY_DRC',
   'ORANGE_MONEY_DRC',
@@ -877,6 +880,7 @@ const [notificationDataModal, setNotificationDataModal] = useState(null);
   const [paymentMethodExcludeTypes, setPaymentMethodExcludeTypes] = useState([]);
   const [paymentMethodIncludeNames, setPaymentMethodIncludeNames] = useState([]);
   const [paymentMethodExcludeNames, setPaymentMethodExcludeNames] = useState([]);
+  const { options: paymentMethodNameRuleOptions } = useCatalogCodes('paymentMethods', 'name', [...fallbackPaymentMethodNameRuleOptions, ...CRYPTO_ASSETS], [paymentMethodIncludeNames, paymentMethodExcludeNames]);
   const [paymentMethodAllowLocalMobileMoneyForUsdWallet, setPaymentMethodAllowLocalMobileMoneyForUsdWallet] = useState('');
   const [paymentMethodActive, setPaymentMethodActive] = useState(true);
   const [paymentMethodRank, setPaymentMethodRank] = useState(0);
@@ -2929,8 +2933,8 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
           api.countries.options(),
           api.cardProductCardProviders.list(new URLSearchParams({ page: '0', size: '200' })),
           api.loanProducts.list(new URLSearchParams({ page: '0', size: '200' })),
-          api.cryptoProducts.list(new URLSearchParams({ page: '0', size: '200' })),
-          api.cryptoProductCryptoNetworks.list(new URLSearchParams({ page: '0', size: '200' }))
+          api.cryptoProducts.options(),
+          api.cryptoProductCryptoNetworks.options()
         ]);
         const toList = (res) => (Array.isArray(res) ? res : res?.content || []);
         setPmps(toList(pmpRes));

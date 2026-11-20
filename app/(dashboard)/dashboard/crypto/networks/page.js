@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 
-const emptyState = { name: '', displayName: '', active: true, invoiceCreationEnabled: true };
+const emptyState = { name: '', displayName: '', active: false, invoiceCreationEnabled: false };
 
 const toPayload = (state) => ({
   name: state.name,

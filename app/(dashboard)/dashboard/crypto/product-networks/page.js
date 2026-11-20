@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
+import { withSelectedRecord } from '@/lib/crypto-catalog';
 import { DataTable } from '@/components/DataTable';
 
 const emptyState = {
@@ -15,7 +16,7 @@ const emptyState = {
   dailySendLimitUsd: '',
   dailyReceiveLimitUsd: '',
   dailySwapLimitUsd: '',
-  active: true
+  active: false
 };
 
 const toPayload = (state) => ({
@@ -23,11 +24,11 @@ const toPayload = (state) => ({
   cryptoNetworkId: Number(state.cryptoNetworkId) || 0,
   rank: state.rank === '' ? null : Number(state.rank),
   displayName: state.displayName || null,
-  dailyBuyLimitUsd: Number(state.dailyBuyLimitUsd || 0),
-  dailySellLimitUsd: Number(state.dailySellLimitUsd || 0),
-  dailySendLimitUsd: Number(state.dailySendLimitUsd || 0),
-  dailyReceiveLimitUsd: Number(state.dailyReceiveLimitUsd || 0),
-  dailySwapLimitUsd: Number(state.dailySwapLimitUsd || 0),
+  dailyBuyLimitUsd: state.dailyBuyLimitUsd === '' ? null : Number(state.dailyBuyLimitUsd),
+  dailySellLimitUsd: state.dailySellLimitUsd === '' ? null : Number(state.dailySellLimitUsd),
+  dailySendLimitUsd: state.dailySendLimitUsd === '' ? null : Number(state.dailySendLimitUsd),
+  dailyReceiveLimitUsd: state.dailyReceiveLimitUsd === '' ? null : Number(state.dailyReceiveLimitUsd),
+  dailySwapLimitUsd: state.dailySwapLimitUsd === '' ? null : Number(state.dailySwapLimitUsd),
   active: Boolean(state.active)
 });
 
@@ -94,10 +95,7 @@ export default function CryptoProductNetworksPage() {
   useEffect(() => {
     const loadLookups = async () => {
       try {
-        const params = new URLSearchParams();
-        params.set('page', '0');
-        params.set('size', '200');
-        const [prodRes, netRes] = await Promise.all([api.cryptoProducts.list(params), api.cryptoNetworks.list(params)]);
+        const [prodRes, netRes] = await Promise.all([api.cryptoProducts.options(), api.cryptoNetworks.options()]);
         const prodList = Array.isArray(prodRes) ? prodRes : prodRes?.content || [];
         const netList = Array.isArray(netRes) ? netRes : netRes?.content || [];
         setProducts(prodList || []);
@@ -227,9 +225,9 @@ export default function CryptoProductNetworksPage() {
         <label htmlFor="cryptoProductId">Crypto product</label>
         <select id="cryptoProductId" value={draft.cryptoProductId} onChange={(e) => setDraft((p) => ({ ...p, cryptoProductId: e.target.value }))}>
           <option value="">Select product</option>
-          {products.map((prod) => (
+          {withSelectedRecord(products, draft.cryptoProductId, selected?.cryptoProductName).map((prod) => (
             <option key={prod.id} value={prod.id}>
-              {prod.displayName || prod.currency || `Product ${prod.id}`}
+              {`${prod.displayName || prod.currency || prod.name || `Product ${prod.id}`} (${prod.currency || prod.id})${prod.active === false ? " · Inactive" : ""}`}
             </option>
           ))}
         </select>
@@ -238,9 +236,9 @@ export default function CryptoProductNetworksPage() {
         <label htmlFor="cryptoNetworkId">Crypto network</label>
         <select id="cryptoNetworkId" value={draft.cryptoNetworkId} onChange={(e) => setDraft((p) => ({ ...p, cryptoNetworkId: e.target.value }))}>
           <option value="">Select network</option>
-          {networks.map((net) => (
+          {withSelectedRecord(networks, draft.cryptoNetworkId, selected?.cryptoNetworkName).map((net) => (
             <option key={net.id} value={net.id}>
-              {net.name || `Network ${net.id}`}
+              {`${net.name || `Network ${net.id}`}${net.active === false ? " · Inactive" : ""}`}
             </option>
           ))}
         </select>

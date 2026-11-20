@@ -163,6 +163,19 @@ export default function OutboxPage() {
   const [actionReason, setActionReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
+  const [locationLoaded, setLocationLoaded] = useState(false);
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    if (query.get('outboxType') === 'webhooks') {
+      const next = { ...emptyFilters, provider: query.get('provider') || '', handlerKey: query.get('handlerKey') || '' };
+      setOutboxType('webhooks');
+      setFilters(next);
+      setAppliedFilters(next);
+      setShowFilters(true);
+    }
+    setLocationLoaded(true);
+  }, []);
+
   const outboxConfig = OUTBOX_TYPES[outboxType];
 
   const fetchRows = async () => {
@@ -212,12 +225,30 @@ export default function OutboxPage() {
   };
 
   useEffect(() => {
-    fetchRows();
-  }, [outboxType, page, size, appliedFilters]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (locationLoaded) fetchRows();
+  }, [locationLoaded, outboxType, page, size, appliedFilters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     setShowRawPayload(false);
   }, [selected?.id, outboxType]);
+
+  useEffect(() => {
+    if (!detailOpen || !selected?.id || !['PENDING', 'PROCESSING'].includes(selected.status)) return;
+    let stopped = false, timer, failures = 0;
+    const poll = async () => {
+      if (!document.hidden && !detailLoading && !actionLoading) {
+        try {
+          const response = await api.outbox[outboxType].get(selected.id);
+          if (!stopped) { setSelected(response); setDetailError(null); failures = 0; }
+        } catch (err) {
+          if (!stopped) { setDetailError(err.message || 'Unable to refresh the outbox detail.'); failures += 1; }
+        }
+      }
+      if (!stopped) timer = setTimeout(poll, Math.min(30000, 5000 * (2 ** failures)));
+    };
+    timer = setTimeout(poll, 5000);
+    return () => { stopped = true; clearTimeout(timer); };
+  }, [detailOpen, selected?.id, selected?.status, outboxType, detailLoading, actionLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const columns = [
       {
@@ -243,6 +274,7 @@ export default function OutboxPage() {
       { key: 'retries', label: 'Retries', render: (row) => row.retries ?? 0 },
       { key: 'lockedBy', label: 'Locked By', render: (row) => row.lockedBy || '—' },
       { key: 'nextAttemptAt', label: 'Next Attempt At', render: (row) => formatDateTime(row.nextAttemptAt) },
+      { key: 'processedAt', label: 'Processed At', render: (row) => formatDateTime(row.processedAt) },
       { key: 'createdAt', label: 'Created At', render: (row) => formatDateTime(row.createdAt) },
       {
         key: 'payload',
@@ -263,7 +295,10 @@ export default function OutboxPage() {
               {payloadPreview(row.payload, 80)}
             </span>
             {toText(row.payload) ? (
-              <button type="button" className="btn-neutral btn-sm" onClick={() => setPayloadTarget(row)} style={{ alignSelf: 'flex-start' }}>
+              <button type="button" className="btn-neutral btn-sm" onClick={() => {
+                if (row.payloadTruncated) { setSelected(row); setDetailOpen(true); fetchDetail(row.id); }
+                else setPayloadTarget(row);
+              }} style={{ alignSelf: 'flex-start' }}>
                 See more
               </button>
             ) : null}
@@ -371,7 +406,7 @@ export default function OutboxPage() {
     const row = actionTarget?.row;
     const action = actionTarget?.action;
     const meta = actionMeta[action];
-    if (!row || !meta || row.id === null || row.id === undefined) return;
+    if (actionLoading || !row || !meta || row.id === null || row.id === undefined) return;
     setActionLoading(true);
     try {
       const reason = actionReason.trim();
@@ -574,6 +609,9 @@ export default function OutboxPage() {
         </Modal>
       )}
 
+      {outboxType === 'webhooks' && appliedFilters.provider === 'BITCART' && (
+        <div className="card">Bitcart retries queue an authenticated invoice recheck. A queued or processed job does not confirm payment completion; inspect the transaction status and timeline for the financial outcome.</div>
+      )}
       {detailOpen && (
         <Modal title={`${outboxConfig.label} Detail`} onClose={() => setDetailOpen(false)}>
           {detailError && (
@@ -589,6 +627,11 @@ export default function OutboxPage() {
                 {[
                   { label: 'ID', value: selected.id },
                   { label: outboxConfig.primaryLabel, value: selected?.[outboxConfig.primaryField] || '—' },
+                  ...(outboxType === 'webhooks' ? [
+                    { label: 'Event type', value: selected.eventType || '—' },
+                    { label: 'Handler key', value: selected.handlerKey || '—' },
+                    { label: 'Transaction', value: selected.transactionId ? <Link href={`/dashboard/transactions?transactionId=${encodeURIComponent(selected.transactionId)}`}>{selected.transactionId}</Link> : '—' }
+                  ] : []),
                   { label: 'Status', value: selected.status || '—' },
                   { label: 'Retries', value: selected.retries ?? 0 },
                   { label: 'Locked At', value: formatDateTime(selected.lockedAt) },

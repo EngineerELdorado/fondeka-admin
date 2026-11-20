@@ -1,5 +1,7 @@
 'use client';
 
+import { useCatalogCodes } from '@/lib/use-catalog-codes';
+
 import { regulatorVisibleFields } from '@/lib/regulator-presentation';
 
 import { useAuth } from '@/contexts/AuthContext';
@@ -21,7 +23,7 @@ const emptyState = {
   sameFundingDestinationScope: 'SAME_PROVIDER',
   sameFundingDestinationExemptCountryCodes: []
 };
-const paymentProviderNameOptions = ['MAPLERAD', 'PAWAPAY'];
+const fallbackProviderNames = ['MAPLERAD', 'PAWAPAY', 'UNIPAYMENT', 'BTCPAY_SERVER', 'BITCART'];
 
 const normalizeSameFundingDestinationScope = (value) =>
   SAME_FUNDING_DESTINATION_SCOPE_OPTIONS.includes(String(value || '').trim().toUpperCase())
@@ -68,6 +70,7 @@ export default function PaymentProvidersPage() {
   const [showDetail, setShowDetail] = useState(false);
   const [draft, setDraft] = useState(emptyState);
   const [selected, setSelected] = useState(null);
+  const { options: paymentProviderNameOptions } = useCatalogCodes('paymentProviders', 'name', fallbackProviderNames, [draft.name]);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
   const fetchRows = async () => {

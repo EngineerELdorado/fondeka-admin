@@ -1,5 +1,8 @@
 'use client';
 
+import { useCatalogCodes } from '@/lib/use-catalog-codes';
+import { CRYPTO_ASSETS } from '@/lib/crypto-catalog';
+
 import { PresentationSelect, NonRegulatorContent, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
 
 import { regulatorVisibleFields, isRegulatorRestrictedRecord } from '@/lib/regulator-presentation';
@@ -59,7 +62,7 @@ const actionOptions = [
 
 const paymentMethodTypeOptions = ['MOBILE_MONEY', 'CRYPTO', 'BALANCE', 'CREDIT', 'AIRTIME', 'BANK'];
 
-const paymentMethodNameOptions = [
+const fallbackPaymentMethodNameOptions = [
   'MPESA_DRC',
   'AIRTEL_MONEY_DRC',
   'ORANGE_MONEY_DRC',
@@ -283,6 +286,7 @@ export default function PaymentMethodActionConfigsPage() {
   const [showEdit, setShowEdit] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const [draft, setDraft] = useState(emptyState);
+  const { options: paymentMethodNameOptions } = useCatalogCodes('paymentMethods', 'name', [...fallbackPaymentMethodNameOptions, ...CRYPTO_ASSETS], [draft.includeNames, draft.excludeNames]);
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [filters, setFilters] = useState({ action: '', countryCode: '', active: '' });

@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
+import { withSelectedRecord } from '@/lib/crypto-catalog';
 import { DataTable } from '@/components/DataTable';
 import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
 import { CatalogSelect } from '@/components/CatalogSelect';
 
-const emptyState = { paymentMethodId: '', cryptoNetworkId: '', rank: '', active: true };
+const emptyState = { paymentMethodId: '', cryptoNetworkId: '', rank: '', active: false };
 
 const toPayload = (state) => ({
   paymentMethodId: Number(state.paymentMethodId) || 0,
@@ -81,14 +82,14 @@ export default function PaymentMethodCryptoNetworksPage() {
       try {
         const [pmRes, netRes] = await Promise.all([
           api.paymentMethods.options(),
-          api.cryptoNetworks.list(new URLSearchParams({ page: '0', size: '100' }))
+          api.cryptoNetworks.options()
         ]);
         const pmList = Array.isArray(pmRes) ? pmRes : pmRes?.content || [];
         const netList = Array.isArray(netRes) ? netRes : netRes?.content || [];
         setMethods(pmList);
         setNetworks(netList);
-      } catch {
-        // ignore silently
+      } catch (err) {
+        setError(err.message || 'Failed to load mapping options.');
       }
     };
     fetchOptions();
@@ -245,8 +246,11 @@ export default function PaymentMethodCryptoNetworksPage() {
         </CatalogSelect>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="cryptoNetworkId">Crypto network ID</label>
-        <input id="cryptoNetworkId" type="number" value={draft.cryptoNetworkId} onChange={(e) => setDraft((p) => ({ ...p, cryptoNetworkId: e.target.value }))} />
+        <label htmlFor="cryptoNetworkId">Crypto network</label>
+        <select id="cryptoNetworkId" value={draft.cryptoNetworkId} onChange={(e) => setDraft((p) => ({ ...p, cryptoNetworkId: e.target.value }))}>
+          <option value="">Select network</option>
+          {withSelectedRecord(networks, draft.cryptoNetworkId, selected?.cryptoNetworkName).map((network) => <option key={network.id} value={network.id}>{network.name || network.displayName || network.id}{network.active === false ? ' · Inactive' : ''}</option>)}
+        </select>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="rank">Rank</label>

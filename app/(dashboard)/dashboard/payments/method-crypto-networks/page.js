@@ -5,10 +5,11 @@ import { CatalogSelect } from '@/components/CatalogSelect';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
+import { withSelectedRecord } from '@/lib/crypto-catalog';
 import { DataTable } from '@/components/DataTable';
 import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
 
-const emptyState = { paymentMethodId: '', cryptoNetworkId: '', rank: '', active: true };
+const emptyState = { paymentMethodId: '', cryptoNetworkId: '', rank: '', active: false };
 
 const toPayload = (state) => ({
   paymentMethodId: Number(state.paymentMethodId) || 0,
@@ -83,14 +84,14 @@ export default function MethodCryptoNetworksPage() {
       try {
         const [pmRes, netRes] = await Promise.all([
           api.paymentMethods.options(new URLSearchParams({ page: '0', size: '100' })),
-          api.cryptoNetworks.list(new URLSearchParams({ page: '0', size: '100' }))
+          api.cryptoNetworks.options()
         ]);
         const pmList = Array.isArray(pmRes) ? pmRes : pmRes?.content || [];
         const netList = Array.isArray(netRes) ? netRes : netRes?.content || [];
         setMethods(pmList);
         setNetworks(netList);
-      } catch {
-        // ignore silently
+      } catch (err) {
+        setError(err.message || 'Failed to load mapping options.');
       }
     };
     fetchOptions();
@@ -219,9 +220,9 @@ export default function MethodCryptoNetworksPage() {
           onChange={(e) => setDraft((p) => ({ ...p, cryptoNetworkId: e.target.value }))}
         >
           <option value="">Select network</option>
-          {networks.map((n) => (
+          {withSelectedRecord(networks, draft.cryptoNetworkId, selected?.cryptoNetworkName).map((n) => (
             <option key={n.id} value={n.id}>
-              {n.name || n.displayName || n.id}
+              {`${n.name || n.displayName || n.id}${n.active === false ? " · Inactive" : ""}`}
             </option>
           ))}
         </select>

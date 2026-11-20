@@ -1,5 +1,8 @@
 'use client';
 
+import { useCatalogCodes } from '@/lib/use-catalog-codes';
+import { CRYPTO_ASSETS } from '@/lib/crypto-catalog';
+
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
@@ -26,8 +29,6 @@ const DetailGrid = ({ rows }) => (
 );
 
 const FALLBACK_FIAT_CURRENCY_OPTIONS = ['USD', 'CDF', 'KES', 'EUR', 'GBP'];
-const CRYPTO_FROM_CURRENCY_OPTIONS = ['USDC', 'BNB', 'SOL', 'BTC', 'ETH', 'USDT', 'EURC'];
-const TO_CURRENCY_OPTIONS = ['USDC', 'BNB', 'SOL', 'BTC', 'ETH', 'USDT', 'EURC'];
 
 const normalizeList = (response) => {
   if (Array.isArray(response)) return response;
@@ -70,6 +71,7 @@ export default function CryptoQuotesPage() {
   const [warning, setWarning] = useState(null);
   const [currencyProducts, setCurrencyProducts] = useState([]);
   const [currencyProductsError, setCurrencyProductsError] = useState(null);
+  const { options: cryptoCurrencyOptions, error: cryptoProductsError } = useCatalogCodes('cryptoProducts', 'currency', CRYPTO_ASSETS, [toPreset === 'OTHER' ? '' : toPreset]);
 
   const fiatCurrencyOptions = useMemo(() => {
     const activeProductCurrencies = normalizeList(currencyProducts)
@@ -78,10 +80,7 @@ export default function CryptoQuotesPage() {
     return sortCurrencyOptions(activeProductCurrencies.length ? activeProductCurrencies : FALLBACK_FIAT_CURRENCY_OPTIONS);
   }, [currencyProducts]);
 
-  const fromCurrencyOptions = useMemo(
-    () => sortCurrencyOptions([...fiatCurrencyOptions, ...CRYPTO_FROM_CURRENCY_OPTIONS]),
-    [fiatCurrencyOptions]
-  );
+  const fromCurrencyOptions = sortCurrencyOptions([...fiatCurrencyOptions, ...cryptoCurrencyOptions]);
 
   const fiatCurrencySummary = fiatCurrencyOptions.join(', ');
 
@@ -89,7 +88,7 @@ export default function CryptoQuotesPage() {
     const fetchCurrencyProducts = async () => {
       setCurrencyProductsError(null);
       try {
-        const res = await api.currencyProducts.list(new URLSearchParams({ page: '0', size: '500' }));
+        const res = await api.currencyProducts.options();
         setCurrencyProducts(normalizeList(res));
       } catch (err) {
         setCurrencyProductsError(err.message || 'Failed to load currency products.');
@@ -111,6 +110,7 @@ export default function CryptoQuotesPage() {
     }
 
     setLoading(true);
+    setQuote(null);
     setError(null);
     setWarning(null);
     try {
@@ -133,7 +133,7 @@ export default function CryptoQuotesPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <div style={{ fontWeight: 800, fontSize: '20px' }}>Crypto Quotes</div>
           <div style={{ color: 'var(--muted)' }}>
-            Crypto quotes support any active fiat currency with a configured FX rate. Test quotes from {fiatCurrencySummary || 'enabled fiat currencies'} to supported crypto assets such as USDT, USDC, BTC, and ETH.
+            Crypto quotes support any active fiat currency with a configured FX rate. Test quotes from {fiatCurrencySummary || 'enabled fiat currencies'} to catalogue assets. Inactive or unpriced assets may be unavailable. A quote does not enable collection or payout.
           </div>
         </div>
         <Link href="/dashboard/crypto" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
@@ -141,6 +141,7 @@ export default function CryptoQuotesPage() {
         </Link>
       </div>
 
+      {cryptoProductsError && <div className="card" role="alert">{cryptoProductsError} Showing fallback and selected asset codes; custom codes remain available.</div>}
       <div className="card" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '0.75rem', alignItems: 'end' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="fromCurrency">From currency</label>
@@ -162,7 +163,7 @@ export default function CryptoQuotesPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <label htmlFor="toCurrency">To currency</label>
           <select id="toCurrency" value={toPreset} onChange={(e) => setToPreset(e.target.value)}>
-            {TO_CURRENCY_OPTIONS.map((code) => (
+            {cryptoCurrencyOptions.map((code) => (
               <option key={code} value={code}>{code}</option>
             ))}
             <option value="OTHER">Other…</option>

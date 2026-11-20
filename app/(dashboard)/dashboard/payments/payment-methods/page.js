@@ -1,5 +1,8 @@
 'use client';
 
+import { useCatalogCodes } from '@/lib/use-catalog-codes';
+import { CRYPTO_ASSETS } from '@/lib/crypto-catalog';
+
 import { CountrySelect } from '@/components/CountrySelect';
 
 import { PresentationSelect, PresentationLink as Link, RegulatorField } from '@/components/RegulatorPresentation';
@@ -18,7 +21,7 @@ const emptyState = {
   displayName: '',
   logoUrl: '',
   type: '',
-  active: true,
+  active: false,
   allowingCollection: false,
   allowingPayout: false,
   rank: '',
@@ -36,7 +39,7 @@ const emptyState = {
   collectionDisabledMessageFr: ''
 };
 
-const paymentMethodNameOptions = [
+const fallbackPaymentMethodNameOptions = [
   'AFRICELL_DRC',
   'AFRIMONEY_DRC',
   'AIRTIME_TOPUP',
@@ -286,6 +289,7 @@ export default function PaymentMethodsPage() {
   const [showDetail, setShowDetail] = useState(false);
   const [draft, setDraft] = useState(emptyState);
   const [selected, setSelected] = useState(null);
+  const { options: paymentMethodNameOptions } = useCatalogCodes('paymentMethods', 'name', [...fallbackPaymentMethodNameOptions, ...CRYPTO_ASSETS], [draft.name, filters.name]);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [railFlags, setRailFlags] = useState({});
   const [railFlagsLoading, setRailFlagsLoading] = useState({});

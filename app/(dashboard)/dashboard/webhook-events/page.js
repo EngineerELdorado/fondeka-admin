@@ -7,7 +7,7 @@ import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 import { useToast } from '@/contexts/ToastContext';
 
-const PROVIDER_OPTIONS = ['AVADAPAY', 'RELOADLY_AIRTIME', 'UNIPAYMENT', 'BTCPAYSERVER', 'ESIMGO', 'AIRALO', 'SMILEID', 'ARAKAPAY', 'BRIDGECARD'];
+const PROVIDER_OPTIONS = ['AVADAPAY', 'RELOADLY_AIRTIME', 'UNIPAYMENT', 'BTCPAYSERVER', 'ESIMGO', 'AIRALO', 'SMILEID', 'ARAKAPAY', 'BRIDGECARD', 'BITCART'];
 const RETRY_SUPPORTED_PROVIDERS = new Set(['AVADAPAY', 'RELOADLY_AIRTIME', 'UNIPAYMENT', 'BTCPAYSERVER', 'ESIMGO', 'AIRALO', 'SMILEID', 'BRIDGECARD']);
 
 const Modal = ({ title, onClose, children }) => (
@@ -206,7 +206,7 @@ export default function WebhookEventsPage() {
           const isProcessed = Boolean(row.processedAt);
           const provider = row.provider ? String(row.provider).toUpperCase() : '';
           const isSupported = RETRY_SUPPORTED_PROVIDERS.has(provider);
-          const retryDisabledReason = !hasId ? 'Missing webhook ID' : isProcessed ? 'Webhook already processed' : !isSupported ? 'Unsupported provider' : '';
+          const retryDisabledReason = !hasId ? 'Missing webhook ID' : isProcessed ? 'Webhook already processed' : !isSupported ? (provider === 'BITCART' ? 'Use the webhook outbox to queue an invoice recheck' : 'Unsupported provider') : '';
           return (
             <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
               <button
@@ -220,6 +220,7 @@ export default function WebhookEventsPage() {
               >
                 View
               </button>
+              {provider === 'BITCART' && <Link href="/dashboard/outbox?outboxType=webhooks&provider=BITCART&handlerKey=BITCART" className="btn-neutral btn-sm">Invoice rechecks</Link>}
               <button
                 type="button"
                 onClick={() => setRetryTarget(row)}
@@ -470,7 +471,7 @@ export default function WebhookEventsPage() {
           )}
         </div>
         <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-          Retry supported providers: AVADAPAY, RELOADLY_AIRTIME, UNIPAYMENT, BTCPAYSERVER, ESIMGO, AIRALO, SMILEID, BRIDGECARD.
+          Bitcart invoice rechecks are managed in the webhook outbox. Queued or processed jobs do not confirm payment completion. Retry supported providers: AVADAPAY, RELOADLY_AIRTIME, UNIPAYMENT, BTCPAYSERVER, ESIMGO, AIRALO, SMILEID, BRIDGECARD.
         </div>
       </div>
 

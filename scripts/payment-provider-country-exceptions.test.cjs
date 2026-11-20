@@ -40,6 +40,7 @@ async function panel(t, { role = 'ADMIN', current = provider(), listed = current
     remove: async () => { throw new Error('No provider deletion expected'); }
   } };
   const view = await mountComponent(path.join(root, 'app/(dashboard)/dashboard/payments/payment-providers/page.js'), { modules: {
+    '@/lib/use-catalog-codes': { useCatalogCodes: (resource, field, fallback, selected) => ({ options: [...new Set([...fallback, ...selected])] }) },
     '@/lib/api': { api }, '@/lib/payment-provider-policy': h, '@/data/countries': countries, '@/contexts/AuthContext': { useAuth: () => ({ session: { tokens: { accessToken: { payload: { 'cognito:groups': [role] } } } }, enableRegulatorMode: false }) },
     '@/lib/regulator-presentation': { regulatorVisibleFields: (value) => value }, '@/components/RegulatorPresentation': { PresentationLink: 'a' }, '@/components/DataTable': { DataTable: 'data-table' }, '@/components/CountrySelect': { CountrySelect: 'country-select' }
   } }); t.after(() => view.unmount()); await view.flush();
