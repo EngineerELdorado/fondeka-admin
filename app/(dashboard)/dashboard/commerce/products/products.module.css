@@ -1,0 +1,33 @@
+.workspace { min-width: 0; }
+.secondary { color: var(--muted); }
+
+/* These cells intentionally wrap instead of inheriting the shared single-line table layout. */
+.workspace :global(.responsive-table-container[data-layout='table']) > :global(.responsive-table) td .cell {
+  display: grid !important;
+  gap: .3rem;
+  min-width: 0;
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+.product { width: 20rem; max-width: 100%; }
+.store { width: 12rem; max-width: 100%; }
+.workspace :global(.responsive-table-container[data-layout='table']) > :global(.responsive-table) td .cell :global(.table-text) {
+  display: grid;
+  justify-items: start;
+  gap: .3rem;
+  width: 100%;
+  max-width: 100%;
+}
+.workspace :global(.responsive-table-container[data-layout='table']) > :global(.responsive-table) td .cell :global(.table-text__content) {
+  max-width: 100%;
+}
+.workspace :global(.responsive-table-container[data-layout='table']) > :global(.responsive-table) td .cell > *,
+.workspace :global(.responsive-table-container[data-layout='table']) > :global(.responsive-table) td .wrapped {
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+}
+.workspace :global(.responsive-table-container[data-layout='table']) > :global(.responsive-table) td .wrapped {
+  display: block;
+  max-width: 9rem;
+}

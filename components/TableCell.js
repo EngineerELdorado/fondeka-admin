@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ContentModal } from '@/components/ContentModal';
 
-export default function TableText({ value, label = 'Full value', lines = 2, expandable = true }) {
+export default function TableText({ value, label = 'Full value', lines = 2, expandable = true, moreLabel = 'Read more', moreAriaLabel }) {
   const text = value == null || value === '' ? '—' : String(value);
   const content = useRef(null);
   const [overflow, setOverflow] = useState(false);
@@ -21,7 +21,7 @@ export default function TableText({ value, label = 'Full value', lines = 2, expa
   if (!compact) return text;
   return <span className="table-text">
     <span ref={content} className="table-text__content" title={text} style={{ WebkitLineClamp: lines, lineClamp: lines }}>{text}</span>
-    {expandable && overflow ? <button type="button" className="btn-neutral btn-sm table-text__more" aria-haspopup="dialog" aria-label={`Read full ${label}`} onClick={(event) => { event.stopPropagation(); setExpanded({ text, label }); }}>Read more</button> : null}
+    {expandable && overflow ? <button type="button" className="btn-neutral btn-sm table-text__more" aria-haspopup="dialog" aria-label={moreAriaLabel || `Read full ${label}`} onClick={(event) => { event.stopPropagation(); setExpanded({ text, label }); }}>{moreLabel}</button> : null}
     {expanded ? <ContentModal title={expanded.label} onClose={() => setExpanded(null)}><div style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{expanded.text}</div></ContentModal> : null}
   </span>;
 }

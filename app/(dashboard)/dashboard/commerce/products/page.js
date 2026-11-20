@@ -6,6 +6,8 @@ import { DataTable } from '@/components/DataTable';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocale } from '@/contexts/LocaleContext';
 import { api } from '@/lib/api';
+import TableText from '@/components/TableCell';
+import styles from './products.module.css';
 
 const PRODUCT_TYPES = ['PHYSICAL', 'DIGITAL', 'SERVICE', 'TRAINING'];
 
@@ -149,38 +151,44 @@ export default function CommerceProductsPage() {
     }
   };
 
+  const previewText = useCallback((value, label) => <TableText value={value} label={label} lines={2} moreLabel={locale === 'fr' ? 'Voir plus' : 'See more'} moreAriaLabel={locale === 'fr' ? `Voir le texte complet : ${label}` : `See full ${label}`} />, [locale]);
+
   const columns = useMemo(() => [
     { key: 'id', label: 'ID' },
     {
       key: 'name',
       label: locale === 'fr' ? 'Produit' : 'Product',
-      render: (row) => <div><strong>{row.name || `#${row.id}`}</strong><div style={{ color: 'var(--muted)', fontSize: '12px' }}>{row.description || '—'}</div></div>
+      width: '20rem', minWidth: '16rem',
+      render: (row) => <span className={`${styles.cell} ${styles.product}`}>
+        <strong>{previewText(row.name || `#${row.id}`, `${locale === 'fr' ? 'Nom du produit' : 'Product name'} #${row.id}`)}</strong>
+        <small className={styles.secondary}>{previewText(row.description, `${row.name || `#${row.id}`} — Description`)}</small>
+      </span>
     },
-    { key: 'type', label: locale === 'fr' ? 'Type' : 'Type', render: (row) => <span className="table-pagination__meta-badge">{typeLabel(row.type)}</span> },
-    { key: 'store', label: locale === 'fr' ? 'Boutique' : 'Store', render: (row) => <div>{row.storeName || row.storeSlug || row.storeId || '—'}{row.storeSlug ? <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{row.storeSlug}</div> : null}</div> },
+    { key: 'type', label: locale === 'fr' ? 'Type' : 'Type', width: '6rem', render: (row) => <span className="table-pagination__meta-badge">{typeLabel(row.type)}</span> },
+    { key: 'store', label: locale === 'fr' ? 'Boutique' : 'Store', width: '12rem', minWidth: '10rem', render: (row) => <span className={`${styles.cell} ${styles.store}`}>{previewText(row.storeName || row.storeSlug || row.storeId, locale === 'fr' ? 'Boutique' : 'Store')}{row.storeName && row.storeSlug ? <small className={styles.secondary}>{previewText(row.storeSlug, locale === 'fr' ? 'Identifiant de la boutique' : 'Store slug')}</small> : null}</span> },
     { key: 'price', label: locale === 'fr' ? 'Prix' : 'Price', render: (row) => formatMoney(row.priceAmount, row.priceCurrency, locale) },
-    { key: 'status', label: locale === 'fr' ? 'Statut' : 'Status', render: (row) => formatEnum(row.status) },
+    { key: 'status', label: locale === 'fr' ? 'Statut' : 'Status', width: '8rem', render: (row) => formatEnum(row.status) },
     {
       key: 'inventory',
       label: locale === 'fr' ? 'Accès / stock' : 'Access / stock',
-      render: (row) => String(row.type).toUpperCase() === 'TRAINING'
+      render: (row) => <span className={styles.wrapped}>{String(row.type).toUpperCase() === 'TRAINING'
         ? (locale === 'fr' ? 'Accès numérique illimité' : 'Unlimited digital access')
-        : row.inventoryPolicy === 'UNLIMITED' ? (locale === 'fr' ? 'Illimité' : 'Unlimited') : (row.inventoryQuantity ?? '—')
+        : row.inventoryPolicy === 'UNLIMITED' ? (locale === 'fr' ? 'Illimité' : 'Unlimited') : (row.inventoryQuantity ?? '—')}</span>
     },
-    { key: 'shipping', label: locale === 'fr' ? 'Livraison' : 'Shipping', render: (row) => row.requiresShipping ? (locale === 'fr' ? 'Requise' : 'Required') : (locale === 'fr' ? 'Non requise' : 'Not required') },
-    { key: 'marketplace', label: 'Marketplace', render: (row) => <div style={{ display: 'grid', gap: '0.2rem' }}><span>{row.marketplaceEnabled ? (locale === 'fr' ? 'Activé' : 'Enabled') : (locale === 'fr' ? 'Désactivé' : 'Disabled')}</span><span style={{ color: 'var(--muted)', fontSize: '12px' }}>{row.marketplaceApproved ? (locale === 'fr' ? 'Approuvé' : 'Approved') : (locale === 'fr' ? 'Non approuvé' : 'Not approved')}</span></div> },
+    { key: 'shipping', label: locale === 'fr' ? 'Livraison' : 'Shipping', width: '8rem', render: (row) => <span className={styles.wrapped}>{row.requiresShipping ? (locale === 'fr' ? 'Requise' : 'Required') : (locale === 'fr' ? 'Non requise' : 'Not required')}</span> },
+    { key: 'marketplace', label: 'Marketplace', render: (row) => <span className={styles.cell}><span>{row.marketplaceEnabled ? (locale === 'fr' ? 'Activé' : 'Enabled') : (locale === 'fr' ? 'Désactivé' : 'Disabled')}</span><small className={styles.secondary}>{row.marketplaceApproved ? (locale === 'fr' ? 'Approuvé' : 'Approved') : (locale === 'fr' ? 'Non approuvé' : 'Not approved')}</small></span> },
     { key: 'updatedAt', label: locale === 'fr' ? 'Mis à jour' : 'Updated', render: (row) => formatDateTime(row.updatedAt, locale) },
     {
       key: 'actions',
       label: '',
       render: (row) => canModerate ? <button type="button" className="btn-neutral btn-sm" onClick={() => openMarketplace(row)}>{locale === 'fr' ? 'Modérer' : 'Moderate'}</button> : '—'
     }
-  ], [canModerate, locale, typeLabel]);
+  ], [canModerate, locale, typeLabel, previewText]);
 
   const canNext = pageMeta.totalPages === null ? products.length === size && products.length > 0 : page + 1 < pageMeta.totalPages;
 
   return (
-    <div style={{ display: 'grid', gap: '1rem' }}>
+    <div className={styles.workspace} style={{ display: 'grid', gap: '1rem' }}>
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <div>
           <h1 style={{ margin: 0 }}>{locale === 'fr' ? 'Produits commerce' : 'Commerce products'}</h1>
