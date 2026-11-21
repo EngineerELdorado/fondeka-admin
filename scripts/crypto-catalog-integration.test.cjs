@@ -95,6 +95,16 @@ for (const route of ['crypto/payment-method-networks', 'payments/method-crypto-n
   await view.click('Save'); assert.deepEqual(writes[0], { paymentMethodId: 55, cryptoNetworkId: 97, rank: 0, active: false });
 });
 
+test('an enabled catalogue mapping stays enabled when its product/network lookups have independent disabled flags', async (t) => {
+  const row = { id: 80, cryptoProductId: 40, cryptoProductName: 'TRX', cryptoNetworkId: 60, cryptoNetworkName: 'TRC20', rank: 3, active: true, dailyBuyLimitUsd: 0 }, writes = [];
+  const view = await mountPage('crypto/product-networks', {
+    cryptoProductCryptoNetworks: { list: async () => [row], update: async (id, body) => writes.push(body) },
+    cryptoProducts: { options: async () => [{ id: 40, currency: 'TRX', active: false }] }, cryptoNetworks: { options: async () => [{ id: 60, name: 'TRC20', active: false, invoiceCreationEnabled: false }] }
+  }); t.after(() => view.unmount());
+  assert.equal(writes.length, 0); await rowAction(view, row, 'Edit'); assert.equal(control(view, 'active').checked, true);
+  await view.click('Save'); assert.equal(writes[0].active, true); assert.equal(writes[0].rank, 3); assert.equal(writes[0].dailyBuyLimitUsd, 0);
+});
+
 test('quotes merge backend assets with fallback codes, accept custom codes and expose unavailable-price errors', async (t) => {
   const requests = [];
   const view = await mountPage('crypto/quotes', {

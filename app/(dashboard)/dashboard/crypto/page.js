@@ -8,6 +8,7 @@ const sections = [
   { href: '/dashboard/crypto/product-networks', title: 'Product ↔ Network', blurb: 'Map products to networks with rank.' },
   { href: '/dashboard/crypto/quotes', title: 'Crypto Quotes', blurb: 'Get live quotes for crypto transfers.' },
   { href: '/dashboard/crypto/wallets', title: 'Crypto Wallets', blurb: 'Wallets by account and product/network.' },
+  { href: '/dashboard/crypto/provider-wallets', title: 'Collection Wallets', blurb: 'Configure Bitcart receiving wallets and merchant stores.' },
   { href: '/dashboard/crypto/invoices', title: 'Crypto Invoices', blurb: 'Invoice addresses, expected amounts and status.' },
   { href: '/dashboard/crypto/payment-method-networks', title: 'Payment Method ↔ Crypto Network', blurb: 'Map payment methods to crypto networks.' },
   { href: '/dashboard/crypto/price-history', title: 'Price History', blurb: 'Browse captured crypto prices.' }
@@ -19,6 +20,7 @@ export default function CryptoHubPage() {
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
         <div style={{ fontSize: '20px', fontWeight: 800 }}>Crypto</div>
         <div style={{ color: 'var(--muted)' }}>Pick a crypto area to manage with focused UIs.</div>
+        <div style={{ color: 'var(--muted)' }}>Customer wallets require an active product, network and product/network mapping. Invoice creation, payment-method permissions and provider routes are separate controls.</div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '1rem' }}>
         {sections.map((item) => (

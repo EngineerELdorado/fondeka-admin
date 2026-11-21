@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-20T22:11:47.397Z",
+  "generatedAt": "2026-11-21T13:37:53.850Z",
   "domains": [
     {
       "key": "adminaccountcontroller",
@@ -1745,7 +1745,7 @@
           "path": "/payout-refund-audits",
           "label": "start",
           "hasBody": true,
-          "sampleBody": "{\n  \"from\": \"2026-11-20T22:11:47.385Z\",\n  \"to\": \"2026-11-20T22:11:47.385Z\",\n  \"accountId\": 0,\n  \"label\": \"\"\n}",
+          "sampleBody": "{\n  \"from\": \"2026-11-21T13:37:53.839Z\",\n  \"to\": \"2026-11-21T13:37:53.839Z\",\n  \"accountId\": 0,\n  \"label\": \"\"\n}",
           "queryParams": [],
           "pathParams": []
         },
@@ -2361,7 +2361,7 @@
           "path": "/service-fee-configs",
           "label": "create_6",
           "hasBody": true,
-          "sampleBody": "{\n  \"createdAt\": \"2026-11-20T22:11:47.383Z\",\n  \"updatedAt\": \"2026-11-20T22:11:47.383Z\",\n  \"id\": 0,\n  \"service\": \"WALLET\",\n  \"action\": \"FUND_WALLET\",\n  \"productType\": \"\",\n  \"productKey\": \"\",\n  \"active\": false,\n  \"percentage\": 0,\n  \"flatAmount\": 0,\n  \"minimumAmount\": 0,\n  \"maximumAmount\": 0,\n  \"costPercentage\": 0,\n  \"costFlatAmount\": 0,\n  \"costMinimumAmount\": 0\n}",
+          "sampleBody": "{\n  \"createdAt\": \"2026-11-21T13:37:53.837Z\",\n  \"updatedAt\": \"2026-11-21T13:37:53.837Z\",\n  \"id\": 0,\n  \"service\": \"WALLET\",\n  \"action\": \"FUND_WALLET\",\n  \"productType\": \"\",\n  \"productKey\": \"\",\n  \"active\": false,\n  \"percentage\": 0,\n  \"flatAmount\": 0,\n  \"minimumAmount\": 0,\n  \"maximumAmount\": 0,\n  \"costPercentage\": 0,\n  \"costFlatAmount\": 0,\n  \"costMinimumAmount\": 0\n}",
           "queryParams": [],
           "pathParams": []
         },
@@ -2393,7 +2393,7 @@
           "path": "/service-fee-configs/{id}",
           "label": "update_8",
           "hasBody": true,
-          "sampleBody": "{\n  \"createdAt\": \"2026-11-20T22:11:47.379Z\",\n  \"updatedAt\": \"2026-11-20T22:11:47.379Z\",\n  \"id\": 0,\n  \"service\": \"WALLET\",\n  \"action\": \"FUND_WALLET\",\n  \"productType\": \"\",\n  \"productKey\": \"\",\n  \"active\": false,\n  \"percentage\": 0,\n  \"flatAmount\": 0,\n  \"minimumAmount\": 0,\n  \"maximumAmount\": 0,\n  \"costPercentage\": 0,\n  \"costFlatAmount\": 0,\n  \"costMinimumAmount\": 0\n}",
+          "sampleBody": "{\n  \"createdAt\": \"2026-11-21T13:37:53.835Z\",\n  \"updatedAt\": \"2026-11-21T13:37:53.835Z\",\n  \"id\": 0,\n  \"service\": \"WALLET\",\n  \"action\": \"FUND_WALLET\",\n  \"productType\": \"\",\n  \"productKey\": \"\",\n  \"active\": false,\n  \"percentage\": 0,\n  \"flatAmount\": 0,\n  \"minimumAmount\": 0,\n  \"maximumAmount\": 0,\n  \"costPercentage\": 0,\n  \"costFlatAmount\": 0,\n  \"costMinimumAmount\": 0\n}",
           "queryParams": [],
           "pathParams": [
             "id"
@@ -2563,7 +2563,7 @@
           "path": "/announcements",
           "label": "create_73",
           "hasBody": true,
-          "sampleBody": "{\n  \"title\": \"\",\n  \"body\": \"\",\n  \"link\": \"\",\n  \"image\": \"\",\n  \"severity\": \"INFO\",\n  \"downloadUpdate\": false,\n  \"active\": false,\n  \"startAt\": \"2026-11-20T22:11:47.386Z\",\n  \"endAt\": \"2026-11-20T22:11:47.386Z\",\n  \"audience\": {\n    \"countryIds\": null,\n    \"countryCodes\": null,\n    \"deviceLanguages\": null,\n    \"kycStatuses\": null,\n    \"hasCryptoWallets\": null,\n    \"hasSavings\": null,\n    \"hasGroupSavings\": null,\n    \"hasCards\": null,\n    \"hasLoans\": null,\n    \"hasEsims\": null,\n    \"hasPaymentRequests\": null,\n    \"isReseller\": null,\n    \"hasStores\": null,\n    \"hasPos\": null,\n    \"hasApi\": null\n  },\n  \"appVersionAtLeast\": \"\",\n  \"appVersionLessThan\": \"\",\n  \"includeMissingAppVersion\": false,\n  \"targetAccountId\": 0,\n  \"titleFr\": \"\"\n}",
+          "sampleBody": "{\n  \"title\": \"\",\n  \"body\": \"\",\n  \"link\": \"\",\n  \"image\": \"\",\n  \"severity\": \"INFO\",\n  \"downloadUpdate\": false,\n  \"active\": false,\n  \"startAt\": \"2026-11-21T13:37:53.840Z\",\n  \"endAt\": \"2026-11-21T13:37:53.840Z\",\n  \"audience\": {\n    \"countryIds\": null,\n    \"countryCodes\": null,\n    \"deviceLanguages\": null,\n    \"kycStatuses\": null,\n    \"hasCryptoWallets\": null,\n    \"hasSavings\": null,\n    \"hasGroupSavings\": null,\n    \"hasCards\": null,\n    \"hasLoans\": null,\n    \"hasEsims\": null,\n    \"hasPaymentRequests\": null,\n    \"isReseller\": null,\n    \"hasStores\": null,\n    \"hasPos\": null,\n    \"hasApi\": null\n  },\n  \"appVersionAtLeast\": \"\",\n  \"appVersionLessThan\": \"\",\n  \"includeMissingAppVersion\": false,\n  \"targetAccountId\": 0,\n  \"titleFr\": \"\"\n}",
           "queryParams": [],
           "pathParams": []
         },
@@ -2595,7 +2595,7 @@
           "path": "/announcements/{id}",
           "label": "update_88",
           "hasBody": true,
-          "sampleBody": "{\n  \"title\": \"\",\n  \"body\": \"\",\n  \"link\": \"\",\n  \"image\": \"\",\n  \"severity\": \"INFO\",\n  \"downloadUpdate\": false,\n  \"active\": false,\n  \"startAt\": \"2026-11-20T22:11:47.383Z\",\n  \"endAt\": \"2026-11-20T22:11:47.383Z\",\n  \"audience\": {\n    \"countryIds\": null,\n    \"countryCodes\": null,\n    \"deviceLanguages\": null,\n    \"kycStatuses\": null,\n    \"hasCryptoWallets\": null,\n    \"hasSavings\": null,\n    \"hasGroupSavings\": null,\n    \"hasCards\": null,\n    \"hasLoans\": null,\n    \"hasEsims\": null,\n    \"hasPaymentRequests\": null,\n    \"isReseller\": null,\n    \"hasStores\": null,\n    \"hasPos\": null,\n    \"hasApi\": null\n  },\n  \"appVersionAtLeast\": \"\",\n  \"appVersionLessThan\": \"\",\n  \"includeMissingAppVersion\": false,\n  \"targetAccountId\": 0,\n  \"titleFr\": \"\"\n}",
+          "sampleBody": "{\n  \"title\": \"\",\n  \"body\": \"\",\n  \"link\": \"\",\n  \"image\": \"\",\n  \"severity\": \"INFO\",\n  \"downloadUpdate\": false,\n  \"active\": false,\n  \"startAt\": \"2026-11-21T13:37:53.837Z\",\n  \"endAt\": \"2026-11-21T13:37:53.837Z\",\n  \"audience\": {\n    \"countryIds\": null,\n    \"countryCodes\": null,\n    \"deviceLanguages\": null,\n    \"kycStatuses\": null,\n    \"hasCryptoWallets\": null,\n    \"hasSavings\": null,\n    \"hasGroupSavings\": null,\n    \"hasCards\": null,\n    \"hasLoans\": null,\n    \"hasEsims\": null,\n    \"hasPaymentRequests\": null,\n    \"isReseller\": null,\n    \"hasStores\": null,\n    \"hasPos\": null,\n    \"hasApi\": null\n  },\n  \"appVersionAtLeast\": \"\",\n  \"appVersionLessThan\": \"\",\n  \"includeMissingAppVersion\": false,\n  \"targetAccountId\": 0,\n  \"titleFr\": \"\"\n}",
           "queryParams": [],
           "pathParams": [
             "id"
@@ -3429,7 +3429,7 @@
           "path": "/business-tools/accounts/{accountId}/grant",
           "label": "grant",
           "hasBody": true,
-          "sampleBody": "{\n  \"planCode\": \"\",\n  \"validUntil\": \"2026-11-20T22:11:47.386Z\",\n  \"reason\": \"\"\n}",
+          "sampleBody": "{\n  \"planCode\": \"\",\n  \"validUntil\": \"2026-11-21T13:37:53.840Z\",\n  \"reason\": \"\"\n}",
           "queryParams": [],
           "pathParams": [
             "accountId"
@@ -3517,7 +3517,7 @@
           "path": "/business-tools/accounts/tools/{tool}/grant",
           "label": "grantBySelector",
           "hasBody": true,
-          "sampleBody": "{\n  \"planCode\": \"\",\n  \"validUntil\": \"2026-11-20T22:11:47.386Z\",\n  \"reason\": \"\"\n}",
+          "sampleBody": "{\n  \"planCode\": \"\",\n  \"validUntil\": \"2026-11-21T13:37:53.840Z\",\n  \"reason\": \"\"\n}",
           "queryParams": [
             "accountId",
             "email"
@@ -5726,6 +5726,58 @@
       ]
     },
     {
+      "key": "admincryptoproviderwalletconfigcontroller",
+      "tag": "AdminCryptoProviderWalletConfigController",
+      "label": "Crypto Provider Wallet Config",
+      "operations": [
+        {
+          "key": "get-crypto-provider-wallet-configs",
+          "method": "GET",
+          "path": "/crypto-provider-wallet-configs",
+          "label": "listCryptoProviderWalletConfigs",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-crypto-provider-wallet-configs",
+          "method": "POST",
+          "path": "/crypto-provider-wallet-configs",
+          "label": "createCryptoProviderWalletConfig",
+          "hasBody": true,
+          "sampleBody": "{\n  \"providerName\": \"FONDEKA\",\n  \"productNetworkId\": 0,\n  \"version\": 0,\n  \"walletId\": \"\",\n  \"storeId\": \"\",\n  \"providerCoin\": \"\",\n  \"providerSymbol\": \"\",\n  \"tokenContract\": \"\",\n  \"chainNetwork\": \"\",\n  \"minimumConfirmations\": 0,\n  \"active\": false\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "get-crypto-provider-wallet-configs-id",
+          "method": "GET",
+          "path": "/crypto-provider-wallet-configs/{id}",
+          "label": "getCryptoProviderWalletConfig",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-crypto-provider-wallet-configs-id",
+          "method": "PUT",
+          "path": "/crypto-provider-wallet-configs/{id}",
+          "label": "updateCryptoProviderWalletConfig",
+          "hasBody": true,
+          "sampleBody": "{\n  \"providerName\": \"FONDEKA\",\n  \"productNetworkId\": 0,\n  \"version\": 0,\n  \"walletId\": \"\",\n  \"storeId\": \"\",\n  \"providerCoin\": \"\",\n  \"providerSymbol\": \"\",\n  \"tokenContract\": \"\",\n  \"chainNetwork\": \"\",\n  \"minimumConfirmations\": 0,\n  \"active\": false\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
       "key": "admincryptoquotecontroller",
       "tag": "AdminCryptoQuoteController",
       "label": "Crypto Quote",
@@ -7460,7 +7512,7 @@
           "path": "/group-savings/{id}/members/{memberId}/governance",
           "label": "updateMemberGovernance",
           "hasBody": true,
-          "sampleBody": "{\n  \"votingRestricted\": false,\n  \"votingRestrictedUntil\": \"2026-11-20T22:11:47.382Z\",\n  \"votingRestrictionReason\": \"\",\n  \"borrowingRestricted\": false,\n  \"borrowingRestrictedUntil\": \"2026-11-20T22:11:47.382Z\",\n  \"borrowingRestrictionReason\": \"\"\n}",
+          "sampleBody": "{\n  \"votingRestricted\": false,\n  \"votingRestrictedUntil\": \"2026-11-21T13:37:53.836Z\",\n  \"votingRestrictionReason\": \"\",\n  \"borrowingRestricted\": false,\n  \"borrowingRestrictedUntil\": \"2026-11-21T13:37:53.836Z\",\n  \"borrowingRestrictionReason\": \"\"\n}",
           "queryParams": [],
           "pathParams": [
             "id",
@@ -8241,7 +8293,7 @@
           "path": "/kyc-jobs",
           "label": "create_38",
           "hasBody": true,
-          "sampleBody": "{\n  \"internalReference\": \"\",\n  \"externalReference\": \"\",\n  \"country\": \"\",\n  \"idType\": \"\",\n  \"status\": \"\",\n  \"vendorStatus\": \"\",\n  \"vendorCode\": \"\",\n  \"submittedAt\": \"2026-11-20T22:11:47.385Z\",\n  \"kycId\": 0\n}",
+          "sampleBody": "{\n  \"internalReference\": \"\",\n  \"externalReference\": \"\",\n  \"country\": \"\",\n  \"idType\": \"\",\n  \"status\": \"\",\n  \"vendorStatus\": \"\",\n  \"vendorCode\": \"\",\n  \"submittedAt\": \"2026-11-21T13:37:53.839Z\",\n  \"kycId\": 0\n}",
           "queryParams": [],
           "pathParams": []
         },
@@ -8273,7 +8325,7 @@
           "path": "/kyc-jobs/{id}",
           "label": "update_50",
           "hasBody": true,
-          "sampleBody": "{\n  \"internalReference\": \"\",\n  \"externalReference\": \"\",\n  \"country\": \"\",\n  \"idType\": \"\",\n  \"status\": \"\",\n  \"vendorStatus\": \"\",\n  \"vendorCode\": \"\",\n  \"submittedAt\": \"2026-11-20T22:11:47.381Z\",\n  \"kycId\": 0\n}",
+          "sampleBody": "{\n  \"internalReference\": \"\",\n  \"externalReference\": \"\",\n  \"country\": \"\",\n  \"idType\": \"\",\n  \"status\": \"\",\n  \"vendorStatus\": \"\",\n  \"vendorCode\": \"\",\n  \"submittedAt\": \"2026-11-21T13:37:53.836Z\",\n  \"kycId\": 0\n}",
           "queryParams": [],
           "pathParams": [
             "id"
@@ -8429,7 +8481,7 @@
           "path": "/admin-loan-decisions",
           "label": "create_76",
           "hasBody": true,
-          "sampleBody": "{\n  \"loanId\": 0,\n  \"adminId\": 0,\n  \"adminDecidedAt\": \"2026-11-20T22:11:47.386Z\",\n  \"adminDecisionComments\": \"\"\n}",
+          "sampleBody": "{\n  \"loanId\": 0,\n  \"adminId\": 0,\n  \"adminDecidedAt\": \"2026-11-21T13:37:53.840Z\",\n  \"adminDecisionComments\": \"\"\n}",
           "queryParams": [],
           "pathParams": []
         },
@@ -8461,7 +8513,7 @@
           "path": "/admin-loan-decisions/{id}",
           "label": "update_91",
           "hasBody": true,
-          "sampleBody": "{\n  \"loanId\": 0,\n  \"adminId\": 0,\n  \"adminDecidedAt\": \"2026-11-20T22:11:47.383Z\",\n  \"adminDecisionComments\": \"\"\n}",
+          "sampleBody": "{\n  \"loanId\": 0,\n  \"adminId\": 0,\n  \"adminDecidedAt\": \"2026-11-21T13:37:53.837Z\",\n  \"adminDecisionComments\": \"\"\n}",
           "queryParams": [],
           "pathParams": [
             "id"
@@ -8572,7 +8624,7 @@
           "path": "/loan-installments",
           "label": "create_33",
           "hasBody": true,
-          "sampleBody": "{\n  \"dueAt\": \"2026-11-20T22:11:47.385Z\",\n  \"amount\": 0,\n  \"fineAmount\": 0,\n  \"repaymentStatus\": \"NONE\",\n  \"loanId\": 0\n}",
+          "sampleBody": "{\n  \"dueAt\": \"2026-11-21T13:37:53.839Z\",\n  \"amount\": 0,\n  \"fineAmount\": 0,\n  \"repaymentStatus\": \"NONE\",\n  \"loanId\": 0\n}",
           "queryParams": [],
           "pathParams": []
         },
@@ -8604,7 +8656,7 @@
           "path": "/loan-installments/{id}",
           "label": "update_44",
           "hasBody": true,
-          "sampleBody": "{\n  \"dueAt\": \"2026-11-20T22:11:47.381Z\",\n  \"amount\": 0,\n  \"fineAmount\": 0,\n  \"repaymentStatus\": \"NONE\",\n  \"loanId\": 0\n}",
+          "sampleBody": "{\n  \"dueAt\": \"2026-11-21T13:37:53.836Z\",\n  \"amount\": 0,\n  \"fineAmount\": 0,\n  \"repaymentStatus\": \"NONE\",\n  \"loanId\": 0\n}",
           "queryParams": [],
           "pathParams": [
             "id"
@@ -9871,7 +9923,7 @@
           "path": "/payout-failover/policy/activation",
           "label": "activation_1",
           "hasBody": true,
-          "sampleBody": "{\n  \"expectedRevision\": 0,\n  \"enabled\": false,\n  \"createdAfter\": \"2026-11-20T22:11:47.386Z\",\n  \"reason\": \"\"\n}",
+          "sampleBody": "{\n  \"expectedRevision\": 0,\n  \"enabled\": false,\n  \"createdAfter\": \"2026-11-21T13:37:53.840Z\",\n  \"reason\": \"\"\n}",
           "queryParams": [],
           "pathParams": []
         },
@@ -10346,7 +10398,7 @@
           "path": "/recharge-failover/policy/activation",
           "label": "activation",
           "hasBody": true,
-          "sampleBody": "{\n  \"expectedRevision\": 0,\n  \"enabled\": false,\n  \"createdAfter\": \"2026-11-20T22:11:47.386Z\",\n  \"reason\": \"\"\n}",
+          "sampleBody": "{\n  \"expectedRevision\": 0,\n  \"enabled\": false,\n  \"createdAfter\": \"2026-11-21T13:37:53.840Z\",\n  \"reason\": \"\"\n}",
           "queryParams": [],
           "pathParams": []
         },
@@ -10621,7 +10673,7 @@
           "path": "/referral-campaigns",
           "label": "create_12",
           "hasBody": true,
-          "sampleBody": "{\n  \"name\": \"\",\n  \"description\": \"\",\n  \"startsAt\": \"2026-11-20T22:11:47.385Z\",\n  \"endsAt\": \"2026-11-20T22:11:47.385Z\",\n  \"targetActions\": 0,\n  \"baseRewardPoints\": 0,\n  \"activationRewardPoints\": 0,\n  \"passportBonusPoints\": 0,\n  \"markSuspiciousAsPending\": false,\n  \"settleRewardsToWallet\": false,\n  \"eligibilityRules\": {},\n  \"milestoneRules\": {},\n  \"referralPrompt\": {\n    \"enabled\": null,\n    \"campaignId\": null,\n    \"titleEn\": null,\n    \"titleFr\": null,\n    \"messageEn\": null,\n    \"messageFr\": null,\n    \"targetAccountIds\": null,\n    \"audience\": null\n  }\n}",
+          "sampleBody": "{\n  \"name\": \"\",\n  \"description\": \"\",\n  \"startsAt\": \"2026-11-21T13:37:53.839Z\",\n  \"endsAt\": \"2026-11-21T13:37:53.839Z\",\n  \"targetActions\": 0,\n  \"baseRewardPoints\": 0,\n  \"activationRewardPoints\": 0,\n  \"passportBonusPoints\": 0,\n  \"markSuspiciousAsPending\": false,\n  \"settleRewardsToWallet\": false,\n  \"eligibilityRules\": {},\n  \"milestoneRules\": {},\n  \"referralPrompt\": {\n    \"enabled\": null,\n    \"campaignId\": null,\n    \"titleEn\": null,\n    \"titleFr\": null,\n    \"messageEn\": null,\n    \"messageFr\": null,\n    \"targetAccountIds\": null,\n    \"audience\": null\n  }\n}",
           "queryParams": [],
           "pathParams": []
         },
@@ -10642,7 +10694,7 @@
           "path": "/referral-campaigns/{id}",
           "label": "update_16",
           "hasBody": true,
-          "sampleBody": "{\n  \"name\": \"\",\n  \"description\": \"\",\n  \"startsAt\": \"2026-11-20T22:11:47.380Z\",\n  \"endsAt\": \"2026-11-20T22:11:47.380Z\",\n  \"targetActions\": 0,\n  \"baseRewardPoints\": 0,\n  \"activationRewardPoints\": 0,\n  \"passportBonusPoints\": 0,\n  \"markSuspiciousAsPending\": false,\n  \"settleRewardsToWallet\": false,\n  \"eligibilityRules\": {},\n  \"milestoneRules\": {},\n  \"referralPrompt\": {\n    \"enabled\": null,\n    \"campaignId\": null,\n    \"titleEn\": null,\n    \"titleFr\": null,\n    \"messageEn\": null,\n    \"messageFr\": null,\n    \"targetAccountIds\": null,\n    \"audience\": null\n  }\n}",
+          "sampleBody": "{\n  \"name\": \"\",\n  \"description\": \"\",\n  \"startsAt\": \"2026-11-21T13:37:53.835Z\",\n  \"endsAt\": \"2026-11-21T13:37:53.835Z\",\n  \"targetActions\": 0,\n  \"baseRewardPoints\": 0,\n  \"activationRewardPoints\": 0,\n  \"passportBonusPoints\": 0,\n  \"markSuspiciousAsPending\": false,\n  \"settleRewardsToWallet\": false,\n  \"eligibilityRules\": {},\n  \"milestoneRules\": {},\n  \"referralPrompt\": {\n    \"enabled\": null,\n    \"campaignId\": null,\n    \"titleEn\": null,\n    \"titleFr\": null,\n    \"messageEn\": null,\n    \"messageFr\": null,\n    \"targetAccountIds\": null,\n    \"audience\": null\n  }\n}",
           "queryParams": [],
           "pathParams": [
             "id"
@@ -11131,7 +11183,7 @@
           "path": "/savings",
           "label": "create_7",
           "hasBody": true,
-          "sampleBody": "{\n  \"name\": \"\",\n  \"description\": \"\",\n  \"internalReference\": \"\",\n  \"startsAt\": \"2026-11-20T22:11:47.383Z\",\n  \"endsAt\": \"2026-11-20T22:11:47.383Z\",\n  \"withdrawnAt\": \"2026-11-20T22:11:47.383Z\",\n  \"earlyWithdrawalApproved\": false,\n  \"deleted\": false,\n  \"status\": \"INACTIVE\",\n  \"accountId\": 0,\n  \"savingProductId\": 0\n}",
+          "sampleBody": "{\n  \"name\": \"\",\n  \"description\": \"\",\n  \"internalReference\": \"\",\n  \"startsAt\": \"2026-11-21T13:37:53.837Z\",\n  \"endsAt\": \"2026-11-21T13:37:53.837Z\",\n  \"withdrawnAt\": \"2026-11-21T13:37:53.837Z\",\n  \"earlyWithdrawalApproved\": false,\n  \"deleted\": false,\n  \"status\": \"INACTIVE\",\n  \"accountId\": 0,\n  \"savingProductId\": 0\n}",
           "queryParams": [],
           "pathParams": []
         },
@@ -11163,7 +11215,7 @@
           "path": "/savings/{id}",
           "label": "update_9",
           "hasBody": true,
-          "sampleBody": "{\n  \"name\": \"\",\n  \"description\": \"\",\n  \"internalReference\": \"\",\n  \"startsAt\": \"2026-11-20T22:11:47.380Z\",\n  \"endsAt\": \"2026-11-20T22:11:47.380Z\",\n  \"withdrawnAt\": \"2026-11-20T22:11:47.380Z\",\n  \"earlyWithdrawalApproved\": false,\n  \"deleted\": false,\n  \"status\": \"INACTIVE\",\n  \"accountId\": 0,\n  \"savingProductId\": 0\n}",
+          "sampleBody": "{\n  \"name\": \"\",\n  \"description\": \"\",\n  \"internalReference\": \"\",\n  \"startsAt\": \"2026-11-21T13:37:53.835Z\",\n  \"endsAt\": \"2026-11-21T13:37:53.835Z\",\n  \"withdrawnAt\": \"2026-11-21T13:37:53.835Z\",\n  \"earlyWithdrawalApproved\": false,\n  \"deleted\": false,\n  \"status\": \"INACTIVE\",\n  \"accountId\": 0,\n  \"savingProductId\": 0\n}",
           "queryParams": [],
           "pathParams": [
             "id"
@@ -11189,7 +11241,7 @@
           "path": "/savings/{id}/approve-early-withdrawal",
           "label": "approveEarlyWithdrawal",
           "hasBody": true,
-          "sampleBody": "{\n  \"reason\": \"\",\n  \"note\": \"\",\n  \"withdrawnAt\": \"2026-11-20T22:11:47.383Z\"\n}",
+          "sampleBody": "{\n  \"reason\": \"\",\n  \"note\": \"\",\n  \"withdrawnAt\": \"2026-11-21T13:37:53.839Z\"\n}",
           "queryParams": [],
           "pathParams": [
             "id"
@@ -11201,7 +11253,7 @@
           "path": "/savings/{id}/force-close",
           "label": "forceClose",
           "hasBody": true,
-          "sampleBody": "{\n  \"reason\": \"\",\n  \"note\": \"\",\n  \"withdrawnAt\": \"2026-11-20T22:11:47.383Z\"\n}",
+          "sampleBody": "{\n  \"reason\": \"\",\n  \"note\": \"\",\n  \"withdrawnAt\": \"2026-11-21T13:37:53.837Z\"\n}",
           "queryParams": [],
           "pathParams": [
             "id"
@@ -11213,7 +11265,7 @@
           "path": "/savings/{id}/reopen",
           "label": "reopen",
           "hasBody": true,
-          "sampleBody": "{\n  \"reason\": \"\",\n  \"note\": \"\",\n  \"withdrawnAt\": \"2026-11-20T22:11:47.383Z\"\n}",
+          "sampleBody": "{\n  \"reason\": \"\",\n  \"note\": \"\",\n  \"withdrawnAt\": \"2026-11-21T13:37:53.837Z\"\n}",
           "queryParams": [],
           "pathParams": [
             "id"
@@ -11225,7 +11277,7 @@
           "path": "/savings/{id}/revoke-early-withdrawal",
           "label": "revokeEarlyWithdrawal",
           "hasBody": true,
-          "sampleBody": "{\n  \"reason\": \"\",\n  \"note\": \"\",\n  \"withdrawnAt\": \"2026-11-20T22:11:47.383Z\"\n}",
+          "sampleBody": "{\n  \"reason\": \"\",\n  \"note\": \"\",\n  \"withdrawnAt\": \"2026-11-21T13:37:53.837Z\"\n}",
           "queryParams": [],
           "pathParams": [
             "id"
@@ -12227,7 +12279,7 @@
           "path": "/webhook-events",
           "label": "create_1",
           "hasBody": true,
-          "sampleBody": "{\n  \"hash\": \"\",\n  \"provider\": \"\",\n  \"eventType\": \"\",\n  \"payload\": \"\",\n  \"lastError\": \"\",\n  \"retries\": 0,\n  \"processedAt\": \"2026-11-20T22:11:47.383Z\",\n  \"transactionId\": 0\n}",
+          "sampleBody": "{\n  \"hash\": \"\",\n  \"provider\": \"\",\n  \"eventType\": \"\",\n  \"payload\": \"\",\n  \"lastError\": \"\",\n  \"retries\": 0,\n  \"processedAt\": \"2026-11-21T13:37:53.837Z\",\n  \"transactionId\": 0\n}",
           "queryParams": [],
           "pathParams": []
         },
@@ -12259,7 +12311,7 @@
           "path": "/webhook-events/{id}",
           "label": "update_2",
           "hasBody": true,
-          "sampleBody": "{\n  \"hash\": \"\",\n  \"provider\": \"\",\n  \"eventType\": \"\",\n  \"payload\": \"\",\n  \"lastError\": \"\",\n  \"retries\": 0,\n  \"processedAt\": \"2026-11-20T22:11:47.378Z\",\n  \"transactionId\": 0\n}",
+          "sampleBody": "{\n  \"hash\": \"\",\n  \"provider\": \"\",\n  \"eventType\": \"\",\n  \"payload\": \"\",\n  \"lastError\": \"\",\n  \"retries\": 0,\n  \"processedAt\": \"2026-11-21T13:37:53.834Z\",\n  \"transactionId\": 0\n}",
           "queryParams": [],
           "pathParams": [
             "id"
