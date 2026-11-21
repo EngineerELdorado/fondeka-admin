@@ -9,6 +9,7 @@ import {
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { adminPresentationReady } from '@/lib/regulator-presentation';
+import { clearReportRecovery } from '@/lib/revenue-reports';
 
 const AuthContext = createContext(undefined);
 const FORBIDDEN_LOGOUT_EVENT = 'fondeka:auth-forbidden';
@@ -26,6 +27,13 @@ export function AuthProvider({ children }) {
   const profileVersion = useRef(0);
   const accessToken = session?.tokens?.accessToken?.toString() || null;
   const identity = session?.tokens?.accessToken?.payload?.sub || session?.tokens?.idToken?.payload?.sub || accessToken;
+  const priorReportIdentity = useRef(null);
+  useEffect(() => {
+    if (priorReportIdentity.current && priorReportIdentity.current !== identity) {
+      try { clearReportRecovery(window.sessionStorage); } catch {}
+    }
+    priorReportIdentity.current = identity;
+  }, [identity]);
 
   const clearAdminProfile = useCallback(() => {
     profileVersion.current += 1;
@@ -155,6 +163,9 @@ export function AuthProvider({ children }) {
   }, [refreshSession]);
 
   const logout = useCallback(async () => {
+    try {
+      clearReportRecovery(window.sessionStorage);
+    } catch {}
     try {
       await signOut();
     } catch {

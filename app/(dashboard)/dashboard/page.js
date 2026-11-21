@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation';
 import { useLocale } from '@/contexts/LocaleContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { RegulatorOverview } from '@/components/RegulatorOverview';
+import RevenueReportExport from '@/components/RevenueReportExport';
 import { api } from '@/lib/api';
 import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
 
@@ -1546,8 +1547,9 @@ export default function DashboardPage() {
           </div>
         )}
         <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
             <div style={{ fontWeight: 800 }}>Service mix</div>
+            <RevenueReportExport />
           </div>
           <Table
             columns={[
