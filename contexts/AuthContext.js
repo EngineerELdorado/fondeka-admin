@@ -10,6 +10,16 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { api } from '@/lib/api';
 import { adminPresentationReady } from '@/lib/regulator-presentation';
 import { clearReportRecovery } from '@/lib/revenue-reports';
+import { clearReportRecovery as clearExpenseReportRecovery } from '@/lib/expense-reports';
+import { clearBudgetRecovery } from '@/lib/expense-budgets';
+import { clearReportRecovery as clearAssetReportRecovery } from '@/lib/asset-reports';
+import { clearAssetRecovery } from '@/lib/asset-register';
+
+const clearFinancialRecovery = () => {
+  for (const clear of [clearReportRecovery, clearExpenseReportRecovery, clearBudgetRecovery, clearAssetReportRecovery, clearAssetRecovery]) {
+    try { clear(window.sessionStorage); } catch {}
+  }
+};
 
 const AuthContext = createContext(undefined);
 const FORBIDDEN_LOGOUT_EVENT = 'fondeka:auth-forbidden';
@@ -30,7 +40,7 @@ export function AuthProvider({ children }) {
   const priorReportIdentity = useRef(null);
   useEffect(() => {
     if (priorReportIdentity.current && priorReportIdentity.current !== identity) {
-      try { clearReportRecovery(window.sessionStorage); } catch {}
+      clearFinancialRecovery();
     }
     priorReportIdentity.current = identity;
   }, [identity]);
@@ -163,9 +173,7 @@ export function AuthProvider({ children }) {
   }, [refreshSession]);
 
   const logout = useCallback(async () => {
-    try {
-      clearReportRecovery(window.sessionStorage);
-    } catch {}
+    clearFinancialRecovery();
     try {
       await signOut();
     } catch {

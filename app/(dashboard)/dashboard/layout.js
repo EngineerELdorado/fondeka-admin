@@ -11,6 +11,13 @@ import { canReadSandboxHistory } from '@/lib/business-api-sandbox';
 
 const navItems = [
   { href: '/dashboard', labelKey: 'layout.nav.overview' },
+  { href: '/dashboard/reports', labelKey: 'layout.nav.reports', label: 'Reports', adminOnly: true, children: [
+    { href: '/dashboard/reports/revenue', labelKey: 'layout.nav.revenueReports', label: 'Revenue reports' },
+    { href: '/dashboard/reports/expenses', labelKey: 'layout.nav.expenseReports', label: 'Expense reports' },
+    { href: '/dashboard/reports/assets', labelKey: 'layout.nav.assetReports', label: 'Asset valuation reports' }
+  ] },
+  { href: '/dashboard/expenses', labelKey: 'layout.nav.expenses', label: 'Expense budgets', adminOnly: true },
+  { href: '/dashboard/assets', labelKey: 'layout.nav.assets', label: 'Asset register', adminOnly: true },
   { href: '/dashboard/accounts/accounts', labelKey: 'layout.nav.accounts' },
   { href: '/dashboard/accounts/custom-fees', labelKey: 'layout.nav.accountsCustomFees', label: 'Accounts with Custom Fees' },
   { href: '/dashboard/fiat-wallets', labelKey: 'layout.nav.fiatWallets', label: 'Fiat Wallets' },
@@ -111,6 +118,7 @@ export default function DashboardLayout({ children }) {
   const { locale, setLocale, t } = useLocale();
   const router = useRouter();
   const pathname = usePathname();
+  const [reportsOpen, setReportsOpen] = useState(() => pathname.startsWith('/dashboard/reports'));
   const [theme, setTheme] = useState('light');
   const [menuOpen, setMenuOpen] = useState(false);
   const [showQaStubFailureModes, setShowQaStubFailureModes] = useState(false);
@@ -165,6 +173,7 @@ export default function DashboardLayout({ children }) {
 
   useEffect(() => {
     setMenuOpen(false);
+    if (pathname.startsWith('/dashboard/reports')) setReportsOpen(true);
   }, [pathname]);
 
   useEffect(() => {
@@ -230,6 +239,16 @@ export default function DashboardLayout({ children }) {
         </div>
         <nav className="dashboard-nav-links" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', overflowY: 'auto', minHeight: 0, paddingRight: '0.15rem' }}>
           {renderedNavItems.map((item) => (
+            item.children ? <div key={item.href}>
+              <button type="button" aria-expanded={reportsOpen} aria-controls="reports-submenu" onClick={() => setReportsOpen(value => !value)}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', padding: '0.5rem 0.75rem', border: 0, borderRadius: 10, textAlign: 'left', cursor: 'pointer', color: isActive(item.href) ? 'var(--accent)' : 'var(--text)', background: isActive(item.href) ? 'var(--accent-soft)' : 'transparent', fontWeight: isActive(item.href) ? 700 : 500 }}>
+                {navLabel(item)}<span aria-hidden="true">{reportsOpen ? '▾' : '▸'}</span>
+              </button>
+              {reportsOpen && <div id="reports-submenu" role="group" aria-label={navLabel(item)} style={{ display: 'grid', gap: '0.2rem', margin: '0.25rem 0 0.25rem 0.75rem', paddingLeft: '0.5rem', borderLeft: '1px solid var(--border)' }}>
+                {item.children.map(child => <Link key={child.href} href={child.href} onClick={() => setMenuOpen(false)} aria-current={pathname === child.href ? 'page' : undefined}
+                  style={{ padding: '0.5rem 0.75rem', borderRadius: 10, color: isActive(child.href) ? 'var(--accent)' : 'var(--text)', background: isActive(child.href) ? 'var(--accent-soft)' : 'transparent', fontWeight: isActive(child.href) ? 700 : 500 }}>{navLabel(child)}</Link>)}
+              </div>}
+            </div> :
             <Link
               key={item.href}
               href={item.href}

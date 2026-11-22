@@ -230,8 +230,10 @@ test('existing card operation editor retains human percentages and sends nulls o
   const writes = [], mapping = { id: 24, cardProductId: 1, cardProviderId: 2, currency: 'USD', fundCardFeePercentage: 2, minFundCardFeeAmount: 1.2, withdrawFromCardFeePercentage: 1, minWithdrawFromCardFeeAmount: 0.5 };
   const data = async () => [];
   const view = await mountComponent(path.join(root, 'app/(dashboard)/dashboard/cards/product-providers/page.js'), { modules: {
+    '@/lib/card-purchase-information': await load('lib/card-purchase-information.js'),
+    '@/components/cards/CardPurchaseInformationFields': { __esModule: true, default: 'purchase-information-fields' },
     '@/contexts/AuthContext': { useAuth: () => ({ enableRegulatorMode: false }) }, '@/components/TableActions': 'table-actions', '@/components/ResponsiveTable': 'table', '@/components/fees/CardOperationFeeNotice': 'operation-notice', '@/components/DataTable': { DataTable: 'data-table' }, '@/components/RegulatorPresentation': { RegulatorRecord: 'record', PresentationLink: 'a', RegulatorField: 'regulator-field' }, '@/lib/regulator-presentation': { regulatorVisibleFields: (rows) => rows },
-    '@/lib/api': { api: { cardProductCardProviders: { list: async () => page([mapping]), metadataDefaults: async () => ({}), update: async (id, payload) => { writes.push(payload); return payload; } }, cardProducts: { list: data }, cardProviders: { list: data } } }
+    '@/lib/api': { api: { cardProductCardProviders: { list: async () => page([mapping]), metadataDefaults: async () => ({}), update: async (id, payload) => { writes.push(payload); return payload; } }, cardProducts: { list: data }, cardProviders: { list: data }, countries: { options: data } } }
   } }); t.after(() => view.unmount()); await view.flush();
   const table = () => view.nodes().find((node) => node.type === 'data-table').props;
   const edit = async () => { const controls = table().columns.find((column) => column.key === 'actions').render(mapping); const find = (node) => Array.isArray(node) ? node.flatMap(find) : node?.props ? [node, ...find(node.props.children)] : []; find(controls).find((node) => node.type === 'button' && node.props.children === 'Edit').props.onClick(); await view.flush(); };

@@ -30,7 +30,8 @@ async function mountPage(route, api, extra = {}) {
 
 test('shared catalogue includes all assets/networks, preserves unknown codes and keeps legacy networks distinct', async () => {
   const h = await catalog;
-  for (const code of ['BCH', 'XMR', 'LTC', 'POL', 'TRX', 'XRG', 'GRS']) assert.ok(h.CRYPTO_ASSETS.includes(code));
+  for (const code of ['BCH', 'XMR', 'LTC', 'POL', 'TRX', 'XRG', 'GRS', 'ONEINCH', 'AAVE', 'LINK', 'DAI', 'SHIB', 'BABYDOGE', 'XAUT', 'XPUMP']) assert.ok(h.CRYPTO_ASSETS.includes(code));
+  assert.equal(new Set(h.CRYPTO_ASSETS).size, h.CRYPTO_ASSETS.length);
   for (const code of ['LIGHTNING', 'BCH', 'XMR', 'LTC', 'XRG', 'GRS', 'BEP20', 'BSC']) assert.ok(h.CRYPTO_NETWORKS.includes(code));
   assert.ok(!h.CRYPTO_ASSETS.includes('MATIC'));
   assert.deepEqual(h.mergeCatalogCodes(['BTC'], ['FUTURE', 'BTC'], [null, ['SELECTED']]), ['BTC', 'FUTURE', 'SELECTED']);

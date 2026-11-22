@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-21T13:37:53.850Z",
+  "generatedAt": "2026-11-22T15:55:52.847Z",
   "domains": [
     {
       "key": "adminaccountcontroller",
@@ -2674,6 +2674,159 @@
           "hasBody": false,
           "queryParams": [],
           "pathParams": []
+        }
+      ]
+    },
+    {
+      "key": "asset-register",
+      "tag": "Asset register",
+      "label": "Asset register",
+      "operations": [
+        {
+          "key": "get-asset-categories",
+          "method": "GET",
+          "path": "/asset-categories",
+          "label": "List asset categories",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size",
+            "includeArchived"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-asset-categories",
+          "method": "POST",
+          "path": "/asset-categories",
+          "label": "Create an asset category",
+          "hasBody": true,
+          "sampleBody": "{\n  \"version\": 0,\n  \"nameEn\": \"\",\n  \"nameFr\": \"\",\n  \"nature\": \"TANGIBLE\",\n  \"active\": false,\n  \"displayOrder\": 0\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "put-asset-categories-id",
+          "method": "PUT",
+          "path": "/asset-categories/{id}",
+          "label": "Edit or archive an asset category",
+          "hasBody": true,
+          "sampleBody": "{\n  \"version\": 0,\n  \"nameEn\": \"\",\n  \"nameFr\": \"\",\n  \"nature\": \"TANGIBLE\",\n  \"active\": false,\n  \"displayOrder\": 0\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-assets",
+          "method": "GET",
+          "path": "/assets",
+          "label": "Read the as-of asset register",
+          "hasBody": false,
+          "queryParams": [
+            "asOf",
+            "currency",
+            "categoryId",
+            "nature",
+            "includeInactive",
+            "search",
+            "page",
+            "size"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-assets",
+          "method": "POST",
+          "path": "/assets",
+          "label": "Register an asset and opening valuation",
+          "hasBody": true,
+          "sampleBody": "{\n  \"expectedVersion\": 0,\n  \"reference\": \"\",\n  \"currency\": \"\",\n  \"effectiveDate\": \"\",\n  \"categoryId\": 0,\n  \"nameEn\": \"\",\n  \"nameFr\": \"\",\n  \"quantity\": 0,\n  \"estimatedValue\": \"\",\n  \"outstandingAmount\": \"\",\n  \"status\": \"ACTIVE\",\n  \"acquisitionDate\": \"\",\n  \"location\": \"\",\n  \"custodian\": \"\",\n  \"identification\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "get-assets-id",
+          "method": "GET",
+          "path": "/assets/{id}",
+          "label": "Read one asset at a reporting date",
+          "hasBody": false,
+          "queryParams": [
+            "asOf"
+          ],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-assets-id-history",
+          "method": "GET",
+          "path": "/assets/{id}/history",
+          "label": "Read immutable asset revision history",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "post-assets-id-revisions",
+          "method": "POST",
+          "path": "/assets/{id}/revisions",
+          "label": "Record a new dated asset revision",
+          "hasBody": true,
+          "sampleBody": "{\n  \"expectedVersion\": 0,\n  \"reference\": \"\",\n  \"currency\": \"\",\n  \"effectiveDate\": \"\",\n  \"categoryId\": 0,\n  \"nameEn\": \"\",\n  \"nameFr\": \"\",\n  \"quantity\": 0,\n  \"estimatedValue\": \"\",\n  \"outstandingAmount\": \"\",\n  \"status\": \"ACTIVE\",\n  \"acquisitionDate\": \"\",\n  \"location\": \"\",\n  \"custodian\": \"\",\n  \"identification\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-assets-summary",
+          "method": "GET",
+          "path": "/assets/summary",
+          "label": "Read filtered totals separately by currency",
+          "hasBody": false,
+          "queryParams": [
+            "asOf",
+            "currency",
+            "categoryId",
+            "nature",
+            "includeInactive",
+            "search"
+          ],
+          "pathParams": []
+        }
+      ]
+    },
+    {
+      "key": "asset-reports",
+      "tag": "Asset reports",
+      "label": "Asset reports",
+      "operations": [
+        {
+          "key": "post-asset-reports-exports",
+          "method": "POST",
+          "path": "/asset-reports/exports",
+          "label": "Queue a professional as-of asset PDF",
+          "hasBody": true,
+          "sampleBody": "{\n  \"asOf\": \"\",\n  \"currency\": \"\",\n  \"language\": \"\",\n  \"timeZone\": \"\",\n  \"categoryId\": 0,\n  \"nature\": \"TANGIBLE\",\n  \"includeInactive\": false,\n  \"includeDetails\": false\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "get-asset-reports-exports-id",
+          "method": "GET",
+          "path": "/asset-reports/exports/{id}",
+          "label": "Poll an asset PDF and refresh its download",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
         }
       ]
     },
@@ -6464,6 +6617,177 @@
           "label": "update_55",
           "hasBody": true,
           "sampleBody": "{\n  \"action\": \"FUND_WALLET\",\n  \"paymentMethodType\": \"MOBILE_MONEY\",\n  \"paymentProviderName\": \"FONDEKA\",\n  \"cryptoNetworkName\": \"BTC\",\n  \"billProductId\": 0,\n  \"minSeconds\": 0,\n  \"maxSeconds\": 0,\n  \"active\": false,\n  \"rank\": 0,\n  \"notesEn\": \"\",\n  \"notesFr\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "expense-budgets",
+      "tag": "Expense budgets",
+      "label": "Expense budgets",
+      "operations": [
+        {
+          "key": "get-expense-budgets",
+          "method": "GET",
+          "path": "/expense-budgets",
+          "label": "List monthly expense budgets",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size",
+            "currency",
+            "fromMonth",
+            "toMonth"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-expense-budgets",
+          "method": "POST",
+          "path": "/expense-budgets",
+          "label": "Create or backfill a monthly budget",
+          "hasBody": true,
+          "sampleBody": "{\n  \"month\": \"\",\n  \"currency\": \"\",\n  \"source\": \"EMPTY\",\n  \"copyFrom\": \"\",\n  \"includeSourceActuals\": false,\n  \"note\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "get-expense-budgets-id",
+          "method": "GET",
+          "path": "/expense-budgets/{id}",
+          "label": "Read a monthly expense budget",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-expense-budgets-id",
+          "method": "PUT",
+          "path": "/expense-budgets/{id}",
+          "label": "Correct a monthly expense budget",
+          "hasBody": true,
+          "sampleBody": "{\n  \"expectedVersion\": 0,\n  \"lines\": [\n    null\n  ],\n  \"note\": \"\"\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-expense-budgets-id-history",
+          "method": "GET",
+          "path": "/expense-budgets/{id}/history",
+          "label": "Read monthly before/after audit history",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size"
+          ],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "get-expense-budgets-by-month",
+          "method": "GET",
+          "path": "/expense-budgets/by-month",
+          "label": "Find an exact monthly budget",
+          "hasBody": false,
+          "queryParams": [
+            "month",
+            "currency"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "get-expense-budgets-template",
+          "method": "GET",
+          "path": "/expense-budgets/template",
+          "label": "Read the private starter template",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": []
+        }
+      ]
+    },
+    {
+      "key": "expense-categories",
+      "tag": "Expense categories",
+      "label": "Expense categories",
+      "operations": [
+        {
+          "key": "get-expense-items",
+          "method": "GET",
+          "path": "/expense-items",
+          "label": "List expense categories",
+          "hasBody": false,
+          "queryParams": [
+            "page",
+            "size",
+            "includeArchived"
+          ],
+          "pathParams": []
+        },
+        {
+          "key": "post-expense-items",
+          "method": "POST",
+          "path": "/expense-items",
+          "label": "Create an expense category",
+          "hasBody": true,
+          "sampleBody": "{\n  \"version\": 0,\n  \"nameEn\": \"\",\n  \"nameFr\": \"\",\n  \"active\": false,\n  \"displayOrder\": 0\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "get-expense-items-id",
+          "method": "GET",
+          "path": "/expense-items/{id}",
+          "label": "Read an expense category",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        },
+        {
+          "key": "put-expense-items-id",
+          "method": "PUT",
+          "path": "/expense-items/{id}",
+          "label": "Edit or archive an expense category",
+          "hasBody": true,
+          "sampleBody": "{\n  \"version\": 0,\n  \"nameEn\": \"\",\n  \"nameFr\": \"\",\n  \"active\": false,\n  \"displayOrder\": 0\n}",
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "expense-reports",
+      "tag": "Expense reports",
+      "label": "Expense reports",
+      "operations": [
+        {
+          "key": "post-expense-reports-exports",
+          "method": "POST",
+          "path": "/expense-reports/exports",
+          "label": "Queue a professional expense PDF",
+          "hasBody": true,
+          "sampleBody": "{\n  \"month\": \"\",\n  \"from\": \"\",\n  \"to\": \"\",\n  \"currency\": \"\",\n  \"language\": \"en\",\n  \"timeZone\": \"\",\n  \"mode\": \"ACTUALS\",\n  \"includeDetails\": false\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "get-expense-reports-exports-id",
+          "method": "GET",
+          "path": "/expense-reports/exports/{id}",
+          "label": "Poll an expense report and refresh its download",
+          "hasBody": false,
           "queryParams": [],
           "pathParams": [
             "id"

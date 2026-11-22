@@ -13,9 +13,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import CardOperationFeeNotice from '@/components/fees/CardOperationFeeNotice';
+import CardPurchaseInformationFields from '@/components/cards/CardPurchaseInformationFields';
+import { purchaseInformationDraft, purchaseInformationPayload, purchaseInformationDetails } from '@/lib/card-purchase-information';
 import { DataTable } from '@/components/DataTable';
 
 const emptyState = {
+  ...purchaseInformationDraft(),
   cardProductId: '',
   cardProviderId: '',
   cardProgramId: '',
@@ -169,6 +172,7 @@ const toPayload = (state) => {
     minTransactionFeeAmount: state.minTransactionFeeAmount === '' ? null : Number(state.minTransactionFeeAmount),
     validityLength: state.validityLength === '' ? null : Number(state.validityLength),
     validityType: state.validityType || null,
+    ...purchaseInformationPayload(state),
     notesEn: state.notesEn?.trim() ? state.notesEn.trim() : null,
     notesFr: state.notesFr?.trim() ? state.notesFr.trim() : null,
     outOfStockMessageEn: state.outOfStockMessageEn?.trim() ? state.outOfStockMessageEn.trim() : null,
@@ -299,6 +303,8 @@ const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); re
 
 export default function CardProductProvidersPage() {
   const [rows, setRows] = useState([]);
+  const [cardCountries, setCardCountries] = useState([]);
+  const [countryLookupError, setCountryLookupError] = useState('');
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
   const [loading, setLoading] = useState(false);
@@ -346,6 +352,20 @@ export default function CardProductProvidersPage() {
   useEffect(() => {
     fetchRows();
   }, [page, size]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    let current = true;
+    const loadCountries = async () => {
+      try {
+        const countries = await api.countries.options();
+        if (current) { setCardCountries(countries); setCountryLookupError(''); }
+      } catch {
+        if (current) setCountryLookupError('Country options could not be loaded. The current selection is retained; refresh before changing it.');
+      }
+    };
+    loadCountries();
+    return () => { current = false; };
+  }, []);
 
   useEffect(() => {
     const loadOptions = async () => {
@@ -489,6 +509,7 @@ export default function CardProductProvidersPage() {
       minTransactionFeeAmount: row.minTransactionFeeAmount ?? '',
       validityLength: row.validityLength ?? '',
       validityType: row.validityType ?? '',
+      ...purchaseInformationDraft(row),
       notesEn: row.notesEn ?? '',
       notesFr: row.notesFr ?? '',
       outOfStockMessageEn: row.outOfStockMessageEn ?? '',
@@ -1390,6 +1411,7 @@ export default function CardProductProvidersPage() {
           Use {'{0}'} for the unavailable card name and {'{1}'} for the suggested alternative card.
         </div>
       </div>
+      <CardPurchaseInformationFields value={draft} onChange={setDraft} countries={cardCountries} countriesError={countryLookupError} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <label htmlFor="notesEn">Notes (English, optional)</label>
         <textarea
@@ -1564,6 +1586,7 @@ export default function CardProductProvidersPage() {
       {showCreate && (
         <Modal title="Add product/provider mapping" onClose={() => setShowCreate(false)}>
           {renderForm()}
+          {error && <div role="alert" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" onClick={() => setShowCreate(false)} className="btn-neutral">Cancel</button>
             <button type="button" onClick={handleCreate} className="btn-success">Create</button>
@@ -1574,6 +1597,7 @@ export default function CardProductProvidersPage() {
       {showEdit && (
         <Modal title={`Edit mapping ${selected?.id}`} onClose={() => setShowEdit(false)}>
           {renderForm()}
+          {error && <div role="alert" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" onClick={() => setShowEdit(false)} className="btn-neutral">Cancel</button>
             <button type="button" onClick={handleUpdate} className="btn-primary">Save</button>
@@ -1584,6 +1608,7 @@ export default function CardProductProvidersPage() {
       {showMetadata && (
         <Modal title={`Edit metadata ${selected?.id}`} onClose={() => setShowMetadata(false)}>
           {renderMetadataForm()}
+          {error && <div role="alert" style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</div>}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" onClick={() => setShowMetadata(false)} className="btn-neutral">Cancel</button>
             <button type="button" onClick={handleMetadataUpdate} className="btn-primary">Save metadata</button>
@@ -1628,6 +1653,7 @@ export default function CardProductProvidersPage() {
               { label: 'Validity length', value: selected?.validityLength ?? '—' },
               { label: 'Validity type', value: selected?.validityType ?? '—' },
               { label: 'Rank', value: selected?.rank ?? '—' },
+              ...purchaseInformationDetails(selected).map(row => ({ ...row, value: <span style={{ whiteSpace: 'pre-wrap' }}>{row.value}</span> })),
               { label: 'Notes (EN)', value: selected?.notesEn || '—' },
               { label: 'Notes (FR)', value: selected?.notesFr || '—' },
               { label: 'Out of stock message (EN)', value: selected?.outOfStockMessageEn || '—' },

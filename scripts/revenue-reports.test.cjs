@@ -191,6 +191,13 @@ test('recovery cleanup clears only revenue-report keys and can retain the curren
 
 test('authentication clears recovery on account changes and logout even when the export component is not mounted', async (t) => {
   const h = await helpers, storage = memoryStorage([[h.reportStorageKey(1), 'original request'], ['unrelated', 'kept']]);
+  const expenses = await import(url(read('lib/expense-reports.js')));
+  const budgets = await import(url(read('lib/expense-budgets.js')));
+  const assetReports = await import(url(read('lib/asset-reports.js')));
+  const assets = await import(url(read('lib/asset-register.js').replace("'./expense-budgets'", JSON.stringify(url(read('lib/expense-budgets.js'))))));
+  storage.setItem(assetReports.reportStorageKey(1), 'asset report'); storage.setItem(assets.assetRecoveryKey(1), 'asset revision');
+  storage.setItem(expenses.reportStorageKey(1), 'expense report');
+  storage.setItem(budgets.budgetRecoveryKey(1), 'expense budget');
   const previous = { window: global.window, setInterval: global.setInterval, clearInterval: global.clearInterval };
   global.window = { sessionStorage: storage, addEventListener() {}, removeEventListener() {} };
   global.setInterval = () => 1; global.clearInterval = () => {};
@@ -199,14 +206,22 @@ test('authentication clears recovery on account changes and logout even when the
   const view = await mountComponent(path.join(__dirname, '../contexts/AuthContext.js'), { exportName: 'AuthProvider', props: { children: null }, modules: {
     'aws-amplify/auth': { fetchAuthSession: async () => current, signOut: async () => { throw new Error('Local sign out still required'); }, signIn() {}, confirmSignIn() {} },
     '@/lib/api': { api: { setAuthToken() {}, admins: { me: async () => ({ id: 1, role: 'ADMIN', enableRegulatorMode: false }) } } },
-    '@/lib/regulator-presentation': { adminPresentationReady: (profile) => Boolean(profile && typeof profile.enableRegulatorMode === 'boolean') }, '@/lib/revenue-reports': h
+    '@/lib/regulator-presentation': { adminPresentationReady: (profile) => Boolean(profile && typeof profile.enableRegulatorMode === 'boolean') }, '@/lib/revenue-reports': h,
+    '@/lib/expense-reports': expenses, '@/lib/expense-budgets': budgets, '@/lib/asset-reports': assetReports, '@/lib/asset-register': assets
   } });
   t.after(() => { view.unmount(); Object.assign(global, previous); }); await view.flush();
   const context = () => view.nodes().find((node) => node.props.value?.refreshSession).props.value;
   assert.equal(storage.getItem(h.reportStorageKey(1)), 'original request');
   current = session('first-admin', 'refreshed-token'); await context().refreshSession(); await view.flush(); assert.equal(storage.getItem(h.reportStorageKey(1)), 'original request');
+  assert.equal(storage.getItem(expenses.reportStorageKey(1)), 'expense report');
   current = session('second-admin', 'another-token'); await context().refreshSession(); await view.flush(); assert.equal(storage.getItem(h.reportStorageKey(1)), null); assert.equal(storage.getItem('unrelated'), 'kept');
+  assert.equal(storage.getItem(expenses.reportStorageKey(1)), null); assert.equal(storage.getItem(budgets.budgetRecoveryKey(1)), null);
+  assert.equal(storage.getItem(assetReports.reportStorageKey(1)), null); assert.equal(storage.getItem(assets.assetRecoveryKey(1)), null);
+  storage.setItem(assetReports.reportStorageKey(2), 'second asset report'); storage.setItem(assets.assetRecoveryKey(2), 'second asset revision');
+  storage.setItem(expenses.reportStorageKey(2), 'second expense report'); storage.setItem(budgets.budgetRecoveryKey(2), 'second expense budget');
   storage.setItem(h.reportStorageKey(2), 'second request'); await context().logout(); await view.flush(); assert.equal(storage.getItem(h.reportStorageKey(2)), null); assert.equal(context().isAuthenticated, false);
+  assert.equal(storage.getItem(expenses.reportStorageKey(2)), null); assert.equal(storage.getItem(budgets.budgetRecoveryKey(2)), null);
+  assert.equal(storage.getItem(assetReports.reportStorageKey(2)), null); assert.equal(storage.getItem(assets.assetRecoveryKey(2)), null);
 });
 
 test('month selection offers named months and direct year changes, clamps future choices, and never submits from navigation', async (t) => {
