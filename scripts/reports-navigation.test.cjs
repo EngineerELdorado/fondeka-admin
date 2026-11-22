@@ -15,7 +15,8 @@ test('Reports submenu is limited to report roles, expands on report routes, and 
         '@/contexts/LocaleContext': { useLocale: () => ({ locale: 'en', t: key => key }) },
         '@/components/RegulatorPresentation': { RegulatorRouteBoundary: 'div' },
         '@/lib/regulator-presentation': { isRegulatorRestrictedRoute: () => false },
-        '@/lib/business-api-sandbox': { canReadSandboxHistory: () => false }
+        '@/lib/business-api-sandbox': { canReadSandboxHistory: () => false },
+        './navigation.module.css': { __esModule: true, default: {} }
       }
     }); t.after(() => view.unmount()); await view.flush();
     const allowed = ['ADMIN', 'SUPER_ADMIN'].includes(role);

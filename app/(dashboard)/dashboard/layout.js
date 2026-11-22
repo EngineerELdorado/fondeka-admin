@@ -8,6 +8,7 @@ import { useLocale } from '@/contexts/LocaleContext';
 import { RegulatorRouteBoundary } from '@/components/RegulatorPresentation';
 import { isRegulatorRestrictedRoute } from '@/lib/regulator-presentation';
 import { canReadSandboxHistory } from '@/lib/business-api-sandbox';
+import navStyles from './navigation.module.css';
 
 const navItems = [
   { href: '/dashboard', labelKey: 'layout.nav.overview' },
@@ -239,14 +240,16 @@ export default function DashboardLayout({ children }) {
         </div>
         <nav className="dashboard-nav-links" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', overflowY: 'auto', minHeight: 0, paddingRight: '0.15rem' }}>
           {renderedNavItems.map((item) => (
-            item.children ? <div key={item.href}>
-              <button type="button" aria-expanded={reportsOpen} aria-controls="reports-submenu" onClick={() => setReportsOpen(value => !value)}
-                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', padding: '0.5rem 0.75rem', border: 0, borderRadius: 10, textAlign: 'left', cursor: 'pointer', color: isActive(item.href) ? 'var(--accent)' : 'var(--text)', background: isActive(item.href) ? 'var(--accent-soft)' : 'transparent', fontWeight: isActive(item.href) ? 700 : 500 }}>
-                {navLabel(item)}<span aria-hidden="true">{reportsOpen ? '▾' : '▸'}</span>
+            item.children ? <div key={item.href} className={navStyles.group}>
+              <button type="button" className={navStyles.parent} data-active={isActive(item.href)} aria-expanded={reportsOpen} aria-controls="reports-submenu" onClick={() => setReportsOpen(value => !value)}>
+                <svg className={navStyles.icon} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M4 3v17h17M8 15v-4m5 4V6m5 9V9" />
+                </svg>
+                <span className={navStyles.label}>{navLabel(item)}</span>
+                <svg className={navStyles.chevron} width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 7.5 5 5 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </button>
-              {reportsOpen && <div id="reports-submenu" role="group" aria-label={navLabel(item)} style={{ display: 'grid', gap: '0.2rem', margin: '0.25rem 0 0.25rem 0.75rem', paddingLeft: '0.5rem', borderLeft: '1px solid var(--border)' }}>
-                {item.children.map(child => <Link key={child.href} href={child.href} onClick={() => setMenuOpen(false)} aria-current={pathname === child.href ? 'page' : undefined}
-                  style={{ padding: '0.5rem 0.75rem', borderRadius: 10, color: isActive(child.href) ? 'var(--accent)' : 'var(--text)', background: isActive(child.href) ? 'var(--accent-soft)' : 'transparent', fontWeight: isActive(child.href) ? 700 : 500 }}>{navLabel(child)}</Link>)}
+              {reportsOpen && <div id="reports-submenu" role="group" aria-label={navLabel(item)} className={navStyles.children}>
+                {item.children.map(child => <Link key={child.href} href={child.href} className={navStyles.child} onClick={() => setMenuOpen(false)} aria-current={pathname === child.href ? 'page' : undefined}>{navLabel(child)}</Link>)}
               </div>}
             </div> :
             <Link

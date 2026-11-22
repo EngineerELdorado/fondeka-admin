@@ -19,7 +19,8 @@ test('Business Tools customers stays in the menu for every admin role without op
         '@/contexts/LocaleContext': { useLocale: () => ({ locale: 'en', t: (key) => key }) },
         '@/components/RegulatorPresentation': { RegulatorRouteBoundary: 'div' },
         '@/lib/regulator-presentation': { isRegulatorRestrictedRoute: () => false },
-        '@/lib/business-api-sandbox': { canReadSandboxHistory: () => false }
+        '@/lib/business-api-sandbox': { canReadSandboxHistory: () => false },
+        './navigation.module.css': { __esModule: true, default: {} }
       }
     });
     await view.flush();
