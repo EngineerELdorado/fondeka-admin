@@ -3,6 +3,7 @@
 import { PresentationLink as Link } from '@/components/RegulatorPresentation';
 
 const sections = [
+  { href: '/dashboard/bills/umeme-infrastructure', title: 'Umeme infrastructure', blurb: 'Gradual SOCODEE and VIRUNGA rollout, with product and account exceptions.' },
   { href: '/dashboard/bills/products', title: 'Bill Products', blurb: 'Catalog of billable products (code, name, rank, active).' },
   { href: '/dashboard/bills/manual-tv', title: 'Manual TV fulfillment', blurb: 'Review collected TV payments and record staff activation or reconciliation.' },
   { href: '/dashboard/bills/providers', title: 'Bill Providers', blurb: 'Manage bill providers and ranking.' },

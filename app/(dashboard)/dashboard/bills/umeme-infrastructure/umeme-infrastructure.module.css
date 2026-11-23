@@ -1,0 +1,70 @@
+.page { display: grid; gap: 1.25rem; max-width: 1120px; width: 100%; margin: 0 auto; }
+.header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.header h1 { margin: .45rem 0 .35rem; font-size: 1.6rem; letter-spacing: -.025em; }
+.header p { margin: 0; color: var(--muted); }
+.back { color: var(--muted); font-size: var(--font-small); }
+.back:hover { color: var(--accent); }
+.headerActions, .saveActions { display: flex; gap: .65rem; align-items: center; flex-wrap: wrap; }
+.revision { color: var(--muted); font-size: var(--font-small); white-space: nowrap; }
+.panel, .readiness { padding: 1.4rem; border: 1px solid var(--border); border-radius: var(--card-radius); background: var(--surface); }
+.panel h2, .readiness h2 { margin: 0; font-size: 1.1rem; }
+.readiness { border-left-width: 4px; }
+.ready { border-left-color: var(--accent); }
+.notReady { border-left-color: var(--warning); }
+.readinessHeading { display: flex; gap: .65rem; align-items: center; flex-wrap: wrap; }
+.statusDot { width: 8px; height: 8px; border-radius: 50%; background: var(--warning); flex-shrink: 0; }
+.ready .statusDot { background: var(--accent); }
+.readiness p { margin: .7rem 0 0; color: var(--muted); line-height: 1.6; max-width: 78ch; }
+.badge, .count { padding: .2rem .5rem; border-radius: 6px; background: var(--bg); color: var(--muted); font-size: .75rem; font-weight: 600; white-space: nowrap; }
+.readinessHeading .badge { margin-left: auto; }
+.setupDetails { margin-top: 1rem; padding-top: .9rem; border-top: 1px solid var(--border); font-size: var(--font-small); }
+.setupDetails summary { cursor: pointer; font-weight: 600; color: var(--text); }
+.setupDetails code { color: var(--text); font-size: .8rem; overflow-wrap: anywhere; }
+.setupList { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem 1.5rem; margin: 1rem 0; }
+.setupList div { display: grid; gap: .3rem; min-width: 0; }
+.setupList dt { font-weight: 600; }
+.setupList dd { margin: 0; color: var(--muted); }
+.precedence { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; padding: .25rem 0; font-size: var(--font-small); }
+.precedence strong { font-weight: 600; }
+.precedence ol { display: flex; gap: .75rem; flex-wrap: wrap; padding: 0; margin: 0; list-style: none; color: var(--muted); }
+.precedence li + li::before { content: '→'; margin-right: .75rem; color: var(--muted); }
+.form, .fields { display: grid; gap: 1.25rem; min-width: 0; }
+.fields { border: 0; padding: 0; margin: 0; }
+.sectionHeading { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
+.sectionHeading p { margin: .45rem 0 0; color: var(--muted); font-size: var(--font-small); line-height: 1.5; max-width: 70ch; }
+.sectionHeading button { flex-shrink: 0; }
+.sectionHeading h2 .count { display: inline-block; vertical-align: middle; margin-left: .35rem; }
+.defaultField { display: grid; gap: .45rem; max-width: 380px; margin: 1.1rem 0 0; font-size: var(--font-small); }
+.page label { margin-bottom: 0; }
+.page input, .page select { width: 100%; min-width: 0; min-height: 42px; font-size: var(--font-small); }
+.page button { cursor: pointer; }
+.page button:disabled { opacity: .55; cursor: default; }
+.page button:focus-visible, .page input:focus-visible, .page select:focus-visible, .setupDetails summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.productRows { margin-top: 1rem; }
+.productRow { display: grid; grid-template-columns: minmax(100px, 1fr) minmax(240px, 380px); gap: 1.25rem; align-items: center; padding: .95rem 0; }
+.productRow + .productRow { border-top: 1px solid var(--border); }
+.productRow:last-child { padding-bottom: 0; }
+.productRow strong { font-size: var(--font-small); }
+.productRow small { display: block; margin-top: .3rem; color: var(--muted); font-size: .78rem; }
+.empty { margin-top: 1.2rem; padding: 1.25rem; background: var(--bg); border-radius: 8px; font-size: var(--font-small); }
+.empty strong { font-weight: 600; }
+.empty p { margin: .4rem 0 0; color: var(--muted); }
+.accountRows { display: grid; margin-top: 1rem; }
+.accountRow { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(210px, 1fr) auto; gap: .9rem; align-items: end; padding: 1rem 0; }
+.accountRow + .accountRow { border-top: 1px solid var(--border); }
+.accountRow:last-child { padding-bottom: 0; }
+.accountRow label { display: grid; gap: .4rem; font-size: var(--font-small); }
+.accountRow button { min-height: 42px; }
+.saveBar { position: sticky; bottom: 1rem; z-index: 3; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; padding: 1rem 1.25rem; border: 1px solid var(--border); border-radius: var(--card-radius); background: var(--surface); box-shadow: var(--shadow); }
+.saveBar strong { font-size: var(--font-small); }
+.saveBar small { display: block; margin-top: .3rem; color: var(--muted); max-width: 62ch; line-height: 1.45; }
+.saveActions button { min-height: 42px; }
+.error, .success, .notice { padding: .9rem 1rem; margin: 0; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); font-size: var(--font-small); }
+.error { border-left: 3px solid var(--danger); }
+.success { border-left: 3px solid var(--accent); }
+.notice { border-left: 3px solid var(--warning); color: var(--text); line-height: 1.5; }
+.footnote { color: var(--muted); font-size: .8rem; line-height: 1.6; }
+.footnote p { margin: 0 0 .4rem; }
+.srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+@media (max-width: 760px) { .accountRow { grid-template-columns: 1fr 1fr; } .accountRow button { grid-column: 1 / -1; justify-self: start; } .sectionHeading { flex-wrap: wrap; } .saveBar { bottom: .5rem; } }
+@media (max-width: 520px) { .panel, .readiness { padding: 1rem; } .header h1 { font-size: 1.4rem; } .headerActions { width: 100%; justify-content: space-between; } .productRow, .accountRow { grid-template-columns: 1fr; gap: .6rem; } .accountRow button { grid-column: 1; } .readinessHeading .badge { margin-left: 0; } .setupList { grid-template-columns: 1fr; } .saveBar { position: static; padding: 1rem; } .saveActions { width: 100%; } .saveActions button { flex: 1; } }

@@ -7,6 +7,7 @@ const SUPPORTED_LOCALES = ['en', 'fr'];
 
 const messages = {
   en: {
+    'layout.nav.umemeInfrastructure': 'Umeme infrastructure',
     'common.loadingSession': 'Loading session…',
     'common.language': 'Language',
     'common.english': 'English',
@@ -595,6 +596,7 @@ const messages = {
     'dashboard.activeAccounts': 'Active accounts'
   },
   fr: {
+    'layout.nav.umemeInfrastructure': 'Infrastructure Umeme',
     'common.loadingSession': 'Chargement de la session…',
     'common.language': 'Langue',
     'common.english': 'Anglais',

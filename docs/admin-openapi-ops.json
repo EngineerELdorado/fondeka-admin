@@ -12281,6 +12281,54 @@
       ]
     },
     {
+      "key": "adminumemeinfrastructurecontroller",
+      "tag": "AdminUmemeInfrastructureController",
+      "label": "Umeme Infrastructure",
+      "operations": [
+        {
+          "key": "get-umeme-infrastructure",
+          "method": "GET",
+          "path": "/umeme-infrastructure",
+          "label": "Read Umeme rollout policy",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "put-umeme-infrastructure",
+          "method": "PUT",
+          "path": "/umeme-infrastructure",
+          "label": "Update Umeme rollout policy (SUPER_ADMIN)",
+          "hasBody": true,
+          "sampleBody": "{\n  \"version\": 0,\n  \"defaultMode\": \"LEGACY\",\n  \"productOverrides\": {},\n  \"accountOverrides\": {}\n}",
+          "queryParams": [],
+          "pathParams": []
+        },
+        {
+          "key": "get-umeme-infrastructure-provider-resource",
+          "method": "GET",
+          "path": "/umeme-infrastructure/provider/{resource}",
+          "label": "Read-only v1 wallet/configuration/availability diagnostic",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "resource"
+          ]
+        },
+        {
+          "key": "get-umeme-infrastructure-transactions-id",
+          "method": "GET",
+          "path": "/umeme-infrastructure/transactions/{id}",
+          "label": "Read the saved infrastructure and reconciliation state",
+          "hasBody": false,
+          "queryParams": [],
+          "pathParams": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
       "key": "adminuntrustedborrowercontroller",
       "tag": "AdminUntrustedBorrowerController",
       "label": "Untrusted Borrower",
