@@ -12,6 +12,7 @@ import { api } from '@/lib/api';
 import { DataTable } from '@/components/DataTable';
 import { useAuth } from '@/contexts/AuthContext';
 import { paymentMethodAdminLabel } from '@/lib/payment-method-labels';
+import ActiveCardCsvExport from '@/components/cards/ActiveCardCsvExport';
 
 const statusOptions = ['IN_PREPARATION', 'ACTIVE', 'FAILED', 'BLOCKED_BY_USER', 'BLOCKED_BY_ADMIN', 'BLOCKED_BY_PROVIDER'];
 
@@ -912,9 +913,12 @@ export default function CardsPage() {
           <div style={{ fontWeight: 800, fontSize: '20px' }}>Cards</div>
           <div style={{ color: 'var(--muted)' }}>Issue and manage individual cards.</div>
         </div>
-        <Link href="/dashboard/cards" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
-          ← Cards hub
-        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+          <ActiveCardCsvExport />
+          <Link href="/dashboard/cards" style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text)' }}>
+            ← Cards hub
+          </Link>
+        </div>
       </div>
 
       <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
