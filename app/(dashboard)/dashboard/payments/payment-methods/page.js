@@ -301,6 +301,10 @@ export default function PaymentMethodsPage() {
   const [overrideEmailEnabled, setOverrideEmailEnabled] = useState(true);
   const [overrideSaving, setOverrideSaving] = useState(false);
   const [overrideError, setOverrideError] = useState(null);
+  const [overrideRows, setOverrideRows] = useState([]);
+  const [overrideRowsLoading, setOverrideRowsLoading] = useState(false);
+  const [overrideRowsError, setOverrideRowsError] = useState(null);
+  const [overrideRowsRevision, setOverrideRowsRevision] = useState(0);
   const [statusOverrideModal, setStatusOverrideModal] = useState(null);
   const [statusOverrideTargetType, setStatusOverrideTargetType] = useState('account');
   const [statusOverrideAccountId, setStatusOverrideAccountId] = useState('');
@@ -310,6 +314,37 @@ export default function PaymentMethodsPage() {
   const [statusOverrideError, setStatusOverrideError] = useState(null);
   const [statusOverrideRows, setStatusOverrideRows] = useState([]);
   const [statusOverrideRowsLoading, setStatusOverrideRowsLoading] = useState(false);
+
+  const overrideFlagKey = overrideModal?.featureFlagKey;
+  useEffect(() => {
+    if (!overrideFlagKey) return;
+    let current = true;
+    setOverrideRows([]);
+    setOverrideRowsError(null);
+    setOverrideRowsLoading(true);
+    const load = async () => {
+      try {
+        const entries = await api.featureFlags.listOverrides(overrideFlagKey);
+        if (!current) return;
+        if (!Array.isArray(entries)) throw new Error('Unexpected account override response. Please refresh the list.');
+        const enriched = await Promise.all(entries.map(async (entry) => {
+          try {
+            const account = await api.accounts.get(entry.accountId);
+            return { ...entry, displayName: [account?.firstName, account?.lastName].filter(Boolean).join(' ').trim() || account?.username || '', email: account?.email || '' };
+          } catch {
+            return entry;
+          }
+        }));
+        if (current) setOverrideRows(enriched.sort((a, b) => Number(a.accountId) - Number(b.accountId)));
+      } catch (err) {
+        if (current) setOverrideRowsError(err?.message || 'Failed to load account overrides.');
+      } finally {
+        if (current) setOverrideRowsLoading(false);
+      }
+    };
+    void load();
+    return () => { current = false; };
+  }, [overrideFlagKey, overrideRowsRevision]);
 
   const getRailEnabled = (paymentMethodId, flow) => {
     const key = paymentMethodRailStateKey(paymentMethodId, flow);
@@ -511,6 +546,7 @@ export default function PaymentMethodsPage() {
     try {
       await api.featureFlags.upsertOverride(overrideModal.featureFlagKey, target, { enabled: Boolean(overrideAccountEnabled) });
       setInfo(`Account override saved for ${overrideModal.featureFlagKey}.`);
+      setOverrideRowsRevision((value) => value + 1);
     } catch (err) {
       const message = err?.message || 'Failed to save account override';
       if (err?.data?.errorCode === WARNING_ERROR_CODE) setWarning(message);
@@ -520,8 +556,8 @@ export default function PaymentMethodsPage() {
     }
   };
 
-  const removeAccountOverride = async () => {
-    const target = String(overrideAccountId || '').trim();
+  const removeAccountOverride = async (accountId = overrideAccountId) => {
+    const target = String(accountId || '').trim();
     if (!overrideModal?.featureFlagKey || !target) {
       setOverrideError('Account ID is required');
       return;
@@ -531,6 +567,7 @@ export default function PaymentMethodsPage() {
     try {
       await api.featureFlags.removeOverride(overrideModal.featureFlagKey, target);
       setInfo(`Account override removed for ${overrideModal.featureFlagKey}.`);
+      setOverrideRowsRevision((value) => value + 1);
     } catch (err) {
       setOverrideError(err?.message || 'Failed to remove account override');
     } finally {
@@ -552,6 +589,7 @@ export default function PaymentMethodsPage() {
     try {
       await api.featureFlags.upsertOverrideByEmail(overrideModal.featureFlagKey, target, { enabled: Boolean(overrideEmailEnabled) });
       setInfo(`Email override saved for ${overrideModal.featureFlagKey}.`);
+      setOverrideRowsRevision((value) => value + 1);
     } catch (err) {
       const message = err?.message || 'Failed to save email override';
       if (err?.data?.errorCode === WARNING_ERROR_CODE) setWarning(message);
@@ -572,6 +610,7 @@ export default function PaymentMethodsPage() {
     try {
       await api.featureFlags.removeOverrideByEmail(overrideModal.featureFlagKey, target);
       setInfo(`Email override removed for ${overrideModal.featureFlagKey}.`);
+      setOverrideRowsRevision((value) => value + 1);
     } catch (err) {
       setOverrideError(err?.message || 'Failed to remove email override');
     } finally {
@@ -1308,11 +1347,56 @@ export default function PaymentMethodsPage() {
               Feature flag key: <code>{overrideModal.featureFlagKey}</code>
             </div>
 
+            <section aria-label="Existing account overrides" style={{ display: 'grid', gap: '0.5rem', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.65rem', minWidth: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <div style={{ fontWeight: 700 }}>Existing account overrides{!overrideRowsLoading && !overrideRowsError ? ` (${overrideRows.length})` : ''}</div>
+                <button type="button" className="btn-neutral btn-sm" disabled={overrideSaving || overrideRowsLoading} onClick={() => setOverrideRowsRevision((value) => value + 1)}>
+                  Refresh overrides
+                </button>
+              </div>
+              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
+                These settings override the global switch for each account, including overrides set by email. Edit a setting or remove it directly from the list. Removing an override restores the global setting.
+              </div>
+              {overrideRowsLoading ? <div role="status" style={{ color: 'var(--muted)' }}>Loading account overrides…</div> : overrideRowsError ? (
+                <div role="alert" style={{ color: '#b91c1c' }}>{overrideRowsError} Use Refresh overrides to try again.</div>
+              ) : (
+                <DataTable
+                  key={`${overrideFlagKey}:${overrideRowsRevision}`}
+                  columns={[
+                    { key: 'accountId', label: 'Account', priority: 0, render: (entry) => (
+                      <div style={{ display: 'grid', gap: '0.15rem', overflowWrap: 'anywhere' }}>
+                        <Link href={`/dashboard/accounts/accounts/${encodeURIComponent(entry.accountId)}`}>{entry.displayName || `Account ${entry.accountId}`}</Link>
+                        {entry.displayName ? <small style={{ color: 'var(--muted)' }}>Account {entry.accountId}</small> : null}
+                        {entry.email ? <small style={{ color: 'var(--muted)' }}>{entry.email}</small> : null}
+                      </div>
+                    ) },
+                    { key: 'enabled', label: 'Override', render: (entry) => entry.enabled ? 'Enabled' : 'Disabled' },
+                    { key: 'actions', label: 'Actions', render: (entry) => (
+                      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        <button type="button" className="btn-neutral btn-sm" disabled={overrideSaving} onClick={() => {
+                          setOverrideAccountId(String(entry.accountId));
+                          setOverrideAccountEnabled(entry.enabled);
+                          setOverrideError(null);
+                        }}>Edit override</button>
+                        <button type="button" className="btn-danger btn-sm" disabled={overrideSaving} onClick={() => removeAccountOverride(entry.accountId)}>Remove override</button>
+                      </div>
+                    ) }
+                  ]}
+                  rows={overrideRows}
+                  pageSize={10}
+                  showIndex={false}
+                  showAccountQuickNav={false}
+                  emptyLabel="No account overrides. All accounts follow the global setting."
+                />
+              )}
+            </section>
+
             <div style={{ display: 'grid', gap: '0.5rem', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.65rem' }}>
               <div style={{ fontWeight: 700 }}>Override by account ID</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: '0.5rem', alignItems: 'center' }}>
                 <input
                   type="number"
+                  aria-label="Override account ID"
                   placeholder="Account ID"
                   value={overrideAccountId}
                   onChange={(e) => setOverrideAccountId(e.target.value)}
@@ -1320,6 +1404,7 @@ export default function PaymentMethodsPage() {
                 <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
                   <input
                     type="checkbox"
+                    aria-label="Account override enabled"
                     checked={overrideAccountEnabled}
                     onChange={(e) => setOverrideAccountEnabled(e.target.checked)}
                   />
@@ -1328,7 +1413,7 @@ export default function PaymentMethodsPage() {
                 <button type="button" className="btn-primary btn-sm" disabled={overrideSaving} onClick={upsertAccountOverride}>
                   Set
                 </button>
-                <button type="button" className="btn-danger btn-sm" disabled={overrideSaving} onClick={removeAccountOverride}>
+                <button type="button" className="btn-danger btn-sm" disabled={overrideSaving} onClick={() => removeAccountOverride()}>
                   Remove
                 </button>
               </div>
@@ -1339,6 +1424,7 @@ export default function PaymentMethodsPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: '0.5rem', alignItems: 'center' }}>
                 <input
                   type="email"
+                  aria-label="Override account email"
                   placeholder="user@example.com"
                   value={overrideEmail}
                   onChange={(e) => setOverrideEmail(e.target.value)}
@@ -1346,6 +1432,7 @@ export default function PaymentMethodsPage() {
                 <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
                   <input
                     type="checkbox"
+                    aria-label="Email override enabled"
                     checked={overrideEmailEnabled}
                     onChange={(e) => setOverrideEmailEnabled(e.target.checked)}
                   />
