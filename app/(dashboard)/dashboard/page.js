@@ -597,7 +597,7 @@ export default function DashboardPage() {
 
   const totals = data?.totals || {};
   const metrics = data?.metrics || {};
-  const timeseries = data?.timeseries || [];
+  const timeseries = useMemo(() => data?.timeseries || [], [data?.timeseries]);
   const holdings = data?.holdings || {};
   const fiatHoldingsRows = useMemo(() => formatFiatHoldings(holdings.fiatHoldings), [holdings.fiatHoldings]);
   const fiatValuationIncomplete = useMemo(() => fiatHoldingsRows.some((row) => !row.usdValuationAvailable), [fiatHoldingsRows]);
@@ -736,6 +736,11 @@ export default function DashboardPage() {
 
   const totalReferralCost = useMemo(() => getReferralCostValue(totals), [totals]);
   const totalNetProfit = useMemo(() => totalRevenue - totalReferralCost, [totalRevenue, totalReferralCost]);
+
+  const providerFeesTotal = useMemo(
+    () => timeseries.reduce((sum, point) => sum + (Number(point?.providerFees) || 0), 0),
+    [timeseries]
+  );
 
   const grossProfit = useMemo(() => totalRevenue, [totalRevenue]);
 
@@ -892,6 +897,12 @@ export default function DashboardPage() {
         label: t('dashboard.viewCompletedTransactions'),
         onClick: () => goToTransactions('COMPLETED')
       }
+    },
+    {
+      label: t('dashboard.providerFees'),
+      value: formatCurrency(providerFeesTotal),
+      sub: t('dashboard.totalProviderFees'),
+      tone: '#f97316'
     },
     {
       label: t('dashboard.grossProfit'),
@@ -1298,6 +1309,7 @@ export default function DashboardPage() {
                         if (name === 'revenue') return [formatCurrency(value), t('dashboard.totalRevenue')];
                         if (name === 'paidRevenue') return [formatCurrency(value), t('dashboard.paidRevenue')];
                         if (name === 'unpaidRevenue') return [formatCurrency(value), t('dashboard.unpaidRevenue')];
+                        if (name === 'providerFees' || name === t('dashboard.providerFees')) return [formatCurrency(value), t('dashboard.providerFees')];
                         if (name === 'fxMargin') return [formatCurrency(value), 'FX margin'];
                         if (name === 'interestRevenue') return [formatCurrency(value), 'Interest revenue'];
                         if (name === 'referralCost') return [formatCurrency(value), t('dashboard.referralCost')];
@@ -1311,6 +1323,7 @@ export default function DashboardPage() {
                     <Line type="monotone" dataKey="revenue" name={t('dashboard.totalRevenue')} stroke="#16a34a" strokeWidth={2} dot={false} yAxisId="left" />
                     <Line type="monotone" dataKey="paidRevenue" name={t('dashboard.paidRevenue')} stroke="#22c55e" strokeWidth={2} dot={false} yAxisId="left" />
                     <Line type="monotone" dataKey="unpaidRevenue" name={t('dashboard.unpaidRevenue')} stroke="#f59e0b" strokeWidth={2} dot={false} yAxisId="left" />
+                    <Line type="monotone" dataKey="providerFees" name={t('dashboard.providerFees')} stroke="#f97316" strokeWidth={2} dot={false} yAxisId="left" />
                     <Line type="monotone" dataKey="fxMargin" name="FX margin" stroke="#0891b2" strokeWidth={2} dot={false} yAxisId="left" />
                     <Line type="monotone" dataKey="interestRevenue" name="Interest revenue" stroke="#4f46e5" strokeWidth={2} dot={false} yAxisId="left" />
                     <Line type="monotone" dataKey="referralCost" name={t('dashboard.referralCost')} stroke="#ea580c" strokeWidth={2} dot={false} yAxisId="left" />
@@ -1876,6 +1889,7 @@ export default function DashboardPage() {
                 { label: t('dashboard.completed'), value: formatNumber(totals.completedCount), tone: '#16a34a' },
                 { label: t('dashboard.volume'), value: formatCurrency(totals.completedVolume), tone: '#0f172a' },
                 { label: t('dashboard.bookedRevenue'), value: formatCurrency(totalRevenue), tone: '#15803d' },
+                { label: t('dashboard.providerFees'), value: formatCurrency(providerFeesTotal), tone: '#f97316' },
                 { label: 'FX margin', value: formatCurrency(getFxMarginValue(totals)), tone: '#0891b2' },
                 { label: 'Interest revenue', value: formatCurrency(getInterestRevenueValue(totals)), tone: '#4f46e5' },
                 { label: t('dashboard.grossProfit'), value: formatCurrency(grossProfit), tone: '#2563eb' },
