@@ -11,7 +11,7 @@ async function fixture(t, french = false) {
   global.setInterval = () => 1; global.clearInterval = () => {};
   let view;
   t.after(() => { view?.unmount(); global.setInterval = originalInterval; global.clearInterval = originalClear; });
-  const labels = { 'dashboard.providerFees': french ? 'Frais fournisseur' : 'Provider fees', 'dashboard.completed': 'Completed', 'dashboard.grossProfit': 'Gross profit', 'dashboard.netProfit': 'Net profit', 'dashboard.completedBreakdownTitle': 'Completed transactions' };
+  const labels = { 'dashboard.providerFees': french ? 'Frais fournisseur' : 'Provider fees', 'dashboard.completed': 'Completed', 'dashboard.grossProfit': 'Gross profit', 'dashboard.netRevenue': french ? 'Revenu net' : 'Net Revenue', 'dashboard.completedBreakdownTitle': 'Completed transactions' };
   const state = { queries: [], response: { totals: { revenue: 100, referralCost: 10, completedCount: 5 }, timeseries: [{ date: '2026-11-01', providerFees: '2.25' }, { date: '2026-11-02', providerFees: 1.5 }, { date: '2026-11-03', providerFees: 0 }] } };
   const emptyOptions = { options: async () => [], list: async () => [] };
   view = await mountComponent(filename, { modules: {
@@ -31,7 +31,7 @@ async function fixture(t, french = false) {
 test('provider costs are restored in the summary, trend and completed detail using the same filtered USD values', async (t) => {
   const f = await fixture(t);
   assert.equal(f.value('Provider fees'), '$3.75');
-  assert.equal(f.value('Gross profit'), '$100.00'); assert.equal(f.value('Net profit'), '$90.00');
+  assert.equal(f.value('Gross profit'), '$100.00'); assert.equal(f.value('Net Revenue'), '$90.00');
   const line = f.view.nodes().find((node) => node.type === 'Line' && node.props.dataKey === 'providerFees');
   assert.equal(line.props.name, 'Provider fees'); assert.equal(line.props.yAxisId, 'left');
   const chart = f.view.nodes().find((node) => node.type === 'LineChart');
@@ -53,7 +53,7 @@ test('applying another provider filter recalculates the card from the refreshed 
   await f.view.click('dashboard.applyFilters');
   assert.equal(f.state.queries.at(-1).get('paymentProviderId'), '8');
   assert.equal(f.value('Provider fees'), '$0.00');
-  assert.equal(f.value('Net profit'), '$90.00');
+  assert.equal(f.value('Net Revenue'), '$90.00');
 });
 
 test('French provider-cost labels format the chart tooltip as USD too', async (t) => {
@@ -62,4 +62,25 @@ test('French provider-cost labels format the chart tooltip as USD too', async (t
   const chart = f.view.nodes().find((node) => node.type === 'LineChart');
   const tooltip = walk(chart.props.children).find((node) => node.type === 'Tooltip');
   assert.deepEqual(tooltip.props.formatter(1.5, 'Frais fournisseur'), ['$1.50', 'Frais fournisseur']);
+  assert.equal(f.value('Revenu net'), '$90.00');
+  assert.deepEqual(tooltip.props.formatter(90, 'Revenu net'), ['$90.00', 'Revenu net']);
+});
+
+test('every financial breakdown table shows its own provider fees and uses the Net Revenue label', async (t) => {
+  const f = await fixture(t);
+  const tables = f.view.nodes().filter((node) => node.props.columns?.some((column) => column.key === 'netRevenue'));
+  assert.equal(tables.length, 8);
+  for (const table of tables) {
+    const fees = table.props.columns.find((column) => column.key === 'providerFees');
+    const revenue = table.props.columns.find((column) => column.key === 'netRevenue');
+    assert.equal(fees.label, 'Provider fees');
+    assert.equal(fees.render({ providerFees: '12.34' }), '$12.34');
+    assert.equal(fees.render({ providerFees: 0 }), '$0.00');
+    assert.equal(fees.render({}), '—');
+    assert.equal(revenue.label, 'Net Revenue');
+    assert.equal(revenue.render({ revenue: 20, referralCost: 2, providerFees: 7 }), '$18.00');
+  }
+  const line = f.view.nodes().find((node) => node.type === 'Line' && node.props.dataKey === 'netRevenue');
+  assert.equal(line.props.name, 'Net Revenue');
+  assert.doesNotMatch(f.view.text(), /Net profit/);
 });
