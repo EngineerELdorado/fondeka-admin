@@ -28,9 +28,9 @@ async function fixture(t, french = false) {
   return { view, state, card, value, labels };
 }
 
-test('provider costs are restored in the summary, trend and completed detail using the same filtered USD values', async (t) => {
+test('provider fees stay off the top summary cards and remain in the trend and completed detail', async (t) => {
   const f = await fixture(t);
-  assert.equal(f.value('Provider fees'), '$3.75');
+  assert.equal(f.card('Provider fees'), undefined);
   assert.equal(f.value('Gross profit'), '$100.00'); assert.equal(f.value('Net Revenue'), '$90.00');
   const line = f.view.nodes().find((node) => node.type === 'Line' && node.props.dataKey === 'providerFees');
   assert.equal(line.props.name, 'Provider fees'); assert.equal(line.props.yAxisId, 'left');
@@ -44,7 +44,7 @@ test('provider costs are restored in the summary, trend and completed detail usi
   assert.equal(text(providerRow), 'Provider fees$3.75');
 });
 
-test('applying another provider filter recalculates the card from the refreshed response and retains explicit zero', async (t) => {
+test('applying another provider filter refreshes the completed fee breakdown and retains explicit zero', async (t) => {
   const f = await fixture(t);
   await f.view.click('common.showFilters');
   f.view.nodes().find((node) => node.props.id === 'paymentProviderId').props.onChange({ target: { value: '8' } });
@@ -52,13 +52,17 @@ test('applying another provider filter recalculates the card from the refreshed 
   f.state.response.timeseries = [{ date: '2026-11-03', providerFees: '0' }];
   await f.view.click('dashboard.applyFilters');
   assert.equal(f.state.queries.at(-1).get('paymentProviderId'), '8');
-  assert.equal(f.value('Provider fees'), '$0.00');
+  assert.equal(f.card('Provider fees'), undefined);
+  f.card('Completed').props.onClick(); await f.view.flush();
+  const detail = f.view.nodes().find((node) => node.props.title === 'Completed transactions');
+  const providerRow = walk(detail.props.children).find((node) => node.key === 'Provider fees');
+  assert.equal(text(providerRow), 'Provider fees$0.00');
   assert.equal(f.value('Net Revenue'), '$90.00');
 });
 
 test('French provider-cost labels format the chart tooltip as USD too', async (t) => {
   const f = await fixture(t, true);
-  assert.equal(f.value('Frais fournisseur'), '$3.75');
+  assert.equal(f.card('Frais fournisseur'), undefined);
   const chart = f.view.nodes().find((node) => node.type === 'LineChart');
   const tooltip = walk(chart.props.children).find((node) => node.type === 'Tooltip');
   assert.deepEqual(tooltip.props.formatter(1.5, 'Frais fournisseur'), ['$1.50', 'Frais fournisseur']);

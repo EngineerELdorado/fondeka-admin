@@ -899,12 +899,6 @@ export default function DashboardPage() {
       }
     },
     {
-      label: t('dashboard.providerFees'),
-      value: formatCurrency(providerFeesTotal),
-      sub: t('dashboard.totalProviderFees'),
-      tone: '#f97316'
-    },
-    {
       label: t('dashboard.grossProfit'),
       value: formatCurrency(grossProfit),
       sub: t('dashboard.beforeReferralCosts'),
