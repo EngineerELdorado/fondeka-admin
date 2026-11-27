@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { isRegulatorRestrictedService, isRegulatorRestrictedRecord } from '@/lib/regulator-presentation';
 import { api } from '@/lib/api';
 import BusinessApiLivePaymentsPanel from '@/components/BusinessApiLivePaymentsPanel';
+import BusinessApiMobileMoneyCountriesPanel from '@/components/BusinessApiMobileMoneyCountriesPanel';
 import CardVisibilityPanel from '@/components/resellers/CardVisibilityPanel';
 
 const LABELS = {
@@ -1738,9 +1739,10 @@ export default function FeatureFlagsPage() {
           : <div role="alert">Review mode settings are unavailable. Refresh the feature flags to retry.</div>}
       </CollapsibleSection>
 
-      <CollapsibleSection title="API LIVE payments" subtitle="Default for new LIVE API collections and payouts">
+      <div id="business-api-settings"><CollapsibleSection title="API settings" subtitle="LIVE payment default and Mobile Money country availability">
         <BusinessApiLivePaymentsPanel />
-      </CollapsibleSection>
+        <BusinessApiMobileMoneyCountriesPanel />
+      </CollapsibleSection></div>
 
       <div id="reseller-card-visibility"><CollapsibleSection title="Reseller card visibility" subtitle="Business Tools card · global default and account overrides"><CardVisibilityPanel /></CollapsibleSection></div>
 

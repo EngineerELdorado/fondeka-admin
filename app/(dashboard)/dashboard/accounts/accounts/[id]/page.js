@@ -24,6 +24,7 @@ import { announcementPopupDraft, notificationAnnouncementPayload } from '@/lib/a
 
 import { useToast } from '@/contexts/ToastContext';
 import { BusinessToolsAccountPanel } from '@/components/BusinessToolsAccountPanel';
+import BusinessApiMobileMoneyCountriesPanel from '@/components/BusinessApiMobileMoneyCountriesPanel';
 import ResellerAccountPanel from '@/components/resellers/AccountWorkspace';
 import { SandboxHistoryLink } from '@/components/business-api-sandbox/Common';
 import { AccountRegulatorModePanel } from '@/components/AccountRegulatorModePanel';
@@ -4242,6 +4243,10 @@ const [transactionAuthSaving, setTransactionAuthSaving] = useState(false);
 
       {resolvedAccountId !== null && resolvedAccountId !== undefined ? (
         <BusinessToolsAccountPanel accountId={resolvedAccountId} />
+      ) : null}
+
+      {account && resolvedAccountId !== null && resolvedAccountId !== undefined ? (
+        <BusinessApiMobileMoneyCountriesPanel key={`api-countries-${resolvedAccountId}`} accountId={resolvedAccountId} />
       ) : null}
 
       {resolvedAccountId !== null && resolvedAccountId !== undefined ? <ResellerAccountPanel key={`reseller-${resolvedAccountId}`} accountId={resolvedAccountId} onEnrollmentChanged={loadAccount} /> : null}
