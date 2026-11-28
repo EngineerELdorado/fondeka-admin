@@ -2,14 +2,18 @@ const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
-const { mountComponent } = require('./helpers/component-harness.cjs');
+const { mountComponent, compileComponent } = require('./helpers/component-harness.cjs');
 const page = path.join(__dirname, '../app/(dashboard)/dashboard/commerce/stores/page.js');
 const response = (id = 42) => ({ content: [{ id, name: 'Synthetic Store' }], totalElements: 60, totalPages: 3 });
 const control = (view, id) => view.nodes().find(node => node.props.id === id).props;
 const rows = view => view.nodes().find(node => node.type === 'storeTable').props.rows;
 async function setup(t, read = async () => response()) {
   const calls = [];
+  const helpers = (await compileComponent(path.join(__dirname, '../lib/commerce-review.js')))(require('react'));
   const view = await mountComponent(page, { modules: {
+    '@/lib/commerce-review': helpers,
+    '@/components/commerce/Catalog': {CatalogPagination:'pagination',StoreDirectoryCard:'storeCard'},
+    '@/components/commerce/CommerceWorkspace.module.css': {default:{}},
     '@/lib/api': { api: { commerceStores: { list: async query => { const params = new URLSearchParams(query); calls.push(params); return read(params, calls.length); } } } },
     '@/contexts/AuthContext': { useAuth: () => ({ enableRegulatorMode: false }) },
     '@/contexts/LocaleContext': { useLocale: () => ({ t: key => key }) },
@@ -17,7 +21,7 @@ async function setup(t, read = async () => response()) {
     '@/lib/regulator-presentation': { regulatorVisibleFields: fields => fields },
     '@/components/DataTable': { DataTable: 'storeTable' }, '@/components/TableCell': { TableCellLines: 'lines' }
   } });
-  t.after(() => view.unmount()); await view.flush(); return { view, calls };
+  t.after(() => view.unmount()); await view.flush(); await view.click('Table'); return { view, calls };
 }
 async function change(view,id,value) { control(view,id).onChange({ target: { value } }); await view.flush(); }
 async function enter(view) { let prevented = false; control(view,'creatorEmail').onKeyDown({ key: 'Enter', preventDefault: () => { prevented = true; } }); await view.flush(); assert.equal(prevented,true); }

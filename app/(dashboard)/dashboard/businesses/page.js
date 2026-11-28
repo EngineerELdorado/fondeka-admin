@@ -2,14 +2,19 @@
 
 import { regulatorVisibleFields } from '@/lib/regulator-presentation';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { PresentationLink as Link } from '@/components/RegulatorPresentation';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { RegulatorRecord, PresentationLink as Link } from '@/components/RegulatorPresentation';
 import { DataTable } from '@/components/DataTable';
 import TableText from '@/components/TableCell';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { livePaymentMode, livePaymentSettingsAvailable } from '@/lib/business-live-payments';
 import { SandboxHistoryLink } from '@/components/business-api-sandbox/Common';
+
+import { useLocale } from '@/contexts/LocaleContext';
+import { CatalogPagination, ReviewBadge } from '@/components/commerce/Catalog';
+import { commercePage } from '@/lib/commerce-review';
+import styles from '@/components/commerce/CommerceWorkspace.module.css';
 
 const OPERATIONAL_STATUSES = ['DRAFT', 'ACTIVE', 'SUSPENDED', 'CLOSED'];
 const KYB_STATUSES = ['NOT_SUBMITTED', 'PENDING', 'APPROVED', 'REJECTED', 'REQUIRES_INFORMATION'];
@@ -33,22 +38,7 @@ const formatStatus = (value) => String(value || '—')
   .map((part) => part ? part.charAt(0).toUpperCase() + part.slice(1) : '')
   .join(' ');
 
-const statusPalette = (status) => {
-  const normalized = String(status || '').toUpperCase();
-  if (normalized === 'ACTIVE' || normalized === 'APPROVED') return { background: '#ECFDF3', color: '#15803D' };
-  if (normalized === 'SUSPENDED' || normalized === 'PENDING' || normalized === 'REQUIRES_INFORMATION') return { background: '#FFF7ED', color: '#B45309' };
-  if (normalized === 'CLOSED' || normalized === 'REJECTED') return { background: '#FEF2F2', color: '#B91C1C' };
-  return { background: '#F3F4F6', color: '#374151' };
-};
-
-const StatusBadge = ({ value }) => {
-  const palette = statusPalette(value);
-  return (
-    <span style={{ display: 'inline-flex', padding: '0.2rem 0.55rem', borderRadius: '999px', fontSize: '12px', fontWeight: 800, ...palette }}>
-      {formatStatus(value)}
-    </span>
-  );
-};
+const StatusBadge = ({ value }) => <ReviewBadge tone={['ACTIVE', 'APPROVED'].includes(value) ? 'success' : ['CLOSED', 'REJECTED'].includes(value) ? 'danger' : ['PENDING', 'REQUIRES_INFORMATION', 'SUSPENDED'].includes(value) ? 'warning' : 'neutral'}>{formatStatus(value)}</ReviewBadge>;
 
 const LivePaymentSummary = ({ business, canManage = false }) => {
   const available = livePaymentSettingsAvailable(business);
@@ -83,6 +73,9 @@ const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); re
 
 export default function BusinessesPage() {
   const { session } = useAuth();
+  const { locale } = useLocale();
+  const [view, setView] = useState('cards');
+  const request = useRef(0);
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
@@ -104,9 +97,12 @@ export default function BusinessesPage() {
   }, [session]);
   const canUpdate = adminGroups.includes('ADMIN') || adminGroups.includes('SUPER_ADMIN');
 
+  const invalidate = useCallback(() => { request.current++; }, []);
   const fetchRows = useCallback(async () => {
+    const id = ++request.current;
     setLoading(true);
     setError(null);
+    setRows([]);
     try {
       const query = new URLSearchParams({ page: String(page), size: String(size) });
       Object.entries(appliedFilters).forEach(([key, value]) => {
@@ -114,23 +110,23 @@ export default function BusinessesPage() {
         if (normalized) query.set(key, normalized);
       });
       const response = await api.businesses.list(query);
-      setRows(Array.isArray(response) ? response : response?.content || []);
-      setPageMeta({
-        totalElements: Number.isFinite(response?.totalElements) ? response.totalElements : null,
-        totalPages: Number.isFinite(response?.totalPages) ? response.totalPages : null
-      });
+      if (id !== request.current) return;
+      const parsed = commercePage(response);
+      setRows(parsed.rows); setPageMeta(parsed);
     } catch (err) {
+      if (id !== request.current) return;
       setRows([]);
       setPageMeta({ totalElements: null, totalPages: null });
       setError(err?.message || 'Failed to load businesses.');
     } finally {
-      setLoading(false);
+      if (id === request.current) setLoading(false);
     }
   }, [appliedFilters, page, size]);
 
   useEffect(() => {
     fetchRows();
-  }, [fetchRows]);
+    return invalidate;
+  }, [fetchRows, invalidate]);
 
   const openDetails = useCallback(async (row) => {
     if (!row?.id) return;
@@ -201,12 +197,12 @@ export default function BusinessesPage() {
   };
 
   return (
-    <div style={{ display: 'grid', gap: '1rem' }}>
+    <div className={styles.workspace}>
       <div className="card" style={{ display: 'grid', gap: '0.6rem' }}>
         <div>
           <h1 style={{ margin: 0 }}>Businesses</h1>
           <p style={{ margin: '0.35rem 0 0', color: 'var(--muted)' }}>
-            Inspect the Business identities that own Payment Requests and Commerce stores, and manage their administrative statuses.
+            A workspace for each business: storefronts, verification records and API access.
           </p>
         </div>
         <div style={{ padding: '0.75rem', borderRadius: '10px', background: 'var(--accent-soft)', color: 'var(--text)', fontSize: '13px' }}>
@@ -222,7 +218,7 @@ export default function BusinessesPage() {
         </div>
       </div>
 
-      <form className="card" onSubmit={applyFilters} style={{ display: 'grid', gap: '0.75rem' }}>
+      <details className={styles.details}><summary>Find a business & advanced filters</summary><form onSubmit={applyFilters} style={{ display: 'grid', gap: '0.75rem' }}>
         <div style={{ fontWeight: 800 }}>Filters</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))', gap: '0.75rem' }}>
           <label style={{ display: 'grid', gap: '0.25rem' }}>
@@ -258,11 +254,23 @@ export default function BusinessesPage() {
           <button type="button" className="btn-neutral" onClick={clearFilters}>Clear</button>
           <button type="submit" className="btn-primary">Apply filters</button>
         </div>
-      </form>
+      </form></details>
 
       {error ? <div className="card" style={{ color: '#B91C1C', fontWeight: 700 }}>{error}</div> : null}
 
-      <DataTable
+      <div className={styles.toolbar}>
+        <div className={styles.actions} role="group" aria-label="Business review queues">{[['', 'All businesses'], ['PENDING', 'KYB pending'], ['REQUIRES_INFORMATION', 'Needs information'], ['APPROVED', 'KYB approved']].map(([value, label]) => <button type="button" key={value} className={styles.filterChip} aria-pressed={appliedFilters.kybStatus === value} onClick={() => { setFilters((current) => ({ ...current, kybStatus: value })); setAppliedFilters((current) => ({ ...current, kybStatus: value })); setPage(0); }}>{label}</button>)}</div>
+        <div className={styles.segmented}><button type="button" aria-pressed={view === 'cards'} onClick={() => setView('cards')}>Workspaces</button><button type="button" aria-pressed={view === 'table'} onClick={() => setView('table')}>Table</button></div>
+      </div>
+      {view === 'cards' ? <>
+        {loading ? <div className={styles.empty} role="status">Loading businesses…</div> : error ? null : rows.length === 0 ? <div className={styles.empty}><h3>No businesses in this view</h3><p>Choose another queue or adjust your filters.</p></div> : <div className={styles.businessGrid}>{rows.map((business) => <RegulatorRecord key={business.id} record={business}><article className={styles.businessCard}>
+          <div className={styles.heading}><div className={styles.actions}><span className={styles.businessAvatar}>{String(business.name || 'B').slice(0, 2).toUpperCase()}</span><div><h2><Link href={`/dashboard/businesses/${encodeURIComponent(business.id)}`}>{business.name || `Business ${business.id}`}</Link></h2><small className={styles.muted}>{business.legalName || `Business #${business.id}`} · {business.countryCode || '—'}</small></div></div>{business.defaultBusiness ? <ReviewBadge>Default</ReviewBadge> : null}</div>
+          <div className={styles.businessSteps}><div data-ready={business.status === 'ACTIVE'}><small>Operational</small><strong>{formatStatus(business.status)}</strong></div><div data-ready={business.kybStatus === 'APPROVED'}><small>KYB</small><strong>{formatStatus(business.kybStatus)}</strong></div><div data-ready={livePaymentSettingsAvailable(business) && business.apiLivePaymentsEnabled}><small>LIVE API</small><strong>{livePaymentSettingsAvailable(business) ? business.apiLivePaymentsEnabled ? 'Enabled' : 'Disabled' : 'Unavailable'}</strong></div></div>
+          <div className={styles.productMeta}><Link href={`/dashboard/accounts/accounts/${encodeURIComponent(business.ownerAccountId)}`}>{business.ownerAccountEmail || business.ownerAccountReference || `Account ${business.ownerAccountId}`}</Link><span>{formatDateTime(business.createdAt)}</span></div>
+          <div className={styles.cardFooter}><Link href={`/dashboard/businesses/${encodeURIComponent(business.id)}`} className="btn-primary btn-sm">Open workspace</Link><button type="button" className="btn-neutral btn-sm" disabled={detailLoadingId !== null} onClick={() => openDetails(business)}>Quick view</button></div>
+        </article></RegulatorRecord>)}</div>}
+        <CatalogPagination {...pageMeta} page={page} size={size} rowCount={rows.length} busy={loading} onPageChange={setPage} locale={locale} />
+      </> : (<DataTable
         columns={columns}
         rows={rows}
         page={page}
@@ -275,7 +283,8 @@ export default function BusinessesPage() {
         showIndex={false}
         showAccountQuickNav={false}
         emptyLabel={loading ? 'Loading businesses…' : 'No businesses match these filters.'}
-      />
+      />)}
+
 
       {details ? (
         <Modal title={`Business ${details.id}`} onClose={() => setDetails(null)}>

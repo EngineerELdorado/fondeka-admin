@@ -11,6 +11,9 @@ import { DataTable } from '@/components/DataTable';
 import { TableCellLines } from '@/components/TableCell';
 import { api } from '@/lib/api';
 import { useLocale } from '@/contexts/LocaleContext';
+import { CatalogPagination, StoreDirectoryCard } from '@/components/commerce/Catalog';
+import { commercePermissions, commercePage } from '@/lib/commerce-review';
+import styles from '@/components/commerce/CommerceWorkspace.module.css';
 
 const VERIFICATION_STATUSES = ['UNVERIFIED', 'VERIFIED', 'REJECTED'];
 const STORE_STATUSES = ['DRAFT', 'ACTIVE', 'SUSPENDED', 'ARCHIVED'];
@@ -120,7 +123,10 @@ const DetailGrid = ({ rows }) => { const { enableRegulatorMode } = useAuth(); re
   </div>); };
 
 export default function CommerceStoresPage() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
+  const { session } = useAuth();
+  const { canModerate } = commercePermissions(session);
+  const [view, setView] = useState('gallery');
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
@@ -155,12 +161,9 @@ export default function CommerceStoresPage() {
       if (deletedState === 'deleted') params.set('deleted', 'true');
       const res = await api.commerceStores.list(params);
       if (request !== storeRequest.current) return;
-      const list = Array.isArray(res) ? res : res?.content || res?.stores || [];
-      setRows(list || []);
-      setPageMeta({
-        totalElements: typeof res?.totalElements === 'number' ? res.totalElements : null,
-        totalPages: typeof res?.totalPages === 'number' ? res.totalPages : null
-      });
+      const parsed = commercePage(Array.isArray(res?.stores) ? res.stores : res);
+      setRows(parsed.rows);
+      setPageMeta(parsed);
     } catch (err) {
       if (request !== storeRequest.current) return;
       setError(err?.message || 'Failed to load commerce stores.');
@@ -202,7 +205,7 @@ export default function CommerceStoresPage() {
   const updateVerification = useCallback(
     async (row, nextStatus) => {
       const storeId = getStoreId(row);
-      if (!storeId || savingId) return;
+      if (!storeId || savingId || !canModerate) return;
       setSavingId(String(storeId));
       setError(null);
       setInfo(null);
@@ -222,13 +225,13 @@ export default function CommerceStoresPage() {
         setSavingId('');
       }
     },
-    [savingId]
+    [savingId, canModerate]
   );
 
   const restoreStore = useCallback(
     async (row) => {
       const storeId = getStoreId(row);
-      if (!storeId || savingId) return;
+      if (!storeId || savingId || !canModerate) return;
       setSavingId(String(storeId));
       setError(null);
       setInfo(null);
@@ -250,7 +253,7 @@ export default function CommerceStoresPage() {
         setSavingId('');
       }
     },
-    [deletedState, savingId]
+    [deletedState, savingId, canModerate]
   );
 
   const openPriorityEditor = useCallback((row) => {
@@ -270,7 +273,7 @@ export default function CommerceStoresPage() {
   const updateMarketplacePriority = async () => {
     const storeId = priorityDraft?.storeId;
     const priority = Number(priorityDraft?.marketplacePriority);
-    if (!storeId) return;
+    if (!storeId || !canModerate || savingId) return;
     if (!Number.isFinite(priority) || priority < 0) {
       setError('Marketplace priority must be 0 or a positive number.');
       return;
@@ -402,10 +405,10 @@ export default function CommerceStoresPage() {
               </button>
               {storeId ? (
                 <Link href={`/dashboard/commerce/stores/${encodeURIComponent(storeId)}`} className="btn-neutral btn-sm" style={{ textDecoration: 'none' }}>
-                  POS reports
+                  Open workspace
                 </Link>
               ) : null}
-              <button type="button" className="btn-neutral btn-sm" onClick={() => openPriorityEditor(row)} disabled={!storeId || savingId === String(storeId)}>
+              <button type="button" className="btn-neutral btn-sm" onClick={() => openPriorityEditor(row)} disabled={!canModerate || !storeId || savingId === String(storeId)}>
                 {t('commerceStores.marketplaceAction')}
               </button>
               {storeUrl ? (
@@ -424,7 +427,7 @@ export default function CommerceStoresPage() {
                   type="button"
                   className="btn-success btn-sm"
                   onClick={() => restoreStore(row)}
-                  disabled={!storeId || savingId === String(storeId)}
+                  disabled={!canModerate || !storeId || savingId === String(storeId)}
                 >
                   {savingId === String(storeId) ? 'Restoring...' : 'Restore'}
                 </button>
@@ -435,7 +438,7 @@ export default function CommerceStoresPage() {
                     type="button"
                     className={nextStatus === 'VERIFIED' ? 'btn-success btn-sm' : nextStatus === 'REJECTED' ? 'btn-danger btn-sm' : 'btn-neutral btn-sm'}
                     onClick={() => updateVerification(row, nextStatus)}
-                    disabled={!storeId || savingId === String(storeId) || current === nextStatus}
+                    disabled={!canModerate || !storeId || savingId === String(storeId) || current === nextStatus}
                   >
                     {nextStatus}
                   </button>
@@ -446,18 +449,18 @@ export default function CommerceStoresPage() {
         }
       }
     ],
-    [openPriorityEditor, restoreStore, savingId, t, updateVerification]
+    [openPriorityEditor, restoreStore, savingId, t, updateVerification, canModerate]
   );
 
   const canPrev = page > 0;
   const canNext = pageMeta.totalPages === null ? rows.length === size && rows.length > 0 : page + 1 < pageMeta.totalPages;
 
   return (
-    <div style={{ display: 'grid', gap: '1rem' }}>
+    <div className={styles.workspace}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontSize: 'var(--font-heading)', fontWeight: 800 }}>Commerce Stores</div>
-          <div style={{ color: 'var(--muted)' }}>Review stores and update their verification status.</div>
+          <div style={{ fontSize: 'var(--font-heading)', fontWeight: 800 }}>Store management</div>
+          <div style={{ color: 'var(--muted)' }}>Explore each storefront, review its products and manage marketplace access.</div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <Link href="/dashboard/businesses/plans" className="btn-neutral" style={{ textDecoration: 'none' }}>
@@ -475,7 +478,8 @@ export default function CommerceStoresPage() {
         </div>
       </div>
 
-      <div className="card" style={{ display: 'grid', gap: '0.75rem' }}>
+      <details className={styles.details} style={{ display: 'grid', gap: '0.75rem' }}>
+        <summary>Find stores & advanced filters</summary>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: '0.75rem', alignItems: 'end' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label htmlFor="creatorEmail">Creator email</label>
@@ -593,7 +597,7 @@ export default function CommerceStoresPage() {
             </span>
           ) : null}
         </div>
-      </div>
+      </details>
 
       {error ? (
         <div className="card" style={{ color: '#b91c1c', fontWeight: 700 }}>
@@ -606,7 +610,19 @@ export default function CommerceStoresPage() {
         </div>
       ) : null}
 
-      <DataTable
+      <div className={styles.toolbar}>
+        <div className={styles.actions} role="group" aria-label="Store review queue">
+          <button type="button" className={styles.filterChip} aria-pressed={!verificationStatus && deletedState === 'active'} onClick={() => { setVerificationStatus(''); setDeletedState('active'); setStatus(''); setPage(0); }}>All stores</button>
+          <button type="button" className={styles.filterChip} aria-pressed={verificationStatus === 'UNVERIFIED'} onClick={() => { setVerificationStatus('UNVERIFIED'); setDeletedState('active'); setStatus(''); setPage(0); }}>Needs verification</button>
+          <button type="button" className={styles.filterChip} aria-pressed={verificationStatus === 'VERIFIED'} onClick={() => { setVerificationStatus('VERIFIED'); setDeletedState('active'); setStatus(''); setPage(0); }}>Verified</button>
+          <button type="button" className={styles.filterChip} aria-pressed={deletedState === 'deleted'} onClick={() => { setVerificationStatus(''); setDeletedState('deleted'); setStatus(''); setPage(0); }}>Archived / deleted</button>
+        </div>
+        <div className={styles.segmented}><button type="button" aria-pressed={view === 'gallery'} onClick={() => setView('gallery')}>Gallery</button><button type="button" aria-pressed={view === 'table'} onClick={() => setView('table')}>Table</button></div>
+      </div>
+      {view === 'gallery' ? <>
+        {loading ? <div className={styles.empty} role="status">Loading stores…</div> : error ? null : rows.length === 0 ? <div className={styles.empty}><h3>No stores in this view</h3><p>Try another verification queue or adjust the filters.</p></div> : <div className={styles.grid}>{rows.map((store) => <StoreDirectoryCard key={getStoreId(store)} store={store} locale={locale}><button type="button" className="btn-neutral btn-sm" onClick={() => setDetailStore(store)}>Quick view</button></StoreDirectoryCard>)}</div>}
+        <CatalogPagination page={page} size={size} {...pageMeta} rowCount={rows.length} busy={loading} onPageChange={setPage} locale={locale} />
+      </> : <DataTable
         columns={columns}
         rows={rows}
         page={page}
@@ -618,7 +634,7 @@ export default function CommerceStoresPage() {
         canNext={canNext}
         emptyLabel={loading ? 'Loading commerce stores...' : 'No commerce stores found'}
         rowStyle={(row) => (isDeletedStore(row) ? { opacity: 0.62, background: '#FEF2F2' } : {})}
-      />
+      />}
 
       {detailStore ? (
         <Modal title={`Store details ${getStoreId(detailStore) ? `#${getStoreId(detailStore)}` : ''}`} onClose={() => setDetailStore(null)}>
